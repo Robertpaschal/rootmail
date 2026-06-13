@@ -92,6 +92,20 @@ export function SendForm({ tenants }: { tenants: SubTenant[] }) {
             </div>
           </div>
 
+          <div className="grid gap-2">
+            <Label htmlFor="variables">Variables (optional JSON)</Label>
+            <Textarea
+              id="variables"
+              name="variables"
+              rows={3}
+              placeholder={'{"name":"Ada","product":"rootmail"}'}
+            />
+            <p className="text-xs text-muted-foreground">
+              Merged into the subject/body or template via Handlebars (e.g.{" "}
+              <span className="font-mono">{"{{name}}"}</span>).
+            </p>
+          </div>
+
           {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
 
           <Button type="submit" disabled={pending}>

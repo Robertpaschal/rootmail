@@ -6,9 +6,9 @@ const columns = [
   {
     title: "Product",
     links: [
-      { label: "Platform", href: "#layers" },
-      { label: "Features", href: "#features" },
-      { label: "Pricing", href: "#pricing" },
+      { label: "Platform", href: "/#layers" },
+      { label: "Features", href: "/#features" },
+      { label: "Pricing", href: "/pricing" },
       { label: "Changelog", href: "#" },
     ],
   },
@@ -16,7 +16,7 @@ const columns = [
     title: "Developers",
     links: [
       { label: "Documentation", href: "#" },
-      { label: "Node SDK", href: "#code" },
+      { label: "Node SDK", href: "/#code" },
       { label: "API reference", href: "#" },
       { label: "Status", href: "#" },
     ],

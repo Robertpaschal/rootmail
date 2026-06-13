@@ -8,10 +8,10 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { href: "#layers", label: "Platform" },
-  { href: "#features", label: "Features" },
-  { href: "#code", label: "Developers" },
-  { href: "#pricing", label: "Pricing" },
+  { href: "/#layers", label: "Platform" },
+  { href: "/#features", label: "Features" },
+  { href: "/#code", label: "Developers" },
+  { href: "/pricing", label: "Pricing" },
 ];
 
 export function Navbar() {
@@ -40,7 +40,7 @@ export function Navbar() {
           <Link href="#" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
             Sign in
           </Link>
-          <Link href="#cta" className={cn(buttonVariants({ size: "sm" }))}>
+          <Link href="/#cta" className={cn(buttonVariants({ size: "sm" }))}>
             Start sending
           </Link>
         </div>
@@ -70,7 +70,7 @@ export function Navbar() {
               </Link>
             ))}
             <Link
-              href="#cta"
+              href="/#cta"
               onClick={() => setOpen(false)}
               className={cn(buttonVariants({ size: "sm" }), "mt-2")}
             >

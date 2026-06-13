@@ -21,6 +21,7 @@ import { CopyButton } from "@/components/app/copy-button";
 import { PageHeader } from "@/components/app/page-header";
 import { MessageStatusBadge } from "@/components/app/status-badge";
 import { SubmitButton } from "@/components/app/submit-button";
+import { MessageContent } from "./message-content";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime, titleCase } from "@/lib/format";
@@ -110,6 +111,15 @@ export default async function MessageDetailPage({
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Content</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MessageContent html={message.rendered_html} text={message.rendered_text} />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Audit trail</CardTitle>

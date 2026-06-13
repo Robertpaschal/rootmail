@@ -21,6 +21,8 @@ export function serializeMessage(m: Message) {
     provider: m.provider,
     provider_message_id: m.providerMessageId,
     content_hash: m.contentHash,
+    rendered_html: m.renderedHtml,
+    rendered_text: m.renderedText,
     sandbox: m.sandbox,
     error: m.error,
     scheduled_at: m.sendAt,

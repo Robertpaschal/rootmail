@@ -45,6 +45,8 @@ export interface Message {
   provider: string | null;
   provider_message_id: string | null;
   content_hash: string | null;
+  rendered_html: string | null;
+  rendered_text: string | null;
   sandbox: boolean;
   error: string | null;
   scheduled_at: string | null;

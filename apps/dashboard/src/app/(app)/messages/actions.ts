@@ -20,10 +20,24 @@ export async function sendMessage(
   const template = String(formData.get("template") ?? "").trim();
   const subTenantId = String(formData.get("sub_tenant_id") ?? "").trim();
   const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim();
+  const variablesRaw = String(formData.get("variables") ?? "").trim();
 
   if (!to) return { error: "A recipient email is required." };
   if (!template && (!subject || !html)) {
     return { error: "Provide a template slug, or both a subject and an HTML body." };
+  }
+
+  let variables: Record<string, unknown> | undefined;
+  if (variablesRaw) {
+    try {
+      const parsed: unknown = JSON.parse(variablesRaw);
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return { error: 'Variables must be a JSON object, e.g. {"name":"Ada"}.' };
+      }
+      variables = parsed as Record<string, unknown>;
+    } catch {
+      return { error: "Variables must be valid JSON." };
+    }
   }
 
   const body: SendBody = {
@@ -36,6 +50,7 @@ export async function sendMessage(
   if (html) body.html = html;
   if (subTenantId) body.sub_tenant_id = subTenantId;
   if (idempotencyKey) body.idempotency_key = idempotencyKey;
+  if (variables) body.variables = variables;
 
   let id: string;
   try {
