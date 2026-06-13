@@ -53,7 +53,7 @@ export async function apiKeyRoutes(app: FastifyInstance): Promise<void> {
   app.delete("/v1/api-keys/:id", async (req) => {
     const { id } = req.params as { id: string };
 
-    if (id === req.auth.apiKey.id) {
+    if (req.auth.apiKey && id === req.auth.apiKey.id) {
       throw Errors.validation("You can't revoke the API key you're currently using.");
     }
 

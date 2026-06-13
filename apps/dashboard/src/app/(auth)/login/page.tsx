@@ -1,16 +1,17 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { KeyRound, Loader2 } from "lucide-react";
-import { connect, type ConnectState } from "./actions";
+import { login, type AuthState } from "../actions";
 import { Logo } from "@/components/app/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function ConnectPage() {
-  const [state, formAction, pending] = useActionState<ConnectState | null, FormData>(connect, null);
+export default function LoginPage() {
+  const [state, formAction, pending] = useActionState<AuthState | null, FormData>(login, null);
 
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
@@ -20,37 +21,38 @@ export default function ConnectPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Connect to your workspace</CardTitle>
-            <CardDescription>
-              Paste a rootmail API key. It&apos;s stored in a secure, http-only cookie on the server —
-              never exposed to the browser.
-            </CardDescription>
+            <CardTitle className="text-xl">Sign in</CardTitle>
+            <CardDescription>Welcome back. Sign in to your rootmail workspace.</CardDescription>
           </CardHeader>
           <CardContent>
             <form action={formAction} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="apiKey">API key</Label>
+                <Label htmlFor="email">Email</Label>
+                <Input id="email" name="email" type="email" autoComplete="email" autoFocus required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
                 <Input
-                  id="apiKey"
-                  name="apiKey"
+                  id="password"
+                  name="password"
                   type="password"
-                  placeholder="rm_live_… or rm_test_…"
-                  autoComplete="off"
-                  autoFocus
-                  className="font-mono"
+                  autoComplete="current-password"
+                  required
                 />
               </div>
               {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
               <Button type="submit" className="w-full" disabled={pending}>
                 {pending ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
-                {pending ? "Connecting…" : "Connect"}
+                {pending ? "Signing in…" : "Sign in"}
               </Button>
             </form>
           </CardContent>
         </Card>
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          Run <code className="rounded bg-muted px-1 py-0.5 font-mono">pnpm db:seed</code> to print a
-          key, or copy one from your terminal.
+        <p className="mt-4 text-center text-sm text-muted-foreground">
+          New to rootmail?{" "}
+          <Link href="/signup" className="font-medium text-foreground hover:underline">
+            Create an account
+          </Link>
         </p>
       </div>
     </div>

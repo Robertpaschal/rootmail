@@ -1,10 +1,16 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { KEY_COOKIE } from "@/lib/session";
+import { api } from "@/lib/rootmail";
+import { clearSessionCookie } from "@/lib/session";
 
 export async function signOut() {
-  (await cookies()).delete(KEY_COOKIE);
-  redirect("/connect");
+  // Best-effort server-side session invalidation, then drop the cookie.
+  try {
+    await api.logout();
+  } catch {
+    // Even if the API call fails, clear the cookie so the user is signed out locally.
+  }
+  await clearSessionCookie();
+  redirect("/login");
 }

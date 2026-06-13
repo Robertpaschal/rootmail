@@ -1,24 +1,25 @@
 import { cookies } from "next/headers";
 
-export const KEY_COOKIE = "rm_key";
+export const SESSION_COOKIE = "rm_session";
 
-/** The connected API key, read from the httpOnly cookie (server-only). */
-export async function getApiKey(): Promise<string | null> {
+const THIRTY_DAYS = 60 * 60 * 24 * 30;
+
+/** The dashboard login session token, read from the httpOnly cookie (server-only). */
+export async function getSessionToken(): Promise<string | null> {
   const store = await cookies();
-  return store.get(KEY_COOKIE)?.value ?? null;
+  return store.get(SESSION_COOKIE)?.value ?? null;
 }
 
-/** live / test, inferred from the key prefix. */
-export function keyMode(key: string): "live" | "test" | "unknown" {
-  if (key.startsWith("rm_live_")) return "live";
-  if (key.startsWith("rm_test_")) return "test";
-  return "unknown";
+export async function setSessionCookie(token: string): Promise<void> {
+  (await cookies()).set(SESSION_COOKIE, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: THIRTY_DAYS,
+  });
 }
 
-/** rm_live_abcd…6f2a — safe to render in the UI. */
-export function maskKey(key: string): string {
-  const parts = key.split("_");
-  const tail = key.slice(-4);
-  if (parts.length >= 3) return `${parts[0]}_${parts[1]}_…${tail}`;
-  return `…${tail}`;
+export async function clearSessionCookie(): Promise<void> {
+  (await cookies()).delete(SESSION_COOKIE);
 }

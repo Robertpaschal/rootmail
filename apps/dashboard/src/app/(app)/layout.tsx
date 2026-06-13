@@ -1,12 +1,12 @@
 import { redirect } from "next/navigation";
 import { MobileNav, Sidebar } from "@/components/app/nav";
 import { Topbar } from "@/components/app/topbar";
-import { getApiKey } from "@/lib/session";
+import { getSessionToken } from "@/lib/session";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
-  // Belt-and-braces alongside middleware: never render the shell without a key.
-  const key = await getApiKey();
-  if (!key) redirect("/connect");
+  // Belt-and-braces alongside middleware: never render the shell without a session.
+  const token = await getSessionToken();
+  if (!token) redirect("/login");
 
   return (
     <div className="min-h-screen">

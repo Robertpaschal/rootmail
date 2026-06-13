@@ -5,10 +5,12 @@ import { Errors, hashPassword, verifyPassword } from "@rootmail/core";
 import { db, users } from "@rootmail/db";
 import {
   createSession,
+  defaultWorkspaceForUser,
   deleteSession,
   provisionAccount,
   resolveSession,
   userWorkspaces,
+  workspaceForUser,
 } from "../lib/auth";
 import { serializeApiKey, serializeUser, serializeWorkspace } from "../lib/serialize";
 import { parse } from "../lib/validate";
@@ -62,6 +64,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return reply.status(201).send({
       user: serializeUser(account.user),
       workspace: serializeWorkspace(account.production),
+      active_workspace: serializeWorkspace(account.production),
       workspaces: [account.production, account.sandbox].map(serializeWorkspace),
       // The first key's secret, shown once — same contract as POST /v1/api-keys.
       api_key: { ...serializeApiKey(account.apiKeyRow), key: account.apiKeySecret },
@@ -87,6 +90,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return {
       user: serializeUser(user),
       workspaces: workspaces.map(serializeWorkspace),
+      active_workspace: live ? serializeWorkspace(live) : null,
       session_token: token,
       session_expires_at: session.expiresAt,
     };
@@ -94,9 +98,17 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Current user -------------------------------------------------------
   app.get("/v1/auth/me", async (req) => {
-    const { user } = await requireSession(req);
+    const { user, session } = await requireSession(req);
     const workspaces = await userWorkspaces(user.id);
-    return { user: serializeUser(user), workspaces: workspaces.map(serializeWorkspace) };
+    const active =
+      (session.activeWorkspaceId
+        ? await workspaceForUser(user.id, session.activeWorkspaceId)
+        : null) ?? (await defaultWorkspaceForUser(user.id));
+    return {
+      user: serializeUser(user),
+      workspaces: workspaces.map(serializeWorkspace),
+      active_workspace: active ? serializeWorkspace(active) : null,
+    };
   });
 
   // --- Log out ------------------------------------------------------------

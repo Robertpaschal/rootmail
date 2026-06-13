@@ -1,13 +1,16 @@
-import { getApiKey } from "./session";
+import { getSessionToken } from "./session";
 import type {
   ApiKey,
   AuditTrail,
+  AuthSession,
   Contact,
   ContactStatus,
   CreatedApiKey,
   ListResponse,
+  MeResult,
   Message,
   MessageStatus,
+  SignupResult,
   SubTenant,
   Template,
   TemplateType,
@@ -41,14 +44,16 @@ interface FetchOpts {
   method?: string;
   body?: unknown;
   subTenantId?: string;
-  /** Override the connected key — used to validate a key before storing it. */
-  key?: string;
+  /** Override the session token (e.g. just-issued at signup/login). */
+  token?: string;
+  /** Public endpoints (signup/login) that don't carry a session. */
+  noAuth?: boolean;
   query?: Record<string, string | number | undefined>;
 }
 
 async function rmFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
-  const key = opts.key ?? (await getApiKey());
-  if (!key) throw new ApiError(401, "Not connected — add an API key.");
+  const token = opts.noAuth ? null : (opts.token ?? (await getSessionToken()));
+  if (!opts.noAuth && !token) throw new ApiError(401, "Not signed in.");
 
   const url = new URL(path, API_URL);
   if (opts.query) {
@@ -62,7 +67,7 @@ async function rmFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
     res = await fetch(url, {
       method: opts.method ?? "GET",
       headers: {
-        Authorization: `Bearer ${key}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(opts.body ? { "Content-Type": "application/json" } : {}),
         ...(opts.subTenantId ? { "X-Rootmail-Subtenant": opts.subTenantId } : {}),
       },
@@ -178,7 +183,10 @@ export const api = {
     rmFetch<CreatedApiKey>("/v1/api-keys", { method: "POST", body }),
   revokeApiKey: (id: string) => rmFetch<ApiKey>(`/v1/api-keys/${id}`, { method: "DELETE" }),
 
-  /** Validate a candidate key by hitting an authed endpoint. Throws on bad keys. */
-  validateKey: (key: string) =>
-    rmFetch<ListResponse<Message>>("/v1/messages", { query: { limit: 1 }, key }),
+  signup: (body: { email: string; password: string; name?: string; organization_name?: string }) =>
+    rmFetch<SignupResult>("/v1/auth/signup", { method: "POST", body, noAuth: true }),
+  login: (body: { email: string; password: string }) =>
+    rmFetch<AuthSession>("/v1/auth/login", { method: "POST", body, noAuth: true }),
+  me: () => rmFetch<MeResult>("/v1/auth/me"),
+  logout: () => rmFetch<{ ok: boolean }>("/v1/auth/logout", { method: "POST" }),
 };

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { generateApiKey, generateSessionToken, newId, sha256Hex } from "@rootmail/core";
 import {
   type ApiKey,
@@ -167,4 +167,24 @@ export async function userWorkspaces(userId: string): Promise<Workspace[]> {
     .innerJoin(workspaces, eq(workspaces.organizationId, memberships.organizationId))
     .where(eq(memberships.userId, userId));
   return rows.map((r) => r.workspace);
+}
+
+/** A specific workspace, only if the user can access it (else null). */
+export async function workspaceForUser(
+  userId: string,
+  workspaceId: string,
+): Promise<Workspace | null> {
+  const [row] = await db
+    .select({ workspace: workspaces })
+    .from(workspaces)
+    .innerJoin(memberships, eq(memberships.organizationId, workspaces.organizationId))
+    .where(and(eq(workspaces.id, workspaceId), eq(memberships.userId, userId)))
+    .limit(1);
+  return row?.workspace ?? null;
+}
+
+/** The user's default workspace — their live one, else any. */
+export async function defaultWorkspaceForUser(userId: string): Promise<Workspace | null> {
+  const all = await userWorkspaces(userId);
+  return all.find((w) => w.environment === "live") ?? all[0] ?? null;
 }

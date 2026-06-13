@@ -87,7 +87,13 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
   // --- Send ---------------------------------------------------------------
   app.post("/v1/messages", async (req, reply) => {
     const body = parse(sendBody, req.body);
-    const { workspace, subTenant: headerSub, mode, apiKey } = req.auth;
+    const { workspace, subTenant: headerSub, mode, apiKey, user } = req.auth;
+    // Who's sending: an API key (SDK) or a logged-in dashboard user.
+    const sender = apiKey
+      ? { actor: "api_key", actorId: apiKey.id }
+      : user
+        ? { actor: "user", actorId: user.id }
+        : { actor: "system", actorId: null };
 
     // Resolve the effective sub-tenant (header wins; body must agree).
     let subTenant = headerSub;
@@ -229,8 +235,8 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       subTenantId,
       messageId: id,
       event: "queued",
-      actor: "api_key",
-      actorId: apiKey.id,
+      actor: sender.actor,
+      actorId: sender.actorId,
       ip: req.ip,
       userAgent: req.headers["user-agent"] ?? null,
     });

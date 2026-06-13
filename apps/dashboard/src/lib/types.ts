@@ -123,6 +123,41 @@ export interface Contact {
   updated_at: string;
 }
 
+export interface User {
+  id: string;
+  object: "user";
+  email: string;
+  name: string | null;
+  email_verified: boolean;
+  created_at: string;
+}
+
+export interface Workspace {
+  id: string;
+  object: "workspace";
+  name: string;
+  slug: string;
+  environment: "live" | "test";
+  region: string;
+  created_at: string;
+}
+
+export interface MeResult {
+  user: User;
+  workspaces: Workspace[];
+  active_workspace: Workspace | null;
+}
+
+export interface AuthSession extends MeResult {
+  session_token: string;
+  session_expires_at: string;
+}
+
+export interface SignupResult extends AuthSession {
+  workspace: Workspace;
+  api_key: CreatedApiKey;
+}
+
 export type TemplateType = "transactional" | "marketing" | "sales" | "any";
 
 export interface Template {
