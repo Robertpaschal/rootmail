@@ -7,6 +7,14 @@ dist/
 .turbo/
 *.tsbuildinfo
 
+# next.js
+.next/
+out/
+next-env.d.ts
+
+# claude code (local launch/preview config)
+.claude/
+
 # env & secrets
 .env
 .env.local
