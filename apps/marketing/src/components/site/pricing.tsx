@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check } from "lucide-react";
+import { Check, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,9 +11,10 @@ const tiers = [
     price: "$0",
     cadence: "forever",
     blurb: "For side projects and getting started.",
+    included: "3,000 emails / month",
+    overage: "Upgrade to send more",
     features: [
       "1 workspace",
-      "3,000 emails / month",
       "Mock + 1 live provider",
       "Full audit trail & suppression",
       "Community support",
@@ -27,10 +28,11 @@ const tiers = [
     price: "$49",
     cadence: "/ month",
     blurb: "For platforms onboarding their own customers.",
+    included: "100,000 emails / month",
+    overage: "then $0.50 / 1,000",
     features: [
       "Everything in Developer",
       "Unlimited sub-tenants",
-      "100,000 emails / month",
       "Per-tenant domains, DKIM & SPF",
       "Email support",
     ],
@@ -43,6 +45,8 @@ const tiers = [
     price: "Custom",
     cadence: "",
     blurb: "For scale, compliance & data residency.",
+    included: "Volume & committed-use pricing",
+    overage: "Discounts at scale",
     features: [
       "Everything in Team",
       "Dedicated IPs & warming",
@@ -54,6 +58,17 @@ const tiers = [
     href: "#",
     featured: false,
   },
+];
+
+// The floor every plan shares — so each tier is about volume and advanced layers,
+// not table stakes.
+const baseline = [
+  "The full REST API & Node SDK",
+  "Append-only audit trail",
+  "Automatic suppression handling",
+  "Webhooks & delivery events",
+  "Sandbox (test-mode) keys",
+  "Usage-based billing — pay only for what you send",
 ];
 
 export function Pricing() {
@@ -88,6 +103,12 @@ export function Pricing() {
                 <span className="text-4xl font-bold tracking-tight">{t.price}</span>
                 {t.cadence ? <span className="text-sm text-muted-foreground">{t.cadence}</span> : null}
               </div>
+
+              <div className="mt-5 rounded-lg border bg-secondary/40 px-3 py-2.5">
+                <div className="text-sm font-medium">{t.included}</div>
+                <div className="mt-0.5 text-xs text-muted-foreground">{t.overage}</div>
+              </div>
+
               <Link
                 href={t.href}
                 className={cn(
@@ -107,6 +128,40 @@ export function Pricing() {
               </ul>
             </div>
           ))}
+        </div>
+
+        {/* Pay-as-you-go — for people who just want to send, no plan to pick. */}
+        <div className="mx-auto mt-6 flex max-w-5xl flex-col items-start justify-between gap-4 rounded-2xl border border-dashed bg-card p-6 sm:flex-row sm:items-center">
+          <div className="flex items-start gap-3">
+            <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <Zap className="size-5" />
+            </span>
+            <div>
+              <p className="font-semibold">Just need to send? Pay as you go.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                No monthly plan. The first 3,000 emails each month are free, then $0.80 / 1,000 —
+                same API, same audit trail. Switch to a plan whenever the volume makes it cheaper.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="#cta"
+            className={cn(buttonVariants({ variant: "outline" }), "shrink-0 whitespace-nowrap")}
+          >
+            Start pay-as-you-go
+          </Link>
+        </div>
+
+        <div className="mx-auto mt-10 max-w-5xl rounded-2xl border bg-card p-6">
+          <p className="text-sm font-semibold">Every plan includes</p>
+          <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-3">
+            {baseline.map((f) => (
+              <li key={f} className="flex items-start gap-2.5 text-sm">
+                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span className="text-muted-foreground">{f}</span>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
     </section>
