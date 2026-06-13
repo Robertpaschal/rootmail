@@ -1,0 +1,84 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { Menu, X } from "lucide-react";
+import { Logo } from "./logo";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const links = [
+  { href: "#layers", label: "Platform" },
+  { href: "#features", label: "Features" },
+  { href: "#code", label: "Developers" },
+  { href: "#pricing", label: "Pricing" },
+];
+
+export function Navbar() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/65">
+      <div className="container flex h-16 items-center justify-between gap-4">
+        <Link href="/" aria-label="rootmail home">
+          <Logo />
+        </Link>
+
+        <nav className="hidden items-center gap-1 md:flex">
+          {links.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {l.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="hidden items-center gap-2 md:flex">
+          <Link href="#" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+            Sign in
+          </Link>
+          <Link href="#cta" className={cn(buttonVariants({ size: "sm" }))}>
+            Start sending
+          </Link>
+        </div>
+
+        <button
+          type="button"
+          className="inline-flex size-9 items-center justify-center rounded-md text-foreground md:hidden"
+          onClick={() => setOpen((v) => !v)}
+          aria-label="Toggle menu"
+          aria-expanded={open}
+        >
+          {open ? <X className="size-5" /> : <Menu className="size-5" />}
+        </button>
+      </div>
+
+      {open && (
+        <div className="border-t border-border/60 md:hidden">
+          <div className="container flex flex-col gap-1 py-3">
+            {links.map((l) => (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                {l.label}
+              </Link>
+            ))}
+            <Link
+              href="#cta"
+              onClick={() => setOpen(false)}
+              className={cn(buttonVariants({ size: "sm" }), "mt-2")}
+            >
+              Start sending
+            </Link>
+          </div>
+        </div>
+      )}
+    </header>
+  );
+}

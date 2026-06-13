@@ -1,0 +1,16 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+allowBuilds:
+  esbuild: true
+  msgpackr-extract: true
+  sharp: true
+
+# pnpm 10+ blocks lifecycle scripts unless explicitly approved.
+# tsx/tsup rely on esbuild's postinstall to fetch its native binary.
+# sharp is Next.js's native image optimizer (optional dep of `next`).
+onlyBuiltDependencies:
+  - esbuild
+  - msgpackr-extract
+  - sharp

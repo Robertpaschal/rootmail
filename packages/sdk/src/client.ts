@@ -1,0 +1,111 @@
+import { RootMailError } from "./errors";
+import { Contacts } from "./resources/contacts";
+import { Messages } from "./resources/messages";
+import { SubTenants } from "./resources/sub-tenants";
+import type { Message, SendParams } from "./types";
+
+export interface RootMailOptions {
+  apiKey: string;
+  /** API base URL. Defaults to http://localhost:4000. */
+  baseUrl?: string;
+  /** Scope every request to this sub-tenant (sets the X-Rootmail-Subtenant header). */
+  subTenantId?: string;
+  /** Custom fetch implementation (defaults to the global fetch). */
+  fetch?: typeof fetch;
+}
+
+export interface RequestOptions {
+  method: "GET" | "POST" | "PATCH" | "DELETE";
+  path: string;
+  query?: Record<string, string | number | undefined>;
+  body?: unknown;
+  idempotencyKey?: string;
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+export class RootMail {
+  readonly messages: Messages;
+  readonly subTenants: SubTenants;
+  readonly contacts: Contacts;
+
+  private readonly apiKey: string;
+  private readonly baseUrl: string;
+  private readonly subTenantId?: string;
+  private readonly fetchImpl: typeof fetch;
+
+  constructor(options: RootMailOptions) {
+    if (!options.apiKey) throw new Error("rootmail: `apiKey` is required");
+    this.apiKey = options.apiKey;
+    this.baseUrl = (options.baseUrl ?? "http://localhost:4000").replace(/\/+$/, "");
+    this.subTenantId = options.subTenantId;
+
+    const fetchImpl = options.fetch ?? globalThis.fetch;
+    if (!fetchImpl) {
+      throw new Error("rootmail: no global fetch found — pass `options.fetch` (Node < 18)");
+    }
+    this.fetchImpl = fetchImpl;
+
+    this.messages = new Messages(this);
+    this.subTenants = new SubTenants(this);
+    this.contacts = new Contacts(this);
+  }
+
+  /** Returns a client scoped to a sub-tenant. */
+  withSubTenant(subTenantId: string): RootMail {
+    return new RootMail({
+      apiKey: this.apiKey,
+      baseUrl: this.baseUrl,
+      subTenantId,
+      fetch: this.fetchImpl,
+    });
+  }
+
+  async request<T>(options: RequestOptions): Promise<T> {
+    const url = new URL(this.baseUrl + options.path);
+    if (options.query) {
+      for (const [key, value] of Object.entries(options.query)) {
+        if (value !== undefined) url.searchParams.set(key, String(value));
+      }
+    }
+
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${this.apiKey}`,
+    };
+    if (options.body !== undefined) headers["Content-Type"] = "application/json";
+    if (this.subTenantId) headers["X-Rootmail-Subtenant"] = this.subTenantId;
+    if (options.idempotencyKey) headers["Idempotency-Key"] = options.idempotencyKey;
+
+    const response = await this.fetchImpl(url.toString(), {
+      method: options.method,
+      headers,
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+    });
+
+    const text = await response.text();
+    const json = text ? safeJson(text) : undefined;
+
+    if (!response.ok) {
+      const err = (json as { error?: { type?: string; message?: string; details?: unknown } })?.error;
+      throw new RootMailError(
+        response.status,
+        err?.type ?? "error",
+        err?.message ?? response.statusText,
+        err?.details,
+      );
+    }
+
+    return json as T;
+  }
+
+  /** Convenience shorthand for `client.messages.create(params)`. */
+  send(params: SendParams): Promise<Message> {
+    return this.messages.create(params);
+  }
+}

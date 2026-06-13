@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "marketing",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@rootmail/marketing", "dev"],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "dashboard",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@rootmail/dashboard", "dev"],
+      "port": 3001,
+      "autoPort": true
+    }
+  ]
+}

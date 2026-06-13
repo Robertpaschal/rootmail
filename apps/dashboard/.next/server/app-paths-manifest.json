@@ -1,0 +1,7 @@
+{
+  "/connect/page": "app/connect/page.js",
+  "/(app)/messages/new/page": "app/(app)/messages/new/page.js",
+  "/(app)/page": "app/(app)/page.js",
+  "/(app)/messages/[id]/page": "app/(app)/messages/[id]/page.js",
+  "/(app)/messages/page": "app/(app)/messages/page.js"
+}
