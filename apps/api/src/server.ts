@@ -10,6 +10,7 @@ import { contactRoutes } from "./routes/contacts";
 import { healthRoutes } from "./routes/health";
 import { messageRoutes } from "./routes/messages";
 import { subTenantRoutes } from "./routes/subtenants";
+import { templateRoutes } from "./routes/templates";
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -35,6 +36,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(subTenantRoutes);
   await app.register(contactRoutes);
   await app.register(apiKeyRoutes);
+  await app.register(templateRoutes);
 
   return app;
 }

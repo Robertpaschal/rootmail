@@ -123,6 +123,24 @@ export interface Contact {
   updated_at: string;
 }
 
+export type TemplateType = "transactional" | "marketing" | "sales" | "any";
+
+export interface Template {
+  id: string;
+  object: "template";
+  name: string;
+  slug: string;
+  type: TemplateType;
+  subject: string;
+  html: string;
+  text: string | null;
+  variables_schema: Record<string, unknown>;
+  current_version: number;
+  sub_tenant_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface ApiKey {
   id: string;
   object: "api_key";

@@ -9,6 +9,8 @@ import type {
   Message,
   MessageStatus,
   SubTenant,
+  Template,
+  TemplateType,
   VerifyResult,
 } from "./types";
 
@@ -144,6 +146,32 @@ export const api = {
     }),
   checkSuppression: (email: string) =>
     rmFetch<{ email: string; suppressed: boolean }>("/v1/suppressions/check", { query: { email } }),
+
+  listTemplates: () => rmFetch<ListResponse<Template>>("/v1/templates"),
+  getTemplate: (id: string) => rmFetch<Template>(`/v1/templates/${id}`),
+  createTemplate: (body: {
+    name: string;
+    slug: string;
+    type: TemplateType;
+    subject: string;
+    html: string;
+    text?: string;
+  }) => rmFetch<Template>("/v1/templates", { method: "POST", body }),
+  updateTemplate: (
+    id: string,
+    body: Partial<{
+      name: string;
+      slug: string;
+      type: TemplateType;
+      subject: string;
+      html: string;
+      text: string | null;
+    }>,
+  ) => rmFetch<Template>(`/v1/templates/${id}`, { method: "PATCH", body }),
+  deleteTemplate: (id: string) =>
+    rmFetch<{ object: "template"; id: string; deleted: boolean }>(`/v1/templates/${id}`, {
+      method: "DELETE",
+    }),
 
   listApiKeys: () => rmFetch<ListResponse<ApiKey>>("/v1/api-keys"),
   createApiKey: (body: { name: string }) =>

@@ -1,5 +1,5 @@
 import { buildDnsRecords } from "@rootmail/core";
-import type { ApiKey, AuditEntry, Contact, Message, SubTenant } from "@rootmail/db";
+import type { ApiKey, AuditEntry, Contact, Message, SubTenant, Template } from "@rootmail/db";
 
 export function serializeMessage(m: Message) {
   return {
@@ -67,6 +67,24 @@ export function serializeSubTenant(t: SubTenant, opts: { includeDns?: boolean } 
       dkimSelector: t.dkimSelector,
       dkimValue: t.dkimPublicKey,
     }),
+  };
+}
+
+export function serializeTemplate(t: Template) {
+  return {
+    id: t.id,
+    object: "template",
+    name: t.name,
+    slug: t.slug,
+    type: t.type,
+    subject: t.subject,
+    html: t.html,
+    text: t.text,
+    variables_schema: t.variablesSchema,
+    current_version: t.currentVersion,
+    sub_tenant_id: t.subTenantId,
+    created_at: t.createdAt,
+    updated_at: t.updatedAt,
   };
 }
 
