@@ -1,5 +1,5 @@
 import { buildDnsRecords } from "@rootmail/core";
-import type { AuditEntry, Contact, Message, SubTenant } from "@rootmail/db";
+import type { ApiKey, AuditEntry, Contact, Message, SubTenant } from "@rootmail/db";
 
 export function serializeMessage(m: Message) {
   return {
@@ -67,6 +67,22 @@ export function serializeSubTenant(t: SubTenant, opts: { includeDns?: boolean } 
       dkimSelector: t.dkimSelector,
       dkimValue: t.dkimPublicKey,
     }),
+  };
+}
+
+export function serializeApiKey(k: ApiKey) {
+  return {
+    id: k.id,
+    object: "api_key",
+    name: k.name,
+    // `rm_live` / `rm_test` + last 4 — enough to identify a key, never the secret.
+    prefix: k.prefix,
+    last4: k.last4,
+    mode: k.mode,
+    revoked: k.revokedAt != null,
+    last_used_at: k.lastUsedAt,
+    revoked_at: k.revokedAt,
+    created_at: k.createdAt,
   };
 }
 

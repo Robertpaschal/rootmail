@@ -123,6 +123,24 @@ export interface Contact {
   updated_at: string;
 }
 
+export interface ApiKey {
+  id: string;
+  object: "api_key";
+  name: string;
+  prefix: string;
+  last4: string;
+  mode: "live" | "test";
+  revoked: boolean;
+  last_used_at: string | null;
+  revoked_at: string | null;
+  created_at: string;
+}
+
+/** Only returned by POST /v1/api-keys — the full secret, shown exactly once. */
+export interface CreatedApiKey extends ApiKey {
+  key: string;
+}
+
 export interface ListResponse<T> {
   object: "list";
   data: T[];

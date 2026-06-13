@@ -5,6 +5,7 @@ import { env } from "@rootmail/core";
 import "./context";
 import { registerAuth } from "./plugins/auth";
 import { registerErrorHandler } from "./plugins/errors";
+import { apiKeyRoutes } from "./routes/apikeys";
 import { contactRoutes } from "./routes/contacts";
 import { healthRoutes } from "./routes/health";
 import { messageRoutes } from "./routes/messages";
@@ -33,6 +34,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(messageRoutes);
   await app.register(subTenantRoutes);
   await app.register(contactRoutes);
+  await app.register(apiKeyRoutes);
 
   return app;
 }

@@ -1,8 +1,10 @@
 import { getApiKey } from "./session";
 import type {
+  ApiKey,
   AuditTrail,
   Contact,
   ContactStatus,
+  CreatedApiKey,
   ListResponse,
   Message,
   MessageStatus,
@@ -142,6 +144,11 @@ export const api = {
     }),
   checkSuppression: (email: string) =>
     rmFetch<{ email: string; suppressed: boolean }>("/v1/suppressions/check", { query: { email } }),
+
+  listApiKeys: () => rmFetch<ListResponse<ApiKey>>("/v1/api-keys"),
+  createApiKey: (body: { name: string }) =>
+    rmFetch<CreatedApiKey>("/v1/api-keys", { method: "POST", body }),
+  revokeApiKey: (id: string) => rmFetch<ApiKey>(`/v1/api-keys/${id}`, { method: "DELETE" }),
 
   /** Validate a candidate key by hitting an authed endpoint. Throws on bad keys. */
   validateKey: (key: string) =>

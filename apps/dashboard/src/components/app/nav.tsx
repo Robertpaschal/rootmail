@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Mail, Network, Send, Users } from "lucide-react";
+import { KeyRound, LayoutDashboard, Mail, Network, Send, Users } from "lucide-react";
 import { Logo } from "./logo";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -12,6 +12,7 @@ const items = [
   { href: "/messages", label: "Messages", icon: Mail },
   { href: "/sub-tenants", label: "Sub-tenants", icon: Network },
   { href: "/contacts", label: "Contacts", icon: Users },
+  { href: "/api-keys", label: "API keys", icon: KeyRound },
 ];
 
 function useIsActive() {
