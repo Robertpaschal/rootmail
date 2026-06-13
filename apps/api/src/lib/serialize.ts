@@ -1,5 +1,37 @@
 import { buildDnsRecords } from "@rootmail/core";
-import type { ApiKey, AuditEntry, Contact, Message, SubTenant, Template } from "@rootmail/db";
+import type {
+  ApiKey,
+  AuditEntry,
+  Contact,
+  Message,
+  SubTenant,
+  Template,
+  User,
+  Workspace,
+} from "@rootmail/db";
+
+export function serializeUser(u: User) {
+  return {
+    id: u.id,
+    object: "user",
+    email: u.email,
+    name: u.name,
+    email_verified: u.emailVerifiedAt != null,
+    created_at: u.createdAt,
+  };
+}
+
+export function serializeWorkspace(w: Workspace) {
+  return {
+    id: w.id,
+    object: "workspace",
+    name: w.name,
+    slug: w.slug,
+    environment: w.environment,
+    region: w.region,
+    created_at: w.createdAt,
+  };
+}
 
 export function serializeMessage(m: Message) {
   return {

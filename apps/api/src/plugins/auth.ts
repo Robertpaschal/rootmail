@@ -4,8 +4,8 @@ import { Errors, hashApiKey } from "@rootmail/core";
 import { apiKeys, db, subTenants, workspaces } from "@rootmail/db";
 import type { AuthContext } from "../context";
 
-// Paths that don't require an API key.
-const PUBLIC_PREFIXES = ["/health", "/v1/webhooks"];
+// Paths that don't require an API key (auth endpoints carry their own session).
+const PUBLIC_PREFIXES = ["/health", "/v1/webhooks", "/v1/auth"];
 
 function isPublic(url: string): boolean {
   const path = url.split("?")[0] ?? url;

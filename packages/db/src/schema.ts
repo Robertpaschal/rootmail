@@ -12,6 +12,7 @@ import {
 import {
   AUDIT_EVENTS,
   CONTACT_STATUSES,
+  MEMBERSHIP_ROLES,
   MESSAGE_STATUSES,
   MESSAGE_TYPES,
   PRIORITIES,
@@ -33,6 +34,7 @@ export const contactStatusEnum = pgEnum("contact_status", CONTACT_STATUSES);
 export const subTenantStatusEnum = pgEnum("sub_tenant_status", SUBTENANT_STATUSES);
 export const suppressionReasonEnum = pgEnum("suppression_reason", SUPPRESSION_REASONS);
 export const workspaceEnvironmentEnum = pgEnum("workspace_environment", WORKSPACE_ENVIRONMENTS);
+export const membershipRoleEnum = pgEnum("membership_role", MEMBERSHIP_ROLES);
 
 // Fresh builders each call so no column instance is shared across tables.
 const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -41,6 +43,17 @@ const updatedAt = () => timestamp("updated_at", { withTimezone: true }).defaultN
 // ---------------------------------------------------------------------------
 // Identity & access
 // ---------------------------------------------------------------------------
+export const users = pgTable("users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  // `scheme$salt$hash` (scrypt). Null for accounts that only use social login.
+  passwordHash: text("password_hash"),
+  emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
 export const organizations = pgTable("organizations", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
@@ -64,6 +77,43 @@ export const workspaces = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("workspaces_org_slug_uq").on(t.organizationId, t.slug)],
+);
+
+// A user's membership in an organization (the unit they sign up into).
+export const memberships = pgTable(
+  "memberships",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    role: membershipRoleEnum("role").notNull().default("owner"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("memberships_user_org_uq").on(t.userId, t.organizationId)],
+);
+
+// Dashboard login sessions. Like API keys, only the token hash is stored.
+export const sessions = pgTable(
+  "sessions",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    // The workspace this session is currently acting on (switchable).
+    activeWorkspaceId: text("active_workspace_id").references(() => workspaces.id, {
+      onDelete: "set null",
+    }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("sessions_user_idx").on(t.userId)],
 );
 
 export const apiKeys = pgTable("api_keys", {
@@ -271,6 +321,12 @@ export const auditEntries = pgTable(
 // ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
+export type Membership = typeof memberships.$inferSelect;
+export type NewMembership = typeof memberships.$inferInsert;
+export type Session = typeof sessions.$inferSelect;
+export type NewSession = typeof sessions.$inferInsert;
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
 export type Workspace = typeof workspaces.$inferSelect;

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import type { WorkspaceEnvironment } from "./constants";
 
 export interface GeneratedApiKey {
@@ -38,4 +38,42 @@ export function safeEqual(a: string, b: string): boolean {
 
 export function sha256Hex(input: string): string {
   return createHash("sha256").update(input).digest("hex");
+}
+
+// ---------------------------------------------------------------------------
+// Passwords (scrypt — dependency-free, via node:crypto)
+// ---------------------------------------------------------------------------
+const SCRYPT_KEYLEN = 64;
+
+/** Hash a password as `scrypt$salt$hash`. */
+export function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const derived = scryptSync(password, salt, SCRYPT_KEYLEN).toString("hex");
+  return `scrypt$${salt}$${derived}`;
+}
+
+/** Verify a password against a stored `scrypt$salt$hash`, in constant time. */
+export function verifyPassword(password: string, stored: string | null | undefined): boolean {
+  if (!stored) return false;
+  const [scheme, salt, hash] = stored.split("$");
+  if (scheme !== "scrypt" || !salt || !hash) return false;
+  const expected = Buffer.from(hash, "hex");
+  const derived = scryptSync(password, salt, expected.length);
+  return derived.length === expected.length && timingSafeEqual(derived, expected);
+}
+
+// ---------------------------------------------------------------------------
+// Session tokens (dashboard login)
+// ---------------------------------------------------------------------------
+export interface GeneratedSessionToken {
+  /** Full token — set in the session cookie, never stored. */
+  token: string;
+  /** SHA-256 hex digest stored in the database for lookup. */
+  hash: string;
+}
+
+/** Mint an opaque session token (`rms_…`); only its hash is persisted. */
+export function generateSessionToken(): GeneratedSessionToken {
+  const token = `rms_${randomBytes(32).toString("base64url")}`;
+  return { token, hash: sha256Hex(token) };
 }

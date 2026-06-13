@@ -60,3 +60,6 @@ export type SuppressionReason = (typeof SUPPRESSION_REASONS)[number];
 
 export const WORKSPACE_ENVIRONMENTS = ["live", "test"] as const;
 export type WorkspaceEnvironment = (typeof WORKSPACE_ENVIRONMENTS)[number];
+
+export const MEMBERSHIP_ROLES = ["owner", "admin", "member"] as const;
+export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];

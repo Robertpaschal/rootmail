@@ -4,6 +4,9 @@ import { customAlphabet } from "nanoid";
 const nanoid = customAlphabet("0123456789abcdefghijklmnopqrstuvwxyz", 24);
 
 export const ID_PREFIXES = {
+  user: "usr",
+  session: "ses",
+  membership: "mbr",
   organization: "org",
   workspace: "ws",
   apiKey: "key",
