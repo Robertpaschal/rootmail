@@ -167,3 +167,86 @@ export const PLANS: Record<PlanId, PlanDef> = {
     ],
   },
 };
+
+/** Plan order, lowest tier first — drives "cheapest plan that unlocks X". */
+const PLAN_RANK: Record<PlanId, number> = { free: 0, pro: 1, scale: 2, enterprise: 3 };
+
+/** The lowest tier (in PLAN_IDS order) whose plan includes a feature, or null. */
+export function requiredPlanFor(feature: PlanFeature): PlanId | null {
+  return PLAN_IDS.find((id) => PLANS[id].features.includes(feature)) ?? null;
+}
+
+/** Does this plan unlock the feature? */
+export function featureUnlocked(planId: PlanId, feature: PlanFeature): boolean {
+  return PLANS[planId]?.features.includes(feature) ?? false;
+}
+
+/** True if `planId` is at least `minPlanId` in tier order. */
+export function planAtLeast(planId: PlanId, minPlanId: PlanId): boolean {
+  return PLAN_RANK[planId] >= PLAN_RANK[minPlanId];
+}
+
+// ---------------------------------------------------------------------------
+// Plan/subscription status — the subset of Stripe subscription statuses we act
+// on. `active` is the default (and the only value local mode ever sets).
+// ---------------------------------------------------------------------------
+export const PLAN_STATUSES = ["active", "trialing", "past_due", "canceled", "incomplete"] as const;
+export type PlanStatus = (typeof PLAN_STATUSES)[number];
+
+// ---------------------------------------------------------------------------
+// Add-ons — "in-between" purchases priced per unit/quantity that sit on top of
+// any plan (extra seats, a dedicated IP, sub-tenant capacity). `defaultUnitAmount`
+// is the fallback price (USD per unit / month) used in local mode or whenever a
+// Stripe price id is missing or fails to load. `priceEnvKey` names the env var
+// holding the real Stripe price id; `grant` is how much of the underlying
+// resource one unit confers (e.g. a sub-tenant pack of 10).
+// ---------------------------------------------------------------------------
+export const ADD_ON_KINDS = ["recurring", "metered", "one_time"] as const;
+export type AddOnKind = (typeof ADD_ON_KINDS)[number];
+
+export const ADD_ON_IDS = ["extra_seat", "dedicated_ip", "subtenant_pack"] as const;
+export type AddOnId = (typeof ADD_ON_IDS)[number];
+
+export interface AddOnDef {
+  id: AddOnId;
+  name: string;
+  description: string;
+  unit: string;
+  defaultUnitAmount: number;
+  kind: AddOnKind;
+  priceEnvKey: string;
+  grant: number;
+}
+
+export const ADD_ONS: Record<AddOnId, AddOnDef> = {
+  extra_seat: {
+    id: "extra_seat",
+    name: "Extra seat",
+    description: "One additional team member beyond your plan's included seats.",
+    unit: "seat",
+    defaultUnitAmount: 8,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_SEAT",
+    grant: 1,
+  },
+  dedicated_ip: {
+    id: "dedicated_ip",
+    name: "Dedicated IP",
+    description: "A dedicated sending IP for reputation isolation.",
+    unit: "IP",
+    defaultUnitAmount: 30,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_DEDICATED_IP",
+    grant: 1,
+  },
+  subtenant_pack: {
+    id: "subtenant_pack",
+    name: "Sub-tenant pack",
+    description: "Raises your included sub-tenant ceiling by 10 per pack.",
+    unit: "pack of 10",
+    defaultUnitAmount: 15,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_SUBTENANT_PACK",
+    grant: 10,
+  },
+};

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { Errors, THREAD_STATUSES } from "@rootmail/core";
 import { db, organizations, type Thread, threadMessages, threads } from "@rootmail/db";
 import { assertCanSend } from "../lib/billing";
+import { requireFeature } from "../lib/features";
 import { authActor, dispatchMessage } from "../lib/dispatch";
 import {
   appendInbound,
@@ -67,6 +68,12 @@ async function getScopedThread(req: FastifyRequest, id: string): Promise<Thread>
 }
 
 export async function threadRoutes(app: FastifyInstance): Promise<void> {
+  // Conversation (Layer 2) is a Pro+ capability. Gate the whole plugin — the
+  // hook runs after the global auth hook has populated req.auth.
+  app.addHook("preHandler", async (req) => {
+    await requireFeature(req, "threads");
+  });
+
   // --- List ---------------------------------------------------------------
   app.get("/v1/threads", async (req) => {
     const q = parse(listQuery, req.query);

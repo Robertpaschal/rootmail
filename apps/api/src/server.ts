@@ -14,6 +14,7 @@ import { messageRoutes } from "./routes/messages";
 import { subTenantRoutes } from "./routes/subtenants";
 import { templateRoutes } from "./routes/templates";
 import { threadRoutes } from "./routes/threads";
+import { stripeWebhookRoutes } from "./routes/webhooks-stripe";
 
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -43,6 +44,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(templateRoutes);
   await app.register(threadRoutes);
   await app.register(billingRoutes);
+  await app.register(stripeWebhookRoutes);
 
   return app;
 }

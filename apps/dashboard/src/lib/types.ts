@@ -162,9 +162,26 @@ export interface Plan {
   features: string[];
 }
 
+export interface BillingSummaryLine {
+  label: string;
+  kind: string;
+  amount: number;
+}
+
+export interface BillingSummary {
+  currency: string;
+  custom: boolean;
+  lines: BillingSummaryLine[];
+  seats: { included: number; purchased: number; unit_price: number };
+  add_ons: { id: string; name: string; quantity: number; unit_amount: number; amount: number }[];
+  total: number;
+}
+
 export interface Billing {
   object: "billing";
   organization_id: string;
+  billing_mode: "stripe" | "local";
+  plan_status: string;
   plan: Plan;
   usage: {
     period: string;
@@ -175,8 +192,13 @@ export interface Billing {
     overage_cost: number;
     over_limit: boolean;
   };
+  summary: BillingSummary;
   plans: Plan[];
 }
+
+export type CheckoutResponse =
+  | { object: "checkout"; mode: "stripe"; url: string }
+  | { object: "checkout"; mode: "local"; billing: Billing };
 
 export interface AuthSession extends MeResult {
   session_token: string;

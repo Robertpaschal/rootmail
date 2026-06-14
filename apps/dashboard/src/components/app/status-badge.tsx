@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import type { ContactStatus, MessageStatus, SubTenantStatus } from "@/lib/types";
+import type { ContactStatus, MessageStatus, SubTenantStatus, ThreadStatus } from "@/lib/types";
 
 type Variant = "default" | "secondary" | "success" | "warning" | "destructive" | "muted";
 
@@ -39,4 +39,10 @@ const contactVariant: Record<ContactStatus, Variant> = {
 
 export function ContactStatusBadge({ status }: { status: ContactStatus }) {
   return <Badge variant={contactVariant[status] ?? "secondary"}>{status}</Badge>;
+}
+
+export function ThreadStatusBadge({ status }: { status: ThreadStatus }) {
+  if (status === "needs_reply") return <Badge variant="warning">Needs reply</Badge>;
+  if (status === "closed") return <Badge variant="muted">Closed</Badge>;
+  return <Badge variant="secondary">Open</Badge>;
 }

@@ -30,6 +30,41 @@ export const Errors = {
   rateLimited: (message = "Rate limit exceeded") => new AppError(429, "rate_limited", message),
   quotaExceeded: (message = "Monthly send limit reached", details?: unknown) =>
     new AppError(402, "quota_exceeded", message, details),
+  /**
+   * A request touched a capability the caller's plan doesn't include. Returns
+   * 402 with an actionable payload (which plan unlocks it, the price, and how to
+   * upgrade) so a dev can resolve it straight from the response. The caller
+   * computes `required_plan`/price/urls and passes them in — this keeps the
+   * errors module free of plan/pricing imports.
+   */
+  featureLocked: (
+    feature: string,
+    opts: {
+      current_plan: string;
+      required_plan: string | null;
+      required_plan_name?: string | null;
+      price?: number | null;
+      upgrade_url?: string | null;
+      checkout_endpoint?: string | null;
+      docs_url?: string | null;
+      message?: string;
+    },
+  ) => {
+    const target = opts.required_plan_name ?? opts.required_plan ?? "a higher plan";
+    const message =
+      opts.message ??
+      `Your ${opts.current_plan} plan doesn't include "${feature}". Upgrade to ${target} to unlock it.`;
+    return new AppError(402, "feature_locked", message, {
+      feature,
+      current_plan: opts.current_plan,
+      required_plan: opts.required_plan,
+      required_plan_name: opts.required_plan_name ?? null,
+      price: opts.price ?? null,
+      upgrade_url: opts.upgrade_url ?? null,
+      checkout_endpoint: opts.checkout_endpoint ?? null,
+      docs_url: opts.docs_url ?? null,
+    });
+  },
   badRequest: (message = "Bad request", details?: unknown) =>
     new AppError(400, "bad_request", message, details),
   internal: (message = "Internal server error") => new AppError(500, "internal_error", message),

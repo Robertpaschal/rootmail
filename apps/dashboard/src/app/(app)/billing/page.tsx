@@ -29,7 +29,7 @@ export default async function BillingPage() {
     );
   }
 
-  const { plan, usage, plans } = billing;
+  const { plan, usage, plans, summary } = billing;
   const pct = Math.min(100, Math.round((usage.used / Math.max(1, usage.quota)) * 100));
   const barColor = usage.over_limit ? "bg-destructive" : pct > 80 ? "bg-amber-500" : "bg-primary";
 
@@ -68,6 +68,40 @@ export default async function BillingPage() {
               You&apos;ve hit your monthly limit — upgrade below to keep sending.
             </p>
           ) : null}
+        </CardContent>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-base">What you&apos;ll be billed</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {summary.custom ? (
+            <p className="text-sm text-muted-foreground">
+              Custom pricing — contact sales for your invoice.
+            </p>
+          ) : (
+            <>
+              <ul className="space-y-1.5 text-sm">
+                {summary.lines.map((l, i) => (
+                  <li key={i} className="flex justify-between">
+                    <span className="text-muted-foreground">{l.label}</span>
+                    <span className="font-medium">${l.amount.toFixed(2)}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex items-center justify-between border-t pt-2 text-sm">
+                <span className="font-semibold">Estimated total / mo</span>
+                <span className="font-semibold">${summary.total.toFixed(2)}</span>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {summary.seats.included === -1
+                  ? "Unlimited seats included."
+                  : `${summary.seats.included} seat${summary.seats.included === 1 ? "" : "s"} included · extra seats $${summary.seats.unit_price}/mo each.`}
+                {billing.billing_mode === "local" ? " Demo billing — no card is charged." : ""}
+              </p>
+            </>
+          )}
         </CardContent>
       </Card>
 

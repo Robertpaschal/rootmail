@@ -17,11 +17,23 @@ async function ensureOrganization(): Promise<Organization> {
     .from(organizations)
     .where(eq(organizations.slug, "acme"))
     .limit(1);
-  if (existing) return existing;
+  if (existing) {
+    // Normalize the demo org to Scale so the SDK smoke test and dashboard demo
+    // exercise the full feature set (sub-tenants, threads, RBAC). Fresh signups
+    // still start on Free, where feature-gating is demonstrable.
+    if (existing.plan !== "scale") {
+      await db
+        .update(organizations)
+        .set({ plan: "scale", updatedAt: new Date() })
+        .where(eq(organizations.id, existing.id));
+      existing.plan = "scale";
+    }
+    return existing;
+  }
 
   const [row] = await db
     .insert(organizations)
-    .values({ id: newId("organization"), name: "Acme Inc", slug: "acme" })
+    .values({ id: newId("organization"), name: "Acme Inc", slug: "acme", plan: "scale" })
     .returning();
   return row;
 }

@@ -12,6 +12,7 @@ import {
   verifyDnsRecords,
 } from "@rootmail/core";
 import { db, type SubTenant, subTenants } from "@rootmail/db";
+import { requireFeature } from "../lib/features";
 import { serializeSubTenant } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
@@ -36,6 +37,12 @@ async function getScopedSubTenant(req: FastifyRequest, id: string): Promise<SubT
 }
 
 export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
+  // Sub-tenancy is a Scale+ capability. Gate the whole plugin — the hook runs
+  // after the global auth hook has populated req.auth.
+  app.addHook("preHandler", async (req) => {
+    await requireFeature(req, "subtenants");
+  });
+
   // --- Provision ----------------------------------------------------------
   app.post("/v1/sub-tenants", async (req, reply) => {
     const body = parse(createBody, req.body);

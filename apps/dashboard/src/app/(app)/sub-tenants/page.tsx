@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Network } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
+import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/components/app/feature-locked";
 import { PageHeader } from "@/components/app/page-header";
 import { SubTenantStatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,15 +16,33 @@ export default async function SubTenantsPage() {
   let tenants: SubTenant[] | null = null;
   let failed: string | null = null;
   let isApiErr = false;
+  let locked: FeatureLockedInfo | null = null;
   try {
     tenants = (await api.listSubTenants()).data;
   } catch (err) {
-    if (err instanceof ConnectionError || err instanceof ApiError) {
+    if (err instanceof ApiError && err.code === "feature_locked") {
+      locked = asFeatureLocked(err.details);
+    } else if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
       isApiErr = err instanceof ApiError;
     } else {
       failed = "An unexpected error occurred.";
     }
+  }
+
+  if (locked) {
+    return (
+      <>
+        <PageHeader
+          title="Sub-tenants"
+          description="Customers that send under their own verified domain — DKIM, SPF, and reputation isolated."
+        />
+        <FeatureLocked
+          info={locked}
+          blurb="Sub-tenants let your customers send under their own verified domains, with DKIM and reputation isolated."
+        />
+      </>
+    );
   }
 
   return (

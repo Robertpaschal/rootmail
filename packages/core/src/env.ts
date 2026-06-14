@@ -49,6 +49,34 @@ const EnvSchema = z.object({
   MAILDIR: z.string().default(".maildir"),
 
   SENDGRID_API_KEY: z.string().optional(),
+
+  // --- Billing (Stripe) ----------------------------------------------------
+  // Unset => "local" billing mode: plan changes write organizations.plan
+  // directly (the pre-Stripe self-serve switch). Set the secret key to flip
+  // into real "stripe" mode (Checkout + subscriptions + webhooks). Every price
+  // below has a default-constant fallback in PLANS/ADD_ONS, so a missing or
+  // slow-loading price never breaks the app.
+  STRIPE_SECRET_KEY: z.string().optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().optional(),
+  STRIPE_PRICE_PRO: z.string().optional(),
+  STRIPE_PRICE_SCALE: z.string().optional(),
+  STRIPE_PRICE_OVERAGE: z.string().optional(),
+  STRIPE_PRICE_SEAT: z.string().optional(),
+  STRIPE_PRICE_ADDON_DEDICATED_IP: z.string().optional(),
+  STRIPE_PRICE_ADDON_SUBTENANT_PACK: z.string().optional(),
+  // Where Checkout sends the user back (success/cancel). The dashboard's URL.
+  DASHBOARD_URL: z.string().url().default("http://localhost:3001"),
+
+  // --- AI template drafting ------------------------------------------------
+  // Unset => a deterministic mock generator answers, so "Ask AI" is fully
+  // demoable without a key. Set the key to use real Claude.
+  ANTHROPIC_API_KEY: z.string().optional(),
+  AI_MODEL: z.string().default("claude-opus-4-8"),
+
+  // --- Asset uploads (local dev driver; S3-ready interface) ----------------
+  ASSET_STORAGE_DIR: z.string().default(".assets"),
+  ASSET_PUBLIC_URL: z.string().url().default("http://localhost:4000/assets"),
+  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -63,3 +91,9 @@ if (!parsed.success) {
 
 export const env = parsed.data;
 export type Env = typeof env;
+
+/**
+ * Billing mode is derived, not configured: the mere presence of a Stripe secret
+ * flips the app from the local self-serve plan switch into real Stripe Checkout.
+ */
+export const BILLING_MODE: "stripe" | "local" = env.STRIPE_SECRET_KEY ? "stripe" : "local";

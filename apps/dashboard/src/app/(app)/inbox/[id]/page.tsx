@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { PageHeader } from "@/components/app/page-header";
+import { ThreadStatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatDateTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Thread, ThreadMessage } from "@/lib/types";
-import { ThreadStatusBadge } from "../page";
 import { ReplyBox } from "../reply-box";
 
 function Bubble({ m }: { m: ThreadMessage }) {

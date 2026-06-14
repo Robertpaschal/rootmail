@@ -2,33 +2,46 @@ import Link from "next/link";
 import { Inbox } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
+import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/components/app/feature-locked";
 import { PageHeader } from "@/components/app/page-header";
-import { Badge } from "@/components/ui/badge";
+import { ThreadStatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { Thread, ThreadStatus } from "@/lib/types";
-
-export function ThreadStatusBadge({ status }: { status: ThreadStatus }) {
-  if (status === "needs_reply") return <Badge variant="warning">Needs reply</Badge>;
-  if (status === "closed") return <Badge variant="muted">Closed</Badge>;
-  return <Badge variant="secondary">Open</Badge>;
-}
+import type { Thread } from "@/lib/types";
 
 export default async function InboxPage() {
   let threads: Thread[] | null = null;
   let failed: string | null = null;
   let isApiErr = false;
+  let locked: FeatureLockedInfo | null = null;
   try {
     threads = (await api.listThreads()).data;
   } catch (err) {
-    if (err instanceof ConnectionError || err instanceof ApiError) {
+    if (err instanceof ApiError && err.code === "feature_locked") {
+      locked = asFeatureLocked(err.details);
+    } else if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
       isApiErr = err instanceof ApiError;
     } else {
       failed = "An unexpected error occurred.";
     }
+  }
+
+  if (locked) {
+    return (
+      <>
+        <PageHeader
+          title="Inbox"
+          description="Every send opens a conversation. Replies are matched back here so nothing lands in a noreply void."
+        />
+        <FeatureLocked
+          info={locked}
+          blurb="The shared inbox threads every send and matches replies back automatically — no more noreply void."
+        />
+      </>
+    );
   }
 
   return (

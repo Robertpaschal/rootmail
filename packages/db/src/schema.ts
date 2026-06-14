@@ -17,6 +17,7 @@ import {
   MESSAGE_STATUSES,
   MESSAGE_TYPES,
   PLAN_IDS,
+  PLAN_STATUSES,
   PRIORITIES,
   SUBTENANT_STATUSES,
   SUPPRESSION_REASONS,
@@ -39,6 +40,7 @@ export const suppressionReasonEnum = pgEnum("suppression_reason", SUPPRESSION_RE
 export const workspaceEnvironmentEnum = pgEnum("workspace_environment", WORKSPACE_ENVIRONMENTS);
 export const membershipRoleEnum = pgEnum("membership_role", MEMBERSHIP_ROLES);
 export const planEnum = pgEnum("plan", PLAN_IDS);
+export const planStatusEnum = pgEnum("plan_status", PLAN_STATUSES);
 export const threadStatusEnum = pgEnum("thread_status", THREAD_STATUSES);
 export const messageDirectionEnum = pgEnum("message_direction", MESSAGE_DIRECTIONS);
 
@@ -65,8 +67,25 @@ export const organizations = pgTable("organizations", {
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
   plan: planEnum("plan").notNull().default("free"),
+  // Billing linkage. Null in local mode (no Stripe); set once a customer/
+  // subscription exists in Stripe mode. planStatus mirrors the subscription.
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  planStatus: planStatusEnum("plan_status").notNull().default("active"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
+});
+
+// Stripe webhook idempotency: every processed event id is recorded once, so a
+// redelivered event is a no-op. Append-only.
+export const billingEvents = pgTable("billing_events", {
+  id: text("id").primaryKey(),
+  stripeEventId: text("stripe_event_id").notNull().unique(),
+  type: text("type").notNull(),
+  organizationId: text("organization_id").references(() => organizations.id, {
+    onDelete: "set null",
+  }),
+  createdAt: createdAt(),
 });
 
 // Monthly send meter per organization (period = "YYYY-MM", UTC). Sandbox/test
@@ -397,6 +416,8 @@ export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
+export type BillingEvent = typeof billingEvents.$inferSelect;
+export type NewBillingEvent = typeof billingEvents.$inferInsert;
 export type UsageRecord = typeof usageRecords.$inferSelect;
 export type NewUsageRecord = typeof usageRecords.$inferInsert;
 export type Workspace = typeof workspaces.$inferSelect;

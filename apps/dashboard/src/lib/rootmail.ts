@@ -4,6 +4,7 @@ import type {
   AuditTrail,
   AuthSession,
   Billing,
+  CheckoutResponse,
   Contact,
   ContactStatus,
   CreatedApiKey,
@@ -29,6 +30,7 @@ export class ApiError extends Error {
     public status: number,
     message: string,
     public code?: string,
+    public details?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -95,7 +97,14 @@ async function rmFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   if (!res.ok) {
     const message: string =
       json?.error?.message ?? json?.message ?? (typeof json?.error === "string" ? json.error : null) ?? res.statusText ?? "Request failed";
-    throw new ApiError(res.status, message, json?.error?.code ?? json?.code);
+    // Our API puts the machine code in error.type and structured info in
+    // error.details (e.g. feature_locked carries the upgrade payload).
+    throw new ApiError(
+      res.status,
+      message,
+      json?.error?.type ?? json?.error?.code ?? json?.code,
+      json?.error?.details,
+    );
   }
 
   return json as T;
@@ -192,6 +201,10 @@ export const api = {
     rmFetch<Thread>(`/v1/threads/${id}/simulate-reply`, { method: "POST", body }),
 
   getBilling: () => rmFetch<Billing>("/v1/billing"),
+  // Starts a plan change. In Stripe mode returns a hosted Checkout URL; in local
+  // mode applies the switch and returns the updated billing.
+  checkout: (plan: string) =>
+    rmFetch<CheckoutResponse>("/v1/billing/checkout", { method: "POST", body: { plan } }),
   setPlan: (plan: string) =>
     rmFetch<Billing>("/v1/billing/plan", { method: "POST", body: { plan } }),
 

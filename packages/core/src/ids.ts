@@ -20,6 +20,7 @@ export const ID_PREFIXES = {
   thread: "thr",
   threadMessage: "tms",
   usage: "usg",
+  billingEvent: "bil",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;
