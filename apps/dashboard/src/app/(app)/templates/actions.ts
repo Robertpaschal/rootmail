@@ -19,16 +19,18 @@ interface Fields {
   subject: string;
   html: string;
   text: string;
-  blocks: unknown[] | null;
+  blocks: Record<string, unknown> | null;
 }
 
 function readFields(formData: FormData): Fields {
   const blocksRaw = String(formData.get("blocks") ?? "").trim();
-  let blocks: unknown[] | null = null;
+  let blocks: Record<string, unknown> | null = null;
   if (blocksRaw) {
     try {
       const parsed: unknown = JSON.parse(blocksRaw);
-      if (Array.isArray(parsed)) blocks = parsed;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        blocks = parsed as Record<string, unknown>;
+      }
     } catch {
       blocks = null;
     }

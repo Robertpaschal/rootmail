@@ -49,3 +49,76 @@
     text-wrap: balance;
   }
 }
+
+/* Writing editor (TipTap) — styles for the editable surface only.
+   The stored email HTML is rendered separately by lib/email-doc.ts. */
+.prose-email:focus {
+  outline: none;
+}
+.prose-email h1 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 0.5rem;
+}
+.prose-email h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 0.5rem;
+}
+.prose-email h3 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0 0 0.4rem;
+}
+.prose-email p {
+  margin: 0 0 0.6rem;
+}
+.prose-email ul,
+.prose-email ol {
+  margin: 0 0 0.6rem;
+  padding-left: 1.4rem;
+}
+.prose-email ul {
+  list-style: disc;
+}
+.prose-email ol {
+  list-style: decimal;
+}
+.prose-email li {
+  margin: 0 0 0.2rem;
+}
+.prose-email blockquote {
+  margin: 0 0 0.6rem;
+  padding-left: 0.85rem;
+  border-left: 3px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+  font-style: italic;
+}
+.prose-email a {
+  color: #4f46e5;
+  text-decoration: underline;
+}
+.prose-email img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  margin: 0 0 0.6rem;
+}
+.prose-email hr {
+  border: none;
+  border-top: 1px solid hsl(var(--border));
+  margin: 0.75rem 0;
+}
+.prose-email [data-rm-button] {
+  margin: 0.25rem 0 0.6rem;
+}
+.prose-email p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  color: hsl(var(--muted-foreground));
+  float: left;
+  height: 0;
+  pointer-events: none;
+}

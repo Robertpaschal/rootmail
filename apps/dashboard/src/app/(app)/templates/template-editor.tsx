@@ -1,9 +1,9 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
-import { Blocks, Check, Code2, Loader2, Monitor, Save, Smartphone, Tablet, Trash2 } from "lucide-react";
+import { Check, Code2, Loader2, Monitor, PenLine, Save, Smartphone, Tablet, Trash2 } from "lucide-react";
 import { createTemplate, deleteTemplate, updateTemplate, type TemplateFormState } from "./actions";
-import { BlockEditor } from "./block-editor";
+import { WritingEditor } from "./writing-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { blocksToHtml, starterBlocks, type TemplateBlock } from "@/lib/email-blocks";
+import { docToHtml, docToText, emptyDoc, isDoc, type DocNode } from "@/lib/email-doc";
 import { cn } from "@/lib/utils";
 import type { Template } from "@/lib/types";
 
@@ -44,11 +44,13 @@ export function TemplateEditor({ template }: { template?: Template }) {
     null,
   );
 
-  const initialBlocks = (template?.blocks as TemplateBlock[] | null) ?? null;
-  const [mode, setMode] = useState<"visual" | "code">(
-    initialBlocks?.length ? "visual" : editing ? "code" : "visual",
+  const initialDoc: DocNode = isDoc(template?.blocks)
+    ? (template!.blocks as unknown as DocNode)
+    : emptyDoc();
+  const [mode, setMode] = useState<"write" | "code">(
+    isDoc(template?.blocks) ? "write" : editing ? "code" : "write",
   );
-  const [blocks, setBlocks] = useState<TemplateBlock[]>(initialBlocks ?? starterBlocks());
+  const [doc, setDoc] = useState<DocNode>(initialDoc);
 
   const [subject, setSubject] = useState(template?.subject ?? "");
   const [html, setHtml] = useState(template?.html ?? NEW_HTML);
@@ -57,13 +59,13 @@ export function TemplateEditor({ template }: { template?: Template }) {
 
   const deviceWidth = DEVICES.find((d) => d.name === device)?.width ?? "100%";
 
-  // Visual mode renders blocks; code mode uses the raw HTML. Either way this is
-  // what previews and what gets stored as the template's html.
+  // Write mode renders the document; code mode uses the raw HTML. Either way this
+  // is what previews and what gets stored as the template's html.
   const effectiveHtml = useMemo(
-    () => (mode === "visual" ? blocksToHtml(blocks) : html),
-    [mode, blocks, html],
+    () => (mode === "write" ? docToHtml(doc) : html),
+    [mode, doc, html],
   );
-  const vars = detectVars(subject, effectiveHtml, text);
+  const vars = detectVars(subject, mode === "write" ? docToText(doc) : html, text);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -118,19 +120,23 @@ export function TemplateEditor({ template }: { template?: Template }) {
                 <div className="flex gap-1 rounded-md border p-0.5 text-sm">
                   <button
                     type="button"
-                    onClick={() => setMode("visual")}
+                    onClick={() => setMode("write")}
                     className={cn(
                       "flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors",
-                      mode === "visual"
+                      mode === "write"
                         ? "bg-secondary text-foreground"
                         : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    <Blocks className="size-3.5" /> Builder
+                    <PenLine className="size-3.5" /> Write
                   </button>
                   <button
                     type="button"
-                    onClick={() => setMode("code")}
+                    onClick={() => {
+                      // Eject to HTML with the current document rendered out.
+                      if (mode === "write") setHtml(docToHtml(doc));
+                      setMode("code");
+                    }}
                     className={cn(
                       "flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors",
                       mode === "code"
@@ -143,18 +149,22 @@ export function TemplateEditor({ template }: { template?: Template }) {
                 </div>
               </div>
 
-              {mode === "visual" ? (
+              {mode === "write" ? (
                 <>
-                  <BlockEditor blocks={blocks} onChange={setBlocks} />
+                  <WritingEditor initialDoc={initialDoc} onChange={setDoc} />
                   <input type="hidden" name="html" value={effectiveHtml} />
-                  <input type="hidden" name="blocks" value={JSON.stringify(blocks)} />
+                  <input type="hidden" name="blocks" value={JSON.stringify(doc)} />
+                  <p className="text-xs text-muted-foreground">
+                    Write naturally and format with the toolbar. Use{" "}
+                    <span className="font-mono">{"{{variables}}"}</span> for per-send values.
+                  </p>
                 </>
               ) : (
                 <>
                   <Textarea
                     id="html"
                     name="html"
-                    rows={12}
+                    rows={14}
                     value={html}
                     onChange={(e) => setHtml(e.target.value)}
                     className="font-mono text-xs"
