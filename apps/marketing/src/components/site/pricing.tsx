@@ -4,19 +4,20 @@ import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-// Illustrative pricing for the landing page — adjust to your go-to-market.
+// Mirrors the plans the product actually enforces (see packages/core PLANS).
+// Each tier adds volume AND a capability, so the upgrade has a real trigger.
 const tiers = [
   {
-    name: "Developer",
+    name: "Free",
     price: "$0",
     cadence: "forever",
-    blurb: "For side projects and getting started.",
+    blurb: "For solo devs and side projects.",
     included: "3,000 emails / month",
-    overage: "Upgrade to send more",
+    overage: "Free forever — no card",
     features: [
-      "1 workspace",
-      "Mock + 1 live provider",
+      "Transactional + marketing sends",
       "Full audit trail & suppression",
+      "Sandbox (test-mode) keys",
       "Community support",
     ],
     cta: "Start free",
@@ -24,35 +25,51 @@ const tiers = [
     featured: false,
   },
   {
-    name: "Team",
-    price: "$49",
+    name: "Pro",
+    price: "$20",
     cadence: "/ month",
-    blurb: "For platforms onboarding their own customers.",
-    included: "100,000 emails / month",
-    overage: "then $0.50 / 1,000",
+    blurb: "For startups shipping real product.",
+    included: "50,000 emails / month",
+    overage: "then $0.85 / 1,000",
     features: [
-      "Everything in Developer",
-      "Unlimited sub-tenants",
-      "Per-tenant domains, DKIM & SPF",
-      "Email support",
+      "Everything in Free",
+      "Reply threads & shared inbox",
+      "Sequences & automation",
+      "3 teammates · email support",
     ],
     cta: "Start sending",
     href: "#cta",
     featured: true,
   },
   {
+    name: "Scale",
+    price: "$80",
+    cadence: "/ month",
+    blurb: "For platforms onboarding their own customers.",
+    included: "250,000 emails / month",
+    overage: "then $0.70 / 1,000",
+    features: [
+      "Everything in Pro",
+      "Sub-tenants — their own domains",
+      "Per-tenant DKIM & reputation",
+      "Team roles (RBAC) · unlimited seats",
+    ],
+    cta: "Start scaling",
+    href: "#cta",
+    featured: false,
+  },
+  {
     name: "Enterprise",
     price: "Custom",
     cadence: "",
     blurb: "For scale, compliance & data residency.",
-    included: "Volume & committed-use pricing",
-    overage: "Discounts at scale",
+    included: "1M+ emails — committed-use",
+    overage: "Volume discounts",
     features: [
-      "Everything in Team",
-      "Dedicated IPs & warming",
+      "Everything in Scale",
       "Proof bundles (Layer 3)",
-      "SSO & RBAC",
-      "EU residency · SLA",
+      "Dedicated IPs & warming",
+      "SSO / SAML · EU residency · SLA",
     ],
     cta: "Contact sales",
     href: "#",
@@ -85,7 +102,7 @@ export function Pricing() {
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-5xl items-start gap-6 md:grid-cols-3">
+        <div className="mx-auto grid max-w-6xl items-start gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {tiers.map((t) => (
             <div
               key={t.name}
@@ -137,10 +154,11 @@ export function Pricing() {
               <Zap className="size-5" />
             </span>
             <div>
-              <p className="font-semibold">Just need to send? Pay as you go.</p>
+              <p className="font-semibold">Only pay for what you send.</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                No monthly plan. The first 3,000 emails each month are free, then $0.80 / 1,000 —
-                same API, same audit trail. Switch to a plan whenever the volume makes it cheaper.
+                Every plan includes a monthly volume; go over and it&apos;s just $0.85 / 1,000 on Pro,
+                dropping to $0.50 at Enterprise — so growth never gets cheaper to leave. Free stays
+                free and capped, and sandbox sends are always free.
               </p>
             </div>
           </div>
@@ -148,7 +166,7 @@ export function Pricing() {
             href="#cta"
             className={cn(buttonVariants({ variant: "outline" }), "shrink-0 whitespace-nowrap")}
           >
-            Start pay-as-you-go
+            Start free
           </Link>
         </div>
 
