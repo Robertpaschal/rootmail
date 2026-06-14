@@ -2,7 +2,9 @@ import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { Errors, THREAD_STATUSES } from "@rootmail/core";
-import { db, type Thread, threadMessages, threads } from "@rootmail/db";
+import { db, organizations, type Thread, threadMessages, threads } from "@rootmail/db";
+import { assertCanSend } from "../lib/billing";
+import { authActor, dispatchMessage } from "../lib/dispatch";
 import {
   appendInbound,
   appendOutbound,
@@ -11,6 +13,14 @@ import {
 } from "../lib/threads";
 import { serializeThread } from "../lib/serialize";
 import { parse } from "../lib/validate";
+
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 const listQuery = z.object({
   status: z.enum(THREAD_STATUSES).optional(),
@@ -86,21 +96,51 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
     return serializeThread(thread, msgs);
   });
 
-  // --- Reply (append an outbound message to the thread) -------------------
-  // Records the reply in the conversation; wiring delivery through the send
-  // pipeline is the next step.
+  // --- Reply --------------------------------------------------------------
+  // Sends the reply through the real pipeline (render → queue → provider) and
+  // records it on the thread, linked to the message it created.
   app.post("/v1/threads/:id/reply", async (req) => {
     const { id } = req.params as { id: string };
     const body = parse(replyBody, req.body);
     if (!body.html && !body.text) throw Errors.validation("Provide `html` or `text` to reply.");
     const thread = await getScopedThread(req, id);
-    const from = (await threadReplyFrom(thread.id)) ?? `no-reply@${req.auth.workspace.slug}`;
+    const fromEmail =
+      (await threadReplyFrom(thread.id)) ?? `no-reply@${req.auth.workspace.slug}.rootmail.dev`;
+
+    // Replies count against the monthly quota like any other live send.
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, req.auth.workspace.organizationId))
+      .limit(1);
+    if (req.auth.mode === "live" && org) await assertCanSend(org);
+
+    const html = body.html ?? `<p>${escapeHtml(body.text ?? "").replace(/\n/g, "<br/>")}</p>`;
+    const subject = /^re:/i.test(thread.subject) ? thread.subject : `Re: ${thread.subject}`;
+
+    const { message } = await dispatchMessage({
+      workspace: req.auth.workspace,
+      subTenantId: thread.subTenantId,
+      org: org ?? null,
+      mode: req.auth.mode,
+      type: "transactional",
+      to: thread.contactEmail,
+      fromEmail,
+      replyTo: fromEmail,
+      subject,
+      html,
+      text: body.text ?? null,
+      actor: authActor(req.auth),
+      ip: req.ip,
+      userAgent: req.headers["user-agent"] ?? null,
+    });
 
     await appendOutbound(thread, {
-      fromEmail: from,
+      fromEmail,
       toEmail: thread.contactEmail,
-      bodyHtml: body.html ?? null,
-      bodyText: body.text ?? null,
+      bodyHtml: message.renderedHtml,
+      bodyText: message.renderedText,
+      messageId: message.id,
     });
     return serializeThread(await getScopedThread(req, id));
   });
