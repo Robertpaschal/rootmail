@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Check, Loader2, Save, Trash2 } from "lucide-react";
+import { Check, Loader2, Monitor, Save, Smartphone, Tablet, Trash2 } from "lucide-react";
 import { createTemplate, deleteTemplate, updateTemplate, type TemplateFormState } from "./actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,11 +10,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type { Template } from "@/lib/types";
 
 const NEW_HTML = `<h1>Hello {{name}} 👋</h1>
 <p>Welcome to {{product}} — we're glad you're here.</p>
 <p><a href="{{action_url}}">Get started</a></p>`;
+
+const DEVICES = [
+  { name: "Desktop", icon: Monitor, width: "100%" },
+  { name: "Tablet", icon: Tablet, width: "768px" },
+  { name: "Mobile", icon: Smartphone, width: "390px" },
+] as const;
+type Device = (typeof DEVICES)[number]["name"];
 
 function detectVars(...texts: string[]): string[] {
   const re = /\{\{\s*([\w.]+)\s*\}\}/g;
@@ -37,6 +45,9 @@ export function TemplateEditor({ template }: { template?: Template }) {
   const [subject, setSubject] = useState(template?.subject ?? "");
   const [html, setHtml] = useState(template?.html ?? NEW_HTML);
   const [text, setText] = useState(template?.text ?? "");
+  const [device, setDevice] = useState<Device>("Desktop");
+
+  const deviceWidth = DEVICES.find((d) => d.name === device)?.width ?? "100%";
 
   const vars = detectVars(subject, html, text);
 
@@ -140,24 +151,45 @@ export function TemplateEditor({ template }: { template?: Template }) {
 
       <div className="space-y-4">
         <Card>
-          <CardHeader>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Preview</CardTitle>
+            <div className="flex gap-1 rounded-md border p-0.5">
+              {DEVICES.map((d) => (
+                <button
+                  key={d.name}
+                  type="button"
+                  onClick={() => setDevice(d.name)}
+                  aria-label={d.name}
+                  aria-pressed={device === d.name}
+                  title={d.name}
+                  className={cn(
+                    "rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground",
+                    device === d.name && "bg-secondary text-foreground",
+                  )}
+                >
+                  <d.icon className="size-4" />
+                </button>
+              ))}
+            </div>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
               <span className="text-muted-foreground">Subject: </span>
               <span className="font-medium">{subject || "—"}</span>
             </div>
-            {/* sandbox="" strips scripts — safe to render the draft HTML. */}
-            <iframe
-              title="Template preview"
-              sandbox=""
-              srcDoc={html}
-              className="h-[420px] w-full rounded-md border bg-white"
-            />
+            <div className="flex justify-center overflow-hidden rounded-md border bg-muted/30 p-3">
+              {/* sandbox="" strips scripts — safe to render the draft HTML. */}
+              <iframe
+                title="Template preview"
+                sandbox=""
+                srcDoc={html}
+                style={{ width: deviceWidth }}
+                className="h-[420px] max-w-full rounded-sm border bg-white transition-[width] duration-200"
+              />
+            </div>
             <p className="text-xs text-muted-foreground">
               Variables show as <span className="font-mono">{"{{name}}"}</span> here — they&apos;re
-              filled in at send time.
+              filled in at send time. Switch device sizes to check responsiveness.
             </p>
           </CardContent>
         </Card>
