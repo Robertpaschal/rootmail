@@ -159,6 +159,32 @@ export async function provisionAccount(params: {
   });
 }
 
+/** Find-or-create a user from a verified social-login identity (no password). */
+export async function upsertOAuthUser(params: {
+  email: string;
+  name?: string | null;
+  emailVerified?: boolean;
+}): Promise<{ user: User; created: boolean }> {
+  const email = params.email.toLowerCase();
+  const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  if (existing) {
+    if (params.emailVerified && !existing.emailVerifiedAt) {
+      const now = new Date();
+      await db.update(users).set({ emailVerifiedAt: now }).where(eq(users.id, existing.id));
+      existing.emailVerifiedAt = now;
+    }
+    return { user: existing, created: false };
+  }
+  const account = await provisionAccount({ email, passwordHash: null, name: params.name });
+  const user = account.user;
+  if (params.emailVerified) {
+    const now = new Date();
+    await db.update(users).set({ emailVerifiedAt: now }).where(eq(users.id, user.id));
+    user.emailVerifiedAt = now;
+  }
+  return { user, created: true };
+}
+
 /** Workspaces a user can access (via their org memberships). */
 export async function userWorkspaces(userId: string): Promise<Workspace[]> {
   const rows = await db

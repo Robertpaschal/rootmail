@@ -192,3 +192,31 @@ export const api = {
   me: () => rmFetch<MeResult>("/v1/auth/me"),
   logout: () => rmFetch<{ ok: boolean }>("/v1/auth/logout", { method: "POST" }),
 };
+
+/**
+ * Exchange a verified social-login identity for a session. Server-to-server only
+ * — authenticated with the shared internal secret, not a user session.
+ */
+export async function oauthUpsert(body: {
+  provider: string;
+  email: string;
+  name?: string;
+  email_verified?: boolean;
+}): Promise<AuthSession> {
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (!secret) throw new Error("INTERNAL_API_SECRET is not set");
+
+  let res: Response;
+  try {
+    res = await fetch(new URL("/v1/auth/oauth", API_URL), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Rootmail-Internal": secret },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch {
+    throw new ConnectionError(`Cannot reach the rootmail API at ${API_URL}.`);
+  }
+  if (!res.ok) throw new ApiError(res.status, "Social login failed");
+  return (await res.json()) as AuthSession;
+}

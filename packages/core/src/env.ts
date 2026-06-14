@@ -37,6 +37,10 @@ const EnvSchema = z.object({
     .default("info"),
   PUBLIC_API_URL: z.string().url().default("http://localhost:4000"),
 
+  // Shared secret the first-party dashboard uses to call internal endpoints
+  // (e.g. social-login user upsert). Unset → those endpoints are disabled.
+  INTERNAL_API_SECRET: z.string().optional(),
+
   ROOTMAIL_DOMAIN: z.string().default("rootmail.io"),
   DKIM_SELECTOR: z.string().default("rootmail"),
 

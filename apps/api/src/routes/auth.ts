@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { Errors, hashPassword, verifyPassword } from "@rootmail/core";
+import { env, Errors, hashPassword, verifyPassword } from "@rootmail/core";
 import { db, users } from "@rootmail/db";
 import {
   createSession,
@@ -9,6 +9,7 @@ import {
   deleteSession,
   provisionAccount,
   resolveSession,
+  upsertOAuthUser,
   userWorkspaces,
   workspaceForUser,
 } from "../lib/auth";
@@ -25,6 +26,13 @@ const signupBody = z.object({
 const loginBody = z.object({
   email: z.string().email(),
   password: z.string().min(1),
+});
+
+const oauthBody = z.object({
+  provider: z.string().min(1),
+  email: z.string().email(),
+  name: z.string().optional(),
+  email_verified: z.boolean().optional(),
 });
 
 function bearerToken(req: FastifyRequest): string | undefined {
@@ -94,6 +102,35 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       session_token: token,
       session_expires_at: session.expiresAt,
     };
+  });
+
+  // --- Social login upsert (internal; called by the dashboard) ------------
+  // The dashboard completes the OAuth dance, then exchanges the verified email
+  // here for a session. Guarded by a shared secret so only first-party callers
+  // can mint sessions.
+  app.post("/v1/auth/oauth", async (req, reply) => {
+    if (!env.INTERNAL_API_SECRET) throw Errors.notFound("Social login is not enabled.");
+    const provided = req.headers["x-rootmail-internal"];
+    if (provided !== env.INTERNAL_API_SECRET) throw Errors.unauthorized();
+
+    const body = parse(oauthBody, req.body);
+    const { user, created } = await upsertOAuthUser({
+      email: body.email.toLowerCase(),
+      name: body.name,
+      emailVerified: body.email_verified ?? true,
+    });
+
+    const workspaces = await userWorkspaces(user.id);
+    const live = workspaces.find((w) => w.environment === "live") ?? workspaces[0] ?? null;
+    const { token, session } = await createSession(user.id, live?.id ?? null);
+
+    return reply.status(created ? 201 : 200).send({
+      user: serializeUser(user),
+      workspaces: workspaces.map(serializeWorkspace),
+      active_workspace: live ? serializeWorkspace(live) : null,
+      session_token: token,
+      session_expires_at: session.expiresAt,
+    });
   });
 
   // --- Current user -------------------------------------------------------
