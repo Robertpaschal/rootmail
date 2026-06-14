@@ -148,6 +148,36 @@ export interface MeResult {
   active_workspace: Workspace | null;
 }
 
+export type PlanId = "free" | "pro" | "scale" | "enterprise";
+
+export interface Plan {
+  id: PlanId;
+  name: string;
+  price: number | null;
+  monthly_quota: number;
+  allow_overage: boolean;
+  overage_per_1000: number;
+  included_sub_tenants: number;
+  seats: number;
+  features: string[];
+}
+
+export interface Billing {
+  object: "billing";
+  organization_id: string;
+  plan: Plan;
+  usage: {
+    period: string;
+    used: number;
+    quota: number;
+    remaining: number;
+    overage: number;
+    overage_cost: number;
+    over_limit: boolean;
+  };
+  plans: Plan[];
+}
+
 export interface AuthSession extends MeResult {
   session_token: string;
   session_expires_at: string;

@@ -3,6 +3,7 @@ import type {
   ApiKey,
   AuditTrail,
   AuthSession,
+  Billing,
   Contact,
   ContactStatus,
   CreatedApiKey,
@@ -179,6 +180,10 @@ export const api = {
     rmFetch<{ object: "template"; id: string; deleted: boolean }>(`/v1/templates/${id}`, {
       method: "DELETE",
     }),
+
+  getBilling: () => rmFetch<Billing>("/v1/billing"),
+  setPlan: (plan: string) =>
+    rmFetch<Billing>("/v1/billing/plan", { method: "POST", body: { plan } }),
 
   listApiKeys: () => rmFetch<ListResponse<ApiKey>>("/v1/api-keys"),
   createApiKey: (body: { name: string }) =>

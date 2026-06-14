@@ -2,7 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FileText, KeyRound, LayoutDashboard, Mail, Network, Send, Users } from "lucide-react";
+import {
+  CreditCard,
+  FileText,
+  KeyRound,
+  LayoutDashboard,
+  Mail,
+  Network,
+  Send,
+  Users,
+} from "lucide-react";
 import { Logo } from "./logo";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -14,6 +23,7 @@ const items = [
   { href: "/sub-tenants", label: "Sub-tenants", icon: Network },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/api-keys", label: "API keys", icon: KeyRound },
+  { href: "/billing", label: "Plan & usage", icon: CreditCard },
 ];
 
 function useIsActive() {
