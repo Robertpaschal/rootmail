@@ -15,6 +15,7 @@ import {
   MEMBERSHIP_ROLES,
   MESSAGE_STATUSES,
   MESSAGE_TYPES,
+  PLAN_IDS,
   PRIORITIES,
   SUBTENANT_STATUSES,
   SUPPRESSION_REASONS,
@@ -35,6 +36,7 @@ export const subTenantStatusEnum = pgEnum("sub_tenant_status", SUBTENANT_STATUSE
 export const suppressionReasonEnum = pgEnum("suppression_reason", SUPPRESSION_REASONS);
 export const workspaceEnvironmentEnum = pgEnum("workspace_environment", WORKSPACE_ENVIRONMENTS);
 export const membershipRoleEnum = pgEnum("membership_role", MEMBERSHIP_ROLES);
+export const planEnum = pgEnum("plan", PLAN_IDS);
 
 // Fresh builders each call so no column instance is shared across tables.
 const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -58,9 +60,27 @@ export const organizations = pgTable("organizations", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
   slug: text("slug").notNull().unique(),
+  plan: planEnum("plan").notNull().default("free"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+// Monthly send meter per organization (period = "YYYY-MM", UTC). Sandbox/test
+// sends are never metered.
+export const usageRecords = pgTable(
+  "usage_records",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    period: text("period").notNull(),
+    emailsSent: integer("emails_sent").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("usage_org_period_uq").on(t.organizationId, t.period)],
+);
 
 export const workspaces = pgTable(
   "workspaces",
@@ -332,6 +352,8 @@ export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
+export type UsageRecord = typeof usageRecords.$inferSelect;
+export type NewUsageRecord = typeof usageRecords.$inferInsert;
 export type Workspace = typeof workspaces.$inferSelect;
 export type NewWorkspace = typeof workspaces.$inferInsert;
 export type ApiKey = typeof apiKeys.$inferSelect;

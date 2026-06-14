@@ -63,3 +63,101 @@ export type WorkspaceEnvironment = (typeof WORKSPACE_ENVIRONMENTS)[number];
 
 export const MEMBERSHIP_ROLES = ["owner", "admin", "member"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
+
+// ---------------------------------------------------------------------------
+// Plans & pricing
+// ---------------------------------------------------------------------------
+// Value-based tiers: every step up adds volume AND a capability, so upgrades
+// have a clear trigger ("I need replies / sub-tenants / proof"), not just "more
+// emails". Free hard-caps to create the nudge; paid plans bill volume-discounted
+// overage so growth is never blocked. -1 means unlimited.
+export const PLAN_IDS = ["free", "pro", "scale", "enterprise"] as const;
+export type PlanId = (typeof PLAN_IDS)[number];
+
+export type PlanFeature =
+  | "audit"
+  | "suppression"
+  | "subtenants"
+  | "threads"
+  | "sequences"
+  | "rbac"
+  | "proof"
+  | "dedicated_ip"
+  | "sso"
+  | "residency";
+
+export interface PlanDef {
+  id: PlanId;
+  name: string;
+  /** Monthly USD; null = custom / contact sales. */
+  price: number | null;
+  /** Included emails per calendar month. */
+  monthlyQuota: number;
+  /** Free hard-caps; paid plans bill overage instead of blocking. */
+  allowOverage: boolean;
+  /** USD per 1,000 emails over the included quota. */
+  overagePer1000: number;
+  /** Sub-tenants included before per-tenant pricing; -1 = unlimited. */
+  includedSubTenants: number;
+  /** Team seats; -1 = unlimited. */
+  seats: number;
+  features: PlanFeature[];
+}
+
+export const PLANS: Record<PlanId, PlanDef> = {
+  free: {
+    id: "free",
+    name: "Free",
+    price: 0,
+    monthlyQuota: 3_000,
+    allowOverage: false,
+    overagePer1000: 0,
+    includedSubTenants: 0,
+    seats: 1,
+    features: ["audit", "suppression"],
+  },
+  pro: {
+    id: "pro",
+    name: "Pro",
+    price: 20,
+    monthlyQuota: 50_000,
+    allowOverage: true,
+    overagePer1000: 0.85,
+    includedSubTenants: 0,
+    seats: 3,
+    features: ["audit", "suppression", "threads", "sequences"],
+  },
+  scale: {
+    id: "scale",
+    name: "Scale",
+    price: 80,
+    monthlyQuota: 250_000,
+    allowOverage: true,
+    overagePer1000: 0.7,
+    includedSubTenants: 10,
+    seats: -1,
+    features: ["audit", "suppression", "threads", "sequences", "subtenants", "rbac"],
+  },
+  enterprise: {
+    id: "enterprise",
+    name: "Enterprise",
+    price: null,
+    monthlyQuota: 1_000_000,
+    allowOverage: true,
+    overagePer1000: 0.5,
+    includedSubTenants: -1,
+    seats: -1,
+    features: [
+      "audit",
+      "suppression",
+      "threads",
+      "sequences",
+      "subtenants",
+      "rbac",
+      "proof",
+      "dedicated_ip",
+      "sso",
+      "residency",
+    ],
+  },
+};

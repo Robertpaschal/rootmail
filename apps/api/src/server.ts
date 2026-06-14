@@ -7,6 +7,7 @@ import { registerAuth } from "./plugins/auth";
 import { registerErrorHandler } from "./plugins/errors";
 import { apiKeyRoutes } from "./routes/apikeys";
 import { authRoutes } from "./routes/auth";
+import { billingRoutes } from "./routes/billing";
 import { contactRoutes } from "./routes/contacts";
 import { healthRoutes } from "./routes/health";
 import { messageRoutes } from "./routes/messages";
@@ -39,6 +40,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(contactRoutes);
   await app.register(apiKeyRoutes);
   await app.register(templateRoutes);
+  await app.register(billingRoutes);
 
   return app;
 }

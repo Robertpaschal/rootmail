@@ -18,6 +18,7 @@ export const ID_PREFIXES = {
   suppression: "sup",
   event: "evt",
   thread: "thr",
+  usage: "usg",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

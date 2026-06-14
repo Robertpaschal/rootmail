@@ -17,11 +17,13 @@ import {
   db,
   messages,
   type Message,
+  organizations,
   subTenants,
   type SubTenant,
   type Workspace,
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
+import { assertCanSend, recordSend } from "../lib/billing";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
 import { serializeAudit, serializeMessage } from "../lib/serialize";
 import { parse } from "../lib/validate";
@@ -141,6 +143,14 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // Plan enforcement — live sends count against the org's monthly quota.
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, workspace.organizationId))
+      .limit(1);
+    if (mode === "live" && org) await assertCanSend(org);
+
     // Resolve content from a template or inline html.
     let subjectSrc = body.subject;
     let htmlSrc = body.html;
@@ -229,6 +239,9 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     }
 
     const message = insertedRows[0];
+
+    // Meter the live send against the monthly quota (sandbox is free).
+    if (mode === "live" && org) await recordSend(org.id);
 
     await writeAudit(db, {
       workspaceId: workspace.id,

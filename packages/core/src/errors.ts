@@ -28,6 +28,8 @@ export const Errors = {
   validation: (message = "Validation failed", details?: unknown) =>
     new AppError(422, "validation_error", message, details),
   rateLimited: (message = "Rate limit exceeded") => new AppError(429, "rate_limited", message),
+  quotaExceeded: (message = "Monthly send limit reached", details?: unknown) =>
+    new AppError(402, "quota_exceeded", message, details),
   badRequest: (message = "Bad request", details?: unknown) =>
     new AppError(400, "bad_request", message, details),
   internal: (message = "Internal server error") => new AppError(500, "internal_error", message),
