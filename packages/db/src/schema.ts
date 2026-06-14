@@ -13,12 +13,14 @@ import {
   AUDIT_EVENTS,
   CONTACT_STATUSES,
   MEMBERSHIP_ROLES,
+  MESSAGE_DIRECTIONS,
   MESSAGE_STATUSES,
   MESSAGE_TYPES,
   PLAN_IDS,
   PRIORITIES,
   SUBTENANT_STATUSES,
   SUPPRESSION_REASONS,
+  THREAD_STATUSES,
   TEMPLATE_TYPES,
   WORKSPACE_ENVIRONMENTS,
 } from "@rootmail/core/constants";
@@ -37,6 +39,8 @@ export const suppressionReasonEnum = pgEnum("suppression_reason", SUPPRESSION_RE
 export const workspaceEnvironmentEnum = pgEnum("workspace_environment", WORKSPACE_ENVIRONMENTS);
 export const membershipRoleEnum = pgEnum("membership_role", MEMBERSHIP_ROLES);
 export const planEnum = pgEnum("plan", PLAN_IDS);
+export const threadStatusEnum = pgEnum("thread_status", THREAD_STATUSES);
+export const messageDirectionEnum = pgEnum("message_direction", MESSAGE_DIRECTIONS);
 
 // Fresh builders each call so no column instance is shared across tables.
 const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -342,6 +346,47 @@ export const auditEntries = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Conversation (Layer 2) — every outbound message opens a thread; replies are
+// matched back to it and surface in the shared inbox.
+// ---------------------------------------------------------------------------
+export const threads = pgTable(
+  "threads",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "cascade" }),
+    contactEmail: text("contact_email").notNull(),
+    subject: text("subject").notNull(),
+    status: threadStatusEnum("status").notNull().default("open"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("threads_ws_status_idx").on(t.workspaceId, t.status, t.lastMessageAt)],
+);
+
+export const threadMessages = pgTable(
+  "thread_messages",
+  {
+    id: text("id").primaryKey(),
+    threadId: text("thread_id")
+      .notNull()
+      .references(() => threads.id, { onDelete: "cascade" }),
+    direction: messageDirectionEnum("direction").notNull(),
+    // Set for outbound entries that came from a real Message send.
+    messageId: text("message_id").references(() => messages.id, { onDelete: "set null" }),
+    fromEmail: text("from_email").notNull(),
+    toEmail: text("to_email").notNull(),
+    bodyHtml: text("body_html"),
+    bodyText: text("body_text"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("thread_messages_thread_idx").on(t.threadId, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
 export type User = typeof users.$inferSelect;
@@ -370,3 +415,7 @@ export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export type AuditEntry = typeof auditEntries.$inferSelect;
 export type NewAuditEntry = typeof auditEntries.$inferInsert;
+export type Thread = typeof threads.$inferSelect;
+export type NewThread = typeof threads.$inferInsert;
+export type ThreadMessage = typeof threadMessages.$inferSelect;
+export type NewThreadMessage = typeof threadMessages.$inferInsert;

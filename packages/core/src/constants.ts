@@ -58,6 +58,12 @@ export type SubTenantStatus = (typeof SUBTENANT_STATUSES)[number];
 export const SUPPRESSION_REASONS = ["bounce", "complaint", "unsubscribe", "manual"] as const;
 export type SuppressionReason = (typeof SUPPRESSION_REASONS)[number];
 
+export const THREAD_STATUSES = ["open", "needs_reply", "closed"] as const;
+export type ThreadStatus = (typeof THREAD_STATUSES)[number];
+
+export const MESSAGE_DIRECTIONS = ["outbound", "inbound"] as const;
+export type MessageDirection = (typeof MESSAGE_DIRECTIONS)[number];
+
 export const WORKSPACE_ENVIRONMENTS = ["live", "test"] as const;
 export type WorkspaceEnvironment = (typeof WORKSPACE_ENVIRONMENTS)[number];
 

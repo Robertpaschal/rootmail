@@ -18,6 +18,7 @@ export const ID_PREFIXES = {
   suppression: "sup",
   event: "evt",
   thread: "thr",
+  threadMessage: "tms",
   usage: "usg",
 } as const;
 

@@ -24,6 +24,7 @@ import {
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
 import { assertCanSend, recordSend } from "../lib/billing";
+import { openThreadForSend } from "../lib/threads";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
 import { serializeAudit, serializeMessage } from "../lib/serialize";
 import { parse } from "../lib/validate";
@@ -242,6 +243,13 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
 
     // Meter the live send against the monthly quota (sandbox is free).
     if (mode === "live" && org) await recordSend(org.id);
+
+    // Open a conversation thread (Layer 2) — best-effort, never fails the send.
+    try {
+      await openThreadForSend(message);
+    } catch {
+      /* threading is non-critical to the send */
+    }
 
     await writeAudit(db, {
       workspaceId: workspace.id,

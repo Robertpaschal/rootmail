@@ -6,9 +6,39 @@ import type {
   Message,
   SubTenant,
   Template,
+  Thread,
+  ThreadMessage,
   User,
   Workspace,
 } from "@rootmail/db";
+
+export function serializeThreadMessage(m: ThreadMessage) {
+  return {
+    id: m.id,
+    object: "thread_message",
+    direction: m.direction,
+    message_id: m.messageId,
+    from: m.fromEmail,
+    to: m.toEmail,
+    body_html: m.bodyHtml,
+    body_text: m.bodyText,
+    created_at: m.createdAt,
+  };
+}
+
+export function serializeThread(t: Thread, msgs?: ThreadMessage[]) {
+  return {
+    id: t.id,
+    object: "thread",
+    subject: t.subject,
+    status: t.status,
+    contact_email: t.contactEmail,
+    sub_tenant_id: t.subTenantId,
+    last_message_at: t.lastMessageAt,
+    created_at: t.createdAt,
+    ...(msgs ? { messages: msgs.map(serializeThreadMessage) } : {}),
+  };
+}
 
 export function serializeUser(u: User) {
   return {
