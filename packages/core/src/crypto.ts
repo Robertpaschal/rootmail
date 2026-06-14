@@ -1,4 +1,4 @@
-import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import type { WorkspaceEnvironment } from "./constants";
 
 export interface GeneratedApiKey {
@@ -38,6 +38,11 @@ export function safeEqual(a: string, b: string): boolean {
 
 export function sha256Hex(input: string): string {
   return createHash("sha256").update(input).digest("hex");
+}
+
+/** Base64url HMAC-SHA256 — for signing tamper-proof links (e.g. unsubscribe). */
+export function hmacSign(data: string, secret: string): string {
+  return createHmac("sha256", secret).update(data).digest("base64url");
 }
 
 // ---------------------------------------------------------------------------

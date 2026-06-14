@@ -32,6 +32,28 @@ export async function recordSend(organizationId: string, n = 1): Promise<void> {
     });
 }
 
+/** AI template drafts used this calendar month (metered against AI credits). */
+export async function getAiUsage(organizationId: string, period = currentPeriod()): Promise<number> {
+  const [row] = await db
+    .select({ n: usageRecords.aiCreditsUsed })
+    .from(usageRecords)
+    .where(and(eq(usageRecords.organizationId, organizationId), eq(usageRecords.period, period)))
+    .limit(1);
+  return row?.n ?? 0;
+}
+
+/** Atomically add to this month's AI-credit counter (upsert). */
+export async function recordAiUse(organizationId: string, n = 1): Promise<void> {
+  const period = currentPeriod();
+  await db
+    .insert(usageRecords)
+    .values({ id: newId("usage"), organizationId, period, aiCreditsUsed: n })
+    .onConflictDoUpdate({
+      target: [usageRecords.organizationId, usageRecords.period],
+      set: { aiCreditsUsed: sql`${usageRecords.aiCreditsUsed} + ${n}`, updatedAt: new Date() },
+    });
+}
+
 export interface QuotaState {
   plan: PlanDef;
   used: number;

@@ -1,0 +1,1 @@
+ALTER TABLE "usage_records" ADD COLUMN "ai_credits_used" integer DEFAULT 0 NOT NULL;

@@ -1,5 +1,6 @@
 import { getSessionToken } from "./session";
 import type {
+  AiDraftResponse,
   ApiKey,
   AuditTrail,
   AuthSession,
@@ -8,6 +9,7 @@ import type {
   Contact,
   ContactStatus,
   CreatedApiKey,
+  UploadedAsset,
   ListResponse,
   MeResult,
   Message,
@@ -191,6 +193,31 @@ export const api = {
     rmFetch<{ object: "template"; id: string; deleted: boolean }>(`/v1/templates/${id}`, {
       method: "DELETE",
     }),
+  aiDraft: (prompt: string) =>
+    rmFetch<AiDraftResponse>("/v1/templates/ai-draft", { method: "POST", body: { prompt } }),
+  // Multipart upload — bypasses rmFetch (which is JSON-only). Server-side only.
+  uploadAsset: async (file: File): Promise<UploadedAsset> => {
+    const token = await getSessionToken();
+    if (!token) throw new ApiError(401, "Not signed in.");
+    const fd = new FormData();
+    fd.set("file", file);
+    let res: Response;
+    try {
+      res = await fetch(new URL("/v1/assets", API_URL), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+        cache: "no-store",
+      });
+    } catch {
+      throw new ConnectionError(`Cannot reach the rootmail API at ${API_URL}.`);
+    }
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new ApiError(res.status, json?.error?.message ?? "Upload failed", json?.error?.type);
+    }
+    return json as UploadedAsset;
+  },
 
   listThreads: (q: { status?: ThreadStatus } = {}) =>
     rmFetch<ListResponse<Thread>>("/v1/threads", { query: q }),

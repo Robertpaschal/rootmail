@@ -21,6 +21,7 @@ export const ID_PREFIXES = {
   threadMessage: "tms",
   usage: "usg",
   billingEvent: "bil",
+  asset: "ast",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

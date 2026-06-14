@@ -151,7 +151,7 @@ export function TemplateEditor({ template }: { template?: Template }) {
 
               {mode === "write" ? (
                 <>
-                  <WritingEditor initialDoc={initialDoc} onChange={setDoc} />
+                  <WritingEditor initialDoc={initialDoc} onChange={setDoc} onSubject={setSubject} />
                   <input type="hidden" name="html" value={effectiveHtml} />
                   <input type="hidden" name="blocks" value={JSON.stringify(doc)} />
                   <p className="text-xs text-muted-foreground">

@@ -250,3 +250,13 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
     grant: 10,
   },
 };
+
+// Monthly "AI credits" = AI template drafts included per plan. AI inference
+// costs us, so it's metered rather than free-for-all on lower tiers. -1 =
+// unlimited. Directional numbers — tune per [[pricing-design-principles]].
+export const AI_CREDITS: Record<PlanId, number> = {
+  free: 3,
+  pro: 50,
+  scale: 250,
+  enterprise: -1,
+};

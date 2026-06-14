@@ -200,6 +200,23 @@ export type CheckoutResponse =
   | { object: "checkout"; mode: "stripe"; url: string }
   | { object: "checkout"; mode: "local"; billing: Billing };
 
+export interface AiDraftResponse {
+  object: "ai_draft";
+  subject: string;
+  blocks: Record<string, unknown>;
+  source: "claude" | "mock";
+  credits: { used: number; allowance: number };
+}
+
+export interface UploadedAsset {
+  object: "asset";
+  id: string;
+  url: string;
+  content_type: string;
+  size: number;
+  filename: string;
+}
+
 export interface AuthSession extends MeResult {
   session_token: string;
   session_expires_at: string;

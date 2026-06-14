@@ -49,6 +49,51 @@ function isLight(hex: string): boolean {
   return (0.299 * ((n >> 16) & 255) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) / 255 > 0.6;
 }
 
+// --- URL / color safety -----------------------------------------------------
+// The serializer is an allowlist by construction (it only ever emits the tags
+// below — never <script>/<iframe>/on*), so the one remaining injection surface
+// is attacker-controlled URLs and colors. These guards close it.
+
+/** Allow only safe link schemes; pass Handlebars vars + relative/anchor links. */
+export function safeUrl(raw: unknown): string {
+  if (typeof raw !== "string") return "#";
+  const url = raw.trim();
+  if (url === "") return "#";
+  if (url.startsWith("{{")) return url; // {{action_url}} etc. — filled at send time
+  if (url.startsWith("/") || url.startsWith("#")) return url;
+  const lower = url.toLowerCase();
+  if (
+    lower.startsWith("http://") ||
+    lower.startsWith("https://") ||
+    lower.startsWith("mailto:") ||
+    lower.startsWith("tel:")
+  ) {
+    return url;
+  }
+  return "#"; // blocks javascript:, data:, vbscript:, etc.
+}
+
+/** Like safeUrl, but also permits small inline data:image URIs (pasted images). */
+export function safeImageSrc(raw: unknown): string {
+  if (typeof raw !== "string") return "";
+  const url = raw.trim();
+  if (/^data:image\/(png|jpe?g|gif|webp);base64,[a-z0-9+/=]+$/i.test(url) && url.length < 2_000_000) {
+    return url;
+  }
+  const safe = safeUrl(url);
+  return safe === "#" ? "" : safe;
+}
+
+/** Allow only hex / rgb() / simple named colors in inline styles. */
+export function safeColor(raw: unknown): string | null {
+  if (typeof raw !== "string") return null;
+  const c = raw.trim();
+  if (/^#[0-9a-f]{3,8}$/i.test(c)) return c;
+  if (/^rgb\(\s*\d{1,3}\s*,\s*\d{1,3}\s*,\s*\d{1,3}\s*\)$/i.test(c)) return c;
+  if (/^[a-z]{3,20}$/i.test(c)) return c;
+  return null;
+}
+
 function renderText(n: DocNode): string {
   if (n.type === "hardBreak") return "<br/>";
   if (n.type !== "text") return "";
@@ -75,13 +120,15 @@ function renderText(n: DocNode): string {
       case "link":
         href = typeof m.attrs?.href === "string" ? m.attrs.href : null;
         break;
-      case "textStyle":
-        if (typeof m.attrs?.color === "string") color += `color:${m.attrs.color};`;
+      case "textStyle": {
+        const c = safeColor(m.attrs?.color);
+        if (c) color += `color:${c};`;
         break;
+      }
     }
   }
   if (color) out = `<span style="${color}">${out}</span>`;
-  if (href) out = `<a href="${esc(href)}" style="color:${BRAND};">${out}</a>`;
+  if (href) out = `<a href="${esc(safeUrl(href))}" style="color:${BRAND};">${out}</a>`;
   return out;
 }
 
@@ -117,18 +164,111 @@ function renderBlock(n: DocNode): string {
       return `<blockquote style="margin:0 0 16px;padding:4px 16px;border-left:3px solid #e5e7eb;color:#6b7280;font-style:italic;">${(n.content ?? []).map(renderBlock).join("")}</blockquote>`;
     case "horizontalRule":
       return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0 24px;"/>`;
-    case "image":
-      return `<img src="${esc(String(n.attrs?.src ?? ""))}" alt="${esc(String(n.attrs?.alt ?? ""))}" style="display:block;max-width:100%;height:auto;border:0;border-radius:6px;margin:0 0 16px;"/>`;
+    case "image": {
+      const src = safeImageSrc(n.attrs?.src);
+      if (!src) return "";
+      return `<img src="${esc(src)}" alt="${esc(String(n.attrs?.alt ?? ""))}" style="display:block;max-width:100%;height:auto;border:0;border-radius:6px;margin:0 0 16px;"/>`;
+    }
     case "button": {
       const label = esc(String(n.attrs?.label ?? "Button"));
-      const href = esc(String(n.attrs?.href ?? ""));
-      const bg = String(n.attrs?.bg ?? BRAND);
+      const href = esc(safeUrl(n.attrs?.href));
+      const bg = safeColor(n.attrs?.bg) ?? BRAND;
       const fg = isLight(bg) ? "#111827" : "#ffffff";
-      return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;"><tr><td style="border-radius:6px;background:${esc(bg)};"><a href="${href}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:${fg};text-decoration:none;">${label}</a></td></tr></table>`;
+      return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;"><tr><td style="border-radius:6px;background:${bg};"><a href="${href}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:${fg};text-decoration:none;">${label}</a></td></tr></table>`;
     }
+    case "header":
+      return renderHeader(n);
+    case "footer":
+      return renderFooter(n);
+    case "embed":
+      return renderEmbed(n);
     default:
       return n.content ? n.content.map(renderBlock).join("") : "";
   }
+}
+
+// --- Email chrome: header (logo/brand), footer (social/unsubscribe), embed ---
+
+type SocialLink = { platform?: string; url?: string };
+type FooterLink = { label?: string; url?: string };
+
+const SOCIAL_LABELS: Record<string, string> = {
+  x: "X",
+  twitter: "X",
+  facebook: "Facebook",
+  instagram: "Instagram",
+  linkedin: "LinkedIn",
+  youtube: "YouTube",
+  github: "GitHub",
+  tiktok: "TikTok",
+  website: "Website",
+};
+
+function renderHeader(n: DocNode): string {
+  const a = n.attrs ?? {};
+  const logo = safeImageSrc(a.logo);
+  const align = a.align === "left" ? "left" : "center";
+  const bg = safeColor(a.bg);
+  const fg = bg && isLight(bg) ? "#111827" : bg ? "#ffffff" : "#111827";
+  const inner = logo
+    ? `<img src="${esc(logo)}" alt="${esc(String(a.alt ?? "Logo"))}" style="display:inline-block;max-height:44px;height:auto;border:0;"/>`
+    : `<span style="font-size:20px;font-weight:700;color:${fg};">${esc(String(a.brandName ?? ""))}</span>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${bg ? `background:${bg};` : ""}margin:0 0 24px;border-radius:6px;"><tr><td align="${align}" style="padding:${bg ? "16px" : "4px 0 16px"};">${inner}</td></tr></table>`;
+}
+
+function renderFooter(n: DocNode): string {
+  const a = n.attrs ?? {};
+  const parts: string[] = [];
+
+  const socials = Array.isArray(a.social) ? (a.social as SocialLink[]) : [];
+  const socialHtml = socials
+    .map((s) => {
+      const href = safeUrl(s?.url);
+      if (href === "#") return "";
+      const label = SOCIAL_LABELS[String(s?.platform ?? "").toLowerCase()] ?? esc(String(s?.platform ?? "Link"));
+      return `<a href="${esc(href)}" style="color:#6b7280;text-decoration:none;margin:0 6px;">${label}</a>`;
+    })
+    .filter(Boolean)
+    .join("");
+  if (socialHtml) parts.push(`<div style="margin:0 0 10px;">${socialHtml}</div>`);
+
+  if (a.text) parts.push(`<div style="margin:0 0 6px;">${esc(String(a.text))}</div>`);
+  if (a.address) parts.push(`<div style="margin:0 0 6px;">${esc(String(a.address))}</div>`);
+
+  const links = Array.isArray(a.links) ? (a.links as FooterLink[]) : [];
+  const footerLinks = links
+    .map((l) => {
+      const href = safeUrl(l?.url);
+      if (href === "#") return "";
+      return `<a href="${esc(href)}" style="color:#6b7280;margin:0 6px;">${esc(String(l?.label ?? "Link"))}</a>`;
+    })
+    .filter(Boolean);
+  // {{unsubscribe_url}} is filled per-recipient at send time (signed token).
+  if (a.showUnsubscribe !== false) {
+    footerLinks.push(`<a href="{{unsubscribe_url}}" style="color:#6b7280;margin:0 6px;">Unsubscribe</a>`);
+  }
+  if (footerLinks.length) parts.push(`<div style="margin:6px 0 0;">${footerLinks.join(" · ")}</div>`);
+
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-top:1px solid #e5e7eb;"><tr><td align="center" style="padding:20px 8px 0;font-size:12px;line-height:1.6;color:#9ca3af;">${parts.join("")}</td></tr></table>`;
+}
+
+function renderEmbed(n: DocNode): string {
+  const a = n.attrs ?? {};
+  const href = safeUrl(a.url);
+  if (href === "#") return "";
+  const thumb = safeImageSrc(a.thumbnail);
+  const title = esc(String(a.title ?? "Watch the video"));
+  // Email clients strip <iframe>, so an embed renders as a clickable poster
+  // image that links out — the correct, deliverable pattern.
+  const poster = thumb
+    ? `<img src="${esc(thumb)}" alt="${title}" style="display:block;width:100%;max-width:100%;height:auto;border:0;border-radius:8px;"/>`
+    : `<div style="background:#111827;border-radius:8px;padding:48px 0;text-align:center;color:#ffffff;font-size:14px;">▶ ${title}</div>`;
+  return (
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;"><tr><td>` +
+    `<a href="${esc(href)}" style="display:block;text-decoration:none;">${poster}` +
+    `<span style="display:block;margin:8px 0 0;color:${BRAND};font-size:13px;font-weight:600;">▶ ${title}</span>` +
+    `</a></td></tr></table>`
+  );
 }
 
 export function docToHtml(doc: DocNode | null | undefined): string {
@@ -163,6 +303,8 @@ export function docToText(doc: DocNode | null | undefined): string {
   const walk = (n: DocNode) => {
     if (n.type === "text") parts.push(n.text ?? "");
     if (n.type === "button") parts.push(String(n.attrs?.label ?? ""), String(n.attrs?.href ?? ""));
+    if (n.type === "embed") parts.push(String(n.attrs?.title ?? "Video"), String(n.attrs?.url ?? ""), "\n");
+    if (n.type === "footer" && n.attrs?.address) parts.push("\n", String(n.attrs.address));
     (n.content ?? []).forEach(walk);
     if (["paragraph", "heading", "listItem"].includes(n.type)) parts.push("\n");
   };

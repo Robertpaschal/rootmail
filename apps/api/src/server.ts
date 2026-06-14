@@ -1,3 +1,4 @@
+import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import Fastify, { type FastifyInstance } from "fastify";
@@ -6,6 +7,7 @@ import "./context";
 import { registerAuth } from "./plugins/auth";
 import { registerErrorHandler } from "./plugins/errors";
 import { apiKeyRoutes } from "./routes/apikeys";
+import { assetRoutes } from "./routes/assets";
 import { authRoutes } from "./routes/auth";
 import { billingRoutes } from "./routes/billing";
 import { contactRoutes } from "./routes/contacts";
@@ -13,6 +15,7 @@ import { healthRoutes } from "./routes/health";
 import { messageRoutes } from "./routes/messages";
 import { subTenantRoutes } from "./routes/subtenants";
 import { templateRoutes } from "./routes/templates";
+import { templateAiRoutes } from "./routes/templates-ai";
 import { threadRoutes } from "./routes/threads";
 import { stripeWebhookRoutes } from "./routes/webhooks-stripe";
 
@@ -31,6 +34,9 @@ export async function buildServer(): Promise<FastifyInstance> {
     keyGenerator: (req) => req.headers.authorization ?? req.ip,
     allowList: (req) => req.url === "/" || req.url.startsWith("/health"),
   });
+  await app.register(multipart, {
+    limits: { fileSize: env.UPLOAD_MAX_BYTES, files: 1 },
+  });
 
   registerErrorHandler(app);
   registerAuth(app);
@@ -42,9 +48,11 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(contactRoutes);
   await app.register(apiKeyRoutes);
   await app.register(templateRoutes);
+  await app.register(templateAiRoutes);
   await app.register(threadRoutes);
   await app.register(billingRoutes);
   await app.register(stripeWebhookRoutes);
+  await app.register(assetRoutes);
 
   return app;
 }

@@ -113,6 +113,36 @@ export async function updateTemplate(
   return { saved: true };
 }
 
+/** Upload an image/file to the API and return its public URL (for the editor). */
+export async function uploadAssetAction(
+  formData: FormData,
+): Promise<{ url?: string; error?: string }> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { error: "No file selected." };
+  try {
+    const r = await api.uploadAsset(file);
+    return { url: r.url };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Upload failed." };
+  }
+}
+
+/** Draft a template from a prompt via the AI endpoint (Claude or mock). */
+export async function aiDraftAction(
+  prompt: string,
+): Promise<{ subject?: string; blocks?: Record<string, unknown>; error?: string }> {
+  const p = prompt.trim();
+  if (!p) return { error: "Describe the email you'd like." };
+  try {
+    const r = await api.aiDraft(p);
+    return { subject: r.subject, blocks: r.blocks };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "AI draft failed." };
+  }
+}
+
 export async function deleteTemplate(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;

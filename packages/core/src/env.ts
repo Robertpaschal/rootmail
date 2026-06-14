@@ -41,6 +41,10 @@ const EnvSchema = z.object({
   // (e.g. social-login user upsert). Unset → those endpoints are disabled.
   INTERNAL_API_SECRET: z.string().optional(),
 
+  // Secret for signing tamper-proof public links (unsubscribe). Unset → a
+  // dev-insecure default is used; set a strong value in production.
+  LINK_SIGNING_SECRET: z.string().optional(),
+
   ROOTMAIL_DOMAIN: z.string().default("rootmail.io"),
   DKIM_SELECTOR: z.string().default("rootmail"),
 

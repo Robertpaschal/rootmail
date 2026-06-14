@@ -23,6 +23,9 @@ next-env.d.ts
 # local mail output (mock provider)
 .maildir/
 
+# local uploaded assets (local storage driver)
+.assets/
+
 # logs
 *.log
 logs/

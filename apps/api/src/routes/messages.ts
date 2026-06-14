@@ -24,6 +24,7 @@ import {
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
 import { assertCanSend, recordSend } from "../lib/billing";
+import { unsubscribeUrl } from "../lib/links";
 import { openThreadForSend } from "../lib/threads";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
 import { serializeAudit, serializeMessage } from "../lib/serialize";
@@ -178,11 +179,19 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       );
     }
 
+    // Inject a signed, per-recipient unsubscribe URL so {{unsubscribe_url}} in
+    // a template footer resolves to a tamper-proof link (ours wins over any
+    // caller-supplied value of the same name).
+    const variables = {
+      ...body.variables,
+      unsubscribe_url: unsubscribeUrl({ w: workspace.id, e: toEmail, s: subTenantId }),
+    };
+
     const rendered = render({
       subject: subjectSrc,
       html: htmlSrc,
       text: textSrc,
-      variables: body.variables,
+      variables,
     });
     const contentHash = sha256Hex(rendered.html);
     const from = resolveFrom(body.from, subTenant, workspace);
@@ -207,7 +216,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         subject: rendered.subject,
         templateId,
         templateVersion,
-        variables: body.variables,
+        variables,
         renderedHtml: rendered.html,
         renderedText: rendered.text,
         contentHash,

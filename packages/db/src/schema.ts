@@ -99,6 +99,8 @@ export const usageRecords = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     period: text("period").notNull(),
     emailsSent: integer("emails_sent").notNull().default(0),
+    // AI template drafts used this period (metered against the plan's AI credits).
+    aiCreditsUsed: integer("ai_credits_used").notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -283,6 +285,27 @@ export const templates = pgTable(
   ],
 );
 
+// Uploaded assets (logos, images, attachments) referenced by templates/sends.
+// Served read-only by unguessable id-based URL; the row tracks ownership/size.
+export const assets = pgTable(
+  "assets",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "set null" }),
+    filename: text("filename").notNull(),
+    contentType: text("content_type").notNull(),
+    size: integer("size").notNull(),
+    storageKey: text("storage_key").notNull(),
+    url: text("url").notNull(),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("assets_ws_idx").on(t.workspaceId, t.createdAt)],
+);
+
 // ---------------------------------------------------------------------------
 // Messages — the atomic unit
 // ---------------------------------------------------------------------------
@@ -432,6 +455,8 @@ export type Suppression = typeof suppressions.$inferSelect;
 export type NewSuppression = typeof suppressions.$inferInsert;
 export type Template = typeof templates.$inferSelect;
 export type NewTemplate = typeof templates.$inferInsert;
+export type Asset = typeof assets.$inferSelect;
+export type NewAsset = typeof assets.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export type AuditEntry = typeof auditEntries.$inferSelect;

@@ -3,9 +3,18 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { CONTACT_STATUSES, Errors, newId } from "@rootmail/core";
 import { contacts, db } from "@rootmail/db";
+import { verifyUnsubscribeToken } from "../lib/links";
 import { addSuppression, findContact, isSuppressed } from "../lib/queries";
 import { serializeContact } from "../lib/serialize";
 import { parse } from "../lib/validate";
+
+function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function unsubPage(title: string, bodyHtml: string): string {
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title><style>body{font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f4f4f7;margin:0;padding:48px 16px;color:#374151}.card{max-width:440px;margin:0 auto;background:#fff;border-radius:10px;padding:32px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.06)}h1{font-size:18px;color:#111827;margin:0 0 12px}.btn{display:inline-block;margin-top:8px;padding:10px 20px;background:#4f46e5;color:#fff;border-radius:6px;text-decoration:none;font-weight:600}</style></head><body><div class="card"><h1>${escapeHtml(title)}</h1>${bodyHtml}</div></body></html>`;
+}
 
 const upsertBody = z.object({
   email: z.string().email(),
@@ -90,5 +99,43 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
     const q = parse(emailBody, req.query);
     const suppressed = await isSuppressed(req.auth.workspace.id, req.auth.subTenant?.id ?? null, q.email);
     return { email: q.email, suppressed };
+  });
+
+  // --- One-click unsubscribe (PUBLIC; the {{unsubscribe_url}} link target) --
+  // GET shows a confirmation page; the side effect only happens on the
+  // &confirm=1 step, so email-client link prefetchers can't auto-unsubscribe.
+  // The token is HMAC-signed, so it can't be forged or enumerated.
+  app.get("/v1/unsubscribe", async (req, reply) => {
+    const { token, confirm } = req.query as { token?: string; confirm?: string };
+    const payload = token ? verifyUnsubscribeToken(token) : null;
+    if (!payload) {
+      return reply
+        .type("text/html")
+        .code(400)
+        .send(unsubPage("Invalid link", "<p>This unsubscribe link is invalid or has expired.</p>"));
+    }
+
+    if (confirm === "1") {
+      const existing = await findContact(payload.w, payload.s ?? null, payload.e);
+      if (existing) {
+        await db
+          .update(contacts)
+          .set({ status: "unsubscribed", updatedAt: new Date() })
+          .where(eq(contacts.id, existing.id));
+      }
+      await addSuppression(payload.w, payload.s ?? null, payload.e, "unsubscribe", null, "unsubscribe_link");
+      return reply
+        .type("text/html")
+        .send(unsubPage("Unsubscribed", "<p>You've been unsubscribed and won't receive further emails.</p>"));
+    }
+
+    const confirmHref = `/v1/unsubscribe?token=${encodeURIComponent(token!)}&confirm=1`;
+    return reply.type("text/html").send(
+      unsubPage(
+        "Unsubscribe",
+        `<p>Unsubscribe <strong>${escapeHtml(payload.e)}</strong> from these emails?</p>` +
+          `<p><a class="btn" href="${confirmHref}">Confirm unsubscribe</a></p>`,
+      ),
+    );
   });
 }
