@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 
-const PALETTE: BlockType[] = ["heading", "text", "button", "image", "divider", "spacer"];
+const PALETTE: BlockType[] = ["header", "heading", "text", "button", "image", "divider", "spacer"];
 
 export function BlockEditor({
   blocks,
@@ -129,6 +129,34 @@ function AlignSelect({ value, onChange }: { value: Align; onChange: (v: Align) =
   );
 }
 
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <input
+        type="color"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={label}
+        className="h-8 w-10 shrink-0 cursor-pointer rounded border bg-background p-0.5"
+      />
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="h-8 w-24 font-mono text-xs"
+      />
+    </label>
+  );
+}
+
 function BlockFields({
   block,
   update,
@@ -137,6 +165,27 @@ function BlockFields({
   update: (id: string, patch: Partial<TemplateBlock>) => void;
 }) {
   switch (block.type) {
+    case "header":
+      return (
+        <div className="grid gap-2">
+          <Input
+            value={block.title}
+            onChange={(e) => update(block.id, { title: e.target.value })}
+            placeholder="Header title (e.g. your brand)"
+          />
+          <Input
+            value={block.logoUrl}
+            onChange={(e) => update(block.id, { logoUrl: e.target.value })}
+            placeholder="Logo image URL (optional)"
+            className="font-mono text-xs"
+          />
+          <ColorField
+            label="Background"
+            value={block.bg}
+            onChange={(bg) => update(block.id, { bg })}
+          />
+        </div>
+      );
     case "heading":
       return (
         <div className="grid gap-2">
@@ -188,6 +237,7 @@ function BlockFields({
             placeholder="https://… or {{action_url}}"
             className="font-mono text-xs"
           />
+          <ColorField label="Color" value={block.bg} onChange={(bg) => update(block.id, { bg })} />
         </div>
       );
     case "image":
