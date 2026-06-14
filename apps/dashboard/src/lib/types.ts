@@ -188,6 +188,32 @@ export interface SignupResult extends AuthSession {
   api_key: CreatedApiKey;
 }
 
+export type ThreadStatus = "open" | "needs_reply" | "closed";
+
+export interface ThreadMessage {
+  id: string;
+  object: "thread_message";
+  direction: "outbound" | "inbound";
+  message_id: string | null;
+  from: string;
+  to: string;
+  body_html: string | null;
+  body_text: string | null;
+  created_at: string;
+}
+
+export interface Thread {
+  id: string;
+  object: "thread";
+  subject: string;
+  status: ThreadStatus;
+  contact_email: string;
+  sub_tenant_id: string | null;
+  last_message_at: string;
+  created_at: string;
+  messages?: ThreadMessage[];
+}
+
 export type TemplateType = "transactional" | "marketing" | "sales" | "any";
 
 export interface Template {

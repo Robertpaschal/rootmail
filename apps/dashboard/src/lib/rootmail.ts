@@ -15,6 +15,8 @@ import type {
   SubTenant,
   Template,
   TemplateType,
+  Thread,
+  ThreadStatus,
   VerifyResult,
 } from "./types";
 
@@ -180,6 +182,14 @@ export const api = {
     rmFetch<{ object: "template"; id: string; deleted: boolean }>(`/v1/templates/${id}`, {
       method: "DELETE",
     }),
+
+  listThreads: (q: { status?: ThreadStatus } = {}) =>
+    rmFetch<ListResponse<Thread>>("/v1/threads", { query: q }),
+  getThread: (id: string) => rmFetch<Thread>(`/v1/threads/${id}`),
+  replyThread: (id: string, body: { html?: string; text?: string }) =>
+    rmFetch<Thread>(`/v1/threads/${id}/reply`, { method: "POST", body }),
+  simulateReply: (id: string, body: { body_text?: string } = {}) =>
+    rmFetch<Thread>(`/v1/threads/${id}/simulate-reply`, { method: "POST", body }),
 
   getBilling: () => rmFetch<Billing>("/v1/billing"),
   setPlan: (plan: string) =>
