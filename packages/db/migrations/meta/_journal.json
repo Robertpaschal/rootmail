@@ -15,6 +15,13 @@
       "when": 1781376417029,
       "tag": "0001_numerous_jack_flag",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1781397975548,
+      "tag": "0002_talented_absorbing_man",
+      "breakpoints": true
     }
   ]
 }

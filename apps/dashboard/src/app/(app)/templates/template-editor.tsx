@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useState } from "react";
-import { Check, Loader2, Monitor, Save, Smartphone, Tablet, Trash2 } from "lucide-react";
+import { useActionState, useMemo, useState } from "react";
+import { Blocks, Check, Code2, Loader2, Monitor, Save, Smartphone, Tablet, Trash2 } from "lucide-react";
 import { createTemplate, deleteTemplate, updateTemplate, type TemplateFormState } from "./actions";
+import { BlockEditor } from "./block-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { blocksToHtml, starterBlocks, type TemplateBlock } from "@/lib/email-blocks";
 import { cn } from "@/lib/utils";
 import type { Template } from "@/lib/types";
 
@@ -42,6 +44,12 @@ export function TemplateEditor({ template }: { template?: Template }) {
     null,
   );
 
+  const initialBlocks = (template?.blocks as TemplateBlock[] | null) ?? null;
+  const [mode, setMode] = useState<"visual" | "code">(
+    initialBlocks?.length ? "visual" : editing ? "code" : "visual",
+  );
+  const [blocks, setBlocks] = useState<TemplateBlock[]>(initialBlocks ?? starterBlocks());
+
   const [subject, setSubject] = useState(template?.subject ?? "");
   const [html, setHtml] = useState(template?.html ?? NEW_HTML);
   const [text, setText] = useState(template?.text ?? "");
@@ -49,7 +57,13 @@ export function TemplateEditor({ template }: { template?: Template }) {
 
   const deviceWidth = DEVICES.find((d) => d.name === device)?.width ?? "100%";
 
-  const vars = detectVars(subject, html, text);
+  // Visual mode renders blocks; code mode uses the raw HTML. Either way this is
+  // what previews and what gets stored as the template's html.
+  const effectiveHtml = useMemo(
+    () => (mode === "visual" ? blocksToHtml(blocks) : html),
+    [mode, blocks, html],
+  );
+  const vars = detectVars(subject, effectiveHtml, text);
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -99,15 +113,55 @@ export function TemplateEditor({ template }: { template?: Template }) {
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="html">HTML body</Label>
-              <Textarea
-                id="html"
-                name="html"
-                rows={10}
-                value={html}
-                onChange={(e) => setHtml(e.target.value)}
-                className="font-mono text-xs"
-              />
+              <div className="flex items-center justify-between">
+                <Label>Body</Label>
+                <div className="flex gap-1 rounded-md border p-0.5 text-sm">
+                  <button
+                    type="button"
+                    onClick={() => setMode("visual")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors",
+                      mode === "visual"
+                        ? "bg-secondary text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Blocks className="size-3.5" /> Builder
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setMode("code")}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors",
+                      mode === "code"
+                        ? "bg-secondary text-foreground"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Code2 className="size-3.5" /> HTML
+                  </button>
+                </div>
+              </div>
+
+              {mode === "visual" ? (
+                <>
+                  <BlockEditor blocks={blocks} onChange={setBlocks} />
+                  <input type="hidden" name="html" value={effectiveHtml} />
+                  <input type="hidden" name="blocks" value={JSON.stringify(blocks)} />
+                </>
+              ) : (
+                <>
+                  <Textarea
+                    id="html"
+                    name="html"
+                    rows={12}
+                    value={html}
+                    onChange={(e) => setHtml(e.target.value)}
+                    className="font-mono text-xs"
+                  />
+                  <input type="hidden" name="blocks" value="" />
+                </>
+              )}
             </div>
 
             <div className="grid gap-2">
@@ -182,7 +236,7 @@ export function TemplateEditor({ template }: { template?: Template }) {
               <iframe
                 title="Template preview"
                 sandbox=""
-                srcDoc={html}
+                srcDoc={effectiveHtml}
                 style={{ width: deviceWidth }}
                 className="h-[420px] max-w-full rounded-sm border bg-white transition-[width] duration-200"
               />

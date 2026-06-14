@@ -15,6 +15,7 @@ const createBody = z.object({
   subject: z.string().min(1),
   html: z.string().min(1),
   text: z.string().optional(),
+  blocks: z.array(z.record(z.unknown())).nullish(),
   variables_schema: z.record(z.unknown()).optional(),
 });
 
@@ -25,6 +26,7 @@ const updateBody = z.object({
   subject: z.string().min(1).optional(),
   html: z.string().min(1).optional(),
   text: z.string().nullable().optional(),
+  blocks: z.array(z.record(z.unknown())).nullish(),
   variables_schema: z.record(z.unknown()).optional(),
 });
 
@@ -105,6 +107,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
         subject: body.subject,
         html: body.html,
         text: body.text ?? null,
+        blocks: body.blocks ?? null,
         variablesSchema: body.variables_schema ?? {},
       })
       .returning();
@@ -159,6 +162,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
         subject: body.subject ?? existing.subject,
         html: body.html ?? existing.html,
         text: nextText,
+        blocks: body.blocks !== undefined ? body.blocks : existing.blocks,
         variablesSchema: body.variables_schema ?? existing.variablesSchema,
         currentVersion: contentChanged ? existing.currentVersion + 1 : existing.currentVersion,
         updatedAt: new Date(),

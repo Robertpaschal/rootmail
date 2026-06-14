@@ -226,6 +226,9 @@ export const templates = pgTable(
     subject: text("subject").notNull(),
     html: text("html").notNull(),
     text: text("text"),
+    // Visual-builder blocks; null when the template is authored as raw HTML.
+    // `html` is always the rendered source of truth used at send time.
+    blocks: jsonb("blocks").$type<Record<string, unknown>[]>(),
     variablesSchema: jsonb("variables_schema").$type<Record<string, unknown>>().notNull().default({}),
     currentVersion: integer("current_version").notNull().default(1),
     createdBy: text("created_by"),

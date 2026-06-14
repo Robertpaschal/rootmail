@@ -169,6 +169,7 @@ export interface Template {
   subject: string;
   html: string;
   text: string | null;
+  blocks: unknown[] | null;
   variables_schema: Record<string, unknown>;
   current_version: number;
   sub_tenant_id: string | null;

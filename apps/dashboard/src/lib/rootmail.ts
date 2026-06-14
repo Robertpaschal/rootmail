@@ -161,6 +161,7 @@ export const api = {
     subject: string;
     html: string;
     text?: string;
+    blocks?: unknown[] | null;
   }) => rmFetch<Template>("/v1/templates", { method: "POST", body }),
   updateTemplate: (
     id: string,
@@ -171,6 +172,7 @@ export const api = {
       subject: string;
       html: string;
       text: string | null;
+      blocks: unknown[] | null;
     }>,
   ) => rmFetch<Template>(`/v1/templates/${id}`, { method: "PATCH", body }),
   deleteTemplate: (id: string) =>

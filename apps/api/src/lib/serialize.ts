@@ -112,6 +112,7 @@ export function serializeTemplate(t: Template) {
     subject: t.subject,
     html: t.html,
     text: t.text,
+    blocks: t.blocks,
     variables_schema: t.variablesSchema,
     current_version: t.currentVersion,
     sub_tenant_id: t.subTenantId,

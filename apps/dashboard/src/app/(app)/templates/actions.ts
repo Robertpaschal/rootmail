@@ -19,9 +19,20 @@ interface Fields {
   subject: string;
   html: string;
   text: string;
+  blocks: unknown[] | null;
 }
 
 function readFields(formData: FormData): Fields {
+  const blocksRaw = String(formData.get("blocks") ?? "").trim();
+  let blocks: unknown[] | null = null;
+  if (blocksRaw) {
+    try {
+      const parsed: unknown = JSON.parse(blocksRaw);
+      if (Array.isArray(parsed)) blocks = parsed;
+    } catch {
+      blocks = null;
+    }
+  }
   return {
     name: String(formData.get("name") ?? "").trim(),
     slug: String(formData.get("slug") ?? "").trim().toLowerCase(),
@@ -29,6 +40,7 @@ function readFields(formData: FormData): Fields {
     subject: String(formData.get("subject") ?? "").trim(),
     html: String(formData.get("html") ?? ""),
     text: String(formData.get("text") ?? ""),
+    blocks,
   };
 }
 
@@ -57,6 +69,7 @@ export async function createTemplate(
       subject: f.subject,
       html: f.html,
       text: f.text || undefined,
+      blocks: f.blocks,
     });
     id = t.id;
   } catch (err) {
@@ -86,6 +99,7 @@ export async function updateTemplate(
       subject: f.subject,
       html: f.html,
       text: f.text || null,
+      blocks: f.blocks,
     });
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
