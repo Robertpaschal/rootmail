@@ -16,7 +16,8 @@ import {
 } from "@rootmail/core";
 import { db, type Organization, organizations, type OrgAddon, orgAddons } from "@rootmail/db";
 import { currentPeriod, type QuotaState, quotaState } from "../lib/billing";
-import { assertOrgAdmin, loadOrg } from "../lib/features";
+import { loadOrg } from "../lib/features";
+import { requirePermission } from "../lib/permissions";
 import { type SeatState, seatState } from "../lib/seats";
 import { createCheckout } from "../lib/stripe";
 import { parse } from "../lib/validate";
@@ -141,7 +142,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       req.body,
     );
     const org = await orgForReq(req);
-    await assertOrgAdmin(req, org);
+    await requirePermission(req, "billing.manage");
     if (plan === "enterprise") {
       throw Errors.badRequest("Enterprise is sales-assisted — contact sales to upgrade.");
     }
@@ -167,7 +168,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       req.body,
     );
     const org = await orgForReq(req);
-    await assertOrgAdmin(req, org);
+    await requirePermission(req, "billing.manage");
 
     await db
       .insert(orgAddons)
@@ -183,7 +184,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
   app.post("/v1/billing/plan", async (req) => {
     const { plan } = parse(z.object({ plan: z.enum(PLAN_IDS) }), req.body);
     const org = await orgForReq(req);
-    await assertOrgAdmin(req, org);
+    await requirePermission(req, "billing.manage");
     if (BILLING_MODE === "stripe") {
       throw Errors.badRequest("Stripe billing is enabled — use POST /v1/billing/checkout.");
     }

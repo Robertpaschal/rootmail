@@ -13,6 +13,8 @@ import type {
   CreatedApiKey,
   Enrollment,
   MembersResult,
+  Role,
+  RolesResult,
   Sequence,
   SequenceStepDef,
   SequenceTriggerDef,
@@ -283,11 +285,16 @@ export const api = {
     rmFetch<{ deleted: boolean }>(`/v1/campaigns/${id}`, { method: "DELETE" }),
 
   getMembers: () => rmFetch<MembersResult>("/v1/members"),
-  invite: (email: string, role = "member") =>
+  invite: (email: string, role = "member", customRoleId?: string) =>
     rmFetch<{ id: string; email: string; accept_url: string }>("/v1/invitations", {
       method: "POST",
-      body: { email, role },
+      body: { email, role, custom_role_id: customRoleId },
     }),
+
+  listRoles: () => rmFetch<RolesResult>("/v1/roles"),
+  createRole: (body: { name: string; permissions: string[] }) =>
+    rmFetch<Role>("/v1/roles", { method: "POST", body }),
+  deleteRole: (id: string) => rmFetch<{ deleted: boolean }>(`/v1/roles/${id}`, { method: "DELETE" }),
   revokeInvite: (id: string) =>
     rmFetch<{ deleted: boolean }>(`/v1/invitations/${id}`, { method: "DELETE" }),
 

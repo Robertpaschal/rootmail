@@ -25,6 +25,7 @@ import {
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
 import { assertCanSend, recordSend } from "../lib/billing";
+import { requirePermission } from "../lib/permissions";
 import { openThreadForSend } from "../lib/threads";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
 import { serializeAudit, serializeMessage } from "../lib/serialize";
@@ -90,6 +91,7 @@ async function getScopedMessage(req: FastifyRequest, id: string): Promise<Messag
 export async function messageRoutes(app: FastifyInstance): Promise<void> {
   // --- Send ---------------------------------------------------------------
   app.post("/v1/messages", async (req, reply) => {
+    await requirePermission(req, "messages.send");
     const body = parse(sendBody, req.body);
     const { workspace, subTenant: headerSub, mode, apiKey, user } = req.auth;
     // Who's sending: an API key (SDK) or a logged-in dashboard user.

@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { Errors, generateApiKey, newId } from "@rootmail/core";
 import { apiKeys, db } from "@rootmail/db";
+import { requirePermission } from "../lib/permissions";
 import { serializeApiKey } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
@@ -27,6 +28,7 @@ export async function apiKeyRoutes(app: FastifyInstance): Promise<void> {
   // mode follows the workspace's environment — you can't mint a test key from a
   // live workspace.
   app.post("/v1/api-keys", async (req, reply) => {
+    await requirePermission(req, "apikeys.manage");
     const body = parse(createBody, req.body);
     const mode = req.auth.workspace.environment;
     const generated = generateApiKey(mode);
@@ -51,6 +53,7 @@ export async function apiKeyRoutes(app: FastifyInstance): Promise<void> {
   // Soft-delete: sets revoked_at so the auth hook rejects it. Revoking the key
   // you're currently authenticated with is refused to avoid locking yourself out.
   app.delete("/v1/api-keys/:id", async (req) => {
+    await requirePermission(req, "apikeys.manage");
     const { id } = req.params as { id: string };
 
     if (req.auth.apiKey && id === req.auth.apiKey.id) {

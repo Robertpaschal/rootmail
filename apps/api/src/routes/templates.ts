@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { Errors, newId, TEMPLATE_TYPES } from "@rootmail/core";
 import { db, type Template, templates } from "@rootmail/db";
+import { requirePermission } from "../lib/permissions";
 import { serializeTemplate } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
@@ -87,6 +88,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Create -------------------------------------------------------------
   app.post("/v1/templates", async (req, reply) => {
+    await requirePermission(req, "content.manage");
     const body = parse(createBody, req.body);
     const subTenantId = scopeOf(req);
     const slug = body.slug.toLowerCase();
@@ -136,6 +138,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
   // --- Update -------------------------------------------------------------
   // Editing subject/html/text bumps current_version; other edits don't.
   app.patch("/v1/templates/:id", async (req) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const body = parse(updateBody, req.body);
     const existing = await getScoped(req, id);
@@ -175,6 +178,7 @@ export async function templateRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Delete -------------------------------------------------------------
   app.delete("/v1/templates/:id", async (req) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const tpl = await getScoped(req, id);
     await db.delete(templates).where(eq(templates.id, tpl.id));

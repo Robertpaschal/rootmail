@@ -15,6 +15,7 @@ import {
 } from "@rootmail/core";
 import { db, type SubTenant, subTenants, workspaces } from "@rootmail/db";
 import { loadOrg, requireFeature } from "../lib/features";
+import { requirePermission } from "../lib/permissions";
 import { addonQuantity } from "../lib/seats";
 import { serializeSubTenant } from "../lib/serialize";
 import { parse } from "../lib/validate";
@@ -48,6 +49,7 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Provision ----------------------------------------------------------
   app.post("/v1/sub-tenants", async (req, reply) => {
+    await requirePermission(req, "domains.manage");
     const body = parse(createBody, req.body);
     const { workspace } = req.auth;
     const domain = body.sending_domain.toLowerCase();
@@ -125,6 +127,7 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Verify domain ------------------------------------------------------
   app.post("/v1/sub-tenants/:id/verify", async (req) => {
+    await requirePermission(req, "domains.manage");
     const { id } = req.params as { id: string };
     const st = await getScopedSubTenant(req, id);
 

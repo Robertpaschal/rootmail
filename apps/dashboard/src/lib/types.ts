@@ -283,6 +283,22 @@ export interface Campaign {
   created_at: string;
 }
 
+export interface Role {
+  object: "role";
+  id: string;
+  key: string;
+  name: string;
+  permissions: string[];
+  created_at: string;
+}
+
+export interface RolesResult {
+  object: "list";
+  permissions: string[];
+  system_roles: Record<string, string[]>;
+  data: Role[];
+}
+
 export interface MembersResult {
   object: "members";
   seats: { included: number; purchased: number; used: number; capacity: number; remaining: number };

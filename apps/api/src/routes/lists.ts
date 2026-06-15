@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { Errors, newId } from "@rootmail/core";
 import { contacts, db, type List, listContacts, lists } from "@rootmail/db";
+import { requirePermission } from "../lib/permissions";
 import { findContact } from "../lib/queries";
 import { serializeContact } from "../lib/serialize";
 import { parse } from "../lib/validate";
@@ -69,6 +70,7 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/v1/lists", async (req, reply) => {
+    await requirePermission(req, "content.manage");
     const body = parse(z.object({ name: z.string().min(1).max(120), description: z.string().max(500).optional() }), req.body);
     const [row] = await db
       .insert(lists)
@@ -90,6 +92,7 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.patch("/v1/lists/:id", async (req) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const body = parse(z.object({ name: z.string().min(1).max(120).optional(), description: z.string().max(500).nullable().optional() }), req.body);
     const existing = await getScoped(req, id);
@@ -106,6 +109,7 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.delete("/v1/lists/:id", async (req) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const l = await getScoped(req, id);
     await db.delete(lists).where(eq(lists.id, l.id));
@@ -127,6 +131,7 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
 
   // Add a contact by id or email (creating the contact if the email is new).
   app.post("/v1/lists/:id/contacts", async (req, reply) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const body = parse(z.object({ email: z.string().email().optional(), contact_id: z.string().optional() }), req.body);
     const l = await getScoped(req, id);
@@ -167,6 +172,7 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.delete("/v1/lists/:id/contacts/:contactId", async (req) => {
+    await requirePermission(req, "content.manage");
     const { id, contactId } = req.params as { id: string; contactId: string };
     const l = await getScoped(req, id);
     await db

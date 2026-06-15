@@ -71,6 +71,32 @@ export const MEMBERSHIP_ROLES = ["owner", "admin", "member"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
 // ---------------------------------------------------------------------------
+// RBAC — a permission matrix enforced on every tier; custom roles (which remix
+// these permissions) are a Scale feature.
+// ---------------------------------------------------------------------------
+export const PERMISSIONS = [
+  "read", // view resources — baseline for every role
+  "messages.send",
+  "content.manage", // templates, sequences, campaigns, lists, contacts
+  "domains.manage", // sub-tenants
+  "webhooks.manage",
+  "members.manage", // invites + roles
+  "billing.manage", // plan, seats, add-ons
+  "apikeys.manage",
+  "proof.read", // Layer-3 proof bundles
+] as const;
+export type Permission = (typeof PERMISSIONS)[number];
+
+/** Built-in roles. owner/admin are full-access; member can send + manage content
+ * but not touch billing, members, keys, domains, or webhooks. Custom roles
+ * (Scale) can grant any subset — e.g. a read-only "viewer" or a "marketer". */
+export const SYSTEM_ROLE_PERMISSIONS: Record<MembershipRole, Permission[]> = {
+  owner: [...PERMISSIONS],
+  admin: [...PERMISSIONS],
+  member: ["read", "messages.send", "content.manage"],
+};
+
+// ---------------------------------------------------------------------------
 // Plans & pricing
 // ---------------------------------------------------------------------------
 // Value-based tiers: every step up adds volume AND a capability, so upgrades

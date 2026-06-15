@@ -10,6 +10,7 @@ import {
   WEBHOOK_EVENTS,
 } from "@rootmail/core";
 import { db, type WebhookEndpoint, webhookEndpoints } from "@rootmail/db";
+import { requirePermission } from "../lib/permissions";
 import { parse } from "../lib/validate";
 
 const eventName = z
@@ -65,6 +66,7 @@ async function validateUrl(url: string): Promise<void> {
 export async function webhookRoutes(app: FastifyInstance): Promise<void> {
   // --- Create (reveals the signing secret once) ---------------------------
   app.post("/v1/webhook-endpoints", async (req, reply) => {
+    await requirePermission(req, "webhooks.manage");
     const body = parse(createBody, req.body);
     await validateUrl(body.url);
 
@@ -100,6 +102,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Update (re-validates the URL; can re-enable a disabled endpoint) ----
   app.patch("/v1/webhook-endpoints/:id", async (req) => {
+    await requirePermission(req, "webhooks.manage");
     const { id } = req.params as { id: string };
     const body = parse(updateBody, req.body);
     const existing = await getScoped(req, id);
@@ -124,6 +127,7 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Delete -------------------------------------------------------------
   app.delete("/v1/webhook-endpoints/:id", async (req) => {
+    await requirePermission(req, "webhooks.manage");
     const { id } = req.params as { id: string };
     const e = await getScoped(req, id);
     await db.delete(webhookEndpoints).where(eq(webhookEndpoints.id, e.id));

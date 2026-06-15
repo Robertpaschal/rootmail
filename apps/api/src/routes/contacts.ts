@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { CONTACT_STATUSES, Errors, newId, verifyUnsubscribeToken } from "@rootmail/core";
 import { contacts, db } from "@rootmail/db";
+import { requirePermission } from "../lib/permissions";
 import { addSuppression, findContact, isSuppressed } from "../lib/queries";
 import { evaluateTriggers, exitEnrollments } from "../lib/sequence-triggers";
 import { serializeContact } from "../lib/serialize";
@@ -30,6 +31,7 @@ const emailBody = z.object({ email: z.string().email() });
 export async function contactRoutes(app: FastifyInstance): Promise<void> {
   // --- Upsert -------------------------------------------------------------
   app.post("/v1/contacts", async (req, reply) => {
+    await requirePermission(req, "content.manage");
     const body = parse(upsertBody, req.body);
     const { workspace, subTenant } = req.auth;
     const subTenantId = subTenant?.id ?? null;
@@ -90,6 +92,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Unsubscribe --------------------------------------------------------
   app.post("/v1/contacts/unsubscribe", async (req, reply) => {
+    await requirePermission(req, "content.manage");
     const body = parse(emailBody, req.body);
     const { workspace, subTenant } = req.auth;
     const subTenantId = subTenant?.id ?? null;

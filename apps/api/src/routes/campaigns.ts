@@ -4,6 +4,7 @@ import { z } from "zod";
 import { enqueueCampaignSend, Errors, newId } from "@rootmail/core";
 import { type Campaign, campaigns, db, listContacts, lists, templates } from "@rootmail/db";
 import { requireFeature } from "../lib/features";
+import { requirePermission } from "../lib/permissions";
 import { parse } from "../lib/validate";
 
 /** Validate that referenced list/template belong to the workspace — so a bad
@@ -99,6 +100,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/v1/campaigns", async (req, reply) => {
+    await requirePermission(req, "content.manage");
     const body = parse(createBody, req.body);
     await validateRefs(req, body.list_id, body.template_id);
     const [row] = await db
@@ -123,6 +125,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.patch("/v1/campaigns/:id", async (req) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const body = parse(createBody.partial(), req.body);
     const existing = await getScoped(req, id);
@@ -146,6 +149,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.delete("/v1/campaigns/:id", async (req) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const c = await getScoped(req, id);
     await db.delete(campaigns).where(eq(campaigns.id, c.id));
@@ -154,6 +158,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Send (or schedule) -------------------------------------------------
   app.post("/v1/campaigns/:id/send", async (req) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const body = parse(z.object({ scheduled_at: z.string().datetime().optional() }), req.body ?? {});
     const c = await getScoped(req, id);

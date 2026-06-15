@@ -11,6 +11,7 @@ import {
   sequences,
 } from "@rootmail/db";
 import { requireFeature } from "../lib/features";
+import { requirePermission } from "../lib/permissions";
 import { findContact } from "../lib/queries";
 import { parse } from "../lib/validate";
 
@@ -109,6 +110,7 @@ export async function sequenceRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.post("/v1/sequences", async (req, reply) => {
+    await requirePermission(req, "content.manage");
     const body = parse(createBody, req.body);
     const [row] = await db
       .insert(sequences)
@@ -133,6 +135,7 @@ export async function sequenceRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.patch("/v1/sequences/:id", async (req) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const body = parse(updateBody, req.body);
     const existing = await getScoped(req, id);
@@ -152,6 +155,7 @@ export async function sequenceRoutes(app: FastifyInstance): Promise<void> {
   });
 
   app.delete("/v1/sequences/:id", async (req) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const s = await getScoped(req, id);
     await db.delete(sequences).where(eq(sequences.id, s.id));
@@ -160,6 +164,7 @@ export async function sequenceRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Enroll a contact ---------------------------------------------------
   app.post("/v1/sequences/:id/enroll", async (req, reply) => {
+    await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
     const body = parse(z.object({ email: z.string().email().optional(), contact_id: z.string().optional() }), req.body);
     const seq = await getScoped(req, id);

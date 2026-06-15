@@ -13,6 +13,7 @@ import {
   Megaphone,
   Network,
   Send,
+  ShieldCheck,
   UserCog,
   Users,
   Workflow,
@@ -34,6 +35,7 @@ const items = [
   { href: "/api-keys", label: "API keys", icon: KeyRound },
   { href: "/billing", label: "Plan & usage", icon: CreditCard },
   { href: "/members", label: "Team", icon: UserCog },
+  { href: "/roles", label: "Roles", icon: ShieldCheck },
 ];
 
 function useIsActive() {

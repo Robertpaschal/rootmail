@@ -100,6 +100,7 @@ export const invitations = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     email: text("email").notNull(),
     role: membershipRoleEnum("role").notNull().default("member"),
+    customRoleId: text("custom_role_id").references(() => roles.id, { onDelete: "set null" }),
     tokenHash: text("token_hash").notNull().unique(),
     invitedBy: text("invited_by"),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
@@ -186,9 +187,29 @@ export const memberships = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     role: membershipRoleEnum("role").notNull().default("owner"),
+    // When set, a custom role (Scale) overrides the system role's permissions.
+    customRoleId: text("custom_role_id").references(() => roles.id, { onDelete: "set null" }),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("memberships_user_org_uq").on(t.userId, t.organizationId)],
+);
+
+// Custom RBAC roles (a Scale feature). System roles (owner/admin/member) live
+// in code; these are org-defined remixes of the permission catalog.
+export const roles = pgTable(
+  "roles",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    key: text("key").notNull(),
+    name: text("name").notNull(),
+    permissions: jsonb("permissions").$type<string[]>().notNull().default([]),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("roles_org_key_uq").on(t.organizationId, t.key)],
 );
 
 // Dashboard login sessions. Like API keys, only the token hash is stored.
@@ -639,6 +660,8 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Membership = typeof memberships.$inferSelect;
 export type NewMembership = typeof memberships.$inferInsert;
+export type Role = typeof roles.$inferSelect;
+export type NewRole = typeof roles.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
 export type NewSession = typeof sessions.$inferInsert;
 export type Organization = typeof organizations.$inferSelect;

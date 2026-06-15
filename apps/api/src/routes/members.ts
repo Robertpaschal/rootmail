@@ -2,14 +2,16 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { env, Errors, MEMBERSHIP_ROLES, newId, PLANS, randomToken, sha256Hex } from "@rootmail/core";
-import { db, invitations, memberships, organizations, orgAddons, users } from "@rootmail/db";
-import { assertOrgAdmin, loadOrg } from "../lib/features";
+import { db, invitations, memberships, organizations, orgAddons, roles, users } from "@rootmail/db";
+import { loadOrg, requireFeature } from "../lib/features";
+import { requirePermission } from "../lib/permissions";
 import { seatState } from "../lib/seats";
 import { parse } from "../lib/validate";
 
 const inviteBody = z.object({
   email: z.string().email(),
   role: z.enum(MEMBERSHIP_ROLES).default("member"),
+  custom_role_id: z.string().optional(),
 });
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -72,9 +74,22 @@ export async function memberRoutes(app: FastifyInstance): Promise<void> {
   app.post("/v1/invitations", async (req, reply) => {
     const body = parse(inviteBody, req.body);
     const org = await loadOrg(req);
-    await assertOrgAdmin(req, org);
+    await requirePermission(req, "members.manage");
     const email = body.email.toLowerCase();
     const token = randomToken(24);
+
+    // Assigning a custom role requires the rbac feature (Scale) + a real role.
+    let customRoleId: string | null = null;
+    if (body.custom_role_id) {
+      await requireFeature(req, "rbac");
+      const [r] = await db
+        .select({ id: roles.id })
+        .from(roles)
+        .where(and(eq(roles.id, body.custom_role_id), eq(roles.organizationId, org.id)))
+        .limit(1);
+      if (!r) throw Errors.notFound(`Role ${body.custom_role_id} not found`);
+      customRoleId = r.id;
+    }
 
     const invitation = await db.transaction(async (tx) => {
       // Lock the org row so concurrent invites can't both slip past capacity.
@@ -128,6 +143,7 @@ export async function memberRoutes(app: FastifyInstance): Promise<void> {
           organizationId: org.id,
           email,
           role: body.role,
+          customRoleId,
           tokenHash: sha256Hex(token),
           invitedBy: req.auth.user?.id ?? null,
           expiresAt: new Date(Date.now() + INVITE_TTL_MS),
@@ -152,7 +168,7 @@ export async function memberRoutes(app: FastifyInstance): Promise<void> {
   app.delete("/v1/invitations/:id", async (req) => {
     const { id } = req.params as { id: string };
     const org = await loadOrg(req);
-    await assertOrgAdmin(req, org);
+    await requirePermission(req, "members.manage");
     const [inv] = await db
       .select()
       .from(invitations)
@@ -192,6 +208,7 @@ export async function memberRoutes(app: FastifyInstance): Promise<void> {
         userId: user.id,
         organizationId: inv.organizationId,
         role: inv.role,
+        customRoleId: inv.customRoleId ?? null,
       });
     }
     await db.update(invitations).set({ acceptedAt: new Date() }).where(eq(invitations.id, inv.id));
