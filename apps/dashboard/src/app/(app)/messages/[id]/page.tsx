@@ -22,6 +22,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { MessageStatusBadge } from "@/components/app/status-badge";
 import { SubmitButton } from "@/components/app/submit-button";
 import { MessageContent } from "./message-content";
+import { DownloadProof } from "./download-proof";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime, titleCase } from "@/lib/format";
@@ -106,7 +107,12 @@ export default async function MessageDetailPage({
         description={`To ${message.to}`}
         backHref="/messages"
         backLabel="Messages"
-        actions={<MessageStatusBadge status={message.status} />}
+        actions={
+          <div className="flex items-center gap-2">
+            <DownloadProof messageId={message.id} />
+            <MessageStatusBadge status={message.status} />
+          </div>
+        }
       />
 
       <div className="grid gap-6 lg:grid-cols-3">

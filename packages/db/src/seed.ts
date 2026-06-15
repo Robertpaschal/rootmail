@@ -6,6 +6,7 @@ import {
   db,
   organizations,
   type Organization,
+  orgAddons,
   templates,
   type Workspace,
   workspaces,
@@ -102,6 +103,16 @@ async function createApiKey(
 
 async function main() {
   const org = await ensureOrganization();
+  // Sub-tenant-pack headroom for the demo org: showcases an add-on line on the
+  // collective bill AND keeps repeated smoke runs (each creates a sub-tenant)
+  // from hitting the Scale ceiling.
+  await db
+    .insert(orgAddons)
+    .values({ id: newId("orgAddon"), organizationId: org.id, addonId: "subtenant_pack", quantity: 5 })
+    .onConflictDoUpdate({
+      target: [orgAddons.organizationId, orgAddons.addonId],
+      set: { quantity: 5, updatedAt: new Date() },
+    });
   const production = await ensureWorkspace(org.id, "Production", "production", "live");
   const sandbox = await ensureWorkspace(org.id, "Sandbox", "sandbox", "test");
   await ensureWelcomeTemplate(production.id);
