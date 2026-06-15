@@ -66,6 +66,22 @@ export async function sendMessage(
   redirect(`/messages/${id}`);
 }
 
+/** Fetch a signed Layer-3 proof bundle (Enterprise) for download. */
+export async function getProofAction(
+  id: string,
+): Promise<{ proof?: string; error?: string; locked?: boolean }> {
+  try {
+    const p = await api.getProof(id);
+    return { proof: JSON.stringify(p, null, 2) };
+  } catch (err) {
+    if (err instanceof ApiError && err.code === "feature_locked") {
+      return { error: "Proof bundles are an Enterprise feature.", locked: true };
+    }
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Failed to generate the proof bundle." };
+  }
+}
+
 export async function recordEvent(formData: FormData): Promise<void> {
   const id = String(formData.get("messageId") ?? "");
   const event = String(formData.get("event") ?? "") as SimulatableEvent;

@@ -45,6 +45,11 @@ const EnvSchema = z.object({
   // dev-insecure default is used; set a strong value in production.
   LINK_SIGNING_SECRET: z.string().optional(),
 
+  // Ed25519 private key (PKCS8 PEM) for signing Layer-3 proof bundles. Unset →
+  // a stable dev key in source (dev-only). Generate prod:
+  //   openssl genpkey -algorithm ed25519
+  PROOF_SIGNING_KEY: z.string().optional(),
+
   // Dev-only escape hatch: allow outbound webhooks to loopback/private hosts so
   // a local catcher can be tested. NEVER enable in production (SSRF risk).
   WEBHOOK_ALLOW_LOCAL: z

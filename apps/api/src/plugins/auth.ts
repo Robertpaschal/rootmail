@@ -6,7 +6,7 @@ import type { AuthContext } from "../context";
 import { defaultWorkspaceForUser, resolveSession, workspaceForUser } from "../lib/auth";
 
 // Paths that don't require an API key (auth endpoints carry their own session).
-const PUBLIC_PREFIXES = ["/health", "/v1/webhooks", "/v1/auth", "/v1/unsubscribe", "/assets"];
+const PUBLIC_PREFIXES = ["/health", "/v1/webhooks", "/v1/auth", "/v1/unsubscribe", "/assets", "/v1/proof"];
 
 function isPublic(url: string): boolean {
   const path = url.split("?")[0] ?? url;

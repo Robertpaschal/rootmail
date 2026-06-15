@@ -283,6 +283,14 @@ export interface Campaign {
   created_at: string;
 }
 
+export interface ProofResponse {
+  object: "proof";
+  bundle: Record<string, unknown>;
+  signature: string;
+  public_key: string;
+  algorithm: string;
+}
+
 export interface Role {
   object: "role";
   id: string;

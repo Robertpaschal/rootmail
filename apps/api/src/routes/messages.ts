@@ -11,6 +11,7 @@ import {
   PRIORITIES,
   render,
   sha256Hex,
+  signProof,
   unsubscribeUrl,
 } from "@rootmail/core";
 import {
@@ -25,6 +26,7 @@ import {
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
 import { assertCanSend, recordSend } from "../lib/billing";
+import { requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { openThreadForSend } from "../lib/threads";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
@@ -321,6 +323,38 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(auditEntries.messageId, message.id))
       .orderBy(asc(auditEntries.occurredAt));
     return { message_id: message.id, status: message.status, trail: trail.map(serializeAudit) };
+  });
+
+  // --- Layer 3 proof bundle (Enterprise) ----------------------------------
+  // An Ed25519-signed, exportable record of what was sent + its full lifecycle.
+  app.get("/v1/messages/:id/proof", async (req) => {
+    await requireFeature(req, "proof");
+    await requirePermission(req, "proof.read");
+    const { id } = req.params as { id: string };
+    const message = await getScopedMessage(req, id);
+    const trail = await db
+      .select()
+      .from(auditEntries)
+      .where(eq(auditEntries.messageId, message.id))
+      .orderBy(asc(auditEntries.occurredAt));
+
+    const bundle = {
+      message_id: message.id,
+      content_hash: message.contentHash,
+      subject: message.subject,
+      to: message.toEmail,
+      from: message.fromEmail,
+      status: message.status,
+      workspace_id: message.workspaceId,
+      created_at: message.createdAt.toISOString(),
+      audit: trail.map((a) => ({
+        event: a.event,
+        occurred_at: a.occurredAt.toISOString(),
+        actor: a.actor,
+      })),
+      issued_at: new Date().toISOString(),
+    };
+    return { object: "proof", bundle, ...signProof(bundle) };
   });
 
   // --- Record a lifecycle event (provider callback / simulation) ----------

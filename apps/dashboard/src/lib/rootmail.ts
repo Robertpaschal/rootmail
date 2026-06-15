@@ -13,6 +13,7 @@ import type {
   CreatedApiKey,
   Enrollment,
   MembersResult,
+  ProofResponse,
   Role,
   RolesResult,
   Sequence,
@@ -147,6 +148,7 @@ export const api = {
     rmFetch<ListResponse<Message>>("/v1/messages", { query: q }),
   getMessage: (id: string) => rmFetch<Message>(`/v1/messages/${id}`),
   getAudit: (id: string) => rmFetch<AuditTrail>(`/v1/messages/${id}/audit`),
+  getProof: (id: string) => rmFetch<ProofResponse>(`/v1/messages/${id}/proof`),
   send: (body: SendBody) =>
     rmFetch<Message>("/v1/messages", { method: "POST", body, subTenantId: body.sub_tenant_id }),
   recordEvent: (id: string, body: { event: SimulatableEvent; url?: string; reason?: string }) =>

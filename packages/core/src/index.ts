@@ -10,3 +10,4 @@ export * from "./render";
 export * from "./errors";
 export * from "./ssrf";
 export * from "./links";
+export * from "./proof";
