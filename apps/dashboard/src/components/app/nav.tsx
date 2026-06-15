@@ -14,6 +14,7 @@ import {
   Network,
   Send,
   ShieldCheck,
+  Sparkles,
   UserCog,
   Users,
   Workflow,
@@ -24,6 +25,7 @@ import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/", label: "Overview", icon: LayoutDashboard, exact: true },
+  { href: "/assistant", label: "Assistant", icon: Sparkles },
   { href: "/messages", label: "Messages", icon: Mail },
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/templates", label: "Templates", icon: FileText },

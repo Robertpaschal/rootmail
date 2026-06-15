@@ -2,6 +2,7 @@ import { getSessionToken } from "./session";
 import type {
   AiDraftResponse,
   ApiKey,
+  AssistantResponse,
   AuditTrail,
   AuthSession,
   Billing,
@@ -206,6 +207,8 @@ export const api = {
     }),
   aiDraft: (prompt: string) =>
     rmFetch<AiDraftResponse>("/v1/templates/ai-draft", { method: "POST", body: { prompt } }),
+  assistant: (prompt: string) =>
+    rmFetch<AssistantResponse>("/v1/assistant", { method: "POST", body: { prompt } }),
   // Multipart upload — bypasses rmFetch (which is JSON-only). Server-side only.
   uploadAsset: async (file: File): Promise<UploadedAsset> => {
     const token = await getSessionToken();

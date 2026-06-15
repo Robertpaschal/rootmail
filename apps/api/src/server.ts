@@ -8,6 +8,7 @@ import { registerAuth } from "./plugins/auth";
 import { registerErrorHandler } from "./plugins/errors";
 import { apiKeyRoutes } from "./routes/apikeys";
 import { assetRoutes } from "./routes/assets";
+import { assistantRoutes } from "./routes/assistant";
 import { authRoutes } from "./routes/auth";
 import { billingRoutes } from "./routes/billing";
 import { campaignRoutes } from "./routes/campaigns";
@@ -67,6 +68,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(stripeWebhookRoutes);
   await app.register(assetRoutes);
   await app.register(proofRoutes);
+  await app.register(assistantRoutes);
 
   return app;
 }

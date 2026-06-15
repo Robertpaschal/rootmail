@@ -283,6 +283,14 @@ export interface Campaign {
   created_at: string;
 }
 
+export interface AssistantResponse {
+  object: "assistant_response";
+  reply: string;
+  actions: { tool: string; status: number }[];
+  source: "claude" | "mock";
+  credits: { used: number; allowance: number };
+}
+
 export interface ProofResponse {
   object: "proof";
   bundle: Record<string, unknown>;
