@@ -22,6 +22,8 @@ export const ID_PREFIXES = {
   usage: "usg",
   billingEvent: "bil",
   asset: "ast",
+  webhookEndpoint: "whe",
+  webhookDelivery: "whd",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

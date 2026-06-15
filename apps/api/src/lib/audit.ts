@@ -1,4 +1,4 @@
-import { type AuditEvent, newId } from "@rootmail/core";
+import { type AuditEvent, enqueueWebhookEvent, newId, WEBHOOK_EVENTS } from "@rootmail/core";
 import { auditEntries, type Database } from "@rootmail/db";
 
 export interface AuditInput {
@@ -31,4 +31,15 @@ export async function writeAudit(db: Database, input: AuditInput): Promise<void>
     providerMessageId: input.providerMessageId ?? null,
     metadata: input.metadata ?? {},
   });
+
+  // Fan out to dev webhooks for the events they can subscribe to (fire-and-forget).
+  const evt = `message.${input.event}`;
+  if ((WEBHOOK_EVENTS as readonly string[]).includes(evt)) {
+    void enqueueWebhookEvent({
+      workspaceId: input.workspaceId,
+      subTenantId: input.subTenantId ?? null,
+      event: evt,
+      data: { id: input.messageId, event: evt, occurred_at: new Date().toISOString() },
+    });
+  }
 }

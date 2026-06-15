@@ -45,6 +45,13 @@ const EnvSchema = z.object({
   // dev-insecure default is used; set a strong value in production.
   LINK_SIGNING_SECRET: z.string().optional(),
 
+  // Dev-only escape hatch: allow outbound webhooks to loopback/private hosts so
+  // a local catcher can be tested. NEVER enable in production (SSRF risk).
+  WEBHOOK_ALLOW_LOCAL: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((v) => v === "true"),
+
   ROOTMAIL_DOMAIN: z.string().default("rootmail.io"),
   DKIM_SELECTOR: z.string().default("rootmail"),
 

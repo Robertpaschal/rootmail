@@ -1,5 +1,11 @@
 import { and, eq } from "drizzle-orm";
-import { type AuditEvent, newId, type SendJobData } from "@rootmail/core";
+import {
+  type AuditEvent,
+  enqueueWebhookEvent,
+  newId,
+  type SendJobData,
+  WEBHOOK_EVENTS,
+} from "@rootmail/core";
 import { auditEntries, db, type Message, messages, subTenants, suppressions } from "@rootmail/db";
 import { getProvider } from "./providers";
 
@@ -21,6 +27,16 @@ async function audit(message: Message, event: AuditEvent, extra: AuditExtra = {}
     providerMessageId: extra.providerMessageId ?? null,
     metadata: extra.metadata ?? {},
   });
+
+  const evt = `message.${event}`;
+  if ((WEBHOOK_EVENTS as readonly string[]).includes(evt)) {
+    void enqueueWebhookEvent({
+      workspaceId: message.workspaceId,
+      subTenantId: message.subTenantId,
+      event: evt,
+      data: { id: message.id, event: evt, occurred_at: new Date().toISOString() },
+    });
+  }
 }
 
 async function isSuppressedAtSend(message: Message): Promise<boolean> {

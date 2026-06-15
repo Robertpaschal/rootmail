@@ -260,3 +260,28 @@ export const AI_CREDITS: Record<PlanId, number> = {
   scale: 250,
   enterprise: -1,
 };
+
+// ---------------------------------------------------------------------------
+// Outbound dev webhooks
+// ---------------------------------------------------------------------------
+export const WEBHOOK_ENDPOINT_STATUSES = ["active", "disabled"] as const;
+export type WebhookEndpointStatus = (typeof WEBHOOK_ENDPOINT_STATUSES)[number];
+
+// Event names a dev can subscribe to. An endpoint listing "*" receives all.
+export const WEBHOOK_EVENTS = [
+  "message.sent",
+  "message.delivered",
+  "message.opened",
+  "message.clicked",
+  "message.bounced",
+  "message.complained",
+  "message.failed",
+  "message.suppressed",
+  "message.received",
+] as const;
+export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
+
+/** Auto-disable an endpoint after this many consecutive fully-failed deliveries. */
+export const WEBHOOK_DISABLE_THRESHOLD = 10;
+/** BullMQ delivery attempts per event before it's considered finally failed. */
+export const WEBHOOK_MAX_ATTEMPTS = 6;

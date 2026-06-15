@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { Errors, THREAD_STATUSES } from "@rootmail/core";
+import { enqueueWebhookEvent, Errors, THREAD_STATUSES } from "@rootmail/core";
 import { db, organizations, type Thread, threadMessages, threads } from "@rootmail/db";
 import { assertCanSend } from "../lib/billing";
 import { requireFeature } from "../lib/features";
@@ -184,6 +184,12 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
       toEmail: body.to,
       bodyHtml: body.body_html ?? null,
       bodyText: body.body_text ?? null,
+    });
+    void enqueueWebhookEvent({
+      workspaceId: req.auth.workspace.id,
+      subTenantId: thread.subTenantId,
+      event: "message.received",
+      data: { thread_id: thread.id, from: body.from, occurred_at: new Date().toISOString() },
     });
     return { object: "thread", id: thread.id, status: "needs_reply" };
   });

@@ -57,6 +57,13 @@
       "when": 1781455371107,
       "tag": "0007_exotic_jackpot",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1781495350951,
+      "tag": "0008_dear_vargas",
+      "breakpoints": true
     }
   ]
 }

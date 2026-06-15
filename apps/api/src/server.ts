@@ -17,6 +17,7 @@ import { subTenantRoutes } from "./routes/subtenants";
 import { templateRoutes } from "./routes/templates";
 import { templateAiRoutes } from "./routes/templates-ai";
 import { threadRoutes } from "./routes/threads";
+import { webhookRoutes } from "./routes/webhooks";
 import { stripeWebhookRoutes } from "./routes/webhooks-stripe";
 
 export async function buildServer(): Promise<FastifyInstance> {
@@ -51,6 +52,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(templateAiRoutes);
   await app.register(threadRoutes);
   await app.register(billingRoutes);
+  await app.register(webhookRoutes);
   await app.register(stripeWebhookRoutes);
   await app.register(assetRoutes);
 

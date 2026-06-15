@@ -23,6 +23,7 @@ import {
   SUPPRESSION_REASONS,
   THREAD_STATUSES,
   TEMPLATE_TYPES,
+  WEBHOOK_ENDPOINT_STATUSES,
   WORKSPACE_ENVIRONMENTS,
 } from "@rootmail/core/constants";
 
@@ -41,6 +42,7 @@ export const workspaceEnvironmentEnum = pgEnum("workspace_environment", WORKSPAC
 export const membershipRoleEnum = pgEnum("membership_role", MEMBERSHIP_ROLES);
 export const planEnum = pgEnum("plan", PLAN_IDS);
 export const planStatusEnum = pgEnum("plan_status", PLAN_STATUSES);
+export const webhookEndpointStatusEnum = pgEnum("webhook_endpoint_status", WEBHOOK_ENDPOINT_STATUSES);
 export const threadStatusEnum = pgEnum("thread_status", THREAD_STATUSES);
 export const messageDirectionEnum = pgEnum("message_direction", MESSAGE_DIRECTIONS);
 
@@ -307,6 +309,49 @@ export const assets = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Outbound dev webhooks
+// ---------------------------------------------------------------------------
+export const webhookEndpoints = pgTable(
+  "webhook_endpoints",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    url: text("url").notNull(),
+    // Symmetric signing secret — needed to sign each delivery, so stored (must
+    // be encrypted at rest / KMS-managed in production). Revealed once on create.
+    secret: text("secret").notNull(),
+    events: jsonb("events").$type<string[]>().notNull().default([]),
+    description: text("description"),
+    status: webhookEndpointStatusEnum("status").notNull().default("active"),
+    consecutiveFailures: integer("consecutive_failures").notNull().default(0),
+    disabledAt: timestamp("disabled_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("webhook_endpoints_ws_idx").on(t.workspaceId)],
+);
+
+// Delivery attempt log (observability + debugging). Append-only.
+export const webhookDeliveries = pgTable(
+  "webhook_deliveries",
+  {
+    id: text("id").primaryKey(),
+    endpointId: text("endpoint_id")
+      .notNull()
+      .references(() => webhookEndpoints.id, { onDelete: "cascade" }),
+    event: text("event").notNull(),
+    status: text("status").notNull(), // "success" | "failed"
+    attempt: integer("attempt").notNull().default(1),
+    responseStatus: integer("response_status"),
+    error: text("error"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("webhook_deliveries_endpoint_idx").on(t.endpointId, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
 // Messages — the atomic unit
 // ---------------------------------------------------------------------------
 export const messages = pgTable(
@@ -457,6 +502,10 @@ export type Template = typeof templates.$inferSelect;
 export type NewTemplate = typeof templates.$inferInsert;
 export type Asset = typeof assets.$inferSelect;
 export type NewAsset = typeof assets.$inferInsert;
+export type WebhookEndpoint = typeof webhookEndpoints.$inferSelect;
+export type NewWebhookEndpoint = typeof webhookEndpoints.$inferInsert;
+export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
+export type NewWebhookDelivery = typeof webhookDeliveries.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export type AuditEntry = typeof auditEntries.$inferSelect;

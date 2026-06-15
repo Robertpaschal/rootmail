@@ -45,6 +45,15 @@ export function hmacSign(data: string, secret: string): string {
   return createHmac("sha256", secret).update(data).digest("base64url");
 }
 
+/**
+ * Build a `Rootmail-Signature: t=<unix>,v1=<sig>` header (Stripe-style). The
+ * signature covers `${timestamp}.${payload}`, so receivers verify integrity AND
+ * reject replays outside a tolerance window.
+ */
+export function webhookSignature(payload: string, secret: string, timestampSec: number): string {
+  return `t=${timestampSec},v1=${hmacSign(`${timestampSec}.${payload}`, secret)}`;
+}
+
 // ---------------------------------------------------------------------------
 // Passwords (scrypt — dependency-free, via node:crypto)
 // ---------------------------------------------------------------------------

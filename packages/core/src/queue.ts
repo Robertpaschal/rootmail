@@ -51,3 +51,50 @@ export async function enqueueSend(data: SendJobData, opts: EnqueueOptions = {}) 
     jobId: data.messageId,
   });
 }
+
+// ---------------------------------------------------------------------------
+// Outbound dev webhooks. Producers (API/worker) enqueue a lightweight "event"
+// job; the webhook worker fans out to matching endpoints and delivers each with
+// its own retries/backoff.
+// ---------------------------------------------------------------------------
+export const WEBHOOK_QUEUE = "rootmail-webhooks";
+
+export interface WebhookEventJob {
+  workspaceId: string;
+  subTenantId: string | null;
+  event: string;
+  /** Minimal payload — ids/status only (no content/PII beyond the recipient). */
+  data: Record<string, unknown>;
+}
+
+/** Per-endpoint delivery job (the fan-out target). */
+export interface WebhookDeliverJob {
+  endpointId: string;
+  event: string;
+  /** The exact signed request body. */
+  body: string;
+}
+
+export type WebhookJob = WebhookEventJob | WebhookDeliverJob;
+
+let webhookQueue: Queue<WebhookJob> | undefined;
+
+export function getWebhookQueue(): Queue<WebhookJob> {
+  if (webhookQueue) return webhookQueue;
+  webhookQueue = new Queue<WebhookJob>(WEBHOOK_QUEUE, { connection: bullConnection() });
+  return webhookQueue;
+}
+
+/** Fire-and-forget: enqueue a webhook event for fan-out. Never throws into the
+ * caller's path (a webhook hiccup must not fail a send or an audit write). */
+export async function enqueueWebhookEvent(data: WebhookEventJob): Promise<void> {
+  try {
+    await getWebhookQueue().add("event", data, {
+      attempts: 2,
+      removeOnComplete: { age: 3_600, count: 1_000 },
+      removeOnFail: { age: 86_400 },
+    });
+  } catch (err) {
+    console.warn(`[webhooks] failed to enqueue ${data.event}: ${String(err)}`);
+  }
+}
