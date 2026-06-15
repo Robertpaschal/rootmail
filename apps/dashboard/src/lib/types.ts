@@ -154,12 +154,23 @@ export interface Plan {
   id: PlanId;
   name: string;
   price: number | null;
+  price_yearly: number | null;
   monthly_quota: number;
   allow_overage: boolean;
   overage_per_1000: number;
   included_sub_tenants: number;
   seats: number;
   features: string[];
+}
+
+export type AddonId = "extra_seat" | "dedicated_ip" | "subtenant_pack" | "ai_credit_pack";
+
+export interface BillingAddonLine {
+  id: string;
+  name: string;
+  quantity: number;
+  unit_amount: number;
+  amount: number;
 }
 
 export interface BillingSummaryLine {
@@ -170,10 +181,13 @@ export interface BillingSummaryLine {
 
 export interface BillingSummary {
   currency: string;
+  interval: "month" | "year";
   custom: boolean;
   lines: BillingSummaryLine[];
-  seats: { included: number; purchased: number; unit_price: number };
-  add_ons: { id: string; name: string; quantity: number; unit_amount: number; amount: number }[];
+  seats: { included: number; purchased: number; used: number; capacity: number; unit_price: number };
+  add_ons: BillingAddonLine[];
+  monthly_total: number;
+  yearly_option: { plan_amount: number; equivalent_monthly: number; savings_vs_monthly: number } | null;
   total: number;
 }
 
@@ -181,6 +195,7 @@ export interface Billing {
   object: "billing";
   organization_id: string;
   billing_mode: "stripe" | "local";
+  billing_interval: "month" | "year";
   plan_status: string;
   plan: Plan;
   usage: {
@@ -194,6 +209,29 @@ export interface Billing {
   };
   summary: BillingSummary;
   plans: Plan[];
+}
+
+export interface Member {
+  id: string;
+  user_id: string;
+  email: string;
+  name: string | null;
+  role: string;
+  created_at: string;
+}
+
+export interface PendingInvite {
+  id: string;
+  email: string;
+  role: string;
+  expires_at: string;
+}
+
+export interface MembersResult {
+  object: "members";
+  seats: { included: number; purchased: number; used: number; capacity: number; remaining: number };
+  members: Member[];
+  invitations: PendingInvite[];
 }
 
 export type CheckoutResponse =

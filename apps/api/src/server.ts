@@ -12,6 +12,7 @@ import { authRoutes } from "./routes/auth";
 import { billingRoutes } from "./routes/billing";
 import { contactRoutes } from "./routes/contacts";
 import { healthRoutes } from "./routes/health";
+import { memberRoutes } from "./routes/members";
 import { messageRoutes } from "./routes/messages";
 import { subTenantRoutes } from "./routes/subtenants";
 import { templateRoutes } from "./routes/templates";
@@ -52,6 +53,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(templateAiRoutes);
   await app.register(threadRoutes);
   await app.register(billingRoutes);
+  await app.register(memberRoutes);
   await app.register(webhookRoutes);
   await app.register(stripeWebhookRoutes);
   await app.register(assetRoutes);

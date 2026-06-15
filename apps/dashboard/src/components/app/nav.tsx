@@ -11,6 +11,7 @@ import {
   Mail,
   Network,
   Send,
+  UserCog,
   Users,
 } from "lucide-react";
 import { Logo } from "./logo";
@@ -26,6 +27,7 @@ const items = [
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/api-keys", label: "API keys", icon: KeyRound },
   { href: "/billing", label: "Plan & usage", icon: CreditCard },
+  { href: "/members", label: "Team", icon: UserCog },
 ];
 
 function useIsActive() {

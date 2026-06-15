@@ -1,9 +1,23 @@
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { ADD_ONS, BILLING_MODE, Errors, PLAN_IDS, PLANS, type PlanDef } from "@rootmail/core";
-import { db, memberships, type Organization, organizations } from "@rootmail/db";
+import {
+  ADD_ON_IDS,
+  ADD_ONS,
+  type AddOnId,
+  BILLING_INTERVALS,
+  BILLING_MODE,
+  Errors,
+  newId,
+  PLAN_IDS,
+  PLANS,
+  type PlanDef,
+  yearlyPrice,
+} from "@rootmail/core";
+import { db, type Organization, organizations, type OrgAddon, orgAddons } from "@rootmail/db";
 import { currentPeriod, type QuotaState, quotaState } from "../lib/billing";
+import { assertOrgAdmin, loadOrg } from "../lib/features";
+import { type SeatState, seatState } from "../lib/seats";
 import { createCheckout } from "../lib/stripe";
 import { parse } from "../lib/validate";
 
@@ -12,6 +26,7 @@ function serializePlan(p: PlanDef) {
     id: p.id,
     name: p.name,
     price: p.price,
+    price_yearly: yearlyPrice(p.id),
     monthly_quota: p.monthlyQuota,
     allow_overage: p.allowOverage,
     overage_per_1000: p.overagePer1000,
@@ -21,43 +36,12 @@ function serializePlan(p: PlanDef) {
   };
 }
 
-async function orgForReq(req: FastifyRequest): Promise<Organization> {
-  const [org] = await db
-    .select()
-    .from(organizations)
-    .where(eq(organizations.id, req.auth.workspace.organizationId))
-    .limit(1);
-  if (!org) throw Errors.notFound("Organization not found");
-  return org;
-}
-
 /**
- * Only an org owner/admin may change billing. API keys act on behalf of the
- * account (the dev IS the account holder), so they're allowed — and in Stripe
- * mode the call only ever returns a payment URL, so nothing changes without a
- * completed checkout.
+ * The collective bill: plan base + metered overage + purchased add-ons (incl.
+ * extra seats), all at monthly amounts, plus the yearly option + savings. Amounts
+ * come from PLANS/ADD_ONS defaults, so it's always populated even without Stripe.
  */
-async function assertBillingActor(req: FastifyRequest, org: Organization): Promise<void> {
-  if (req.auth.apiKey) return;
-  if (req.auth.user) {
-    const [m] = await db
-      .select()
-      .from(memberships)
-      .where(and(eq(memberships.userId, req.auth.user.id), eq(memberships.organizationId, org.id)))
-      .limit(1);
-    if (m && (m.role === "owner" || m.role === "admin")) return;
-    throw Errors.forbidden("Only an organization owner or admin can change billing.");
-  }
-  throw Errors.forbidden("Not allowed to change billing.");
-}
-
-/**
- * The collective bill: what the org will be charged this period, broken into
- * line items (plan base + metered overage; seats/add-ons join in a later phase).
- * Amounts come from the PLANS defaults, so this is always populated even when
- * Stripe is offline.
- */
-function billingSummary(usage: QuotaState) {
+function billingSummary(org: Organization, usage: QuotaState, seats: SeatState, addons: OrgAddon[]) {
   const plan = usage.plan;
   const lines: Array<{ label: string; kind: string; amount: number }> = [
     { label: `${plan.name} plan`, kind: "base", amount: plan.price ?? 0 },
@@ -69,31 +53,60 @@ function billingSummary(usage: QuotaState) {
       amount: usage.overage_cost,
     });
   }
+
+  const addonLines = addons
+    .filter((a) => a.quantity > 0)
+    .map((a) => {
+      const def = ADD_ONS[a.addonId as AddOnId];
+      const unit = def?.defaultUnitAmount ?? 0;
+      return {
+        id: a.addonId,
+        name: def?.name ?? a.addonId,
+        quantity: a.quantity,
+        unit_amount: unit,
+        amount: a.quantity * unit,
+      };
+    });
+  for (const a of addonLines) {
+    lines.push({ label: `${a.name} ×${a.quantity}`, kind: "addon", amount: a.amount });
+  }
+
+  const monthlyTotal = lines.reduce((s, l) => s + l.amount, 0);
+  const yp = yearlyPrice(plan.id);
   return {
     currency: "usd",
+    interval: org.billingInterval,
     custom: plan.price === null,
     lines,
     seats: {
-      included: plan.seats,
-      purchased: 0,
+      included: seats.included,
+      purchased: seats.purchased,
+      used: seats.used,
+      capacity: seats.capacity === Infinity ? -1 : seats.capacity,
       unit_price: ADD_ONS.extra_seat.defaultUnitAmount,
     },
-    add_ons: [] as Array<{
-      id: string;
-      name: string;
-      quantity: number;
-      unit_amount: number;
-      amount: number;
-    }>,
-    total: lines.reduce((s, l) => s + l.amount, 0),
+    add_ons: addonLines,
+    monthly_total: monthlyTotal,
+    yearly_option:
+      yp === null
+        ? null
+        : {
+            plan_amount: yp,
+            equivalent_monthly: Math.round((yp / 12) * 100) / 100,
+            savings_vs_monthly: (plan.price ?? 0) * 12 - yp,
+          },
+    total: monthlyTotal,
   };
 }
 
-function billingPayload(org: Organization, usage: QuotaState) {
+async function billingPayload(org: Organization, usage: QuotaState) {
+  const seats = await seatState(org);
+  const addons = await db.select().from(orgAddons).where(eq(orgAddons.organizationId, org.id));
   return {
     object: "billing",
     organization_id: org.id,
     billing_mode: BILLING_MODE,
+    billing_interval: org.billingInterval,
     plan_status: org.planStatus,
     plan: serializePlan(usage.plan),
     usage: {
@@ -105,9 +118,13 @@ function billingPayload(org: Organization, usage: QuotaState) {
       overage_cost: usage.overage_cost,
       over_limit: usage.over_limit,
     },
-    summary: billingSummary(usage),
+    summary: billingSummary(org, usage, seats, addons),
     plans: PLAN_IDS.map((id) => serializePlan(PLANS[id])),
   };
+}
+
+async function orgForReq(req: FastifyRequest): Promise<Organization> {
+  return loadOrg(req);
 }
 
 export async function billingRoutes(app: FastifyInstance): Promise<void> {
@@ -116,39 +133,57 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     return billingPayload(org, await quotaState(org));
   });
 
-  // Start a plan change. In Stripe mode returns a hosted Checkout URL; in local
-  // mode (or if a price can't be resolved) applies the switch directly so the
-  // self-serve flow keeps working. This is the endpoint a feature_locked
-  // response points devs to.
+  // Start a plan change (monthly or yearly). Stripe mode → hosted Checkout;
+  // local mode (or unresolved price) → apply directly so self-serve still works.
   app.post("/v1/billing/checkout", async (req) => {
-    const { plan } = parse(z.object({ plan: z.enum(PLAN_IDS) }), req.body);
+    const { plan, interval } = parse(
+      z.object({ plan: z.enum(PLAN_IDS), interval: z.enum(BILLING_INTERVALS).default("month") }),
+      req.body,
+    );
     const org = await orgForReq(req);
-    await assertBillingActor(req, org);
-
+    await assertOrgAdmin(req, org);
     if (plan === "enterprise") {
       throw Errors.badRequest("Enterprise is sales-assisted — contact sales to upgrade.");
     }
 
-    const result = await createCheckout(org, plan);
+    const result = await createCheckout(org, plan, interval);
     if (result.mode === "stripe" && result.url) {
       return { object: "checkout", mode: "stripe", url: result.url };
     }
-
-    // Local fallback (no Stripe, or price unresolved): apply directly.
     const [updated] = await db
       .update(organizations)
-      .set({ plan, planStatus: "active", updatedAt: new Date() })
+      .set({ plan, planStatus: "active", billingInterval: interval, updatedAt: new Date() })
       .where(eq(organizations.id, org.id))
       .returning();
-    return { object: "checkout", mode: "local", billing: billingPayload(updated, await quotaState(updated)) };
+    return { object: "checkout", mode: "local", billing: await billingPayload(updated, await quotaState(updated)) };
   });
 
-  // Direct plan switch — local mode only. In Stripe mode, plan changes must go
-  // through Checkout (so payment is collected) — callers are redirected there.
+  // Set an add-on quantity (extra seats, dedicated IP, sub-tenant packs, AI
+  // credit packs). org_addons is the entitlement source of truth the app reads;
+  // real Stripe subscription-item billing syncs here once Stripe is configured.
+  app.post("/v1/billing/addons", async (req) => {
+    const { addon_id, quantity } = parse(
+      z.object({ addon_id: z.enum(ADD_ON_IDS), quantity: z.coerce.number().int().min(0).max(1000) }),
+      req.body,
+    );
+    const org = await orgForReq(req);
+    await assertOrgAdmin(req, org);
+
+    await db
+      .insert(orgAddons)
+      .values({ id: newId("orgAddon"), organizationId: org.id, addonId: addon_id, quantity })
+      .onConflictDoUpdate({
+        target: [orgAddons.organizationId, orgAddons.addonId],
+        set: { quantity, updatedAt: new Date() },
+      });
+    return billingPayload(org, await quotaState(org));
+  });
+
+  // Direct plan switch — local mode only.
   app.post("/v1/billing/plan", async (req) => {
     const { plan } = parse(z.object({ plan: z.enum(PLAN_IDS) }), req.body);
     const org = await orgForReq(req);
-    await assertBillingActor(req, org);
+    await assertOrgAdmin(req, org);
     if (BILLING_MODE === "stripe") {
       throw Errors.badRequest("Stripe billing is enabled — use POST /v1/billing/checkout.");
     }

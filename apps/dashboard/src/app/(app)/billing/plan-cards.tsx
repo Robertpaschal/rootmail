@@ -1,6 +1,6 @@
 "use client";
 
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 import { Check, Loader2 } from "lucide-react";
 import { changePlan } from "./actions";
 import { Badge } from "@/components/ui/badge";
@@ -22,15 +22,36 @@ const FEATURE_LABELS: Record<string, string> = {
   residency: "Data residency",
 };
 
-function price(p: Plan): string {
+type Interval = "month" | "year";
+
+function price(p: Plan, interval: Interval): string {
   if (p.price === null) return "Custom";
-  return p.price === 0 ? "$0" : `$${p.price}`;
+  if (p.price === 0) return "$0";
+  if (interval === "year" && p.price_yearly != null) return `$${p.price_yearly}`;
+  return `$${p.price}`;
 }
 
 export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan["id"] }) {
   const order = plans.map((p) => p.id);
+  const [interval, setInterval] = useState<Interval>("month");
 
   return (
+    <>
+    <div className="mb-4 inline-flex rounded-md border p-0.5 text-sm">
+      {(["month", "year"] as const).map((iv) => (
+        <button
+          key={iv}
+          type="button"
+          onClick={() => setInterval(iv)}
+          className={cn(
+            "rounded px-3 py-1 font-medium transition-colors",
+            interval === iv ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          {iv === "month" ? "Monthly" : "Yearly (2 months free)"}
+        </button>
+      ))}
+    </div>
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       {plans.map((p) => {
         const isCurrent = p.id === currentId;
@@ -50,9 +71,9 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
                 {isCurrent ? <Badge>Current</Badge> : featured ? <Badge variant="secondary">Popular</Badge> : null}
               </div>
               <div className="mt-2 flex items-baseline gap-1">
-                <span className="text-2xl font-bold">{price(p)}</span>
+                <span className="text-2xl font-bold">{price(p, interval)}</span>
                 {p.price !== null && p.price > 0 ? (
-                  <span className="text-xs text-muted-foreground">/mo</span>
+                  <span className="text-xs text-muted-foreground">/{interval === "year" ? "yr" : "mo"}</span>
                 ) : null}
               </div>
               <p className="mt-2 text-sm text-muted-foreground">
@@ -77,6 +98,7 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
 
               <PlanButton
                 planId={p.id}
+                interval={interval}
                 isCurrent={isCurrent}
                 direction={order.indexOf(p.id) > order.indexOf(currentId) ? "up" : "down"}
                 custom={p.price === null}
@@ -86,16 +108,19 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
         );
       })}
     </div>
+    </>
   );
 }
 
 function PlanButton({
   planId,
+  interval,
   isCurrent,
   direction,
   custom,
 }: {
   planId: string;
+  interval: Interval;
   isCurrent: boolean;
   direction: "up" | "down";
   custom: boolean;
@@ -118,9 +143,10 @@ function PlanButton({
       className="mt-5 w-full"
       disabled={pending}
       onClick={() => {
-        if (!confirm(`Switch to the ${planId} plan?`)) return;
+        if (!confirm(`Switch to the ${planId} plan (${interval === "year" ? "yearly" : "monthly"})?`)) return;
         const fd = new FormData();
         fd.set("plan", planId);
+        fd.set("interval", interval);
         start(() => changePlan(fd));
       }}
     >

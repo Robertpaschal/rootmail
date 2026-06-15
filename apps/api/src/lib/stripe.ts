@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import {
   ADD_ONS,
   type AddOnId,
+  type BillingInterval,
   BILLING_MODE,
   env,
   type PlanId,
@@ -34,10 +35,10 @@ export function stripeEnabled(): boolean {
   return BILLING_MODE === "stripe" && getStripe() !== null;
 }
 
-/** Configured Stripe price id for a plan's recurring base, or null. */
-export function priceForPlan(planId: PlanId): string | null {
-  if (planId === "pro") return env.STRIPE_PRICE_PRO ?? null;
-  if (planId === "scale") return env.STRIPE_PRICE_SCALE ?? null;
+/** Configured Stripe price id for a plan's recurring base at an interval, or null. */
+export function priceForPlan(planId: PlanId, interval: BillingInterval = "month"): string | null {
+  if (planId === "pro") return (interval === "year" ? env.STRIPE_PRICE_PRO_YEAR : env.STRIPE_PRICE_PRO) ?? null;
+  if (planId === "scale") return (interval === "year" ? env.STRIPE_PRICE_SCALE_YEAR : env.STRIPE_PRICE_SCALE) ?? null;
   return null; // free = cancel; enterprise = sales-assisted (no self-serve price)
 }
 
@@ -49,8 +50,8 @@ export function priceForAddOn(id: AddOnId): string | null {
 
 /** Reverse lookup: which plan does a Stripe price id correspond to? */
 function planForPrice(priceId: string): PlanId | null {
-  if (env.STRIPE_PRICE_PRO && priceId === env.STRIPE_PRICE_PRO) return "pro";
-  if (env.STRIPE_PRICE_SCALE && priceId === env.STRIPE_PRICE_SCALE) return "scale";
+  if (priceId === env.STRIPE_PRICE_PRO || priceId === env.STRIPE_PRICE_PRO_YEAR) return "pro";
+  if (priceId === env.STRIPE_PRICE_SCALE || priceId === env.STRIPE_PRICE_SCALE_YEAR) return "scale";
   return null;
 }
 
@@ -89,9 +90,13 @@ export interface CheckoutResult {
  * returns `{ mode: "local" }` so the caller applies the change from the PLANS
  * defaults — Stripe being unavailable never blocks the upgrade.
  */
-export async function createCheckout(org: Organization, planId: PlanId): Promise<CheckoutResult> {
+export async function createCheckout(
+  org: Organization,
+  planId: PlanId,
+  interval: BillingInterval = "month",
+): Promise<CheckoutResult> {
   const stripe = getStripe();
-  const price = priceForPlan(planId);
+  const price = priceForPlan(planId, interval);
   if (!stripe || !price) return { mode: "local" };
 
   try {
@@ -103,8 +108,8 @@ export async function createCheckout(org: Organization, planId: PlanId): Promise
       line_items: [{ price, quantity: 1 }],
       success_url: `${base}/billing?checkout=success`,
       cancel_url: `${base}/billing?checkout=cancel`,
-      metadata: { organizationId: org.id, planId },
-      subscription_data: { metadata: { organizationId: org.id, planId } },
+      metadata: { organizationId: org.id, planId, interval },
+      subscription_data: { metadata: { organizationId: org.id, planId, interval } },
       allow_promotion_codes: true,
     });
     if (session.url) return { mode: "stripe", url: session.url };

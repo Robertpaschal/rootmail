@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Billing } from "@/lib/types";
+import { AddonManager } from "./addon-manager";
 import { PlanCards } from "./plan-cards";
 
 export default async function BillingPage() {
@@ -30,6 +31,8 @@ export default async function BillingPage() {
   }
 
   const { plan, usage, plans, summary } = billing;
+  const addonQty: Record<string, number> = {};
+  for (const a of summary.add_ons) addonQty[a.id] = a.quantity;
   const pct = Math.min(100, Math.round((usage.used / Math.max(1, usage.quota)) * 100));
   const barColor = usage.over_limit ? "bg-destructive" : pct > 80 ? "bg-amber-500" : "bg-primary";
 
@@ -71,39 +74,59 @@ export default async function BillingPage() {
         </CardContent>
       </Card>
 
-      <Card className="mb-6">
-        <CardHeader>
-          <CardTitle className="text-base">What you&apos;ll be billed</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {summary.custom ? (
-            <p className="text-sm text-muted-foreground">
-              Custom pricing — contact sales for your invoice.
-            </p>
-          ) : (
-            <>
-              <ul className="space-y-1.5 text-sm">
-                {summary.lines.map((l, i) => (
-                  <li key={i} className="flex justify-between">
-                    <span className="text-muted-foreground">{l.label}</span>
-                    <span className="font-medium">${l.amount.toFixed(2)}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="flex items-center justify-between border-t pt-2 text-sm">
-                <span className="font-semibold">Estimated total / mo</span>
-                <span className="font-semibold">${summary.total.toFixed(2)}</span>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {summary.seats.included === -1
-                  ? "Unlimited seats included."
-                  : `${summary.seats.included} seat${summary.seats.included === 1 ? "" : "s"} included · extra seats $${summary.seats.unit_price}/mo each.`}
-                {billing.billing_mode === "local" ? " Demo billing — no card is charged." : ""}
+      <div className="mb-6 grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">What you&apos;ll be billed</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {summary.custom ? (
+              <p className="text-sm text-muted-foreground">
+                Custom pricing — contact sales for your invoice.
               </p>
-            </>
-          )}
-        </CardContent>
-      </Card>
+            ) : (
+              <>
+                <ul className="space-y-1.5 text-sm">
+                  {summary.lines.map((l, i) => (
+                    <li key={i} className="flex justify-between">
+                      <span className="text-muted-foreground">{l.label}</span>
+                      <span className="font-medium">${l.amount.toFixed(2)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div className="flex items-center justify-between border-t pt-2 text-sm">
+                  <span className="font-semibold">Estimated total / mo</span>
+                  <span className="font-semibold">${summary.total.toFixed(2)}</span>
+                </div>
+                {summary.yearly_option ? (
+                  <p className="text-xs text-muted-foreground">
+                    Pay yearly: ${summary.yearly_option.plan_amount}/yr (~$
+                    {summary.yearly_option.equivalent_monthly}/mo) — save $
+                    {summary.yearly_option.savings_vs_monthly} on the plan.
+                  </p>
+                ) : null}
+                {billing.billing_mode === "local" ? (
+                  <p className="text-xs text-muted-foreground">Demo billing — no card is charged.</p>
+                ) : null}
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Seats &amp; add-ons</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {summary.seats.capacity === -1
+                ? `${summary.seats.used} seats in use · unlimited included.`
+                : `${summary.seats.used} of ${summary.seats.capacity} seats in use (${summary.seats.included} included${summary.seats.purchased ? ` + ${summary.seats.purchased} purchased` : ""}).`}
+            </p>
+            <AddonManager quantities={addonQty} />
+          </CardContent>
+        </Card>
+      </div>
 
       <h2 className="mb-3 text-sm font-semibold">Plans</h2>
       <PlanCards plans={plans} currentId={plan.id} />

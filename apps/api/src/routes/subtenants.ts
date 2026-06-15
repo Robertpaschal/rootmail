@@ -1,18 +1,21 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  ADD_ONS,
   buildDnsRecords,
   env,
   Errors,
   generateDkimKeypair,
   isVerified,
   newId,
+  PLANS,
   randomToken,
   verifyDnsRecords,
 } from "@rootmail/core";
-import { db, type SubTenant, subTenants } from "@rootmail/db";
-import { requireFeature } from "../lib/features";
+import { db, type SubTenant, subTenants, workspaces } from "@rootmail/db";
+import { loadOrg, requireFeature } from "../lib/features";
+import { addonQuantity } from "../lib/seats";
 import { serializeSubTenant } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
@@ -56,6 +59,29 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
       .limit(1);
     if (dupe) {
       throw Errors.conflict(`A sub-tenant for ${domain} already exists`, { sub_tenant_id: dupe.id });
+    }
+
+    // Enforce the sub-tenant ceiling (plan-included + purchased packs), org-wide.
+    const org = await loadOrg(req);
+    const included = PLANS[org.plan].includedSubTenants;
+    if (included !== -1) {
+      const packs = await addonQuantity(org.id, "subtenant_pack");
+      const ceiling = included + packs * ADD_ONS.subtenant_pack.grant;
+      const wsIds = (
+        await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.organizationId, org.id))
+      ).map((w) => w.id);
+      const existing = wsIds.length
+        ? await db.select({ id: subTenants.id }).from(subTenants).where(inArray(subTenants.workspaceId, wsIds))
+        : [];
+      if (existing.length >= ceiling) {
+        throw Errors.featureLocked("sub_tenant_capacity", {
+          current_plan: org.plan,
+          required_plan: null,
+          message: `You've reached your ${ceiling} sub-tenant limit. Add a sub-tenant pack or upgrade your plan.`,
+          upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing`,
+          checkout_endpoint: 'POST /v1/billing/addons {"addon_id":"subtenant_pack","quantity":N}',
+        });
+      }
     }
 
     const dkim = generateDkimKeypair(env.DKIM_SELECTOR);

@@ -11,6 +11,7 @@ import {
 } from "drizzle-orm/pg-core";
 import {
   AUDIT_EVENTS,
+  BILLING_INTERVALS,
   CONTACT_STATUSES,
   MEMBERSHIP_ROLES,
   MESSAGE_DIRECTIONS,
@@ -42,6 +43,7 @@ export const workspaceEnvironmentEnum = pgEnum("workspace_environment", WORKSPAC
 export const membershipRoleEnum = pgEnum("membership_role", MEMBERSHIP_ROLES);
 export const planEnum = pgEnum("plan", PLAN_IDS);
 export const planStatusEnum = pgEnum("plan_status", PLAN_STATUSES);
+export const billingIntervalEnum = pgEnum("billing_interval", BILLING_INTERVALS);
 export const webhookEndpointStatusEnum = pgEnum("webhook_endpoint_status", WEBHOOK_ENDPOINT_STATUSES);
 export const threadStatusEnum = pgEnum("thread_status", THREAD_STATUSES);
 export const messageDirectionEnum = pgEnum("message_direction", MESSAGE_DIRECTIONS);
@@ -74,9 +76,47 @@ export const organizations = pgTable("organizations", {
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
   planStatus: planStatusEnum("plan_status").notNull().default("active"),
+  billingInterval: billingIntervalEnum("billing_interval").notNull().default("month"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+// Pending + accepted team invitations. A pending invite consumes a seat so an
+// org can't over-invite past its capacity. Only the token hash is stored.
+export const invitations = pgTable(
+  "invitations",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    role: membershipRoleEnum("role").notNull().default("member"),
+    tokenHash: text("token_hash").notNull().unique(),
+    invitedBy: text("invited_by"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("invitations_org_idx").on(t.organizationId)],
+);
+
+// Purchased add-ons (quantity-priced) sitting on top of the plan.
+export const orgAddons = pgTable(
+  "org_addons",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    addonId: text("addon_id").notNull(),
+    quantity: integer("quantity").notNull().default(0),
+    stripeItemId: text("stripe_item_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("org_addons_org_addon_uq").on(t.organizationId, t.addonId)],
+);
 
 // Stripe webhook idempotency: every processed event id is recorded once, so a
 // redelivered event is a no-op. Append-only.
@@ -486,6 +526,10 @@ export type Organization = typeof organizations.$inferSelect;
 export type NewOrganization = typeof organizations.$inferInsert;
 export type BillingEvent = typeof billingEvents.$inferSelect;
 export type NewBillingEvent = typeof billingEvents.$inferInsert;
+export type Invitation = typeof invitations.$inferSelect;
+export type NewInvitation = typeof invitations.$inferInsert;
+export type OrgAddon = typeof orgAddons.$inferSelect;
+export type NewOrgAddon = typeof orgAddons.$inferInsert;
 export type UsageRecord = typeof usageRecords.$inferSelect;
 export type NewUsageRecord = typeof usageRecords.$inferInsert;
 export type Workspace = typeof workspaces.$inferSelect;

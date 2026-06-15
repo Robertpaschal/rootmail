@@ -9,6 +9,7 @@ import type {
   Contact,
   ContactStatus,
   CreatedApiKey,
+  MembersResult,
   UploadedAsset,
   ListResponse,
   MeResult,
@@ -230,10 +231,21 @@ export const api = {
   getBilling: () => rmFetch<Billing>("/v1/billing"),
   // Starts a plan change. In Stripe mode returns a hosted Checkout URL; in local
   // mode applies the switch and returns the updated billing.
-  checkout: (plan: string) =>
-    rmFetch<CheckoutResponse>("/v1/billing/checkout", { method: "POST", body: { plan } }),
+  checkout: (plan: string, interval: "month" | "year" = "month") =>
+    rmFetch<CheckoutResponse>("/v1/billing/checkout", { method: "POST", body: { plan, interval } }),
   setPlan: (plan: string) =>
     rmFetch<Billing>("/v1/billing/plan", { method: "POST", body: { plan } }),
+  setAddon: (addon_id: string, quantity: number) =>
+    rmFetch<Billing>("/v1/billing/addons", { method: "POST", body: { addon_id, quantity } }),
+
+  getMembers: () => rmFetch<MembersResult>("/v1/members"),
+  invite: (email: string, role = "member") =>
+    rmFetch<{ id: string; email: string; accept_url: string }>("/v1/invitations", {
+      method: "POST",
+      body: { email, role },
+    }),
+  revokeInvite: (id: string) =>
+    rmFetch<{ deleted: boolean }>(`/v1/invitations/${id}`, { method: "DELETE" }),
 
   listApiKeys: () => rmFetch<ListResponse<ApiKey>>("/v1/api-keys"),
   createApiKey: (body: { name: string }) =>

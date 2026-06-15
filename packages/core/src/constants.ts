@@ -204,7 +204,7 @@ export type PlanStatus = (typeof PLAN_STATUSES)[number];
 export const ADD_ON_KINDS = ["recurring", "metered", "one_time"] as const;
 export type AddOnKind = (typeof ADD_ON_KINDS)[number];
 
-export const ADD_ON_IDS = ["extra_seat", "dedicated_ip", "subtenant_pack"] as const;
+export const ADD_ON_IDS = ["extra_seat", "dedicated_ip", "subtenant_pack", "ai_credit_pack"] as const;
 export type AddOnId = (typeof ADD_ON_IDS)[number];
 
 export interface AddOnDef {
@@ -249,7 +249,35 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
     priceEnvKey: "STRIPE_PRICE_ADDON_SUBTENANT_PACK",
     grant: 10,
   },
+  ai_credit_pack: {
+    id: "ai_credit_pack",
+    name: "AI credit pack",
+    description: "Adds 100 AI drafts/month on top of your plan's included credits.",
+    unit: "100 credits",
+    defaultUnitAmount: 5,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_AI_CREDITS",
+    grant: 100,
+  },
 };
+
+// Add-ons extend *quantities* (more seats, sub-tenant capacity, AI credits); they
+// never unlock a gated capability — those require the tier that includes them.
+// That, plus premium per-unit pricing, keeps "stack add-ons" pricier than the
+// equivalent upgrade, so growth nudges users up a tier. See [[pricing-design-principles]].
+
+// ---------------------------------------------------------------------------
+// Billing interval (monthly vs yearly). Yearly = monthly × (12 − months free).
+// ---------------------------------------------------------------------------
+export const BILLING_INTERVALS = ["month", "year"] as const;
+export type BillingInterval = (typeof BILLING_INTERVALS)[number];
+export const YEARLY_MONTHS_FREE = 2;
+
+/** Annual price for a plan (null = custom/contact sales). */
+export function yearlyPrice(planId: PlanId): number | null {
+  const p = PLANS[planId].price;
+  return p === null ? null : p * (12 - YEARLY_MONTHS_FREE);
+}
 
 // Monthly "AI credits" = AI template drafts included per plan. AI inference
 // costs us, so it's metered rather than free-for-all on lower tiers. -1 =

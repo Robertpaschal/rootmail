@@ -1,9 +1,10 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { AI_CREDITS, env, Errors } from "@rootmail/core";
+import { ADD_ONS, AI_CREDITS, env, Errors } from "@rootmail/core";
 import { getAiUsage, recordAiUse } from "../lib/billing";
 import { generateTemplateDraft } from "../lib/ai";
 import { loadOrg } from "../lib/features";
+import { addonQuantity } from "../lib/seats";
 import { parse } from "../lib/validate";
 
 const draftBody = z.object({ prompt: z.string().min(1).max(2000) });
@@ -19,7 +20,10 @@ export async function templateAiRoutes(app: FastifyInstance): Promise<void> {
       const { prompt } = parse(draftBody, req.body);
       const org = await loadOrg(req);
 
-      const allowance = AI_CREDITS[org.plan];
+      // Each plan includes an AI-credit allocation; buyable packs add to it.
+      const base = AI_CREDITS[org.plan];
+      const packs = await addonQuantity(org.id, "ai_credit_pack");
+      const allowance = base === -1 ? -1 : base + packs * ADD_ONS.ai_credit_pack.grant;
       const used = await getAiUsage(org.id);
       if (allowance !== -1 && used >= allowance) {
         throw Errors.quotaExceeded(

@@ -71,10 +71,13 @@ const EnvSchema = z.object({
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_PRO: z.string().optional(),
   STRIPE_PRICE_SCALE: z.string().optional(),
+  STRIPE_PRICE_PRO_YEAR: z.string().optional(),
+  STRIPE_PRICE_SCALE_YEAR: z.string().optional(),
   STRIPE_PRICE_OVERAGE: z.string().optional(),
   STRIPE_PRICE_SEAT: z.string().optional(),
   STRIPE_PRICE_ADDON_DEDICATED_IP: z.string().optional(),
   STRIPE_PRICE_ADDON_SUBTENANT_PACK: z.string().optional(),
+  STRIPE_PRICE_ADDON_AI_CREDITS: z.string().optional(),
   // Where Checkout sends the user back (success/cancel). The dashboard's URL.
   DASHBOARD_URL: z.string().url().default("http://localhost:3001"),
 

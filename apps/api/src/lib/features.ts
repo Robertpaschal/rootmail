@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 import {
   env,
@@ -8,7 +8,7 @@ import {
   PLANS,
   requiredPlanFor,
 } from "@rootmail/core";
-import { db, type Organization, organizations } from "@rootmail/db";
+import { db, memberships, type Organization, organizations } from "@rootmail/db";
 
 /** Load the org behind the authenticated request's workspace. */
 export async function loadOrg(req: FastifyRequest): Promise<Organization> {
@@ -19,6 +19,25 @@ export async function loadOrg(req: FastifyRequest): Promise<Organization> {
     .limit(1);
   if (!org) throw Errors.notFound("Organization not found");
   return org;
+}
+
+/**
+ * Only an org owner/admin may perform the action. API keys act on behalf of the
+ * account (the key holder is the account), so they pass; a session user must
+ * hold an owner/admin membership.
+ */
+export async function assertOrgAdmin(req: FastifyRequest, org: Organization): Promise<void> {
+  if (req.auth.apiKey) return;
+  if (req.auth.user) {
+    const [m] = await db
+      .select()
+      .from(memberships)
+      .where(and(eq(memberships.userId, req.auth.user.id), eq(memberships.organizationId, org.id)))
+      .limit(1);
+    if (m && (m.role === "owner" || m.role === "admin")) return;
+    throw Errors.forbidden("Only an organization owner or admin can do this.");
+  }
+  throw Errors.forbidden("Not allowed.");
 }
 
 /**
