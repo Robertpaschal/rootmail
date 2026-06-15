@@ -1,0 +1,149 @@
+import { and, eq, isNull, sql } from "drizzle-orm";
+import {
+  type AuditEvent,
+  enqueueSend,
+  enqueueWebhookEvent,
+  type MessageType,
+  newId,
+  render,
+  sha256Hex,
+  unsubscribeUrl,
+  WEBHOOK_EVENTS,
+} from "@rootmail/core";
+import { auditEntries, contacts, db, messages, suppressions, usageRecords } from "@rootmail/db";
+
+// Shared send primitive for worker-driven automation (sequences + campaigns).
+// Mirrors the API's dispatchMessage (apps/api/src/lib/dispatch.ts) but lives in
+// the worker because apps can't import each other's internals — render, meter,
+// audit (+ webhook), suppress-check, enqueue. (Future cleanup: a shared
+// @rootmail/messaging package would unify the two.)
+
+export interface AutomationSendInput {
+  workspaceId: string;
+  subTenantId: string | null;
+  organizationId: string | null;
+  mode: "live" | "test";
+  type: MessageType;
+  to: string;
+  fromEmail: string;
+  fromName?: string | null;
+  subject: string;
+  html: string;
+  text?: string | null;
+  variables?: Record<string, unknown>;
+  templateId?: string | null;
+  templateVersion?: number | null;
+  sequenceId?: string | null;
+  sequenceStep?: number | null;
+  campaignId?: string | null;
+}
+
+async function emitAudit(
+  messageId: string,
+  workspaceId: string,
+  subTenantId: string | null,
+  event: AuditEvent,
+  metadata: Record<string, unknown> = {},
+): Promise<void> {
+  await db.insert(auditEntries).values({
+    id: newId("audit"),
+    workspaceId,
+    subTenantId,
+    messageId,
+    event,
+    actor: "system",
+    metadata,
+  });
+  const evt = `message.${event}`;
+  if ((WEBHOOK_EVENTS as readonly string[]).includes(evt)) {
+    void enqueueWebhookEvent({
+      workspaceId,
+      subTenantId,
+      event: evt,
+      data: { id: messageId, event: evt, occurred_at: new Date().toISOString() },
+    });
+  }
+}
+
+function currentPeriod(d = new Date()): string {
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+export async function automationSend(
+  input: AutomationSendInput,
+): Promise<{ messageId: string; suppressed: boolean }> {
+  const variables = {
+    ...(input.variables ?? {}),
+    unsubscribe_url: unsubscribeUrl({ w: input.workspaceId, e: input.to, s: input.subTenantId }),
+  };
+  const rendered = render({
+    subject: input.subject,
+    html: input.html,
+    text: input.text ?? null,
+    variables,
+  });
+  const contentHash = sha256Hex(rendered.html);
+
+  const suppRows = await db
+    .select({ s: suppressions.subTenantId })
+    .from(suppressions)
+    .where(and(eq(suppressions.workspaceId, input.workspaceId), eq(suppressions.email, input.to)));
+  const suppressed = suppRows.some((r) => r.s === null || r.s === input.subTenantId);
+
+  const [contact] = await db
+    .select({ id: contacts.id })
+    .from(contacts)
+    .where(
+      and(
+        eq(contacts.workspaceId, input.workspaceId),
+        input.subTenantId ? eq(contacts.subTenantId, input.subTenantId) : isNull(contacts.subTenantId),
+        eq(contacts.email, input.to),
+      ),
+    )
+    .limit(1);
+
+  const id = newId("message");
+  await db.insert(messages).values({
+    id,
+    workspaceId: input.workspaceId,
+    subTenantId: input.subTenantId,
+    type: input.type,
+    toEmail: input.to,
+    toContactId: contact?.id ?? null,
+    fromEmail: input.fromEmail,
+    fromName: input.fromName ?? null,
+    subject: rendered.subject,
+    templateId: input.templateId ?? null,
+    templateVersion: input.templateVersion ?? null,
+    variables,
+    renderedHtml: rendered.html,
+    renderedText: rendered.text,
+    contentHash,
+    sequenceId: input.sequenceId ?? null,
+    sequenceStep: input.sequenceStep ?? null,
+    campaignId: input.campaignId ?? null,
+    status: suppressed ? "suppressed" : "queued",
+    sandbox: input.mode === "test",
+  });
+
+  if (input.mode === "live" && input.organizationId) {
+    await db
+      .insert(usageRecords)
+      .values({ id: newId("usage"), organizationId: input.organizationId, period: currentPeriod(), emailsSent: 1 })
+      .onConflictDoUpdate({
+        target: [usageRecords.organizationId, usageRecords.period],
+        set: { emailsSent: sql`${usageRecords.emailsSent} + 1`, updatedAt: new Date() },
+      });
+  }
+
+  await emitAudit(id, input.workspaceId, input.subTenantId, "queued");
+  if (suppressed) {
+    await emitAudit(id, input.workspaceId, input.subTenantId, "suppressed", {
+      reason: "recipient is on the suppression list",
+    });
+    return { messageId: id, suppressed: true };
+  }
+
+  await enqueueSend({ messageId: id, workspaceId: input.workspaceId });
+  return { messageId: id, suppressed: false };
+}

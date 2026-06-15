@@ -13,6 +13,7 @@ import {
   AUDIT_EVENTS,
   BILLING_INTERVALS,
   CONTACT_STATUSES,
+  ENROLLMENT_STATUSES,
   MEMBERSHIP_ROLES,
   MESSAGE_DIRECTIONS,
   MESSAGE_STATUSES,
@@ -21,6 +22,9 @@ import {
   PLAN_STATUSES,
   PRIORITIES,
   SUBTENANT_STATUSES,
+  SEQUENCE_STATUSES,
+  type SequenceStep,
+  type SequenceTrigger,
   SUPPRESSION_REASONS,
   THREAD_STATUSES,
   TEMPLATE_TYPES,
@@ -45,6 +49,8 @@ export const planEnum = pgEnum("plan", PLAN_IDS);
 export const planStatusEnum = pgEnum("plan_status", PLAN_STATUSES);
 export const billingIntervalEnum = pgEnum("billing_interval", BILLING_INTERVALS);
 export const webhookEndpointStatusEnum = pgEnum("webhook_endpoint_status", WEBHOOK_ENDPOINT_STATUSES);
+export const sequenceStatusEnum = pgEnum("sequence_status", SEQUENCE_STATUSES);
+export const enrollmentStatusEnum = pgEnum("enrollment_status", ENROLLMENT_STATUSES);
 export const threadStatusEnum = pgEnum("thread_status", THREAD_STATUSES);
 export const messageDirectionEnum = pgEnum("message_direction", MESSAGE_DIRECTIONS);
 
@@ -392,6 +398,57 @@ export const webhookDeliveries = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Sequences (drip automation)
+// ---------------------------------------------------------------------------
+export const sequences = pgTable(
+  "sequences",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    status: sequenceStatusEnum("status").notNull().default("active"),
+    trigger: jsonb("trigger").$type<SequenceTrigger>().notNull().default({ type: "manual" }),
+    steps: jsonb("steps").$type<SequenceStep[]>().notNull().default([]),
+    exitOn: jsonb("exit_on").$type<string[]>().notNull().default(["replied", "unsubscribed"]),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("sequences_ws_idx").on(t.workspaceId, t.status)],
+);
+
+export const sequenceEnrollments = pgTable(
+  "sequence_enrollments",
+  {
+    id: text("id").primaryKey(),
+    sequenceId: text("sequence_id")
+      .notNull()
+      .references(() => sequences.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "set null" }),
+    contactId: text("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    email: text("email").notNull(),
+    status: enrollmentStatusEnum("status").notNull().default("active"),
+    currentStep: integer("current_step").notNull().default(0),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }).defaultNow().notNull(),
+    lastMessageId: text("last_message_id"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    // The tick scans by (status, nextRunAt); enrollment lookups by sequence/email.
+    index("enrollments_due_idx").on(t.status, t.nextRunAt),
+    index("enrollments_seq_email_idx").on(t.sequenceId, t.email),
+  ],
+);
+
+// ---------------------------------------------------------------------------
 // Messages — the atomic unit
 // ---------------------------------------------------------------------------
 export const messages = pgTable(
@@ -550,6 +607,10 @@ export type WebhookEndpoint = typeof webhookEndpoints.$inferSelect;
 export type NewWebhookEndpoint = typeof webhookEndpoints.$inferInsert;
 export type WebhookDelivery = typeof webhookDeliveries.$inferSelect;
 export type NewWebhookDelivery = typeof webhookDeliveries.$inferInsert;
+export type Sequence = typeof sequences.$inferSelect;
+export type NewSequence = typeof sequences.$inferInsert;
+export type SequenceEnrollment = typeof sequenceEnrollments.$inferSelect;
+export type NewSequenceEnrollment = typeof sequenceEnrollments.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export type AuditEntry = typeof auditEntries.$inferSelect;

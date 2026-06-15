@@ -1,10 +1,10 @@
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { CONTACT_STATUSES, Errors, newId } from "@rootmail/core";
+import { CONTACT_STATUSES, Errors, newId, verifyUnsubscribeToken } from "@rootmail/core";
 import { contacts, db } from "@rootmail/db";
-import { verifyUnsubscribeToken } from "../lib/links";
 import { addSuppression, findContact, isSuppressed } from "../lib/queries";
+import { evaluateTriggers, exitEnrollments } from "../lib/sequence-triggers";
 import { serializeContact } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
@@ -48,6 +48,12 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         })
         .where(eq(contacts.id, existing.id))
         .returning();
+      void evaluateTriggers(
+        workspace.id,
+        subTenantId,
+        { id: updated.id, email: updated.email, tags: updated.tags },
+        { created: false },
+      );
       return reply.status(200).send(serializeContact(updated));
     }
 
@@ -65,6 +71,12 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         status: body.status ?? "active",
       })
       .returning();
+    void evaluateTriggers(
+      workspace.id,
+      subTenantId,
+      { id: row.id, email: row.email, tags: row.tags },
+      { created: true },
+    );
     return reply.status(201).send(serializeContact(row));
   });
 
@@ -90,6 +102,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         .where(eq(contacts.id, existing.id));
     }
     await addSuppression(workspace.id, subTenantId, body.email, "unsubscribe", null, "api");
+    void exitEnrollments(workspace.id, body.email, "unsubscribed");
 
     return reply.status(200).send({ ok: true, email: body.email, status: "unsubscribed" });
   });
@@ -124,6 +137,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
           .where(eq(contacts.id, existing.id));
       }
       await addSuppression(payload.w, payload.s ?? null, payload.e, "unsubscribe", null, "unsubscribe_link");
+      void exitEnrollments(payload.w, payload.e, "unsubscribed");
       return reply
         .type("text/html")
         .send(unsubPage("Unsubscribed", "<p>You've been unsubscribed and won't receive further emails.</p>"));

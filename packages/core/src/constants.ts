@@ -313,3 +313,35 @@ export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 export const WEBHOOK_DISABLE_THRESHOLD = 10;
 /** BullMQ delivery attempts per event before it's considered finally failed. */
 export const WEBHOOK_MAX_ATTEMPTS = 6;
+
+// ---------------------------------------------------------------------------
+// Sequences (drip automation) — Pro feature
+// ---------------------------------------------------------------------------
+export const SEQUENCE_STATUSES = ["active", "paused"] as const;
+export type SequenceStatus = (typeof SEQUENCE_STATUSES)[number];
+
+export const ENROLLMENT_STATUSES = ["active", "completed", "exited", "failed"] as const;
+export type EnrollmentStatus = (typeof ENROLLMENT_STATUSES)[number];
+
+export const SEQUENCE_TRIGGER_TYPES = ["manual", "contact_created", "contact_tagged"] as const;
+export type SequenceTriggerType = (typeof SEQUENCE_TRIGGER_TYPES)[number];
+
+export const SEQUENCE_STEP_TYPES = ["wait", "send", "branch"] as const;
+export type SequenceStepType = (typeof SEQUENCE_STEP_TYPES)[number];
+
+/** Events that, when they occur on an enrolled contact, end the enrollment. */
+export const SEQUENCE_EXIT_EVENTS = ["replied", "unsubscribed"] as const;
+export type SequenceExitEvent = (typeof SEQUENCE_EXIT_EVENTS)[number];
+
+export const MAX_SEQUENCE_STEPS = 25;
+
+export interface SequenceTrigger {
+  type: SequenceTriggerType;
+  /** Tag to match when type is "contact_tagged". */
+  tag?: string;
+}
+
+export type SequenceStep =
+  | { type: "wait"; hours: number }
+  | { type: "send"; template: string }
+  | { type: "branch"; event: "opened" | "clicked"; within_hours: number; goto: number };

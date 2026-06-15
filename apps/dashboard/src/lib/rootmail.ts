@@ -9,7 +9,11 @@ import type {
   Contact,
   ContactStatus,
   CreatedApiKey,
+  Enrollment,
   MembersResult,
+  Sequence,
+  SequenceStepDef,
+  SequenceTriggerDef,
   UploadedAsset,
   ListResponse,
   MeResult,
@@ -237,6 +241,25 @@ export const api = {
     rmFetch<Billing>("/v1/billing/plan", { method: "POST", body: { plan } }),
   setAddon: (addon_id: string, quantity: number) =>
     rmFetch<Billing>("/v1/billing/addons", { method: "POST", body: { addon_id, quantity } }),
+
+  listSequences: () => rmFetch<ListResponse<Sequence>>("/v1/sequences"),
+  getSequence: (id: string) => rmFetch<Sequence>(`/v1/sequences/${id}`),
+  createSequence: (body: {
+    name: string;
+    status?: "active" | "paused";
+    trigger?: SequenceTriggerDef;
+    steps?: SequenceStepDef[];
+  }) => rmFetch<Sequence>("/v1/sequences", { method: "POST", body }),
+  updateSequence: (
+    id: string,
+    body: Partial<{ name: string; status: "active" | "paused"; trigger: SequenceTriggerDef; steps: SequenceStepDef[] }>,
+  ) => rmFetch<Sequence>(`/v1/sequences/${id}`, { method: "PATCH", body }),
+  deleteSequence: (id: string) =>
+    rmFetch<{ deleted: boolean }>(`/v1/sequences/${id}`, { method: "DELETE" }),
+  enrollContact: (id: string, email: string) =>
+    rmFetch<Enrollment>(`/v1/sequences/${id}/enroll`, { method: "POST", body: { email } }),
+  listEnrollments: (id: string) =>
+    rmFetch<ListResponse<Enrollment>>(`/v1/sequences/${id}/enrollments`),
 
   getMembers: () => rmFetch<MembersResult>("/v1/members"),
   invite: (email: string, role = "member") =>

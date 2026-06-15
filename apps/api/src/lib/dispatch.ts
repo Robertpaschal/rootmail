@@ -40,6 +40,9 @@ export interface DispatchInput {
   metadata?: Record<string, unknown>;
   idempotencyKey?: string | null;
   sendAt?: Date | null;
+  sequenceId?: string | null;
+  sequenceStep?: number | null;
+  campaignId?: string | null;
   actor: { actor: string; actorId: string | null };
   ip?: string;
   userAgent?: string | null;
@@ -89,6 +92,9 @@ export async function dispatchMessage(
       tags: input.tags ?? [],
       metadata: input.metadata ?? {},
       idempotencyKey: input.idempotencyKey ?? null,
+      sequenceId: input.sequenceId ?? null,
+      sequenceStep: input.sequenceStep ?? null,
+      campaignId: input.campaignId ?? null,
       status: suppressed ? "suppressed" : "queued",
       sandbox: input.mode === "test",
     })

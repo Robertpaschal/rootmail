@@ -1,9 +1,11 @@
-import { env, hmacSign, safeEqual } from "@rootmail/core";
+import { hmacSign, safeEqual } from "./crypto";
+import { env } from "./env";
 
 // Tamper-proof public links (currently: one-click unsubscribe). The token is
 // `base64url(payload).base64url(hmac(payload))`, so it can't be forged or
 // enumerated without the signing secret. Unset secret → a dev-insecure default;
-// production must set LINK_SIGNING_SECRET.
+// production must set LINK_SIGNING_SECRET. Lives in core so both the API and the
+// worker (sequences/campaigns) inject the same signed unsubscribe URL.
 const SECRET = env.LINK_SIGNING_SECRET ?? "dev-insecure-link-signing-secret";
 
 export interface UnsubscribePayload {

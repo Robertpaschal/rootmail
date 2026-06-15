@@ -11,6 +11,7 @@ import {
   PRIORITIES,
   render,
   sha256Hex,
+  unsubscribeUrl,
 } from "@rootmail/core";
 import {
   auditEntries,
@@ -24,7 +25,6 @@ import {
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
 import { assertCanSend, recordSend } from "../lib/billing";
-import { unsubscribeUrl } from "../lib/links";
 import { openThreadForSend } from "../lib/threads";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
 import { serializeAudit, serializeMessage } from "../lib/serialize";

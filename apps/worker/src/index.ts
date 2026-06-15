@@ -1,7 +1,16 @@
 import { type ConnectionOptions, Worker } from "bullmq";
-import { createRedis, env, type SendJobData, SEND_QUEUE, WEBHOOK_QUEUE } from "@rootmail/core";
+import {
+  createRedis,
+  env,
+  scheduleSequenceTick,
+  SEND_QUEUE,
+  SEQUENCE_QUEUE,
+  type SendJobData,
+  WEBHOOK_QUEUE,
+} from "@rootmail/core";
 import { closeDb } from "@rootmail/db";
 import { processSend } from "./pipeline";
+import { processSequenceTick } from "./sequences";
 import { processWebhookJob } from "./webhooks";
 
 const connection = createRedis() as unknown as ConnectionOptions;
@@ -34,10 +43,26 @@ const webhookWorker = new Worker(
 webhookWorker.on("ready", () => console.log(`rootmail webhook worker ready — queue "${WEBHOOK_QUEUE}"`));
 webhookWorker.on("error", (err) => console.error("webhook worker error:", err.message));
 
+// Sequences: a repeatable tick advances all due enrollments (concurrency 1 so
+// ticks never overlap).
+const sequenceWorker = new Worker(
+  SEQUENCE_QUEUE,
+  async (job) => {
+    if (job.name === "tick") await processSequenceTick();
+  },
+  { connection: createRedis() as unknown as ConnectionOptions, concurrency: 1 },
+);
+sequenceWorker.on("ready", () => {
+  console.log(`rootmail sequence worker ready — queue "${SEQUENCE_QUEUE}"`);
+  void scheduleSequenceTick();
+});
+sequenceWorker.on("error", (err) => console.error("sequence worker error:", err.message));
+
 const shutdown = async (signal: string) => {
   console.log(`${signal} received — closing worker`);
   await worker.close();
   await webhookWorker.close();
+  await sequenceWorker.close();
   await closeDb();
   process.exit(0);
 };

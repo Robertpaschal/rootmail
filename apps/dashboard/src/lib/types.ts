@@ -227,6 +227,38 @@ export interface PendingInvite {
   expires_at: string;
 }
 
+export type SequenceStepDef =
+  | { type: "wait"; hours: number }
+  | { type: "send"; template: string }
+  | { type: "branch"; event: "opened" | "clicked"; within_hours: number; goto: number };
+
+export interface SequenceTriggerDef {
+  type: "manual" | "contact_created" | "contact_tagged";
+  tag?: string;
+}
+
+export interface Sequence {
+  object: "sequence";
+  id: string;
+  name: string;
+  status: "active" | "paused";
+  trigger: SequenceTriggerDef;
+  steps: SequenceStepDef[];
+  exit_on: string[];
+  created_at: string;
+}
+
+export interface Enrollment {
+  object: "enrollment";
+  id: string;
+  sequence_id: string;
+  email: string;
+  status: string;
+  current_step: number;
+  next_run_at: string;
+  created_at: string;
+}
+
 export interface MembersResult {
   object: "members";
   seats: { included: number; purchased: number; used: number; capacity: number; remaining: number };

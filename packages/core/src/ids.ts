@@ -26,6 +26,8 @@ export const ID_PREFIXES = {
   webhookDelivery: "whd",
   invitation: "inv",
   orgAddon: "oad",
+  sequence: "seq",
+  sequenceEnrollment: "enr",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

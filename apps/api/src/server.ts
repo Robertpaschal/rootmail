@@ -14,6 +14,7 @@ import { contactRoutes } from "./routes/contacts";
 import { healthRoutes } from "./routes/health";
 import { memberRoutes } from "./routes/members";
 import { messageRoutes } from "./routes/messages";
+import { sequenceRoutes } from "./routes/sequences";
 import { subTenantRoutes } from "./routes/subtenants";
 import { templateRoutes } from "./routes/templates";
 import { templateAiRoutes } from "./routes/templates-ai";
@@ -51,6 +52,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(apiKeyRoutes);
   await app.register(templateRoutes);
   await app.register(templateAiRoutes);
+  await app.register(sequenceRoutes);
   await app.register(threadRoutes);
   await app.register(billingRoutes);
   await app.register(memberRoutes);

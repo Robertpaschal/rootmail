@@ -13,6 +13,7 @@ import {
   Send,
   UserCog,
   Users,
+  Workflow,
 } from "lucide-react";
 import { Logo } from "./logo";
 import { buttonVariants } from "@/components/ui/button";
@@ -23,6 +24,7 @@ const items = [
   { href: "/messages", label: "Messages", icon: Mail },
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/templates", label: "Templates", icon: FileText },
+  { href: "/sequences", label: "Sequences", icon: Workflow },
   { href: "/sub-tenants", label: "Sub-tenants", icon: Network },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/api-keys", label: "API keys", icon: KeyRound },

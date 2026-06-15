@@ -71,6 +71,13 @@
       "when": 1781496202324,
       "tag": "0009_fluffy_elektra",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1781514288819,
+      "tag": "0010_sharp_the_watchers",
+      "breakpoints": true
     }
   ]
 }

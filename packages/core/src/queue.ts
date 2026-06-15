@@ -98,3 +98,47 @@ export async function enqueueWebhookEvent(data: WebhookEventJob): Promise<void> 
     console.warn(`[webhooks] failed to enqueue ${data.event}: ${String(err)}`);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Sequences — a repeatable "tick" advances all due enrollments. Campaigns —
+// one job fans a campaign out to its list.
+// ---------------------------------------------------------------------------
+export const SEQUENCE_QUEUE = "rootmail-sequences";
+export const CAMPAIGN_QUEUE = "rootmail-campaigns";
+
+let sequenceQueue: Queue | undefined;
+export function getSequenceQueue(): Queue {
+  if (!sequenceQueue) sequenceQueue = new Queue(SEQUENCE_QUEUE, { connection: bullConnection() });
+  return sequenceQueue;
+}
+
+/** Register the repeatable sequence tick (idempotent — fixed repeat jobId). */
+export async function scheduleSequenceTick(everyMs = 60_000): Promise<void> {
+  await getSequenceQueue().add(
+    "tick",
+    {},
+    { repeat: { every: everyMs }, jobId: "sequence-tick", removeOnComplete: true, removeOnFail: { count: 50 } },
+  );
+}
+
+export interface CampaignJob {
+  campaignId: string;
+  workspaceId: string;
+}
+
+let campaignQueue: Queue<CampaignJob> | undefined;
+export function getCampaignQueue(): Queue<CampaignJob> {
+  if (!campaignQueue) campaignQueue = new Queue<CampaignJob>(CAMPAIGN_QUEUE, { connection: bullConnection() });
+  return campaignQueue;
+}
+
+export async function enqueueCampaignSend(data: CampaignJob, opts: { delayMs?: number } = {}): Promise<void> {
+  await getCampaignQueue().add("send", data, {
+    delay: opts.delayMs && opts.delayMs > 0 ? opts.delayMs : undefined,
+    attempts: 3,
+    backoff: { type: "exponential", delay: 10_000 },
+    removeOnComplete: { age: 86_400 },
+    removeOnFail: { age: 7 * 86_400 },
+    jobId: data.campaignId, // one fan-out per campaign
+  });
+}

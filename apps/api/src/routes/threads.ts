@@ -6,6 +6,7 @@ import { db, organizations, type Thread, threadMessages, threads } from "@rootma
 import { assertCanSend } from "../lib/billing";
 import { requireFeature } from "../lib/features";
 import { authActor, dispatchMessage } from "../lib/dispatch";
+import { exitEnrollments } from "../lib/sequence-triggers";
 import {
   appendInbound,
   appendOutbound,
@@ -191,6 +192,8 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
       event: "message.received",
       data: { thread_id: thread.id, from: body.from, occurred_at: new Date().toISOString() },
     });
+    // A reply exits the sender from any sequence configured to exit-on-reply.
+    void exitEnrollments(req.auth.workspace.id, body.from, "replied");
     return { object: "thread", id: thread.id, status: "needs_reply" };
   });
 }
