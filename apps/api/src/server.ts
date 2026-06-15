@@ -10,7 +10,9 @@ import { apiKeyRoutes } from "./routes/apikeys";
 import { assetRoutes } from "./routes/assets";
 import { authRoutes } from "./routes/auth";
 import { billingRoutes } from "./routes/billing";
+import { campaignRoutes } from "./routes/campaigns";
 import { contactRoutes } from "./routes/contacts";
+import { listRoutes } from "./routes/lists";
 import { healthRoutes } from "./routes/health";
 import { memberRoutes } from "./routes/members";
 import { messageRoutes } from "./routes/messages";
@@ -53,6 +55,8 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(templateRoutes);
   await app.register(templateAiRoutes);
   await app.register(sequenceRoutes);
+  await app.register(listRoutes);
+  await app.register(campaignRoutes);
   await app.register(threadRoutes);
   await app.register(billingRoutes);
   await app.register(memberRoutes);

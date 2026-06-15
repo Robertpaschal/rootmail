@@ -1,5 +1,7 @@
 import { type ConnectionOptions, Worker } from "bullmq";
 import {
+  CAMPAIGN_QUEUE,
+  type CampaignJob,
   createRedis,
   env,
   scheduleSequenceTick,
@@ -9,6 +11,7 @@ import {
   WEBHOOK_QUEUE,
 } from "@rootmail/core";
 import { closeDb } from "@rootmail/db";
+import { processCampaignSend } from "./campaigns";
 import { processSend } from "./pipeline";
 import { processSequenceTick } from "./sequences";
 import { processWebhookJob } from "./webhooks";
@@ -58,11 +61,23 @@ sequenceWorker.on("ready", () => {
 });
 sequenceWorker.on("error", (err) => console.error("sequence worker error:", err.message));
 
+// Campaigns: one job fans a campaign out to its whole list.
+const campaignWorker = new Worker<CampaignJob>(
+  CAMPAIGN_QUEUE,
+  async (job) => {
+    await processCampaignSend(job.data);
+  },
+  { connection: createRedis() as unknown as ConnectionOptions, concurrency: 3 },
+);
+campaignWorker.on("ready", () => console.log(`rootmail campaign worker ready — queue "${CAMPAIGN_QUEUE}"`));
+campaignWorker.on("error", (err) => console.error("campaign worker error:", err.message));
+
 const shutdown = async (signal: string) => {
   console.log(`${signal} received — closing worker`);
   await worker.close();
   await webhookWorker.close();
   await sequenceWorker.close();
+  await campaignWorker.close();
   await closeDb();
   process.exit(0);
 };

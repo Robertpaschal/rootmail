@@ -14,6 +14,7 @@ const FEATURE_LABELS: Record<string, string> = {
   suppression: "Suppression & bounces",
   threads: "Reply threads & inbox",
   sequences: "Sequences & automation",
+  campaigns: "Campaigns & lists",
   subtenants: "Sub-tenants (own domains)",
   rbac: "Team roles (RBAC)",
   proof: "Proof bundles",

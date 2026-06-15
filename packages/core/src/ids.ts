@@ -28,6 +28,9 @@ export const ID_PREFIXES = {
   orgAddon: "oad",
   sequence: "seq",
   sequenceEnrollment: "enr",
+  list: "lst",
+  listContact: "lct",
+  campaign: "cmp",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

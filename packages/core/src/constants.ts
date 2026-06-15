@@ -86,6 +86,7 @@ export type PlanFeature =
   | "subtenants"
   | "threads"
   | "sequences"
+  | "campaigns"
   | "rbac"
   | "proof"
   | "dedicated_ip"
@@ -131,7 +132,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     overagePer1000: 0.85,
     includedSubTenants: 0,
     seats: 3,
-    features: ["audit", "suppression", "threads", "sequences"],
+    features: ["audit", "suppression", "threads", "sequences", "campaigns"],
   },
   scale: {
     id: "scale",
@@ -142,7 +143,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     overagePer1000: 0.7,
     includedSubTenants: 10,
     seats: -1,
-    features: ["audit", "suppression", "threads", "sequences", "subtenants", "rbac"],
+    features: ["audit", "suppression", "threads", "sequences", "campaigns", "subtenants", "rbac"],
   },
   enterprise: {
     id: "enterprise",
@@ -158,6 +159,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
       "suppression",
       "threads",
       "sequences",
+      "campaigns",
       "subtenants",
       "rbac",
       "proof",
@@ -345,3 +347,9 @@ export type SequenceStep =
   | { type: "wait"; hours: number }
   | { type: "send"; template: string }
   | { type: "branch"; event: "opened" | "clicked"; within_hours: number; goto: number };
+
+// ---------------------------------------------------------------------------
+// Campaigns (bulk send to a list) — Pro feature; volume via the monthly quota
+// ---------------------------------------------------------------------------
+export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "sent"] as const;
+export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];

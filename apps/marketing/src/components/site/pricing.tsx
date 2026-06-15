@@ -35,6 +35,7 @@ const tiers = [
       "Everything in Free",
       "Reply threads & shared inbox",
       "Sequences & automation",
+      "Campaigns & lists",
       "3 teammates · email support",
     ],
     cta: "Start sending",

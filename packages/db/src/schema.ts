@@ -12,6 +12,7 @@ import {
 import {
   AUDIT_EVENTS,
   BILLING_INTERVALS,
+  CAMPAIGN_STATUSES,
   CONTACT_STATUSES,
   ENROLLMENT_STATUSES,
   MEMBERSHIP_ROLES,
@@ -51,6 +52,7 @@ export const billingIntervalEnum = pgEnum("billing_interval", BILLING_INTERVALS)
 export const webhookEndpointStatusEnum = pgEnum("webhook_endpoint_status", WEBHOOK_ENDPOINT_STATUSES);
 export const sequenceStatusEnum = pgEnum("sequence_status", SEQUENCE_STATUSES);
 export const enrollmentStatusEnum = pgEnum("enrollment_status", ENROLLMENT_STATUSES);
+export const campaignStatusEnum = pgEnum("campaign_status", CAMPAIGN_STATUSES);
 export const threadStatusEnum = pgEnum("thread_status", THREAD_STATUSES);
 export const messageDirectionEnum = pgEnum("message_direction", MESSAGE_DIRECTIONS);
 
@@ -449,6 +451,66 @@ export const sequenceEnrollments = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Lists (free) + Campaigns (Pro) — bulk marketing sends
+// ---------------------------------------------------------------------------
+export const lists = pgTable(
+  "lists",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    description: text("description"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("lists_ws_idx").on(t.workspaceId)],
+);
+
+export const listContacts = pgTable(
+  "list_contacts",
+  {
+    id: text("id").primaryKey(),
+    listId: text("list_id")
+      .notNull()
+      .references(() => lists.id, { onDelete: "cascade" }),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("list_contacts_uq").on(t.listId, t.contactId)],
+);
+
+export const campaigns = pgTable(
+  "campaigns",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    listId: text("list_id").references(() => lists.id, { onDelete: "set null" }),
+    templateId: text("template_id").references(() => templates.id, { onDelete: "set null" }),
+    subject: text("subject"),
+    fromEmail: text("from_email"),
+    status: campaignStatusEnum("status").notNull().default("draft"),
+    scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    stats: jsonb("stats")
+      .$type<{ recipients: number; sent: number; suppressed: number; failed: number }>()
+      .notNull()
+      .default({ recipients: 0, sent: 0, suppressed: 0, failed: 0 }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("campaigns_ws_idx").on(t.workspaceId, t.status)],
+);
+
+// ---------------------------------------------------------------------------
 // Messages — the atomic unit
 // ---------------------------------------------------------------------------
 export const messages = pgTable(
@@ -611,6 +673,12 @@ export type Sequence = typeof sequences.$inferSelect;
 export type NewSequence = typeof sequences.$inferInsert;
 export type SequenceEnrollment = typeof sequenceEnrollments.$inferSelect;
 export type NewSequenceEnrollment = typeof sequenceEnrollments.$inferInsert;
+export type List = typeof lists.$inferSelect;
+export type NewList = typeof lists.$inferInsert;
+export type ListContact = typeof listContacts.$inferSelect;
+export type NewListContact = typeof listContacts.$inferInsert;
+export type Campaign = typeof campaigns.$inferSelect;
+export type NewCampaign = typeof campaigns.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export type AuditEntry = typeof auditEntries.$inferSelect;

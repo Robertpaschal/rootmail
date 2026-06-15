@@ -5,8 +5,10 @@ import type {
   AuditTrail,
   AuthSession,
   Billing,
+  Campaign,
   CheckoutResponse,
   Contact,
+  ContactList,
   ContactStatus,
   CreatedApiKey,
   Enrollment,
@@ -260,6 +262,25 @@ export const api = {
     rmFetch<Enrollment>(`/v1/sequences/${id}/enroll`, { method: "POST", body: { email } }),
   listEnrollments: (id: string) =>
     rmFetch<ListResponse<Enrollment>>(`/v1/sequences/${id}/enrollments`),
+
+  listLists: () => rmFetch<ListResponse<ContactList>>("/v1/lists"),
+  getList: (id: string) => rmFetch<ContactList>(`/v1/lists/${id}`),
+  createList: (body: { name: string; description?: string }) =>
+    rmFetch<ContactList>("/v1/lists", { method: "POST", body }),
+  deleteList: (id: string) => rmFetch<{ deleted: boolean }>(`/v1/lists/${id}`, { method: "DELETE" }),
+  getListContacts: (id: string) => rmFetch<ListResponse<Contact>>(`/v1/lists/${id}/contacts`),
+  addListContact: (id: string, email: string) =>
+    rmFetch<{ contact_id: string }>(`/v1/lists/${id}/contacts`, { method: "POST", body: { email } }),
+  removeListContact: (id: string, contactId: string) =>
+    rmFetch<{ deleted: boolean }>(`/v1/lists/${id}/contacts/${contactId}`, { method: "DELETE" }),
+
+  listCampaigns: () => rmFetch<ListResponse<Campaign>>("/v1/campaigns"),
+  createCampaign: (body: { name: string; list_id?: string; template_id?: string; subject?: string }) =>
+    rmFetch<Campaign>("/v1/campaigns", { method: "POST", body }),
+  sendCampaign: (id: string) =>
+    rmFetch<Campaign>(`/v1/campaigns/${id}/send`, { method: "POST", body: {} }),
+  deleteCampaign: (id: string) =>
+    rmFetch<{ deleted: boolean }>(`/v1/campaigns/${id}`, { method: "DELETE" }),
 
   getMembers: () => rmFetch<MembersResult>("/v1/members"),
   invite: (email: string, role = "member") =>

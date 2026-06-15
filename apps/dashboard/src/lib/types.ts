@@ -259,6 +259,30 @@ export interface Enrollment {
   created_at: string;
 }
 
+export interface ContactList {
+  object: "contact_list";
+  id: string;
+  name: string;
+  description: string | null;
+  contacts: number;
+  created_at: string;
+}
+
+export interface Campaign {
+  object: "campaign";
+  id: string;
+  name: string;
+  list_id: string | null;
+  template_id: string | null;
+  subject: string | null;
+  from_email: string | null;
+  status: "draft" | "scheduled" | "sending" | "sent";
+  scheduled_at: string | null;
+  sent_at: string | null;
+  stats: { recipients: number; sent: number; suppressed: number; failed: number };
+  created_at: string;
+}
+
 export interface MembersResult {
   object: "members";
   seats: { included: number; purchased: number; used: number; capacity: number; remaining: number };
