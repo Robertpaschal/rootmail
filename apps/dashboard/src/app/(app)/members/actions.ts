@@ -13,10 +13,14 @@ export async function inviteMember(
   formData: FormData,
 ): Promise<InviteState> {
   const email = String(formData.get("email") ?? "").trim();
-  const role = String(formData.get("role") ?? "member");
+  const roleValue = String(formData.get("role") ?? "member");
   if (!email) return { error: "Enter an email address." };
+  // A custom role (Scale) arrives as "custom:<roleId>"; system roles are member/admin.
+  const isCustom = roleValue.startsWith("custom:");
+  const role = isCustom ? "member" : roleValue;
+  const customRoleId = isCustom ? roleValue.slice("custom:".length) : undefined;
   try {
-    await api.invite(email, role);
+    await api.invite(email, role, customRoleId);
   } catch (err) {
     if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
     return { error: "Failed to send the invitation." };
