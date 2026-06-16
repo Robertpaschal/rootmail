@@ -32,6 +32,14 @@ export default async function MembersPage() {
     );
   }
 
+  // Custom roles are a Scale feature — offer them in the picker when available.
+  let customRoles: { id: string; name: string }[] = [];
+  try {
+    customRoles = (await api.listRoles()).data.map((r) => ({ id: r.id, name: r.name }));
+  } catch {
+    /* not available on this plan — system roles only */
+  }
+
   const { seats, members, invitations } = data;
   const seatLabel =
     seats.capacity === -1
@@ -112,7 +120,7 @@ export default async function MembersPage() {
             <CardTitle className="text-base">Invite a teammate</CardTitle>
           </CardHeader>
           <CardContent>
-            <InviteForm />
+            <InviteForm customRoles={customRoles} />
             <p className="mt-3 text-xs text-muted-foreground">
               Need more seats? Add them under{" "}
               <a href="/billing" className="underline">

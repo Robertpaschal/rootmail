@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { CommandMenu } from "@/components/app/command-menu";
 import { MobileNav, Sidebar } from "@/components/app/nav";
 import { Topbar } from "@/components/app/topbar";
 import { VerifyEmailBanner } from "@/components/app/verify-email-banner";
@@ -21,6 +22,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen">
+      <CommandMenu />
       <Sidebar />
       <div className="md:pl-60">
         <Topbar />

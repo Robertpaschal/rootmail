@@ -143,15 +143,21 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 
 ## Phase 3 — Dashboard UX pass  *(Track A3 — "make its case")*
 
-- [ ] First-run onboarding checklist; starter template on signup.
-- [ ] Polished empty / loading / error states everywhere.
-- [ ] Consistent feature-locked → upgrade CTAs.
-- [ ] Invite **role-picker** (RBAC assignment is API-only today).
-- [ ] Asset library UI · webhook-delivery log UI · richer sequence/campaign/
-      enrollment views.
-- [ ] Global search / command-K · keyboard shortcuts · toasts.
-- [ ] Mobile responsiveness + a11y.
-  - ◇ **Checkpoints:** one per coherent group (onboarding, states, RBAC UI, nav).
+**Core UX pass DONE & merged** (branch `feat/phase3-dashboard-ux`):
+- [x] First-run onboarding checklist (Overview; hides when complete).
+- [x] Empty / loading / error states — empty states + per-page error handling
+      already existed across ~17 pages; added route-group `loading.tsx`/`error.tsx`.
+- [x] Consistent feature-locked → upgrade CTAs (already wired on all gated pages).
+- [x] Invite **role-picker** — member/admin existed; added custom roles + toasts.
+- [x] Toasts (sonner, global).
+- [x] Global search / **⌘K command palette** (+ topbar trigger).
+
+**Follow-ups (deferred — net-new features / ongoing polish):**
+- [ ] Asset library UI — needs a backend `GET /v1/assets` list endpoint first.
+- [ ] Webhook-delivery log/console — needs the webhook API wired into the client.
+- [ ] Richer sequence/campaign/enrollment views.
+- [ ] Mobile responsiveness + a11y (cross-cutting).
+- [ ] Starter template on signup.
 
 ---
 

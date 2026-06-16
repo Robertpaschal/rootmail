@@ -1,6 +1,8 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, Clock, Mail, TriangleAlert } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
+import { OnboardingChecklist } from "@/components/app/onboarding-checklist";
 import { PageHeader } from "@/components/app/page-header";
 import { MessageStatusBadge, SubTenantStatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +55,10 @@ export default async function OverviewPage() {
   return (
     <>
       <PageHeader title="Overview" description="A snapshot of your most recent sending activity." />
+
+      <Suspense fallback={null}>
+        <OnboardingChecklist />
+      </Suspense>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
