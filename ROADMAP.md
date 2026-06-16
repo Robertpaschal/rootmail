@@ -188,8 +188,11 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
       address field + auto-injected marketing footer), data export + delete.
 - [x] **5.5 New-account abuse limits** — per-IP sign-up cap (10/hr) + the
       email-verification first-send gate (2.2) + login lockout (2.5). Merged.
-- [ ] **5.6 SDK parity** — `@rootmail/node` covers the new endpoints (auth/MFA/etc.).
-  - ◇ **Checkpoints:** per item. (5.2 + 5.5 done; 5.1/5.4 need owner input.)
+- [x] **5.6 SDK parity** — `@rootmail/node` now exposes templates, sequences
+      (+enroll), lists (+contacts), campaigns (+send), threads (+reply), and
+      `messages.proof()`. Builds (ESM/CJS/DTS) green.
+  - ◇ **Checkpoints:** per item. **Done: 5.2, 5.3, 5.5, 5.6.** Remaining: 5.1
+      (needs Stripe overage prices) + 5.4 CAN-SPAM (needs a per-org postal address).
 
 ---
 
