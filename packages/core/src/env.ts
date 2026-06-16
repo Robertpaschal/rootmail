@@ -92,10 +92,16 @@ const EnvSchema = z.object({
   ANTHROPIC_API_KEY: z.string().optional(),
   AI_MODEL: z.string().default("claude-opus-4-8"),
 
-  // --- Asset uploads (local dev driver; S3-ready interface) ----------------
+  // --- Asset uploads -------------------------------------------------------
+  // Default driver writes to ASSET_STORAGE_DIR and serves at ASSET_PUBLIC_URL.
+  // Set ASSET_S3_BUCKET to switch to the S3 driver (objects in S3, still served
+  // through ASSET_PUBLIC_URL). AWS creds come from the SDK's default chain
+  // (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY); AWS_REGION sets the client region.
   ASSET_STORAGE_DIR: z.string().default(".assets"),
   ASSET_PUBLIC_URL: z.string().url().default("http://localhost:4000/assets"),
   UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
+  ASSET_S3_BUCKET: z.string().optional(),
+  AWS_REGION: z.string().optional(),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
