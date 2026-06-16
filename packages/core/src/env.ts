@@ -61,8 +61,13 @@ const EnvSchema = z.object({
   DKIM_SELECTOR: z.string().default("rootmail"),
 
   DNS_VERIFY_MODE: z.enum(["mock", "live"]).default("mock"),
-  MAIL_PROVIDER: z.enum(["mock", "sendgrid"]).default("mock"),
+  MAIL_PROVIDER: z.enum(["mock", "ses", "sendgrid"]).default("mock"),
   MAILDIR: z.string().default(".maildir"),
+
+  // Subdomain whose MX points at SES inbound, for reply capture. Outbound thread
+  // sends set Reply-To to reply+<threadId>@<INBOUND_DOMAIN>; the SES inbound
+  // webhook parses the thread id back out. Unset → reply capture is off.
+  INBOUND_DOMAIN: z.string().optional(),
 
   SENDGRID_API_KEY: z.string().optional(),
 

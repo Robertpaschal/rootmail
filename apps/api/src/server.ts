@@ -25,6 +25,7 @@ import { templateRoutes } from "./routes/templates";
 import { templateAiRoutes } from "./routes/templates-ai";
 import { threadRoutes } from "./routes/threads";
 import { webhookRoutes } from "./routes/webhooks";
+import { sesWebhookRoutes } from "./routes/webhooks-ses";
 import { stripeWebhookRoutes } from "./routes/webhooks-stripe";
 
 export async function buildServer(): Promise<FastifyInstance> {
@@ -66,6 +67,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(roleRoutes);
   await app.register(webhookRoutes);
   await app.register(stripeWebhookRoutes);
+  await app.register(sesWebhookRoutes);
   await app.register(assetRoutes);
   await app.register(proofRoutes);
   await app.register(assistantRoutes);

@@ -1,6 +1,13 @@
 import { and, eq } from "drizzle-orm";
-import { newId } from "@rootmail/core";
+import { env, newId } from "@rootmail/core";
 import { db, type Message, type Thread, threadMessages, threads } from "@rootmail/db";
+
+/** Reply-To that routes a recipient's reply back to this thread via the SES
+ * inbound webhook (`reply+<threadId>@<INBOUND_DOMAIN>`). Null when no inbound
+ * domain is configured, so reply capture stays off until it's set. */
+export function threadReplyAddress(threadId: string): string | null {
+  return env.INBOUND_DOMAIN ? `reply+${threadId}@${env.INBOUND_DOMAIN}` : null;
+}
 
 /** Every outbound send opens a thread with its first (outbound) message. */
 export async function openThreadForSend(m: Message): Promise<Thread> {

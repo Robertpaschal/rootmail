@@ -61,19 +61,38 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 
 **Goal:** replace the mock provider with real outbound + the inbound/feedback loop.
 
-- [ ] **1.1 SES send path** — `@aws-sdk/client-sesv2`, `SesProvider` class,
-      extend `MAIL_PROVIDER` enum to `mock|ses|sendgrid`, register in
-      `apps/worker/src/providers/index.ts`. Reuse our DKIM signing.
-- [ ] **1.2 Domain auth** — DKIM signing with the SES-verified key; SPF + DMARC
-      alignment for `gateml.io`.
-- [ ] **1.3 Go live** — flip `MAIL_PROVIDER=ses`, send to a real inbox, smoke green.
-  - ◇ **Checkpoint:** `feat: SES outbound provider (send path live)`.
-- [ ] **1.4 Inbound parse** — SES receipt → SNS/S3 → `/v1/inbound` → threads
-      (reuses the existing Layer-2 reply-matching pipeline).
-- [ ] **1.5 Bounce/complaint feedback** — SNS notifications → suppression list.
+- [x] **1.1 SES send path** — `@aws-sdk/client-sesv2`, `SesProvider` (Simple
+      content API), `MAIL_PROVIDER` enum → `mock|ses|sendgrid`, registered in the
+      provider router. Test-mode ("sandbox") sends route to mock so synthetic
+      recipients never bounce the production domain. Pipeline no longer fakes
+      "delivered" for real providers (waits for async webhooks, 1.5).
+- [x] **1.2 Domain auth** — **Easy DKIM** on `gateml.io` (SES-managed); SES signs
+      automatically. (BYODKIM with our `gateml` selector remains an option.)
+      SPF/DMARC published by owner. Sub-tenant domains need their own SES identity
+      (follow-up).
+- [x] **1.3 Real send verified** — sent a live email to a real inbox via SES
+      (message id returned). `.env` stays `MAIL_PROVIDER=mock` by default so the
+      synthetic-recipient smoke can't bounce SES; flip to `ses` for live sends.
+  - ◇ **Checkpoint:** `feat: SES outbound provider (send path live)`. ✅
+- [x] **1.5 Bounce/complaint/delivery feedback** — `POST /v1/webhooks/ses`
+      (public, SNS-signature-verified, SSRF-guarded cert fetch, auto-confirms
+      subscriptions, Redis-deduped). Maps `mail.messageId` → our
+      `providerMessageId`; permanent bounce + complaint → suppression + status,
+      delivery → status; audits + fires outbound webhooks. Parsing/classification
+      unit-verified. Full e2e needs SNS wired (owner: SES config set → SNS topic →
+      this endpoint via ngrok/deploy).
+  - ◇ **Checkpoint:** `feat: SES bounce/complaint/delivery webhook → suppression`. ✅
+- [x] **1.4 Inbound parse** — chosen: **dedicated subdomain** + **Reply-To token**.
+      Outbound thread sends set `Reply-To: reply+<threadId>@<INBOUND_DOMAIN>`; the
+      SES webhook handles `notificationType:"Received"`, extracts the thread id,
+      parses the MIME (`mailparser`), appends the inbound message, fires
+      `message.received`, and exits reply-triggered sequences. Token extraction +
+      MIME parse unit-verified. Owner setup: MX of `reply.gateml.io` → SES inbound,
+      a receipt rule with an SNS action → `/v1/webhooks/ses`, then set
+      `INBOUND_DOMAIN=reply.gateml.io`. (Reply-route/campaign sends can adopt the
+      token helper later; S3-action path for >150KB mail is a follow-up.)
 - [ ] **1.6 Deliverability basics** — bounce/complaint-rate monitoring hooks;
-      (IP warm-up deferred to Phase 8 / scale).
-  - ◇ **Checkpoint:** `feat: SES inbound + bounce/complaint → suppression`.
+      List-Unsubscribe header (also Phase 5 CAN-SPAM); IP warm-up → Phase 8.
 
 **Need from you:** confirm whether to use a dedicated IP or shared SES IP for now.
 

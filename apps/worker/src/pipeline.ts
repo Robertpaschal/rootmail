@@ -7,7 +7,7 @@ import {
   WEBHOOK_EVENTS,
 } from "@rootmail/core";
 import { auditEntries, db, type Message, messages, subTenants, suppressions } from "@rootmail/db";
-import { getProvider } from "./providers";
+import { getProviderFor } from "./providers";
 
 interface AuditExtra {
   provider?: string | null;
@@ -89,7 +89,7 @@ export async function processSend(data: SendJobData): Promise<void> {
     }
   }
 
-  const provider = getProvider();
+  const provider = getProviderFor(message.sandbox);
   try {
     const result = await provider.send({
       messageId: message.id,
@@ -118,15 +118,19 @@ export async function processSend(data: SendJobData): Promise<void> {
       providerMessageId: result.providerMessageId,
     });
 
-    // The mock provider has no async webhook, so simulate delivery inline.
-    await db
-      .update(messages)
-      .set({ status: "delivered", updatedAt: new Date() })
-      .where(eq(messages.id, message.id));
-    await audit(message, "delivered", {
-      provider: result.provider,
-      providerMessageId: result.providerMessageId,
-    });
+    // The mock provider has no async feedback, so simulate delivery inline.
+    // Real providers (SES) report delivery/bounce/complaint asynchronously via
+    // webhooks (Phase 1.5), so the message stays "sent" until one arrives.
+    if (result.provider === "mock") {
+      await db
+        .update(messages)
+        .set({ status: "delivered", updatedAt: new Date() })
+        .where(eq(messages.id, message.id));
+      await audit(message, "delivered", {
+        provider: result.provider,
+        providerMessageId: result.providerMessageId,
+      });
+    }
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
     await db
