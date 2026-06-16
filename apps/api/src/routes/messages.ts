@@ -122,6 +122,11 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // Downgrade guard: sending through a sub-tenant requires the subtenants
+    // feature on the current plan, so an org that downgraded away from it can't
+    // keep sending through its existing sub-tenants. 402 feature_locked.
+    if (subTenant) await requireFeature(req, "subtenants");
+
     if (subTenant && subTenant.status !== "verified" && mode === "live") {
       throw Errors.badRequest(
         `Sub-tenant ${subTenant.id} domain "${subTenant.sendingDomain}" is not verified (status: ${subTenant.status})`,
