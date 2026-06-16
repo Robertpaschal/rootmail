@@ -102,18 +102,36 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 
 **Goal:** finish the auth system that already has signup/login/sessions/OAuth-scaffold.
 
-- [ ] **2.1 Email verification flow** — token table, send verification email
-      (dogfoods the pipeline), confirm endpoint, set `email_verified_at`, resend.
-- [ ] **2.2 Gate first live send on verification** — abuse control (ties to 5.5).
-  - ◇ **Checkpoint:** `feat: email verification + first-send gate`.
-- [ ] **2.3 Password reset** — forgot/reset tokens + emails + dashboard screens.
-- [ ] **2.4 MFA (TOTP)** — enrollment (otpauth URI + QR), verify, recovery codes,
-      login challenge, disable. *(The headline "Firebase advantage" we own.)*
-  - ◇ **Checkpoint:** `feat: password reset + TOTP MFA`.
-- [ ] **2.5 Auth hardening** — login rate-limit/lockout, session rotation, cookie review.
-- [ ] **2.6 OAuth providers** — add Apple to the registry; light up Google/GitHub
-      when you supply creds (already wired). Buttons appear automatically.
-  - ◇ **Checkpoint:** `feat: auth hardening + Apple OAuth`.
+- [x] **Shared system-mailer** — `sendSystemEmail()` enqueues to a dedicated
+      `rootmail-system-mail` queue; the worker delivers via the configured provider
+      (no customer workspace, no quota, durable retries). Providers stayed in the
+      worker — no cross-package move needed.
+- [x] **2.1 Email verification flow** — `auth_tokens` (single-use, hashed), signup
+      sends a verification email (dogfoods the pipeline), `POST /v1/auth/verify-email`
+      sets `email_verified_at`, `…/resend`. e2e-verified (signup→email→verify→login).
+- [x] **2.2 Gate live sends on verification** — `assertEmailVerified(org)` blocks
+      live sends (single, thread reply, campaign launch) from an org whose owner
+      hasn't verified their email → 403; test-mode sends unaffected. Keyed on the org
+      owner, so it applies to API-key and session sends alike. e2e-verified.
+- [x] **2.3 Password reset** — `POST /v1/auth/forgot-password` (no email enumeration)
+      + `…/reset-password` (1h single-use token, rehash, invalidates all sessions).
+      e2e-verified (forgot→email→reset→old-rejected→new-works).
+- [x] **2.4 MFA (TOTP)** — core TOTP (RFC 6238, dependency-free, verified against
+      the RFC vectors), enrollment (secret + otpauth URI), activate, 10 single-use
+      recovery codes, signed login challenge, verify, disable. API-complete and
+      e2e-verified against a live server; dashboard enroll/QR UI is a follow-up.
+  - ◇ **Checkpoint:** `feat: TOTP MFA`. ✅
+- [x] **2.5 Auth hardening — lockout** — per-identity Redis failure counter; 10
+      failed password attempts (or MFA codes) → 429 for 15 min, cleared on success.
+      Covers `/login` (by email) + `/mfa/verify` (by user). e2e-verified. (Session
+      rotation / cookie review tracked separately.)
+- [x] **2.6 Apple OAuth (scaffold, inert until creds)** — Apple in the registry:
+      ES256 client_secret JWT (verified against a P-256 key), authorize via
+      form_post, token exchange → id_token profile, POST callback handler,
+      SameSite=None state cookie. Lights up when APPLE_CLIENT_ID/TEAM_ID/KEY_ID/
+      PRIVATE_KEY are set; Google/GitHub already wired. Full round-trip needs your
+      Apple creds + an HTTPS redirect (tunnel) to verify.
+  - ◇ **Checkpoint:** `feat: Apple OAuth (inert until creds)`. ✅
 
 **Need from you:** Google/GitHub/Apple OAuth app credentials (when ready).
 

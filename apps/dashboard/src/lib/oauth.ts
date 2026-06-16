@@ -1,11 +1,13 @@
 import "server-only";
+import { appleClientSecret, appleConfigured, decodeAppleIdToken } from "./apple";
 
-// Social-login scaffold. Providers light up once their client id/secret are set
-// in the environment (e.g. apps/dashboard/.env.local); until then no buttons
-// render and the routes redirect back to /login. Google and GitHub are wired;
-// Apple and Facebook can be added here (Apple needs a JWT client secret).
+// Social-login scaffold. Providers light up once their credentials are set in the
+// environment (e.g. apps/dashboard/.env.local); until then no buttons render and
+// the routes redirect back to /login. Google + GitHub use the standard
+// code→token→userinfo flow; Apple uses a generated ES256 client_secret, a
+// form_post callback, and reads the profile from the id_token (see ./apple).
 
-export type OAuthProviderId = "google" | "github";
+export type OAuthProviderId = "google" | "github" | "apple";
 
 export interface ProviderConfig {
   id: OAuthProviderId;
@@ -40,10 +42,22 @@ function registry(): Record<OAuthProviderId, ProviderConfig> {
       clientId: process.env.GITHUB_CLIENT_ID,
       clientSecret: process.env.GITHUB_CLIENT_SECRET,
     },
+    apple: {
+      id: "apple",
+      label: "Apple",
+      authorizeUrl: "https://appleid.apple.com/auth/authorize",
+      tokenUrl: "https://appleid.apple.com/auth/token",
+      userinfoUrl: "", // Apple has none — the profile comes from the id_token
+      scope: "name email",
+      clientId: process.env.APPLE_CLIENT_ID,
+      // clientSecret is a generated ES256 JWT (see exchangeCode), not static.
+    },
   };
 }
 
 export function isConfigured(p: ProviderConfig): boolean {
+  // Apple has no static secret — it's "configured" when all four .p8 creds exist.
+  if (p.id === "apple") return appleConfigured();
   return Boolean(p.clientId && p.clientSecret);
 }
 
@@ -74,10 +88,14 @@ export function authorizeUrl(p: ProviderConfig, state: string): string {
   u.searchParams.set("response_type", "code");
   u.searchParams.set("scope", p.scope);
   u.searchParams.set("state", state);
+  // Apple requires form_post when name/email scope is requested.
+  if (p.id === "apple") u.searchParams.set("response_mode", "form_post");
   return u.toString();
 }
 
 export async function exchangeCode(p: ProviderConfig, code: string): Promise<string> {
+  // Apple's client_secret is a freshly-signed ES256 JWT; others use the static secret.
+  const clientSecret = p.id === "apple" ? appleClientSecret() : (p.clientSecret ?? "");
   const res = await fetch(p.tokenUrl, {
     method: "POST",
     headers: {
@@ -86,16 +104,18 @@ export async function exchangeCode(p: ProviderConfig, code: string): Promise<str
     },
     body: new URLSearchParams({
       client_id: p.clientId ?? "",
-      client_secret: p.clientSecret ?? "",
+      client_secret: clientSecret,
       code,
       redirect_uri: redirectUri(p.id),
       grant_type: "authorization_code",
     }),
     cache: "no-store",
   });
-  const data = (await res.json()) as { access_token?: string };
-  if (!data.access_token) throw new Error("OAuth token exchange failed");
-  return data.access_token;
+  const data = (await res.json()) as { access_token?: string; id_token?: string };
+  // Apple carries the profile in the id_token; Google/GitHub use the access_token.
+  const token = p.id === "apple" ? data.id_token : data.access_token;
+  if (!token) throw new Error("OAuth token exchange failed");
+  return token;
 }
 
 export interface OAuthProfile {
@@ -105,6 +125,13 @@ export interface OAuthProfile {
 }
 
 export async function fetchProfile(p: ProviderConfig, token: string): Promise<OAuthProfile> {
+  // Apple: the token IS the id_token — read the email straight from its claims
+  // (the display name, if any, arrives separately in the form_post callback).
+  if (p.id === "apple") {
+    const claims = decodeAppleIdToken(token);
+    return { email: claims.email ?? "", emailVerified: claims.emailVerified ?? false };
+  }
+
   const headers = {
     Authorization: `Bearer ${token}`,
     Accept: "application/json",

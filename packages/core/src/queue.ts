@@ -142,3 +142,38 @@ export async function enqueueCampaignSend(data: CampaignJob, opts: { delayMs?: n
     jobId: data.campaignId, // one fan-out per campaign
   });
 }
+
+// ---------------------------------------------------------------------------
+// Platform/transactional email (email verification, password reset). These are
+// NOT tied to a customer workspace or the send quota — the worker delivers them
+// straight through the configured provider. Durable retries via BullMQ.
+// ---------------------------------------------------------------------------
+export const SYSTEM_MAIL_QUEUE = "rootmail-system-mail";
+
+export interface SystemMailJob {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  /** Sender; defaults to no-reply@<ROOTMAIL_DOMAIN> in the worker when omitted. */
+  from?: string | null;
+}
+
+let systemMailQueue: Queue<SystemMailJob> | undefined;
+export function getSystemMailQueue(): Queue<SystemMailJob> {
+  if (!systemMailQueue) {
+    systemMailQueue = new Queue<SystemMailJob>(SYSTEM_MAIL_QUEUE, { connection: bullConnection() });
+  }
+  return systemMailQueue;
+}
+
+/** Enqueue a platform email (verification, reset). Safe to await in a request
+ * path; delivery + retries happen in the worker. */
+export async function sendSystemEmail(job: SystemMailJob): Promise<void> {
+  await getSystemMailQueue().add("send", job, {
+    attempts: 5,
+    backoff: { type: "exponential", delay: 5_000 },
+    removeOnComplete: { age: 86_400, count: 1_000 },
+    removeOnFail: { age: 7 * 86_400 },
+  });
+}

@@ -8,12 +8,15 @@ import {
   SEND_QUEUE,
   SEQUENCE_QUEUE,
   type SendJobData,
+  SYSTEM_MAIL_QUEUE,
+  type SystemMailJob,
   WEBHOOK_QUEUE,
 } from "@rootmail/core";
 import { closeDb } from "@rootmail/db";
 import { processCampaignSend } from "./campaigns";
 import { processSend } from "./pipeline";
 import { processSequenceTick } from "./sequences";
+import { processSystemMail } from "./system-mail";
 import { processWebhookJob } from "./webhooks";
 
 const connection = createRedis() as unknown as ConnectionOptions;
@@ -72,12 +75,26 @@ const campaignWorker = new Worker<CampaignJob>(
 campaignWorker.on("ready", () => console.log(`rootmail campaign worker ready — queue "${CAMPAIGN_QUEUE}"`));
 campaignWorker.on("error", (err) => console.error("campaign worker error:", err.message));
 
+// Platform/transactional email (verification, password reset) on its own queue.
+const systemMailWorker = new Worker<SystemMailJob>(
+  SYSTEM_MAIL_QUEUE,
+  async (job) => {
+    await processSystemMail(job.data);
+  },
+  { connection: createRedis() as unknown as ConnectionOptions, concurrency: 5 },
+);
+systemMailWorker.on("ready", () =>
+  console.log(`rootmail system-mail worker ready — queue "${SYSTEM_MAIL_QUEUE}"`),
+);
+systemMailWorker.on("error", (err) => console.error("system-mail worker error:", err.message));
+
 const shutdown = async (signal: string) => {
   console.log(`${signal} received — closing worker`);
   await worker.close();
   await webhookWorker.close();
   await sequenceWorker.close();
   await campaignWorker.close();
+  await systemMailWorker.close();
   await closeDb();
   process.exit(0);
 };

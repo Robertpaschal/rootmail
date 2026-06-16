@@ -70,9 +70,34 @@ export const users = pgTable("users", {
   // `scheme$salt$hash` (scrypt). Null for accounts that only use social login.
   passwordHash: text("password_hash"),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
+  // TOTP MFA. mfaSecret holds the base32 secret from enrollment; mfaEnabledAt is
+  // set only after the first code verifies. Recovery codes are stored as scrypt
+  // hashes and dropped as they're consumed.
+  mfaSecret: text("mfa_secret"),
+  mfaEnabledAt: timestamp("mfa_enabled_at", { withTimezone: true }),
+  mfaRecoveryCodes: jsonb("mfa_recovery_codes").$type<string[]>(),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
+
+// Single-use, expiring tokens for email verification and password reset. Only
+// the token hash is stored (like invitations/sessions); the raw token travels in
+// the emailed link, and usedAt makes it one-time.
+export const authTokens = pgTable(
+  "auth_tokens",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: text("purpose").notNull(), // "email_verify" | "password_reset"
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("auth_tokens_user_idx").on(t.userId)],
+);
 
 export const organizations = pgTable("organizations", {
   id: text("id").primaryKey(),
@@ -657,6 +682,7 @@ export const threadMessages = pgTable(
 // Inferred types
 // ---------------------------------------------------------------------------
 export type User = typeof users.$inferSelect;
+export type AuthToken = typeof authTokens.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type Membership = typeof memberships.$inferSelect;
 export type NewMembership = typeof memberships.$inferInsert;

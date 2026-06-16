@@ -1,8 +1,20 @@
 import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { env, Errors, hashPassword, verifyPassword } from "@rootmail/core";
-import { db, users } from "@rootmail/db";
+import {
+  env,
+  Errors,
+  generateRecoveryCode,
+  generateTotpSecret,
+  hashPassword,
+  sendSystemEmail,
+  signMfaChallenge,
+  totpUri,
+  verifyMfaChallenge,
+  verifyPassword,
+  verifyTotp,
+} from "@rootmail/core";
+import { db, sessions, type User, users } from "@rootmail/db";
 import {
   createSession,
   defaultWorkspaceForUser,
@@ -13,6 +25,9 @@ import {
   userWorkspaces,
   workspaceForUser,
 } from "../lib/auth";
+import { consumeAuthToken, createAuthToken } from "../lib/auth-tokens";
+import { passwordResetEmail, verificationEmail } from "../lib/emails";
+import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { serializeApiKey, serializeUser, serializeWorkspace } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
@@ -35,6 +50,29 @@ const oauthBody = z.object({
   email_verified: z.boolean().optional(),
 });
 
+const mfaVerifyBody = z
+  .object({
+    mfa_token: z.string().min(1),
+    code: z.string().optional(),
+    recovery_code: z.string().optional(),
+  })
+  .refine((b) => Boolean(b.code || b.recovery_code), {
+    message: "Provide an authenticator code or a recovery code.",
+  });
+
+const mfaActivateBody = z.object({ code: z.string().min(6) });
+const mfaDisableBody = z.object({ code: z.string().optional(), password: z.string().optional() });
+
+const verifyEmailBody = z.object({ token: z.string().min(1) });
+const forgotPasswordBody = z.object({ email: z.string().email() });
+const resetPasswordBody = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8, "Use at least 8 characters."),
+});
+
+const EMAIL_VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 function bearerToken(req: FastifyRequest): string | undefined {
   const header = req.headers.authorization;
   if (!header) return undefined;
@@ -49,6 +87,27 @@ async function requireSession(req: FastifyRequest) {
   const resolved = await resolveSession(token);
   if (!resolved) throw Errors.unauthorized();
   return resolved;
+}
+
+/** Mint a session and build the post-authentication payload (login + mfa/verify). */
+async function sessionResponse(user: User) {
+  const workspaces = await userWorkspaces(user.id);
+  const live = workspaces.find((w) => w.environment === "live") ?? workspaces[0] ?? null;
+  const { token, session } = await createSession(user.id, live?.id ?? null);
+  return {
+    user: serializeUser(user),
+    workspaces: workspaces.map(serializeWorkspace),
+    active_workspace: live ? serializeWorkspace(live) : null,
+    session_token: token,
+    session_expires_at: session.expiresAt,
+  };
+}
+
+/** Issue an email-verification token and enqueue the verification email. */
+async function sendVerificationEmail(user: { id: string; email: string; name: string | null }): Promise<void> {
+  const token = await createAuthToken(user.id, "email_verify", EMAIL_VERIFY_TTL_MS);
+  const mail = verificationEmail(token, user.name);
+  await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text });
 }
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
@@ -69,6 +128,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
 
     const { token, session } = await createSession(account.user.id, account.production.id);
 
+    // Kick off email verification (best-effort — never fail signup on it).
+    try {
+      await sendVerificationEmail(account.user);
+    } catch (err) {
+      req.log.warn({ err }, "verification email enqueue failed");
+    }
+
     return reply.status(201).send({
       user: serializeUser(account.user),
       workspace: serializeWorkspace(account.production),
@@ -86,22 +152,26 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const body = parse(loginBody, req.body);
     const email = body.email.toLowerCase();
 
+    if (await isLockedOut("pw", email)) {
+      throw Errors.rateLimited("Too many failed login attempts. Try again in a few minutes.");
+    }
+
     const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     // Verify even when the user is missing to keep timing uniform.
     const ok = verifyPassword(body.password, user?.passwordHash);
-    if (!user || !ok) throw Errors.unauthorized("Invalid email or password.");
+    if (!user || !ok) {
+      await recordAuthFailure("pw", email);
+      throw Errors.unauthorized("Invalid email or password.");
+    }
+    await clearAuthFailures("pw", email);
 
-    const workspaces = await userWorkspaces(user.id);
-    const live = workspaces.find((w) => w.environment === "live") ?? workspaces[0] ?? null;
-    const { token, session } = await createSession(user.id, live?.id ?? null);
+    // MFA gate: return a short-lived challenge instead of a session; the client
+    // completes login at /v1/auth/mfa/verify with a TOTP or recovery code.
+    if (user.mfaEnabledAt) {
+      return { mfa_required: true, mfa_token: signMfaChallenge(user.id) };
+    }
 
-    return {
-      user: serializeUser(user),
-      workspaces: workspaces.map(serializeWorkspace),
-      active_workspace: live ? serializeWorkspace(live) : null,
-      session_token: token,
-      session_expires_at: session.expiresAt,
-    };
+    return sessionResponse(user);
   });
 
   // --- Social login upsert (internal; called by the dashboard) ------------
@@ -153,5 +223,136 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const token = bearerToken(req);
     if (token) await deleteSession(token);
     return { ok: true };
+  });
+
+  // --- MFA: complete login with a TOTP or recovery code -------------------
+  app.post("/v1/auth/mfa/verify", async (req) => {
+    const body = parse(mfaVerifyBody, req.body);
+    const userId = verifyMfaChallenge(body.mfa_token);
+    if (!userId) throw Errors.unauthorized("MFA challenge expired — please log in again.");
+    if (await isLockedOut("mfa", userId)) {
+      throw Errors.rateLimited("Too many incorrect codes. Try again in a few minutes.");
+    }
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user || !user.mfaEnabledAt || !user.mfaSecret) throw Errors.unauthorized();
+
+    let passed = false;
+    if (body.code) {
+      passed = verifyTotp(user.mfaSecret, body.code);
+    } else if (body.recovery_code) {
+      const codes = user.mfaRecoveryCodes ?? [];
+      const candidate = body.recovery_code.trim().toLowerCase();
+      const idx = codes.findIndex((hash) => verifyPassword(candidate, hash));
+      if (idx >= 0) {
+        passed = true;
+        // Recovery codes are single-use.
+        await db
+          .update(users)
+          .set({ mfaRecoveryCodes: codes.filter((_, i) => i !== idx), updatedAt: new Date() })
+          .where(eq(users.id, user.id));
+      }
+    }
+    if (!passed) {
+      await recordAuthFailure("mfa", userId);
+      throw Errors.unauthorized("Invalid code.");
+    }
+    await clearAuthFailures("mfa", userId);
+
+    return sessionResponse(user);
+  });
+
+  // --- MFA: begin enrollment (returns the secret + otpauth URI) -----------
+  app.post("/v1/auth/mfa/setup", async (req) => {
+    const { user } = await requireSession(req);
+    if (user.mfaEnabledAt) throw Errors.conflict("MFA is already enabled.");
+    const secret = generateTotpSecret();
+    await db.update(users).set({ mfaSecret: secret, updatedAt: new Date() }).where(eq(users.id, user.id));
+    return { secret, otpauth_uri: totpUri(secret, user.email) };
+  });
+
+  // --- MFA: activate after confirming a code (recovery codes shown once) ---
+  app.post("/v1/auth/mfa/activate", async (req) => {
+    const { user } = await requireSession(req);
+    const body = parse(mfaActivateBody, req.body);
+    if (user.mfaEnabledAt) throw Errors.conflict("MFA is already enabled.");
+    if (!user.mfaSecret) throw Errors.badRequest("Start MFA setup first.");
+    if (!verifyTotp(user.mfaSecret, body.code)) {
+      throw Errors.badRequest("That code didn't match — check your authenticator and try again.");
+    }
+    const recoveryCodes = Array.from({ length: 10 }, () => generateRecoveryCode());
+    await db
+      .update(users)
+      .set({
+        mfaEnabledAt: new Date(),
+        mfaRecoveryCodes: recoveryCodes.map((c) => hashPassword(c)),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+    return { enabled: true, recovery_codes: recoveryCodes };
+  });
+
+  // --- MFA: disable (requires a current code or the account password) -----
+  app.post("/v1/auth/mfa/disable", async (req) => {
+    const { user } = await requireSession(req);
+    const body = parse(mfaDisableBody, req.body);
+    if (!user.mfaEnabledAt) return { enabled: false };
+    const okCode = Boolean(body.code && user.mfaSecret && verifyTotp(user.mfaSecret, body.code));
+    const okPassword = Boolean(body.password && verifyPassword(body.password, user.passwordHash));
+    if (!okCode && !okPassword) {
+      throw Errors.unauthorized("Provide a valid code or your password to disable MFA.");
+    }
+    await db
+      .update(users)
+      .set({ mfaSecret: null, mfaEnabledAt: null, mfaRecoveryCodes: null, updatedAt: new Date() })
+      .where(eq(users.id, user.id));
+    return { enabled: false };
+  });
+
+  // --- Email verification -------------------------------------------------
+  app.post("/v1/auth/verify-email", async (req) => {
+    const body = parse(verifyEmailBody, req.body);
+    const userId = await consumeAuthToken(body.token, "email_verify");
+    if (!userId) throw Errors.badRequest("This verification link is invalid or has expired.");
+    await db
+      .update(users)
+      .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    return { verified: true };
+  });
+
+  app.post("/v1/auth/verify-email/resend", async (req) => {
+    const { user } = await requireSession(req);
+    if (user.emailVerifiedAt) return { verified: true };
+    await sendVerificationEmail(user);
+    return { sent: true };
+  });
+
+  // --- Password reset -----------------------------------------------------
+  app.post("/v1/auth/forgot-password", async (req) => {
+    const body = parse(forgotPasswordBody, req.body);
+    const email = body.email.toLowerCase();
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    // Send only when the account exists with a password, but always return ok so
+    // the endpoint can't be used to discover which emails are registered.
+    if (user?.passwordHash) {
+      const token = await createAuthToken(user.id, "password_reset", PASSWORD_RESET_TTL_MS);
+      const mail = passwordResetEmail(token, user.name);
+      await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text });
+    }
+    return { ok: true };
+  });
+
+  app.post("/v1/auth/reset-password", async (req) => {
+    const body = parse(resetPasswordBody, req.body);
+    const userId = await consumeAuthToken(body.token, "password_reset");
+    if (!userId) throw Errors.badRequest("This reset link is invalid or has expired.");
+    await db
+      .update(users)
+      .set({ passwordHash: hashPassword(body.password), updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    // A reset invalidates existing sessions — force a fresh login everywhere.
+    await db.delete(sessions).where(eq(sessions.userId, userId));
+    return { reset: true };
   });
 }
