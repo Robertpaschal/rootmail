@@ -106,10 +106,12 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
       (dogfoods the pipeline), confirm endpoint, set `email_verified_at`, resend.
 - [ ] **2.2 Gate first live send on verification** — abuse control (ties to 5.5).
   - ◇ **Checkpoint:** `feat: email verification + first-send gate`.
-- [ ] **2.3 Password reset** — forgot/reset tokens + emails + dashboard screens.
-- [ ] **2.4 MFA (TOTP)** — enrollment (otpauth URI + QR), verify, recovery codes,
-      login challenge, disable. *(The headline "Firebase advantage" we own.)*
-  - ◇ **Checkpoint:** `feat: password reset + TOTP MFA`.
+- [ ] **2.3 Password reset** — forgot/reset tokens + emails (needs the shared mailer).
+- [x] **2.4 MFA (TOTP)** — core TOTP (RFC 6238, dependency-free, verified against
+      the RFC vectors), enrollment (secret + otpauth URI), activate, 10 single-use
+      recovery codes, signed login challenge, verify, disable. API-complete and
+      e2e-verified against a live server; dashboard enroll/QR UI is a follow-up.
+  - ◇ **Checkpoint:** `feat: TOTP MFA`. ✅
 - [ ] **2.5 Auth hardening** — login rate-limit/lockout, session rotation, cookie review.
 - [ ] **2.6 OAuth providers** — add Apple to the registry; light up Google/GitHub
       when you supply creds (already wired). Buttons appear automatically.

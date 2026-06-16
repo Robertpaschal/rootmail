@@ -1,8 +1,19 @@
 import { eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { env, Errors, hashPassword, verifyPassword } from "@rootmail/core";
-import { db, users } from "@rootmail/db";
+import {
+  env,
+  Errors,
+  generateRecoveryCode,
+  generateTotpSecret,
+  hashPassword,
+  signMfaChallenge,
+  totpUri,
+  verifyMfaChallenge,
+  verifyPassword,
+  verifyTotp,
+} from "@rootmail/core";
+import { db, type User, users } from "@rootmail/db";
 import {
   createSession,
   defaultWorkspaceForUser,
@@ -35,6 +46,19 @@ const oauthBody = z.object({
   email_verified: z.boolean().optional(),
 });
 
+const mfaVerifyBody = z
+  .object({
+    mfa_token: z.string().min(1),
+    code: z.string().optional(),
+    recovery_code: z.string().optional(),
+  })
+  .refine((b) => Boolean(b.code || b.recovery_code), {
+    message: "Provide an authenticator code or a recovery code.",
+  });
+
+const mfaActivateBody = z.object({ code: z.string().min(6) });
+const mfaDisableBody = z.object({ code: z.string().optional(), password: z.string().optional() });
+
 function bearerToken(req: FastifyRequest): string | undefined {
   const header = req.headers.authorization;
   if (!header) return undefined;
@@ -49,6 +73,20 @@ async function requireSession(req: FastifyRequest) {
   const resolved = await resolveSession(token);
   if (!resolved) throw Errors.unauthorized();
   return resolved;
+}
+
+/** Mint a session and build the post-authentication payload (login + mfa/verify). */
+async function sessionResponse(user: User) {
+  const workspaces = await userWorkspaces(user.id);
+  const live = workspaces.find((w) => w.environment === "live") ?? workspaces[0] ?? null;
+  const { token, session } = await createSession(user.id, live?.id ?? null);
+  return {
+    user: serializeUser(user),
+    workspaces: workspaces.map(serializeWorkspace),
+    active_workspace: live ? serializeWorkspace(live) : null,
+    session_token: token,
+    session_expires_at: session.expiresAt,
+  };
 }
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
@@ -91,17 +129,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const ok = verifyPassword(body.password, user?.passwordHash);
     if (!user || !ok) throw Errors.unauthorized("Invalid email or password.");
 
-    const workspaces = await userWorkspaces(user.id);
-    const live = workspaces.find((w) => w.environment === "live") ?? workspaces[0] ?? null;
-    const { token, session } = await createSession(user.id, live?.id ?? null);
+    // MFA gate: return a short-lived challenge instead of a session; the client
+    // completes login at /v1/auth/mfa/verify with a TOTP or recovery code.
+    if (user.mfaEnabledAt) {
+      return { mfa_required: true, mfa_token: signMfaChallenge(user.id) };
+    }
 
-    return {
-      user: serializeUser(user),
-      workspaces: workspaces.map(serializeWorkspace),
-      active_workspace: live ? serializeWorkspace(live) : null,
-      session_token: token,
-      session_expires_at: session.expiresAt,
-    };
+    return sessionResponse(user);
   });
 
   // --- Social login upsert (internal; called by the dashboard) ------------
@@ -153,5 +187,82 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const token = bearerToken(req);
     if (token) await deleteSession(token);
     return { ok: true };
+  });
+
+  // --- MFA: complete login with a TOTP or recovery code -------------------
+  app.post("/v1/auth/mfa/verify", async (req) => {
+    const body = parse(mfaVerifyBody, req.body);
+    const userId = verifyMfaChallenge(body.mfa_token);
+    if (!userId) throw Errors.unauthorized("MFA challenge expired — please log in again.");
+
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user || !user.mfaEnabledAt || !user.mfaSecret) throw Errors.unauthorized();
+
+    let passed = false;
+    if (body.code) {
+      passed = verifyTotp(user.mfaSecret, body.code);
+    } else if (body.recovery_code) {
+      const codes = user.mfaRecoveryCodes ?? [];
+      const candidate = body.recovery_code.trim().toLowerCase();
+      const idx = codes.findIndex((hash) => verifyPassword(candidate, hash));
+      if (idx >= 0) {
+        passed = true;
+        // Recovery codes are single-use.
+        await db
+          .update(users)
+          .set({ mfaRecoveryCodes: codes.filter((_, i) => i !== idx), updatedAt: new Date() })
+          .where(eq(users.id, user.id));
+      }
+    }
+    if (!passed) throw Errors.unauthorized("Invalid code.");
+
+    return sessionResponse(user);
+  });
+
+  // --- MFA: begin enrollment (returns the secret + otpauth URI) -----------
+  app.post("/v1/auth/mfa/setup", async (req) => {
+    const { user } = await requireSession(req);
+    if (user.mfaEnabledAt) throw Errors.conflict("MFA is already enabled.");
+    const secret = generateTotpSecret();
+    await db.update(users).set({ mfaSecret: secret, updatedAt: new Date() }).where(eq(users.id, user.id));
+    return { secret, otpauth_uri: totpUri(secret, user.email) };
+  });
+
+  // --- MFA: activate after confirming a code (recovery codes shown once) ---
+  app.post("/v1/auth/mfa/activate", async (req) => {
+    const { user } = await requireSession(req);
+    const body = parse(mfaActivateBody, req.body);
+    if (user.mfaEnabledAt) throw Errors.conflict("MFA is already enabled.");
+    if (!user.mfaSecret) throw Errors.badRequest("Start MFA setup first.");
+    if (!verifyTotp(user.mfaSecret, body.code)) {
+      throw Errors.badRequest("That code didn't match — check your authenticator and try again.");
+    }
+    const recoveryCodes = Array.from({ length: 10 }, () => generateRecoveryCode());
+    await db
+      .update(users)
+      .set({
+        mfaEnabledAt: new Date(),
+        mfaRecoveryCodes: recoveryCodes.map((c) => hashPassword(c)),
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, user.id));
+    return { enabled: true, recovery_codes: recoveryCodes };
+  });
+
+  // --- MFA: disable (requires a current code or the account password) -----
+  app.post("/v1/auth/mfa/disable", async (req) => {
+    const { user } = await requireSession(req);
+    const body = parse(mfaDisableBody, req.body);
+    if (!user.mfaEnabledAt) return { enabled: false };
+    const okCode = Boolean(body.code && user.mfaSecret && verifyTotp(user.mfaSecret, body.code));
+    const okPassword = Boolean(body.password && verifyPassword(body.password, user.passwordHash));
+    if (!okCode && !okPassword) {
+      throw Errors.unauthorized("Provide a valid code or your password to disable MFA.");
+    }
+    await db
+      .update(users)
+      .set({ mfaSecret: null, mfaEnabledAt: null, mfaRecoveryCodes: null, updatedAt: new Date() })
+      .where(eq(users.id, user.id));
+    return { enabled: false };
   });
 }
