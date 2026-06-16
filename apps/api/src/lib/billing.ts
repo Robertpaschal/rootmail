@@ -1,6 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Errors, newId, PLANS, type PlanDef } from "@rootmail/core";
-import { db, type Organization, usageRecords } from "@rootmail/db";
+import { db, memberships, type Organization, usageRecords, users } from "@rootmail/db";
 
 export function planFor(org: Pick<Organization, "plan">): PlanDef {
   return PLANS[org.plan] ?? PLANS.free;
@@ -80,11 +80,37 @@ export async function quotaState(org: Organization): Promise<QuotaState> {
   };
 }
 
+/** Is the org's owner a verified human? Password signups are unverified until
+ * they confirm their email; OAuth signups are verified on creation. */
+export async function orgOwnerVerified(organizationId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ verifiedAt: users.emailVerifiedAt })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .where(and(eq(memberships.organizationId, organizationId), eq(memberships.role, "owner")))
+    .limit(1);
+  // Fail-open if there's somehow no owner row, so sending never wedges.
+  return row ? row.verifiedAt != null : true;
+}
+
+/** Block live sends from an org whose owner hasn't verified their email
+ * (anti-abuse on fresh accounts). Applies to API-key and session sends alike;
+ * test-mode sends are unaffected. */
+export async function assertEmailVerified(org: Organization): Promise<void> {
+  if (!(await orgOwnerVerified(org.id))) {
+    throw Errors.forbidden(
+      "Verify your email address before sending live email — check your inbox for the verification link.",
+    );
+  }
+}
+
 /**
- * Gate a live send. Plans that allow overage are never blocked (they bill the
- * excess); hard-capped plans (Free) throw 402 once the quota is reached.
+ * Gate a live send: email verification first (anti-abuse), then volume. Plans
+ * that allow overage are never volume-blocked (they bill the excess); hard-capped
+ * plans (Free) throw 402 once the quota is reached.
  */
 export async function assertCanSend(org: Organization): Promise<void> {
+  await assertEmailVerified(org);
   const plan = planFor(org);
   if (plan.allowOverage) return;
   const used = await getUsage(org.id);

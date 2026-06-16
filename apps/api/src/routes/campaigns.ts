@@ -3,7 +3,8 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { enqueueCampaignSend, Errors, newId } from "@rootmail/core";
 import { type Campaign, campaigns, db, listContacts, lists, templates } from "@rootmail/db";
-import { requireFeature } from "../lib/features";
+import { assertEmailVerified } from "../lib/billing";
+import { loadOrg, requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { parse } from "../lib/validate";
 
@@ -159,6 +160,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   // --- Send (or schedule) -------------------------------------------------
   app.post("/v1/campaigns/:id/send", async (req) => {
     await requirePermission(req, "content.manage");
+    // Anti-abuse: a live campaign blast requires a verified account owner.
+    if (req.auth.mode === "live") await assertEmailVerified(await loadOrg(req));
     const { id } = req.params as { id: string };
     const body = parse(z.object({ scheduled_at: z.string().datetime().optional() }), req.body ?? {});
     const c = await getScoped(req, id);

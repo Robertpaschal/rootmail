@@ -109,9 +109,10 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 - [x] **2.1 Email verification flow** — `auth_tokens` (single-use, hashed), signup
       sends a verification email (dogfoods the pipeline), `POST /v1/auth/verify-email`
       sets `email_verified_at`, `…/resend`. e2e-verified (signup→email→verify→login).
-- [ ] **2.2 Gate first live send on verification** — abuse control (ties to 5.5).
-      Deferred: needs the API-key-vs-session policy call (key sends aren't tied to a
-      user's verification).
+- [x] **2.2 Gate live sends on verification** — `assertEmailVerified(org)` blocks
+      live sends (single, thread reply, campaign launch) from an org whose owner
+      hasn't verified their email → 403; test-mode sends unaffected. Keyed on the org
+      owner, so it applies to API-key and session sends alike. e2e-verified.
 - [x] **2.3 Password reset** — `POST /v1/auth/forgot-password` (no email enumeration)
       + `…/reset-password` (1h single-use token, rehash, invalidates all sessions).
       e2e-verified (forgot→email→reset→old-rejected→new-works).
