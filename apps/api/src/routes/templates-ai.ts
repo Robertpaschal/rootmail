@@ -4,6 +4,7 @@ import { ADD_ONS, AI_CREDITS, env, Errors } from "@rootmail/core";
 import { getAiUsage, recordAiUse } from "../lib/billing";
 import { generateTemplateDraft } from "../lib/ai";
 import { loadOrg } from "../lib/features";
+import { requirePermission } from "../lib/permissions";
 import { addonQuantity } from "../lib/seats";
 import { parse } from "../lib/validate";
 
@@ -17,6 +18,7 @@ export async function templateAiRoutes(app: FastifyInstance): Promise<void> {
     "/v1/templates/ai-draft",
     { config: { rateLimit: { max: 20, timeWindow: "1 minute" } } },
     async (req) => {
+      await requirePermission(req, "content.manage");
       const { prompt } = parse(draftBody, req.body);
       const org = await loadOrg(req);
 
