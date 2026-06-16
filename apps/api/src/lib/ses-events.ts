@@ -1,12 +1,15 @@
 import { eq } from "drizzle-orm";
+import { simpleParser } from "mailparser";
 import {
   type AuditEvent,
   enqueueWebhookEvent,
   newId,
   WEBHOOK_EVENTS,
 } from "@rootmail/core";
-import { auditEntries, db, type Message, messages } from "@rootmail/db";
+import { auditEntries, db, type Message, messages, threads } from "@rootmail/db";
 import { addSuppression } from "./queries";
+import { exitEnrollments } from "./sequence-triggers";
+import { appendInbound } from "./threads";
 
 // ---------------------------------------------------------------------------
 // Amazon SES feedback notifications (Bounce / Complaint / Delivery), delivered
@@ -25,13 +28,16 @@ export interface SesNotification {
   // event destinations use `eventType`. We accept either.
   notificationType?: string;
   eventType?: string;
-  mail?: { messageId?: string; destination?: string[] };
+  mail?: { messageId?: string; destination?: string[]; source?: string };
   bounce?: { bounceType?: string; bouncedRecipients?: SesRecipient[] };
   complaint?: { complainedRecipients?: SesRecipient[] };
   delivery?: { recipients?: string[] };
+  // Inbound ("Received") via an SES receipt rule's SNS action.
+  receipt?: { recipients?: string[] };
+  content?: string; // base64 raw MIME (SNS action, ≤150KB)
 }
 
-export type SesKind = "bounce" | "complaint" | "delivery" | "ignored";
+export type SesKind = "bounce" | "complaint" | "delivery" | "received" | "ignored";
 
 export function parseSesNotification(json: string): SesNotification | null {
   try {
@@ -46,7 +52,54 @@ export function classify(n: SesNotification): SesKind {
   if (t === "bounce") return "bounce";
   if (t === "complaint") return "complaint";
   if (t === "delivery") return "delivery";
+  if (t === "received") return "received";
   return "ignored";
+}
+
+const REPLY_TOKEN = /^reply\+([^@]+)@/i;
+
+/** Pull the thread id out of a `reply+<threadId>@…` recipient, or null. */
+export function threadIdFromRecipients(recipients: string[]): string | null {
+  for (const r of recipients) {
+    const m = REPLY_TOKEN.exec(r.trim());
+    if (m) return m[1];
+  }
+  return null;
+}
+
+/**
+ * Ingest an inbound ("Received") SES email: match it to a thread via the
+ * Reply-To token, parse the MIME body, and append it as an inbound message —
+ * then fire `message.received` and exit any reply-triggered sequences.
+ */
+export async function applySesInbound(n: SesNotification): Promise<"received" | "ignored"> {
+  const recipients = n.receipt?.recipients ?? n.mail?.destination ?? [];
+  const threadId = threadIdFromRecipients(recipients);
+  if (!threadId || !n.content) return "ignored";
+
+  const [thread] = await db.select().from(threads).where(eq(threads.id, threadId)).limit(1);
+  if (!thread) return "ignored";
+
+  const parsed = await simpleParser(Buffer.from(n.content, "base64"));
+  const fromEmail = parsed.from?.value?.[0]?.address ?? n.mail?.source ?? "";
+  if (!fromEmail) return "ignored";
+  const toEmail = recipients.find((r) => REPLY_TOKEN.test(r.trim())) ?? "";
+
+  await appendInbound(thread, {
+    fromEmail,
+    toEmail,
+    bodyText: parsed.text ?? null,
+    bodyHtml: typeof parsed.html === "string" ? parsed.html : null,
+  });
+
+  void enqueueWebhookEvent({
+    workspaceId: thread.workspaceId,
+    subTenantId: thread.subTenantId,
+    event: "message.received",
+    data: { thread_id: thread.id, from: fromEmail, occurred_at: new Date().toISOString() },
+  });
+  void exitEnrollments(thread.workspaceId, fromEmail, "replied");
+  return "received";
 }
 
 async function audit(message: Message, event: AuditEvent, metadata: Record<string, unknown> = {}): Promise<void> {

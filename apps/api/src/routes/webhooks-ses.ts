@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
 import { getRedis } from "@rootmail/core";
-import { applySesNotification, parseSesNotification } from "../lib/ses-events";
+import { applySesInbound, applySesNotification, classify, parseSesNotification } from "../lib/ses-events";
 import { confirmSubscription, type SnsMessage, verifySnsSignature } from "../lib/sns";
 
 // SNS may redeliver a notification; dedup by its envelope MessageId so we don't
@@ -54,7 +54,10 @@ export async function sesWebhookRoutes(app: FastifyInstance): Promise<void> {
 
     const notification = parseSesNotification(msg.Message);
     if (notification) {
-      const kind = await applySesNotification(notification);
+      const kind =
+        classify(notification) === "received"
+          ? await applySesInbound(notification)
+          : await applySesNotification(notification);
       app.log.info({ kind, messageId: msg.MessageId }, "processed SES notification");
     }
     return reply.code(200).send({ ok: true });

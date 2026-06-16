@@ -82,11 +82,15 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
       unit-verified. Full e2e needs SNS wired (owner: SES config set → SNS topic →
       this endpoint via ngrok/deploy).
   - ◇ **Checkpoint:** `feat: SES bounce/complaint/delivery webhook → suppression`. ✅
-- [ ] **1.4 Inbound parse** — SES receipt rule → SNS/S3 → match to thread →
-      append inbound. Needs decisions: **MX strategy** (point `gateml.io` MX at
-      SES inbound vs a dedicated subdomain) and a **reply-matching scheme**
-      (Reply-To token like `reply+<threadId>@` vs capturing our sent Message-ID).
-      Its own checkpoint.
+- [x] **1.4 Inbound parse** — chosen: **dedicated subdomain** + **Reply-To token**.
+      Outbound thread sends set `Reply-To: reply+<threadId>@<INBOUND_DOMAIN>`; the
+      SES webhook handles `notificationType:"Received"`, extracts the thread id,
+      parses the MIME (`mailparser`), appends the inbound message, fires
+      `message.received`, and exits reply-triggered sequences. Token extraction +
+      MIME parse unit-verified. Owner setup: MX of `reply.gateml.io` → SES inbound,
+      a receipt rule with an SNS action → `/v1/webhooks/ses`, then set
+      `INBOUND_DOMAIN=reply.gateml.io`. (Reply-route/campaign sends can adopt the
+      token helper later; S3-action path for >150KB mail is a follow-up.)
 - [ ] **1.6 Deliverability basics** — bounce/complaint-rate monitoring hooks;
       List-Unsubscribe header (also Phase 5 CAN-SPAM); IP warm-up → Phase 8.
 

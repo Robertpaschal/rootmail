@@ -28,7 +28,7 @@ import { writeAudit } from "../lib/audit";
 import { assertCanSend, recordSend } from "../lib/billing";
 import { requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { openThreadForSend } from "../lib/threads";
+import { openThreadForSend, threadReplyAddress } from "../lib/threads";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
 import { serializeAudit, serializeMessage } from "../lib/serialize";
 import { parse } from "../lib/validate";
@@ -258,10 +258,24 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     if (mode === "live" && org) await recordSend(org.id);
 
     // Open a conversation thread (Layer 2) — best-effort, never fails the send.
+    let thread: Awaited<ReturnType<typeof openThreadForSend>> | undefined;
     try {
-      await openThreadForSend(message);
+      thread = await openThreadForSend(message);
     } catch {
       /* threading is non-critical to the send */
+    }
+
+    // Route replies back to us so the SES inbound webhook can match them to this
+    // thread — unless the caller supplied an explicit Reply-To.
+    if (thread && !message.replyTo) {
+      const replyAddr = threadReplyAddress(thread.id);
+      if (replyAddr) {
+        await db
+          .update(messages)
+          .set({ replyTo: replyAddr, updatedAt: new Date() })
+          .where(eq(messages.id, message.id));
+        message.replyTo = replyAddr;
+      }
     }
 
     await writeAudit(db, {
