@@ -132,6 +132,10 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
       PRIVATE_KEY are set; Google/GitHub already wired. Full round-trip needs your
       Apple creds + an HTTPS redirect (tunnel) to verify.
   - ◇ **Checkpoint:** `feat: Apple OAuth (inert until creds)`. ✅
+- [x] **2.7 Dashboard auth UI** — login MFA-challenge step, /forgot-password +
+      /reset-password, /verify-email page + in-app "verify your email" banner,
+      /settings/security TOTP enroll (QR) + disable. Dashboard typecheck + `next
+      build` green. **Phase 2 COMPLETE & merged to main.**
 
 **Need from you:** Google/GitHub/Apple OAuth app credentials (when ready).
 
