@@ -177,13 +177,16 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 - [ ] **5.1 Overage metered billing** — create per-plan Stripe usage prices
       (`STRIPE_PRICE_OVERAGE_PRO` $0.85, `STRIPE_PRICE_OVERAGE_SCALE` $0.70, 1 unit
       = 1,000 emails), report usage records, reconcile with the in-app meter.
-- [ ] **5.2 Sub-tenant downgrade guard** — block sends through sub-tenants when a
-      plan loses the feature.
+      **Needs owner to create the Stripe prices first.**
+- [x] **5.2 Sub-tenant downgrade guard** — sends through a sub-tenant require the
+      `subtenants` feature on the current plan (→ 402 feature_locked). Merged.
 - [ ] **5.3 Permission-coverage audit** — every mutation checks a permission.
-- [ ] **5.4 CAN-SPAM / GDPR** — physical address in footer, data export + delete.
-- [ ] **5.5 New-account abuse limits** — rate caps + the email-verification gate (2.2).
-- [ ] **5.6 SDK parity** — `@rootmail/node` covers the new endpoints.
-  - ◇ **Checkpoints:** per item.
+- [ ] **5.4 CAN-SPAM / GDPR** — physical address in footer (needs a per-org postal
+      address field + auto-injected marketing footer), data export + delete.
+- [x] **5.5 New-account abuse limits** — per-IP sign-up cap (10/hr) + the
+      email-verification first-send gate (2.2) + login lockout (2.5). Merged.
+- [ ] **5.6 SDK parity** — `@rootmail/node` covers the new endpoints (auth/MFA/etc.).
+  - ◇ **Checkpoints:** per item. (5.2 + 5.5 done; 5.1/5.4 need owner input.)
 
 ---
 

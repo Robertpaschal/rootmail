@@ -28,6 +28,7 @@ import {
 import { consumeAuthToken, createAuthToken } from "../lib/auth-tokens";
 import { passwordResetEmail, verificationEmail } from "../lib/emails";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
+import { signupAllowed } from "../lib/signup-limit";
 import { serializeApiKey, serializeUser, serializeWorkspace } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
@@ -113,6 +114,10 @@ async function sendVerificationEmail(user: { id: string; email: string; name: st
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   // --- Sign up ------------------------------------------------------------
   app.post("/v1/auth/signup", async (req, reply) => {
+    // Anti-abuse: cap sign-ups per source IP.
+    if (!(await signupAllowed(req.ip))) {
+      throw Errors.rateLimited("Too many sign-ups from this network. Please try again later.");
+    }
     const body = parse(signupBody, req.body);
     const email = body.email.toLowerCase();
 
