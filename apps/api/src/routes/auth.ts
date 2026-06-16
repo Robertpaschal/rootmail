@@ -7,13 +7,14 @@ import {
   generateRecoveryCode,
   generateTotpSecret,
   hashPassword,
+  sendSystemEmail,
   signMfaChallenge,
   totpUri,
   verifyMfaChallenge,
   verifyPassword,
   verifyTotp,
 } from "@rootmail/core";
-import { db, type User, users } from "@rootmail/db";
+import { db, sessions, type User, users } from "@rootmail/db";
 import {
   createSession,
   defaultWorkspaceForUser,
@@ -24,6 +25,8 @@ import {
   userWorkspaces,
   workspaceForUser,
 } from "../lib/auth";
+import { consumeAuthToken, createAuthToken } from "../lib/auth-tokens";
+import { passwordResetEmail, verificationEmail } from "../lib/emails";
 import { serializeApiKey, serializeUser, serializeWorkspace } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
@@ -59,6 +62,16 @@ const mfaVerifyBody = z
 const mfaActivateBody = z.object({ code: z.string().min(6) });
 const mfaDisableBody = z.object({ code: z.string().optional(), password: z.string().optional() });
 
+const verifyEmailBody = z.object({ token: z.string().min(1) });
+const forgotPasswordBody = z.object({ email: z.string().email() });
+const resetPasswordBody = z.object({
+  token: z.string().min(1),
+  password: z.string().min(8, "Use at least 8 characters."),
+});
+
+const EMAIL_VERIFY_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const PASSWORD_RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
+
 function bearerToken(req: FastifyRequest): string | undefined {
   const header = req.headers.authorization;
   if (!header) return undefined;
@@ -89,6 +102,13 @@ async function sessionResponse(user: User) {
   };
 }
 
+/** Issue an email-verification token and enqueue the verification email. */
+async function sendVerificationEmail(user: { id: string; email: string; name: string | null }): Promise<void> {
+  const token = await createAuthToken(user.id, "email_verify", EMAIL_VERIFY_TTL_MS);
+  const mail = verificationEmail(token, user.name);
+  await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text });
+}
+
 export async function authRoutes(app: FastifyInstance): Promise<void> {
   // --- Sign up ------------------------------------------------------------
   app.post("/v1/auth/signup", async (req, reply) => {
@@ -106,6 +126,13 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     });
 
     const { token, session } = await createSession(account.user.id, account.production.id);
+
+    // Kick off email verification (best-effort — never fail signup on it).
+    try {
+      await sendVerificationEmail(account.user);
+    } catch (err) {
+      req.log.warn({ err }, "verification email enqueue failed");
+    }
 
     return reply.status(201).send({
       user: serializeUser(account.user),
@@ -264,5 +291,52 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       .set({ mfaSecret: null, mfaEnabledAt: null, mfaRecoveryCodes: null, updatedAt: new Date() })
       .where(eq(users.id, user.id));
     return { enabled: false };
+  });
+
+  // --- Email verification -------------------------------------------------
+  app.post("/v1/auth/verify-email", async (req) => {
+    const body = parse(verifyEmailBody, req.body);
+    const userId = await consumeAuthToken(body.token, "email_verify");
+    if (!userId) throw Errors.badRequest("This verification link is invalid or has expired.");
+    await db
+      .update(users)
+      .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    return { verified: true };
+  });
+
+  app.post("/v1/auth/verify-email/resend", async (req) => {
+    const { user } = await requireSession(req);
+    if (user.emailVerifiedAt) return { verified: true };
+    await sendVerificationEmail(user);
+    return { sent: true };
+  });
+
+  // --- Password reset -----------------------------------------------------
+  app.post("/v1/auth/forgot-password", async (req) => {
+    const body = parse(forgotPasswordBody, req.body);
+    const email = body.email.toLowerCase();
+    const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    // Send only when the account exists with a password, but always return ok so
+    // the endpoint can't be used to discover which emails are registered.
+    if (user?.passwordHash) {
+      const token = await createAuthToken(user.id, "password_reset", PASSWORD_RESET_TTL_MS);
+      const mail = passwordResetEmail(token, user.name);
+      await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text });
+    }
+    return { ok: true };
+  });
+
+  app.post("/v1/auth/reset-password", async (req) => {
+    const body = parse(resetPasswordBody, req.body);
+    const userId = await consumeAuthToken(body.token, "password_reset");
+    if (!userId) throw Errors.badRequest("This reset link is invalid or has expired.");
+    await db
+      .update(users)
+      .set({ passwordHash: hashPassword(body.password), updatedAt: new Date() })
+      .where(eq(users.id, userId));
+    // A reset invalidates existing sessions — force a fresh login everywhere.
+    await db.delete(sessions).where(eq(sessions.userId, userId));
+    return { reset: true };
   });
 }

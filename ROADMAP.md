@@ -102,11 +102,19 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 
 **Goal:** finish the auth system that already has signup/login/sessions/OAuth-scaffold.
 
-- [ ] **2.1 Email verification flow** — token table, send verification email
-      (dogfoods the pipeline), confirm endpoint, set `email_verified_at`, resend.
+- [x] **Shared system-mailer** — `sendSystemEmail()` enqueues to a dedicated
+      `rootmail-system-mail` queue; the worker delivers via the configured provider
+      (no customer workspace, no quota, durable retries). Providers stayed in the
+      worker — no cross-package move needed.
+- [x] **2.1 Email verification flow** — `auth_tokens` (single-use, hashed), signup
+      sends a verification email (dogfoods the pipeline), `POST /v1/auth/verify-email`
+      sets `email_verified_at`, `…/resend`. e2e-verified (signup→email→verify→login).
 - [ ] **2.2 Gate first live send on verification** — abuse control (ties to 5.5).
-  - ◇ **Checkpoint:** `feat: email verification + first-send gate`.
-- [ ] **2.3 Password reset** — forgot/reset tokens + emails (needs the shared mailer).
+      Deferred: needs the API-key-vs-session policy call (key sends aren't tied to a
+      user's verification).
+- [x] **2.3 Password reset** — `POST /v1/auth/forgot-password` (no email enumeration)
+      + `…/reset-password` (1h single-use token, rehash, invalidates all sessions).
+      e2e-verified (forgot→email→reset→old-rejected→new-works).
 - [x] **2.4 MFA (TOTP)** — core TOTP (RFC 6238, dependency-free, verified against
       the RFC vectors), enrollment (secret + otpauth URI), activate, 10 single-use
       recovery codes, signed login challenge, verify, disable. API-complete and
