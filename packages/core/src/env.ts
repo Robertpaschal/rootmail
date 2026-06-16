@@ -61,7 +61,7 @@ const EnvSchema = z.object({
   DKIM_SELECTOR: z.string().default("rootmail"),
 
   DNS_VERIFY_MODE: z.enum(["mock", "live"]).default("mock"),
-  MAIL_PROVIDER: z.enum(["mock", "sendgrid"]).default("mock"),
+  MAIL_PROVIDER: z.enum(["mock", "ses", "sendgrid"]).default("mock"),
   MAILDIR: z.string().default(".maildir"),
 
   SENDGRID_API_KEY: z.string().optional(),

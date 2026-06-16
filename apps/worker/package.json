@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@aws-sdk/client-sesv2": "^3.1068.0",
     "@rootmail/core": "workspace:*",
     "@rootmail/db": "workspace:*",
     "bullmq": "^5.34.6",

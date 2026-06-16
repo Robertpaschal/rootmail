@@ -61,13 +61,19 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 
 **Goal:** replace the mock provider with real outbound + the inbound/feedback loop.
 
-- [ ] **1.1 SES send path** — `@aws-sdk/client-sesv2`, `SesProvider` class,
-      extend `MAIL_PROVIDER` enum to `mock|ses|sendgrid`, register in
-      `apps/worker/src/providers/index.ts`. Reuse our DKIM signing.
-- [ ] **1.2 Domain auth** — DKIM signing with the SES-verified key; SPF + DMARC
-      alignment for `gateml.io`.
-- [ ] **1.3 Go live** — flip `MAIL_PROVIDER=ses`, send to a real inbox, smoke green.
-  - ◇ **Checkpoint:** `feat: SES outbound provider (send path live)`.
+- [x] **1.1 SES send path** — `@aws-sdk/client-sesv2`, `SesProvider` (Simple
+      content API), `MAIL_PROVIDER` enum → `mock|ses|sendgrid`, registered in the
+      provider router. Test-mode ("sandbox") sends route to mock so synthetic
+      recipients never bounce the production domain. Pipeline no longer fakes
+      "delivered" for real providers (waits for async webhooks, 1.5).
+- [x] **1.2 Domain auth** — **Easy DKIM** on `gateml.io` (SES-managed); SES signs
+      automatically. (BYODKIM with our `gateml` selector remains an option.)
+      SPF/DMARC published by owner. Sub-tenant domains need their own SES identity
+      (follow-up).
+- [x] **1.3 Real send verified** — sent a live email to a real inbox via SES
+      (message id returned). `.env` stays `MAIL_PROVIDER=mock` by default so the
+      synthetic-recipient smoke can't bounce SES; flip to `ses` for live sends.
+  - ◇ **Checkpoint:** `feat: SES outbound provider (send path live)`. ✅
 - [ ] **1.4 Inbound parse** — SES receipt → SNS/S3 → `/v1/inbound` → threads
       (reuses the existing Layer-2 reply-matching pipeline).
 - [ ] **1.5 Bounce/complaint feedback** — SNS notifications → suppression list.
