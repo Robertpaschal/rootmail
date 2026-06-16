@@ -180,13 +180,19 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
       **Needs owner to create the Stripe prices first.**
 - [x] **5.2 Sub-tenant downgrade guard** — sends through a sub-tenant require the
       `subtenants` feature on the current plan (→ 402 feature_locked). Merged.
-- [ ] **5.3 Permission-coverage audit** — every mutation checks a permission.
+- [x] **5.3 Permission-coverage audit** — audited every mutating route; closed 4
+      gaps with the right permission: asset upload + AI draft + assistant →
+      `content.manage`, thread reply → `messages.send`. (API keys get all perms;
+      public webhooks/auth routes correctly exempt.)
 - [ ] **5.4 CAN-SPAM / GDPR** — physical address in footer (needs a per-org postal
       address field + auto-injected marketing footer), data export + delete.
 - [x] **5.5 New-account abuse limits** — per-IP sign-up cap (10/hr) + the
       email-verification first-send gate (2.2) + login lockout (2.5). Merged.
-- [ ] **5.6 SDK parity** — `@rootmail/node` covers the new endpoints (auth/MFA/etc.).
-  - ◇ **Checkpoints:** per item. (5.2 + 5.5 done; 5.1/5.4 need owner input.)
+- [x] **5.6 SDK parity** — `@rootmail/node` now exposes templates, sequences
+      (+enroll), lists (+contacts), campaigns (+send), threads (+reply), and
+      `messages.proof()`. Builds (ESM/CJS/DTS) green.
+  - ◇ **Checkpoints:** per item. **Done: 5.2, 5.3, 5.5, 5.6.** Remaining: 5.1
+      (needs Stripe overage prices) + 5.4 CAN-SPAM (needs a per-org postal address).
 
 ---
 

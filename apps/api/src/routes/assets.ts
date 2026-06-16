@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { Errors, newId } from "@rootmail/core";
 import { assets, db } from "@rootmail/db";
+import { requirePermission } from "../lib/permissions";
 import { storage } from "../lib/storage";
 
 // Allowlist keyed by the *sniffed* type — we never trust the client's declared
@@ -28,6 +29,7 @@ const EXT_TYPES: Record<string, string> = {
 export async function assetRoutes(app: FastifyInstance): Promise<void> {
   // --- Upload (authenticated) ---------------------------------------------
   app.post("/v1/assets", async (req, reply) => {
+    await requirePermission(req, "content.manage");
     const data = await req.file();
     if (!data) throw Errors.badRequest("No file uploaded — send a multipart 'file' field.");
 

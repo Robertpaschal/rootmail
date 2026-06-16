@@ -1,5 +1,5 @@
 import type { RootMail } from "../client";
-import type { AuditTrail, ListResponse, Message, SendParams } from "../types";
+import type { AuditTrail, ListResponse, Message, ProofBundle, SendParams } from "../types";
 
 export class Messages {
   constructor(private readonly client: RootMail) {}
@@ -35,6 +35,11 @@ export class Messages {
 
   audit(id: string): Promise<AuditTrail> {
     return this.client.request<AuditTrail>({ method: "GET", path: `/v1/messages/${id}/audit` });
+  }
+
+  /** The signed Layer-3 proof bundle for a message's lifecycle. */
+  proof(id: string): Promise<ProofBundle> {
+    return this.client.request<ProofBundle>({ method: "GET", path: `/v1/messages/${id}/proof` });
   }
 
   /** Record a lifecycle event (open/click/bounce/etc.) — provider callback or simulation. */

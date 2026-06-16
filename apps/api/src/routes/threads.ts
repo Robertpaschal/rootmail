@@ -13,6 +13,7 @@ import {
   findThreadForReply,
   threadReplyFrom,
 } from "../lib/threads";
+import { requirePermission } from "../lib/permissions";
 import { serializeThread } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
@@ -108,6 +109,7 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
   // Sends the reply through the real pipeline (render → queue → provider) and
   // records it on the thread, linked to the message it created.
   app.post("/v1/threads/:id/reply", async (req) => {
+    await requirePermission(req, "messages.send");
     const { id } = req.params as { id: string };
     const body = parse(replyBody, req.body);
     if (!body.html && !body.text) throw Errors.validation("Provide `html` or `text` to reply.");

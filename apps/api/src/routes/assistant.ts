@@ -4,6 +4,7 @@ import { ADD_ONS, AI_CREDITS, env, Errors } from "@rootmail/core";
 import { runAssistant } from "../lib/assistant";
 import { getAiUsage, recordAiUse } from "../lib/billing";
 import { loadOrg } from "../lib/features";
+import { requirePermission } from "../lib/permissions";
 import { addonQuantity } from "../lib/seats";
 import { parse } from "../lib/validate";
 
@@ -14,6 +15,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
     "/v1/assistant",
     { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
     async (req) => {
+      await requirePermission(req, "content.manage");
       const { prompt } = parse(z.object({ prompt: z.string().min(1).max(2000) }), req.body);
       const org = await loadOrg(req);
 
