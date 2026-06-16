@@ -27,6 +27,7 @@ import {
 } from "../lib/auth";
 import { consumeAuthToken, createAuthToken } from "../lib/auth-tokens";
 import { passwordResetEmail, verificationEmail } from "../lib/emails";
+import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { serializeApiKey, serializeUser, serializeWorkspace } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
@@ -151,10 +152,18 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const body = parse(loginBody, req.body);
     const email = body.email.toLowerCase();
 
+    if (await isLockedOut("pw", email)) {
+      throw Errors.rateLimited("Too many failed login attempts. Try again in a few minutes.");
+    }
+
     const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     // Verify even when the user is missing to keep timing uniform.
     const ok = verifyPassword(body.password, user?.passwordHash);
-    if (!user || !ok) throw Errors.unauthorized("Invalid email or password.");
+    if (!user || !ok) {
+      await recordAuthFailure("pw", email);
+      throw Errors.unauthorized("Invalid email or password.");
+    }
+    await clearAuthFailures("pw", email);
 
     // MFA gate: return a short-lived challenge instead of a session; the client
     // completes login at /v1/auth/mfa/verify with a TOTP or recovery code.
@@ -221,6 +230,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const body = parse(mfaVerifyBody, req.body);
     const userId = verifyMfaChallenge(body.mfa_token);
     if (!userId) throw Errors.unauthorized("MFA challenge expired — please log in again.");
+    if (await isLockedOut("mfa", userId)) {
+      throw Errors.rateLimited("Too many incorrect codes. Try again in a few minutes.");
+    }
 
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user || !user.mfaEnabledAt || !user.mfaSecret) throw Errors.unauthorized();
@@ -241,7 +253,11 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
           .where(eq(users.id, user.id));
       }
     }
-    if (!passed) throw Errors.unauthorized("Invalid code.");
+    if (!passed) {
+      await recordAuthFailure("mfa", userId);
+      throw Errors.unauthorized("Invalid code.");
+    }
+    await clearAuthFailures("mfa", userId);
 
     return sessionResponse(user);
   });

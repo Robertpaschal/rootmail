@@ -121,7 +121,10 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
       recovery codes, signed login challenge, verify, disable. API-complete and
       e2e-verified against a live server; dashboard enroll/QR UI is a follow-up.
   - ◇ **Checkpoint:** `feat: TOTP MFA`. ✅
-- [ ] **2.5 Auth hardening** — login rate-limit/lockout, session rotation, cookie review.
+- [x] **2.5 Auth hardening — lockout** — per-identity Redis failure counter; 10
+      failed password attempts (or MFA codes) → 429 for 15 min, cleared on success.
+      Covers `/login` (by email) + `/mfa/verify` (by user). e2e-verified. (Session
+      rotation / cookie review tracked separately.)
 - [ ] **2.6 OAuth providers** — add Apple to the registry; light up Google/GitHub
       when you supply creds (already wired). Buttons appear automatically.
   - ◇ **Checkpoint:** `feat: auth hardening + Apple OAuth`.
