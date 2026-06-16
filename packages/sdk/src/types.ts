@@ -113,3 +113,66 @@ export interface Contact {
   status: string;
   [key: string]: unknown;
 }
+
+// --- Templates ---
+export interface Template {
+  id: string;
+  object: "template";
+  name: string;
+  slug: string;
+  type: string;
+  subject: string;
+  [key: string]: unknown;
+}
+export interface CreateTemplateParams {
+  name: string;
+  slug: string;
+  type: MessageType | "any";
+  subject: string;
+  html: string;
+  text?: string;
+}
+export type UpdateTemplateParams = Partial<CreateTemplateParams>;
+
+// --- Sequences ---
+export interface Sequence {
+  id: string;
+  object: "sequence";
+  name: string;
+  status: "active" | "paused";
+  [key: string]: unknown;
+}
+export interface Enrollment {
+  id: string;
+  object: "enrollment";
+  email: string;
+  status: string;
+  [key: string]: unknown;
+}
+
+// --- Lists & campaigns ---
+export interface ContactList {
+  id: string;
+  name: string;
+  [key: string]: unknown;
+}
+export interface Campaign {
+  id: string;
+  object: "campaign";
+  name: string;
+  status: string;
+  [key: string]: unknown;
+}
+
+// --- Threads (Layer 2 conversations) ---
+export interface Thread {
+  id: string;
+  object: "thread";
+  status: string;
+  [key: string]: unknown;
+}
+
+// --- Proof bundle (Layer 3) ---
+export interface ProofBundle {
+  [key: string]: unknown;
+}

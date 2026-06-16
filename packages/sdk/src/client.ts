@@ -1,7 +1,12 @@
 import { RootMailError } from "./errors";
+import { Campaigns } from "./resources/campaigns";
 import { Contacts } from "./resources/contacts";
+import { Lists } from "./resources/lists";
 import { Messages } from "./resources/messages";
+import { Sequences } from "./resources/sequences";
 import { SubTenants } from "./resources/sub-tenants";
+import { Templates } from "./resources/templates";
+import { Threads } from "./resources/threads";
 import type { Message, SendParams } from "./types";
 
 export interface RootMailOptions {
@@ -34,6 +39,11 @@ export class RootMail {
   readonly messages: Messages;
   readonly subTenants: SubTenants;
   readonly contacts: Contacts;
+  readonly templates: Templates;
+  readonly sequences: Sequences;
+  readonly lists: Lists;
+  readonly campaigns: Campaigns;
+  readonly threads: Threads;
 
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -55,6 +65,11 @@ export class RootMail {
     this.messages = new Messages(this);
     this.subTenants = new SubTenants(this);
     this.contacts = new Contacts(this);
+    this.templates = new Templates(this);
+    this.sequences = new Sequences(this);
+    this.lists = new Lists(this);
+    this.campaigns = new Campaigns(this);
+    this.threads = new Threads(this);
   }
 
   /** Returns a client scoped to a sub-tenant. */
