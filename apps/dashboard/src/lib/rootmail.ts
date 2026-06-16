@@ -22,7 +22,10 @@ import type {
   SequenceTriggerDef,
   UploadedAsset,
   ListResponse,
+  LoginResult,
   MeResult,
+  MfaActivated,
+  MfaSetup,
   Message,
   MessageStatus,
   SignupResult,
@@ -311,7 +314,22 @@ export const api = {
   signup: (body: { email: string; password: string; name?: string; organization_name?: string }) =>
     rmFetch<SignupResult>("/v1/auth/signup", { method: "POST", body, noAuth: true }),
   login: (body: { email: string; password: string }) =>
-    rmFetch<AuthSession>("/v1/auth/login", { method: "POST", body, noAuth: true }),
+    rmFetch<LoginResult>("/v1/auth/login", { method: "POST", body, noAuth: true }),
+  mfaVerify: (body: { mfa_token: string; code?: string; recovery_code?: string }) =>
+    rmFetch<AuthSession>("/v1/auth/mfa/verify", { method: "POST", body, noAuth: true }),
+  mfaSetup: () => rmFetch<MfaSetup>("/v1/auth/mfa/setup", { method: "POST", body: {} }),
+  mfaActivate: (code: string) =>
+    rmFetch<MfaActivated>("/v1/auth/mfa/activate", { method: "POST", body: { code } }),
+  mfaDisable: (body: { code?: string; password?: string }) =>
+    rmFetch<{ enabled: boolean }>("/v1/auth/mfa/disable", { method: "POST", body }),
+  verifyEmail: (token: string) =>
+    rmFetch<{ verified: boolean }>("/v1/auth/verify-email", { method: "POST", body: { token }, noAuth: true }),
+  resendVerification: () =>
+    rmFetch<{ sent?: boolean; verified?: boolean }>("/v1/auth/verify-email/resend", { method: "POST", body: {} }),
+  forgotPassword: (email: string) =>
+    rmFetch<{ ok: boolean }>("/v1/auth/forgot-password", { method: "POST", body: { email }, noAuth: true }),
+  resetPassword: (body: { token: string; password: string }) =>
+    rmFetch<{ reset: boolean }>("/v1/auth/reset-password", { method: "POST", body, noAuth: true }),
   me: () => rmFetch<MeResult>("/v1/auth/me"),
   logout: () => rmFetch<{ ok: boolean }>("/v1/auth/logout", { method: "POST" }),
 };

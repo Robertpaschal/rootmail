@@ -4,7 +4,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { OAuthButtons } from "../oauth-buttons";
 import { LoginForm } from "./login-form";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ reset?: string }>;
+}) {
+  const { reset } = await searchParams;
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-md">
@@ -17,6 +22,11 @@ export default function LoginPage() {
             <CardDescription>Welcome back. Sign in to your rootmail workspace.</CardDescription>
           </CardHeader>
           <CardContent>
+            {reset ? (
+              <p className="mb-4 rounded-md bg-muted px-3 py-2 text-sm text-muted-foreground">
+                Your password was reset. Sign in with your new password.
+              </p>
+            ) : null}
             <OAuthButtons />
             <LoginForm />
           </CardContent>
