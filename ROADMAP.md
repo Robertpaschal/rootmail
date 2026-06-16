@@ -125,9 +125,13 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
       failed password attempts (or MFA codes) → 429 for 15 min, cleared on success.
       Covers `/login` (by email) + `/mfa/verify` (by user). e2e-verified. (Session
       rotation / cookie review tracked separately.)
-- [ ] **2.6 OAuth providers** — add Apple to the registry; light up Google/GitHub
-      when you supply creds (already wired). Buttons appear automatically.
-  - ◇ **Checkpoint:** `feat: auth hardening + Apple OAuth`.
+- [x] **2.6 Apple OAuth (scaffold, inert until creds)** — Apple in the registry:
+      ES256 client_secret JWT (verified against a P-256 key), authorize via
+      form_post, token exchange → id_token profile, POST callback handler,
+      SameSite=None state cookie. Lights up when APPLE_CLIENT_ID/TEAM_ID/KEY_ID/
+      PRIVATE_KEY are set; Google/GitHub already wired. Full round-trip needs your
+      Apple creds + an HTTPS redirect (tunnel) to verify.
+  - ◇ **Checkpoint:** `feat: Apple OAuth (inert until creds)`. ✅
 
 **Need from you:** Google/GitHub/Apple OAuth app credentials (when ready).
 
