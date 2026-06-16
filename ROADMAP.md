@@ -41,11 +41,12 @@ kick off the items with external lead time.
 
 - [ ] **0.1 Rotate exposed secrets** *(you)* — AWS key was in a tracked file +
       this chat. Rotate the IAM key; ideally cycle the Stripe test + Anthropic keys.
-- [ ] **0.2 S3 asset storage driver** — add `@aws-sdk/client-s3`, implement the
-      existing storage interface for S3 (`ASSET_S3_BUCKET=rootmail-storage-bucket`),
-      keep the local-disk driver as the default/fallback. Verify an upload
-      round-trip (put → public URL → fetch). *Most direct win.*
-  - ◇ **Checkpoint:** commit `feat: S3 asset storage driver` + this roadmap.
+- [x] **0.2 S3 asset storage driver** — added `@aws-sdk/client-s3`, implemented
+      the storage interface for S3 (`ASSET_S3_BUCKET`), local-disk driver stays
+      the default/fallback. Verified a real put→get round-trip against
+      `rootmail-storage-bucket`. (Note: upload IAM is least-privilege Put/Get;
+      add `s3:DeleteObject` when asset deletion ships.)
+  - ◇ **Checkpoint:** commit `feat: S3 asset storage driver` + this roadmap. ✅
 - [ ] **0.3 Kick off SES (external latency — start now)** — verify the `gateml.io`
       domain identity in SES (us-east-1), publish DKIM/SPF/DMARC DNS, and
       **submit the production-access request to exit the SES sandbox** (approval
