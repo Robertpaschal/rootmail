@@ -4,6 +4,7 @@ import { signOut } from "@/app/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/rootmail";
+import { CommandTrigger } from "./command-menu";
 import { Logo } from "./logo";
 
 export async function Topbar() {
@@ -30,6 +31,7 @@ export async function Topbar() {
       <div className="hidden md:block" />
 
       <div className="flex items-center gap-2 sm:gap-3">
+        <CommandTrigger />
         {workspaceName ? (
           <span className="hidden text-sm text-muted-foreground sm:inline">{workspaceName}</span>
         ) : null}
