@@ -9,6 +9,7 @@ import {
   KeyRound,
   LayoutDashboard,
   ListChecks,
+  Lock,
   Mail,
   Megaphone,
   Network,
@@ -38,6 +39,7 @@ const items = [
   { href: "/billing", label: "Plan & usage", icon: CreditCard },
   { href: "/members", label: "Team", icon: UserCog },
   { href: "/roles", label: "Roles", icon: ShieldCheck },
+  { href: "/settings/security", label: "Security", icon: Lock },
 ];
 
 function useIsActive() {

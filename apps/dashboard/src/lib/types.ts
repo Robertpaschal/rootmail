@@ -129,6 +129,7 @@ export interface User {
   email: string;
   name: string | null;
   email_verified: boolean;
+  mfa_enabled: boolean;
   created_at: string;
 }
 
@@ -351,6 +352,23 @@ export interface AuthSession extends MeResult {
 export interface SignupResult extends AuthSession {
   workspace: Workspace;
   api_key: CreatedApiKey;
+}
+
+/** Login either returns a session, or — when MFA is on — a short-lived challenge
+ * the client completes at /v1/auth/mfa/verify. */
+export interface MfaChallenge {
+  mfa_required: true;
+  mfa_token: string;
+}
+export type LoginResult = AuthSession | MfaChallenge;
+
+export interface MfaSetup {
+  secret: string;
+  otpauth_uri: string;
+}
+export interface MfaActivated {
+  enabled: boolean;
+  recovery_codes: string[];
 }
 
 export type ThreadStatus = "open" | "needs_reply" | "closed";
