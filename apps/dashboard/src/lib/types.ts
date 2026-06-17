@@ -344,6 +344,10 @@ export interface UploadedAsset {
   filename: string;
 }
 
+export interface Asset extends UploadedAsset {
+  created_at: string;
+}
+
 export interface AuthSession extends MeResult {
   session_token: string;
   session_expires_at: string;

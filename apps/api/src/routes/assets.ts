@@ -1,3 +1,4 @@
+import { desc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { Errors, newId } from "@rootmail/core";
 import { assets, db } from "@rootmail/db";
@@ -69,6 +70,28 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
       size: row.size,
       filename: row.filename,
     });
+  });
+
+  // --- List (authenticated; read baseline) --------------------------------
+  app.get("/v1/assets", async (req) => {
+    const rows = await db
+      .select()
+      .from(assets)
+      .where(eq(assets.workspaceId, req.auth.workspace.id))
+      .orderBy(desc(assets.createdAt))
+      .limit(200);
+    return {
+      object: "list",
+      data: rows.map((a) => ({
+        object: "asset",
+        id: a.id,
+        url: a.url,
+        content_type: a.contentType,
+        size: a.size,
+        filename: a.filename,
+        created_at: a.createdAt,
+      })),
+    };
   });
 
   // --- Serve (PUBLIC; images are loaded by email clients with no auth) -----
