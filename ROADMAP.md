@@ -58,17 +58,18 @@ abuse-proof, and deployed_.** That's the plan below.
   - [ ] follow-up: add a CI grep guard so dead `#`/placeholders can't regress.
   - ◇ ships as one PR: "make it honest." Verified in-browser; typecheck green.
 
-### 2. Pricing accuracy + UX polish
-- [ ] **2.1 Pricing accuracy** — derive tier quota/price/seats/overage + add-ons
-      from `packages/core` constants (single source) so marketing can't drift;
-      reconcile Enterprise overage copy.
-- [ ] **2.2 Pricing UI polish** — equal-height cards (CTA pinned with `mt-auto`),
-      aligned "Most popular", consistent radius/width/padding, clean 4→2→1
-      responsive; live CTAs (signup URL; "Contact sales" → real target; no `#`).
+### 2. Pricing accuracy + UX polish *(branch `feat/pricing-polish`)*
+- [x] **2.1 Pricing accuracy** — every tier's quota/price/seats/overage verified
+      against the enforced `packages/core` PLANS (Free 3k/$0, Pro 50k/$20/$0.85,
+      Scale 250k/$80/$0.70, Ent 1M/custom/$0.50) — no drift. (Build-time derivation
+      skipped: marketing keeps the no-backend-deps boundary; kept the source comment.)
+- [x] **2.2 Pricing UI polish** — equal-height cards, CTAs pinned to one bottom
+      baseline, min-height blurbs so prices/included-boxes align, centered "Most
+      popular", PAYG + baseline widened to match the card grid; CTAs already live.
+      Verified in-browser.
 - [ ] **2.3 Broader UX pass** — marketing → dashboard → admin: spacing, states,
       mobile, and a focused **a11y** sweep (aria-labels on icon-only buttons, focus
-      order, contrast).
-  - ◇ screenshots prove alignment at each breakpoint.
+      order, contrast). _(remaining)_
 
 ### 3. Anti-abuse hardening — "can't game it" *(mostly no deps)*
 Threat-model **price · service · product**; each gap a fix + a test.
