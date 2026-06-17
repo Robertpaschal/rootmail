@@ -7,6 +7,7 @@ import { Sequences } from "./resources/sequences";
 import { SubTenants } from "./resources/sub-tenants";
 import { Templates } from "./resources/templates";
 import { Threads } from "./resources/threads";
+import { Webhooks } from "./resources/webhooks";
 import type { Message, SendParams } from "./types";
 
 export interface RootMailOptions {
@@ -44,6 +45,7 @@ export class RootMail {
   readonly lists: Lists;
   readonly campaigns: Campaigns;
   readonly threads: Threads;
+  readonly webhooks: Webhooks;
 
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -70,6 +72,7 @@ export class RootMail {
     this.lists = new Lists(this);
     this.campaigns = new Campaigns(this);
     this.threads = new Threads(this);
+    this.webhooks = new Webhooks(this);
   }
 
   /** Returns a client scoped to a sub-tenant. */

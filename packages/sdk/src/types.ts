@@ -176,3 +176,39 @@ export interface Thread {
 export interface ProofBundle {
   [key: string]: unknown;
 }
+
+// --- Webhook endpoints ---
+export interface WebhookEndpoint {
+  object: "webhook_endpoint";
+  id: string;
+  url: string;
+  events: string[];
+  description: string | null;
+  status: "active" | "disabled";
+  disabled_at: string | null;
+  created_at: string;
+}
+/** Returned only from `create` — carries the signing secret, shown once. */
+export interface CreatedWebhookEndpoint extends WebhookEndpoint {
+  secret: string;
+}
+export interface WebhookDelivery {
+  object: "webhook_delivery";
+  id: string;
+  event: string;
+  status: string;
+  attempt: number;
+  response_status: number | null;
+  created_at: string;
+}
+export interface CreateWebhookParams {
+  url: string;
+  events?: string[];
+  description?: string;
+}
+export interface UpdateWebhookParams {
+  url?: string;
+  events?: string[];
+  description?: string | null;
+  status?: "active" | "disabled";
+}

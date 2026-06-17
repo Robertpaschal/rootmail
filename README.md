@@ -202,8 +202,8 @@ const { trail } = await mail.messages.audit(message.id);
 const proof = await mail.messages.proof(message.id);
 ```
 
-The SDK also covers templates, sequences, lists, campaigns, and threads. See
-[`packages/sdk/README.md`](packages/sdk/README.md).
+The SDK also covers templates, sequences, lists, campaigns, threads, and webhook
+endpoints (with delivery logs). See [`packages/sdk/README.md`](packages/sdk/README.md).
 
 ## Project layout
 
@@ -231,6 +231,7 @@ rootmail/
 | `pnpm typecheck` | Type-check every package |
 | `pnpm infra:up` / `infra:down` / `infra:reset` | Start / stop / wipe Postgres + Redis |
 | `pnpm db:generate` / `db:migrate` / `db:seed` / `db:studio` | Migrations · apply · seed (dev) · Drizzle Studio |
+| `pnpm create-staff --email=… --role=…` | Bootstrap an `apps/admin` staff login (no seed needed) |
 | `pnpm api` / `pnpm worker` | Run the API · the worker |
 | `pnpm marketing` / `pnpm dashboard` / `pnpm admin` | Run each Next.js app |
 

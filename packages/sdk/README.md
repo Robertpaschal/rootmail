@@ -93,6 +93,21 @@ await mail.contacts.unsubscribe("user@example.com");
 const suppressed = await mail.contacts.isSuppressed("user@example.com");
 ```
 
+### More resources
+
+The same typed client covers the rest of the API:
+
+```ts
+await mail.templates.create({ name, slug, type, subject, html });   // + list/get/update/delete
+await mail.lists.create({ name });                                  // + addContact/removeContact/contacts
+await mail.campaigns.create({ name, listId, templateId });          // + get/update/send/delete
+await mail.sequences.create({ name, steps });                       // + enroll/enrollments/cancelEnrollment
+await mail.threads.list();                                          // + get/reply
+const hook = await mail.webhooks.create({ url, events: ["message.delivered"] });
+//      hook.secret — signing secret, shown once; verify it on inbound deliveries
+await mail.webhooks.deliveries(hook.id);                            // + list/get/update/delete
+```
+
 ## Error handling
 
 Failed requests throw `RootMailError` with `status`, `code`, `message`, and
