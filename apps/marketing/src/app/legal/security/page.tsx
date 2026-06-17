@@ -8,7 +8,7 @@ export const metadata: Metadata = {
 
 export default function SecurityPage() {
   return (
-    <DocPage title="Security" subtitle="How we protect your data and your sending reputation." updated="June 2026">
+    <DocPage title="Security" subtitle="How we protect your data and your sending reputation." updated="June 17, 2026">
       <h2>Authentication</h2>
       <p>
         API keys and dashboard sessions are stored only as hashes — the raw value is shown once. Passwords

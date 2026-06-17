@@ -40,24 +40,23 @@ abuse-proof, and deployed_.** That's the plan below.
 
 ## NOW — active plan (ordered least-blocking first)
 
-### 1. Truth — make every claim accurate *(no external deps; do first)*
-The docs/marketing still describe an early checkpoint ("Layer 1 only"). Fix it.
-- [ ] **1.1 README** — reflect all 3 layers built; full architecture incl.
-      `apps/{marketing,dashboard,admin}`; complete `/v1` reference; honest "what's
-      next" (deploy, overage, OAuth creds); real license (not "© Acme").
-- [ ] **1.2 Marketing accuracy** — `layer-model` (Layers 2 & 3 → available),
-      `features`, `faq` (drop "next milestones"); represent the full product
-      (dashboard, AI assistant, sequences, campaigns, inbox, RBAC, webhooks). One
-      line-by-line pass: every claim true or cut.
-- [ ] **1.3 Legal (counsel-grade)** — rewrite privacy / terms / DPA (review
-      security) as complete, professional documents (parties, data & lawful basis,
-      retention, sub-processors = AWS SES/S3 + Stripe + Anthropic, GDPR/CCPA rights,
-      AUP, liability, termination, governing law). Remove every "starting template"
-      disclaimer and bracket placeholder.
-- [ ] **1.4 Dead-link & placeholder sweep** — footer/nav `href="#"` → real targets;
-      repo-wide scan (no `#`, "coming soon", "lorem", "example.com" in user copy);
-      add a grep check to CI so it can't regress.
-  - ◇ ships as one PR: "make it honest."
+### 1. Truth — make every claim accurate ✅ *(branch `feat/marketing-truth`)*
+- [x] **1.1 README** — rewritten: all 3 layers built, full architecture (5 apps),
+      complete verified `/v1` reference, session-or-key auth, self-serve quickstart
+      (seed reframed as dev-only), points to ROADMAP, real license.
+- [x] **1.2 Marketing accuracy** — `layer-model` (Layers 2 & 3 → Available),
+      `features` broadened to the full platform (threads/inbox, proof, sequences/
+      campaigns, AI studio), `faq` ("Conversation & Proof are live"); hero/CTA
+      reframed off "Phase 1 / pnpm db:seed" to hosted signup.
+- [x] **1.3 Legal (counsel-grade)** — privacy / terms / DPA rewritten as complete
+      professional documents (lawful bases, real sub-processors, GDPR/CCPA rights,
+      AUP, liability cap, Delaware governing law, SCCs, Annexes); all "starting
+      template" disclaimers removed; security reviewed.
+- [x] **1.4 Dead-link sweep** — every footer/nav `href="#"` removed; all signup/
+      sign-in CTAs → one configurable dashboard URL; "Contact sales"/contact →
+      mailto. Verified clean in `apps/marketing`.
+  - [ ] follow-up: add a CI grep guard so dead `#`/placeholders can't regress.
+  - ◇ ships as one PR: "make it honest." Verified in-browser; typecheck green.
 
 ### 2. Pricing accuracy + UX polish
 - [ ] **2.1 Pricing accuracy** — derive tier quota/price/seats/overage + add-ons

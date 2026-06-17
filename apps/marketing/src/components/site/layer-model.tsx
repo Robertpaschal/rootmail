@@ -29,27 +29,27 @@ const layers: Layer[] = [
   {
     n: 2,
     title: "Conversation",
-    status: "planned",
+    status: "available",
     blurb:
       "Every message is a thread. Inbound replies are parsed, attached, and routed back via webhook or a shared inbox.",
     points: [
       "Inbound parsing & threading",
-      "Shared inbox + webhooks",
+      "Shared inbox & reply routing",
       "Sequence exit-on-reply",
-      "Second provider + fallback",
+      "message.received webhooks",
     ],
   },
   {
     n: 3,
     title: "Proof",
-    status: "planned",
+    status: "available",
     blurb:
       "Cryptographically signed, exportable proof bundles of a message's entire lifecycle — built for compliance and disputes.",
     points: [
       "Ed25519-signed proof bundles",
       "Full lifecycle attestation",
       "One-click export",
-      "EU residency & GDPR tooling",
+      "GDPR export & deletion",
     ],
   },
 ];

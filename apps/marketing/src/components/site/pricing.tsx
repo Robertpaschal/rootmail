@@ -2,7 +2,10 @@ import Link from "next/link";
 import { Check, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
+import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
+
+const SALES_EMAIL = "mailto:sales@rootmail.io";
 
 // Mirrors the plans the product actually enforces (see packages/core PLANS).
 // Each tier adds volume AND a capability, so the upgrade has a real trigger.
@@ -21,7 +24,7 @@ const tiers = [
       "Community support",
     ],
     cta: "Start free",
-    href: "#cta",
+    href: signupUrl,
     featured: false,
   },
   {
@@ -39,7 +42,7 @@ const tiers = [
       "3 teammates · email support",
     ],
     cta: "Start sending",
-    href: "#cta",
+    href: signupUrl,
     featured: true,
   },
   {
@@ -56,7 +59,7 @@ const tiers = [
       "Team roles (RBAC) · unlimited seats",
     ],
     cta: "Start scaling",
-    href: "#cta",
+    href: signupUrl,
     featured: false,
   },
   {
@@ -73,7 +76,7 @@ const tiers = [
       "SSO / SAML · EU residency · SLA",
     ],
     cta: "Contact sales",
-    href: "#",
+    href: SALES_EMAIL,
     featured: false,
   },
 ];
@@ -164,7 +167,7 @@ export function Pricing() {
             </div>
           </div>
           <Link
-            href="#cta"
+            href={signupUrl}
             className={cn(buttonVariants({ variant: "outline" }), "shrink-0 whitespace-nowrap")}
           >
             Start free

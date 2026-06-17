@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Logo } from "./logo";
 import { buttonVariants } from "@/components/ui/button";
+import { loginUrl, signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -37,10 +38,10 @@ export function Navbar() {
         </nav>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link href="#" className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+          <Link href={loginUrl} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
             Sign in
           </Link>
-          <Link href="/#cta" className={cn(buttonVariants({ size: "sm" }))}>
+          <Link href={signupUrl} className={cn(buttonVariants({ size: "sm" }))}>
             Start sending
           </Link>
         </div>
@@ -70,9 +71,16 @@ export function Navbar() {
               </Link>
             ))}
             <Link
-              href="/#cta"
+              href={loginUrl}
               onClick={() => setOpen(false)}
-              className={cn(buttonVariants({ size: "sm" }), "mt-2")}
+              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-2")}
+            >
+              Sign in
+            </Link>
+            <Link
+              href={signupUrl}
+              onClick={() => setOpen(false)}
+              className={cn(buttonVariants({ size: "sm" }))}
             >
               Start sending
             </Link>

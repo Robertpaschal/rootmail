@@ -1,4 +1,14 @@
-import { Fingerprint, ListChecks, Network, ScrollText, Send, ShieldOff } from "lucide-react";
+import {
+  Fingerprint,
+  MessagesSquare,
+  Network,
+  ScrollText,
+  Send,
+  ShieldCheck,
+  ShieldOff,
+  Sparkles,
+  Workflow,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -19,9 +29,19 @@ const features = [
     desc: "Give every customer a verified sending domain — DKIM, SPF, and reputation isolated — without rebuilding your stack.",
   },
   {
-    icon: ListChecks,
-    title: "Priority queue & worker",
-    desc: "A Redis-backed pipeline renders, checks suppression, routes to a provider, and records every transition along the way.",
+    icon: MessagesSquare,
+    title: "Threads & shared inbox",
+    desc: "Inbound replies are parsed, threaded, and routed back via webhook or a shared inbox — and sequences exit automatically on reply.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Signed proof bundles",
+    desc: "Export an Ed25519-signed record of any message's full lifecycle — content hash included — for compliance and disputes.",
+  },
+  {
+    icon: Workflow,
+    title: "Sequences & campaigns",
+    desc: "Drip sequences with delays and exit-on-reply, plus list-based campaigns — all metered against your plan, with stats.",
   },
   {
     icon: ScrollText,
@@ -33,6 +53,11 @@ const features = [
     title: "Suppression & contacts",
     desc: "Bounces, complaints, and unsubscribes are checked before every send and scoped per workspace or sub-tenant.",
   },
+  {
+    icon: Sparkles,
+    title: "AI drafting & no-code studio",
+    desc: "Draft templates with AI and refine them in a no-code editor — or let the assistant build and operate features for you.",
+  },
 ];
 
 export function Features() {
@@ -40,13 +65,13 @@ export function Features() {
     <section id="features" className="py-20 md:py-28">
       <div className="container">
         <div className="mx-auto mb-14 max-w-2xl text-center">
-          <Badge className="mb-4">Layer 1 · available today</Badge>
+          <Badge className="mb-4">The platform</Badge>
           <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-            Everything you need to send, today
+            Everything a production email system needs
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
-            The sending core is built and verified end-to-end. No waitlist, no half-finished
-            primitives — just the pieces a production email system actually needs.
+            All three layers — identity &amp; sending, conversation, and proof — are built and
+            verified end-to-end, behind one API, one SDK, and a full operator dashboard.
           </p>
         </div>
 
