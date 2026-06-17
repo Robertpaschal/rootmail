@@ -244,8 +244,10 @@ admin-scoped, cross-org API. CRM-shaped.
       is exempt from the customer auth hook so it runs its OWN staff auth — a
       customer key can't reach admin data (e2e-verified: customer-key / no-auth /
       wrong-password all → 401). Seeded dev staff login (printed by `db:seed`).
-- [ ] **7.1 apps/admin console** — Next.js app: staff login + org directory/detail,
-      server-side staff session in an httpOnly cookie (dashboard pattern).
+- [x] **7.1 apps/admin console** — Next.js app (distinct near-black theme):
+      staff login (server-side, `rm_staff_session` httpOnly cookie), Overview
+      (cross-org totals), Organizations directory + org detail (workspaces /
+      members / usage / account). Browser-verified end-to-end on the live API.
 - [ ] CRM — user/org profiles, activity, **impersonate** for support.
 - [ ] Billing ops — Stripe subscriptions view, credits/overrides/refunds/comps, dunning.
 - [ ] Pricing management — make plans/add-ons/AI-credits **data-driven** + Stripe-synced.
