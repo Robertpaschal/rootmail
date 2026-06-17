@@ -22,6 +22,7 @@ import {
   PLAN_IDS,
   PLAN_STATUSES,
   PRIORITIES,
+  STAFF_ROLES,
   SUBTENANT_STATUSES,
   SEQUENCE_STATUSES,
   type SequenceStep,
@@ -46,6 +47,7 @@ export const subTenantStatusEnum = pgEnum("sub_tenant_status", SUBTENANT_STATUSE
 export const suppressionReasonEnum = pgEnum("suppression_reason", SUPPRESSION_REASONS);
 export const workspaceEnvironmentEnum = pgEnum("workspace_environment", WORKSPACE_ENVIRONMENTS);
 export const membershipRoleEnum = pgEnum("membership_role", MEMBERSHIP_ROLES);
+export const staffRoleEnum = pgEnum("staff_role", STAFF_ROLES);
 export const planEnum = pgEnum("plan", PLAN_IDS);
 export const planStatusEnum = pgEnum("plan_status", PLAN_STATUSES);
 export const billingIntervalEnum = pgEnum("billing_interval", BILLING_INTERVALS);
@@ -681,8 +683,37 @@ export const threadMessages = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Internal staff (apps/admin) — separate identity from customer users/sessions.
+// ---------------------------------------------------------------------------
+export const staffUsers = pgTable("staff_users", {
+  id: text("id").primaryKey(),
+  email: text("email").notNull().unique(),
+  name: text("name"),
+  passwordHash: text("password_hash").notNull(),
+  role: staffRoleEnum("role").notNull().default("support"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+
+export const staffSessions = pgTable(
+  "staff_sessions",
+  {
+    id: text("id").primaryKey(),
+    staffUserId: text("staff_user_id")
+      .notNull()
+      .references(() => staffUsers.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("staff_sessions_user_idx").on(t.staffUserId)],
+);
+
+// ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
+export type StaffUser = typeof staffUsers.$inferSelect;
+export type StaffSession = typeof staffSessions.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type AuthToken = typeof authTokens.$inferSelect;
 export type NewUser = typeof users.$inferInsert;

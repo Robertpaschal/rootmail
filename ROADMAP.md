@@ -236,9 +236,17 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 New `apps/admin` — separate staff auth (not customer sessions) over an
 admin-scoped, cross-org API. CRM-shaped.
 
-- [ ] Staff auth + staff RBAC; admin API surface; new tables (staff users, leads,
-      deals, coupons, internal notes).
-- [ ] CRM — users/orgs directory, profiles, activity, **impersonate** for support.
+- [x] **7.0 Staff auth + admin API foundation** — `staff_users` / `staff_sessions`
+      (migration 0015) + staff RBAC (`superadmin`/`support`/`readonly`). Staff
+      login → 12h session, brute-force-throttled, **separate from customer
+      sessions**; `requireStaff` / `requireStaffRole`. Cross-org `/v1/admin/orgs`
+      directory (+ `/orgs/:id` detail) with per-org plan/members/usage. `/v1/admin`
+      is exempt from the customer auth hook so it runs its OWN staff auth — a
+      customer key can't reach admin data (e2e-verified: customer-key / no-auth /
+      wrong-password all → 401). Seeded dev staff login (printed by `db:seed`).
+- [ ] **7.1 apps/admin console** — Next.js app: staff login + org directory/detail,
+      server-side staff session in an httpOnly cookie (dashboard pattern).
+- [ ] CRM — user/org profiles, activity, **impersonate** for support.
 - [ ] Billing ops — Stripe subscriptions view, credits/overrides/refunds/comps, dunning.
 - [ ] Pricing management — make plans/add-ons/AI-credits **data-driven** + Stripe-synced.
 - [ ] Promotions — coupons, trials, discounts.
@@ -246,6 +254,7 @@ admin-scoped, cross-org API. CRM-shaped.
 - [ ] Sales — leads, deals, enterprise/custom-pricing quotes, pipeline.
 - [ ] Support tooling — inspect a customer's sends/audit/proof; suppression mgmt.
 - [ ] Analytics — revenue, churn, usage, deliverability, AI-credit consumption.
+- [ ] New tables as modules land: leads, deals, coupons, internal notes.
   - ◇ **Checkpoints:** per module.
 
 ---

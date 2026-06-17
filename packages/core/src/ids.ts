@@ -33,6 +33,8 @@ export const ID_PREFIXES = {
   campaign: "cmp",
   role: "rol",
   authToken: "atk",
+  staffUser: "stf",
+  staffSession: "sts",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

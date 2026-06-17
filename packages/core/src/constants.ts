@@ -70,6 +70,12 @@ export type WorkspaceEnvironment = (typeof WORKSPACE_ENVIRONMENTS)[number];
 export const MEMBERSHIP_ROLES = ["owner", "admin", "member"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
+// Internal staff (apps/admin) — separate from customer membership roles.
+// superadmin: everything (incl. impersonate, deletes); support: read + support
+// tooling; readonly: view-only.
+export const STAFF_ROLES = ["superadmin", "support", "readonly"] as const;
+export type StaffRole = (typeof STAFF_ROLES)[number];
+
 // ---------------------------------------------------------------------------
 // RBAC — a permission matrix enforced on every tier; custom roles (which remix
 // these permissions) are a Scale feature.
