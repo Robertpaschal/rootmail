@@ -13,7 +13,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate, formatNumber } from "@/lib/format";
+import { StatusBadge } from "@/components/app/status-badge";
+import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Organization" };
 
@@ -26,6 +27,7 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
+  const { data: messages } = await adminApi.listOrgMessages(id, 25);
 
   const stats = [
     { label: "Emails this period", value: formatNumber(org.usage_this_period) },
@@ -65,6 +67,52 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
           </Card>
         ))}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Recent activity</CardTitle>
+        </CardHeader>
+        <CardContent className="px-0">
+          {messages.length === 0 ? (
+            <p className="px-6 text-sm text-muted-foreground">No messages yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>To</TableHead>
+                  <TableHead>Subject</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Sent</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {messages.map((m) => (
+                  <TableRow key={m.id}>
+                    <TableCell>
+                      <Link href={`/messages/${m.id}`} className="font-medium hover:underline">
+                        {m.to}
+                      </Link>
+                    </TableCell>
+                    <TableCell className="max-w-xs truncate text-muted-foreground">
+                      {m.subject}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary">{m.type}</Badge>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={m.status} />
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {formatDateTime(m.created_at)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

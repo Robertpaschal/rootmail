@@ -1,9 +1,11 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { Errors, verifyPassword } from "@rootmail/core";
 import {
+  auditEntries,
   db,
+  type Message,
   memberships,
   messages,
   organizations,
@@ -13,6 +15,7 @@ import {
   users,
   workspaces,
 } from "@rootmail/db";
+import { serializeAudit } from "../lib/serialize";
 import {
   createStaffSession,
   deleteStaffSession,
@@ -25,6 +28,22 @@ import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-
 import { parse } from "../lib/validate";
 
 const loginBody = z.object({ email: z.string().email(), password: z.string().min(1) });
+
+// Slim message view for support — deliberately omits rendered_html/text (heavy,
+// and not needed to triage). Use the customer API for the full rendered body.
+function slimMessage(m: Message) {
+  return {
+    id: m.id,
+    object: "message" as const,
+    type: m.type,
+    status: m.status,
+    to: m.toEmail,
+    subject: m.subject,
+    sub_tenant_id: m.subTenantId,
+    sandbox: m.sandbox,
+    created_at: m.createdAt,
+  };
+}
 
 // Admin surface — cross-org, staff-authenticated. Mounted under /v1/admin, which
 // the customer auth hook treats as public so these routes can do their OWN staff
@@ -142,6 +161,74 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       usage_this_period: usg?.sent ?? 0,
       total_messages: msgCount?.n ?? 0,
       sub_tenants: tenantCount?.n ?? 0,
+    };
+  });
+
+  // --- Support inspection (read-only) -------------------------------------
+  const msgQuery = z.object({ limit: z.coerce.number().int().min(1).max(100).default(50) });
+
+  app.get("/v1/admin/orgs/:id/messages", async (req) => {
+    await requireStaff(req);
+    const { id } = req.params as { id: string };
+    const { limit } = parse(msgQuery, req.query);
+    const ws = await db
+      .select({ id: workspaces.id })
+      .from(workspaces)
+      .where(eq(workspaces.organizationId, id));
+    const wsIds = ws.map((w) => w.id);
+    if (wsIds.length === 0) return { object: "list", data: [] };
+    const rows = await db
+      .select()
+      .from(messages)
+      .where(inArray(messages.workspaceId, wsIds))
+      .orderBy(desc(messages.createdAt))
+      .limit(limit);
+    return { object: "list", data: rows.map(slimMessage) };
+  });
+
+  // Inspect any message + its full audit trail (cross-org). Read-only.
+  app.get("/v1/admin/messages/:id", async (req) => {
+    await requireStaff(req);
+    const { id } = req.params as { id: string };
+    const [message] = await db.select().from(messages).where(eq(messages.id, id)).limit(1);
+    if (!message) throw Errors.notFound("Message not found");
+
+    let organization: { id: string; name: string } | null = null;
+    if (message.workspaceId) {
+      const [w] = await db
+        .select({ orgId: workspaces.organizationId })
+        .from(workspaces)
+        .where(eq(workspaces.id, message.workspaceId))
+        .limit(1);
+      if (w) {
+        const [o] = await db
+          .select({ id: organizations.id, name: organizations.name })
+          .from(organizations)
+          .where(eq(organizations.id, w.orgId))
+          .limit(1);
+        organization = o ?? null;
+      }
+    }
+
+    const trail = await db
+      .select()
+      .from(auditEntries)
+      .where(eq(auditEntries.messageId, message.id))
+      .orderBy(asc(auditEntries.occurredAt));
+
+    return {
+      ...slimMessage(message),
+      from: message.fromName
+        ? { name: message.fromName, email: message.fromEmail }
+        : { email: message.fromEmail },
+      reply_to: message.replyTo,
+      content_hash: message.contentHash,
+      provider: message.provider,
+      provider_message_id: message.providerMessageId,
+      error: message.error,
+      organization,
+      workspace_id: message.workspaceId,
+      audit: trail.map(serializeAudit),
     };
   });
 }

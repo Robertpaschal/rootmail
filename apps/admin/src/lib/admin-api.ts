@@ -1,5 +1,13 @@
 import { getStaffToken } from "./session";
-import type { ListResponse, LoginResult, OrgDetail, OrgSummary, StaffUser } from "./types";
+import type {
+  ListResponse,
+  LoginResult,
+  MessageDetail,
+  MessageSummary,
+  OrgDetail,
+  OrgSummary,
+  StaffUser,
+} from "./types";
 
 /** Where the rootmail REST API lives. The admin console only ever calls it server-side. */
 export const API_URL = process.env.ROOTMAIL_API_URL ?? "http://localhost:4000";
@@ -80,4 +88,9 @@ export const adminApi = {
 
   listOrgs: () => adminFetch<ListResponse<OrgSummary>>("/v1/admin/orgs"),
   getOrg: (id: string) => adminFetch<OrgDetail>(`/v1/admin/orgs/${id}`),
+
+  listOrgMessages: (id: string, limit = 25) =>
+    adminFetch<ListResponse<MessageSummary>>(`/v1/admin/orgs/${id}/messages?limit=${limit}`),
+  getMessage: (id: string) => adminFetch<MessageDetail>(`/v1/admin/messages/${id}`),
 };
+

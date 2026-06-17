@@ -59,3 +59,38 @@ export interface ListResponse<T> {
   object: "list";
   data: T[];
 }
+
+export interface MessageSummary {
+  id: string;
+  object: "message";
+  type: string;
+  status: string;
+  to: string;
+  subject: string;
+  sub_tenant_id: string | null;
+  sandbox: boolean;
+  created_at: string;
+}
+
+export interface AuditEvent {
+  event: string;
+  actor: string;
+  ip?: string;
+  user_agent?: string;
+  provider?: string;
+  provider_message_id?: string;
+  metadata?: Record<string, unknown>;
+  timestamp: string;
+}
+
+export interface MessageDetail extends MessageSummary {
+  from: { name?: string; email: string };
+  reply_to: string | null;
+  content_hash: string | null;
+  provider: string | null;
+  provider_message_id: string | null;
+  error: string | null;
+  organization: { id: string; name: string } | null;
+  workspace_id: string | null;
+  audit: AuditEvent[];
+}
