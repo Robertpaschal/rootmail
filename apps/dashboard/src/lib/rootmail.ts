@@ -350,6 +350,13 @@ export const api = {
     rmFetch<{ reset: boolean }>("/v1/auth/reset-password", { method: "POST", body, noAuth: true }),
   me: () => rmFetch<MeResult>("/v1/auth/me"),
   logout: () => rmFetch<{ ok: boolean }>("/v1/auth/logout", { method: "POST" }),
+  // Exchange a one-time staff handoff code for an impersonated session.
+  acceptImpersonation: (code: string) =>
+    rmFetch<AuthSession>("/v1/auth/impersonate/accept", {
+      method: "POST",
+      body: { code },
+      noAuth: true,
+    }),
 
   getOrganization: () => rmFetch<Organization>("/v1/organization"),
   updateOrganization: (body: { name?: string; postal_address?: string | null }) =>

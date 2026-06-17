@@ -24,7 +24,8 @@
     "api": "pnpm --filter @rootmail/api dev",
     "worker": "pnpm --filter @rootmail/worker dev",
     "marketing": "pnpm --filter @rootmail/marketing dev",
-    "dashboard": "pnpm --filter @rootmail/dashboard dev"
+    "dashboard": "pnpm --filter @rootmail/dashboard dev",
+    "admin": "pnpm --filter @rootmail/admin dev"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

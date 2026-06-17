@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { env, generateApiKey, newId } from "@rootmail/core";
+import { env, generateApiKey, hashPassword, newId } from "@rootmail/core";
 import {
   apiKeys,
   closeDb,
@@ -7,10 +7,32 @@ import {
   organizations,
   type Organization,
   orgAddons,
+  staffUsers,
   templates,
   type Workspace,
   workspaces,
 } from "./index";
+
+// Dev staff login for apps/admin. Idempotent: re-seeding resets the password so
+// the printed credential is always valid locally. Change this in production.
+const STAFF_EMAIL = "admin@rootmail.io";
+const STAFF_PASSWORD = "rootmail-admin";
+
+async function ensureStaffUser(): Promise<void> {
+  await db
+    .insert(staffUsers)
+    .values({
+      id: newId("staffUser"),
+      email: STAFF_EMAIL,
+      name: "Rootmail Admin",
+      passwordHash: hashPassword(STAFF_PASSWORD),
+      role: "superadmin",
+    })
+    .onConflictDoUpdate({
+      target: staffUsers.email,
+      set: { passwordHash: hashPassword(STAFF_PASSWORD), role: "superadmin", updatedAt: new Date() },
+    });
+}
 
 async function ensureOrganization(): Promise<Organization> {
   const [existing] = await db
@@ -120,6 +142,8 @@ async function main() {
   const liveKey = await createApiKey(production.id, "Seed key", "live");
   const testKey = await createApiKey(sandbox.id, "Seed test key", "test");
 
+  await ensureStaffUser();
+
   const line = "─".repeat(64);
   console.log(`\n${line}`);
   console.log("  rootmail — seed complete");
@@ -133,6 +157,9 @@ async function main() {
   console.log(`      ${liveKey}\n`);
   console.log("  TEST API key:\n");
   console.log(`      ${testKey}`);
+  console.log(line);
+  console.log("  Admin console (apps/admin) staff login:\n");
+  console.log(`      ${STAFF_EMAIL}  /  ${STAFF_PASSWORD}`);
   console.log(line);
   console.log("  Send your first email:\n");
   console.log(`    curl -s ${env.PUBLIC_API_URL}/v1/messages \\`);

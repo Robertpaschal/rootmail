@@ -236,16 +236,35 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 New `apps/admin` — separate staff auth (not customer sessions) over an
 admin-scoped, cross-org API. CRM-shaped.
 
-- [ ] Staff auth + staff RBAC; admin API surface; new tables (staff users, leads,
-      deals, coupons, internal notes).
-- [ ] CRM — users/orgs directory, profiles, activity, **impersonate** for support.
+- [x] **7.0 Staff auth + admin API foundation** — `staff_users` / `staff_sessions`
+      (migration 0015) + staff RBAC (`superadmin`/`support`/`readonly`). Staff
+      login → 12h session, brute-force-throttled, **separate from customer
+      sessions**; `requireStaff` / `requireStaffRole`. Cross-org `/v1/admin/orgs`
+      directory (+ `/orgs/:id` detail) with per-org plan/members/usage. `/v1/admin`
+      is exempt from the customer auth hook so it runs its OWN staff auth — a
+      customer key can't reach admin data (e2e-verified: customer-key / no-auth /
+      wrong-password all → 401). Seeded dev staff login (printed by `db:seed`).
+- [x] **7.1 apps/admin console** — Next.js app (distinct near-black theme):
+      staff login (server-side, `rm_staff_session` httpOnly cookie), Overview
+      (cross-org totals), Organizations directory + org detail (workspaces /
+      members / usage / account). Browser-verified end-to-end on the live API.
+- [x] **7.2a Support inspection** — org "Recent activity" (recent sends across
+      its workspaces) + a message detail view with delivery metadata, proof
+      `content_hash`, and the full audit timeline. Cross-org, staff-only, slim
+      payloads (no rendered body). curl + browser verified.
+- [x] **7.2b Impersonation** — "Impersonate" on an org member mints a ONE-TIME
+      60s handoff code (role-gated to support/superadmin; readonly → 403; every
+      grant in `staff_audit`); the dashboard `/impersonate` route exchanges it for
+      a short-lived (30m), impersonation-marked session (token never in a URL) and
+      shows a red banner + "Stop impersonating". Verified end-to-end.
 - [ ] Billing ops — Stripe subscriptions view, credits/overrides/refunds/comps, dunning.
 - [ ] Pricing management — make plans/add-ons/AI-credits **data-driven** + Stripe-synced.
 - [ ] Promotions — coupons, trials, discounts.
 - [ ] Comms — dogfood rootmail for announcements/lifecycle.
 - [ ] Sales — leads, deals, enterprise/custom-pricing quotes, pipeline.
-- [ ] Support tooling — inspect a customer's sends/audit/proof; suppression mgmt.
+- [ ] Suppression management — view/clear a customer's suppressions.
 - [ ] Analytics — revenue, churn, usage, deliverability, AI-credit consumption.
+- [ ] New tables as modules land: leads, deals, coupons, internal notes.
   - ◇ **Checkpoints:** per module.
 
 ---

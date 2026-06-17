@@ -8,13 +8,14 @@ import {
   generateTotpSecret,
   hashPassword,
   sendSystemEmail,
+  sha256Hex,
   signMfaChallenge,
   totpUri,
   verifyMfaChallenge,
   verifyPassword,
   verifyTotp,
 } from "@rootmail/core";
-import { db, sessions, type User, users } from "@rootmail/db";
+import { db, impersonationGrants, sessions, type User, users } from "@rootmail/db";
 import {
   createSession,
   defaultWorkspaceForUser,
@@ -91,16 +92,20 @@ async function requireSession(req: FastifyRequest) {
 }
 
 /** Mint a session and build the post-authentication payload (login + mfa/verify). */
-async function sessionResponse(user: User) {
+async function sessionResponse(
+  user: User,
+  opts: { impersonatedByStaffId?: string; ttlMs?: number } = {},
+) {
   const workspaces = await userWorkspaces(user.id);
   const live = workspaces.find((w) => w.environment === "live") ?? workspaces[0] ?? null;
-  const { token, session } = await createSession(user.id, live?.id ?? null);
+  const { token, session } = await createSession(user.id, live?.id ?? null, opts);
   return {
     user: serializeUser(user),
     workspaces: workspaces.map(serializeWorkspace),
     active_workspace: live ? serializeWorkspace(live) : null,
     session_token: token,
     session_expires_at: session.expiresAt,
+    impersonating: session.impersonatedByStaffId != null,
   };
 }
 
@@ -220,6 +225,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       user: serializeUser(user),
       workspaces: workspaces.map(serializeWorkspace),
       active_workspace: active ? serializeWorkspace(active) : null,
+      impersonating: session.impersonatedByStaffId != null,
     };
   });
 
@@ -228,6 +234,33 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const token = bearerToken(req);
     if (token) await deleteSession(token);
     return { ok: true };
+  });
+
+  // --- Accept an impersonation handoff ------------------------------------
+  // The admin app hands the dashboard a one-time code (never the session token).
+  // Here we exchange it for a short-lived, impersonation-marked customer session.
+  const impersonateAcceptBody = z.object({ code: z.string().min(1) });
+  app.post("/v1/auth/impersonate/accept", async (req) => {
+    const { code } = parse(impersonateAcceptBody, req.body);
+    const [grant] = await db
+      .select()
+      .from(impersonationGrants)
+      .where(eq(impersonationGrants.codeHash, sha256Hex(code)))
+      .limit(1);
+    if (!grant || grant.usedAt || grant.expiresAt.getTime() <= Date.now()) {
+      throw Errors.unauthorized("This impersonation link is invalid or has expired.");
+    }
+    // One-time: consume immediately.
+    await db
+      .update(impersonationGrants)
+      .set({ usedAt: new Date() })
+      .where(eq(impersonationGrants.id, grant.id));
+    const [user] = await db.select().from(users).where(eq(users.id, grant.targetUserId)).limit(1);
+    if (!user) throw Errors.notFound("User not found");
+    return sessionResponse(user, {
+      impersonatedByStaffId: grant.staffUserId,
+      ttlMs: 30 * 60 * 1000,
+    });
   });
 
   // --- MFA: complete login with a TOTP or recovery code -------------------

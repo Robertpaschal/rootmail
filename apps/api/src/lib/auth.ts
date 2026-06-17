@@ -65,6 +65,7 @@ function slugify(input: string): string {
 export async function createSession(
   userId: string,
   activeWorkspaceId: string | null,
+  opts: { impersonatedByStaffId?: string; ttlMs?: number } = {},
 ): Promise<{ token: string; session: Session }> {
   const { token, hash } = generateSessionToken();
   const [session] = await db
@@ -74,7 +75,8 @@ export async function createSession(
       userId,
       tokenHash: hash,
       activeWorkspaceId,
-      expiresAt: new Date(Date.now() + SESSION_TTL_MS),
+      impersonatedByStaffId: opts.impersonatedByStaffId ?? null,
+      expiresAt: new Date(Date.now() + (opts.ttlMs ?? SESSION_TTL_MS)),
     })
     .returning();
   return { token, session };
