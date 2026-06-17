@@ -51,8 +51,19 @@ Run **before** rolling new api/worker (additive migrations are safe to run first
 pnpm db:migrate     # applies packages/db/migrations
 ```
 
-Wire this as a release/pre-deploy step. Do **not** auto-`db:seed` in production
-(seed is for local/dev).
+Wire this as a release/pre-deploy step. Migrations are the **only** required setup:
+customers self-provision (org + workspaces + first API key) on signup, so do **not**
+auto-`db:seed` in production (seed is for local/dev).
+
+## Bootstrap an admin (apps/admin)
+Create the first internal-staff login without seeding demo data:
+
+```bash
+pnpm create-staff --email=ops@yourco.com --role=superadmin
+# prints a generated password once; pass --password=… to set your own.
+# re-running for the same email resets that staff member's password.
+```
+
 
 ## Webhooks (post-deploy)
 - Stripe: point a webhook at `…/v1/webhooks/stripe`, set `STRIPE_WEBHOOK_SECRET`.
