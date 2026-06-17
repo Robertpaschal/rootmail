@@ -116,6 +116,44 @@ async function main() {
     check(".maildir present", false, String(err));
   }
 
+  console.log("\n[10] Content & automation resources (SDK parity)");
+  // Templates
+  const tplList = await mail.templates.list();
+  check("templates.list returns the seed template", tplList.data.some((t) => t.slug === "welcome"));
+  const slug = `smoke-${Date.now()}`;
+  const tpl = await mail.templates.create({
+    name: "Smoke",
+    slug,
+    type: "transactional",
+    subject: "Hi {{name}}",
+    html: "<p>Hi {{name}}</p>",
+  });
+  check("templates.create", tpl.slug === slug, tpl.id);
+  check("templates.update", (await mail.templates.update(tpl.id, { subject: "Hello {{name}}" })).subject === "Hello {{name}}");
+  check("templates.delete", (await mail.templates.delete(tpl.id)).deleted);
+
+  // Lists + contacts
+  const list = await mail.lists.create({ name: `Smoke list ${Date.now()}` });
+  check("lists.create", Boolean(list.id), list.id);
+  await mail.lists.addContact(list.id, "listmember@example.com");
+  check("lists.addContact + contacts", (await mail.lists.contacts(list.id)).data.some((c) => c.email === "listmember@example.com"));
+  check("lists.delete", (await mail.lists.delete(list.id)).deleted);
+
+  // Sequences (Scale feature; the seed org is Scale)
+  const seq = await mail.sequences.create({ name: `Smoke seq ${Date.now()}`, trigger: { type: "manual" } });
+  check("sequences.create", Boolean(seq.id), seq.id);
+  await mail.sequences.enroll(seq.id, "enrollee@example.com");
+  check("sequences.enroll + enrollments", (await mail.sequences.enrollments(seq.id)).data.length >= 1);
+  check("sequences.delete", (await mail.sequences.delete(seq.id)).deleted);
+
+  // Campaigns (create/delete only — no blast)
+  const camp = await mail.campaigns.create({ name: `Smoke campaign ${Date.now()}` });
+  check("campaigns.create", Boolean(camp.id), camp.id);
+  check("campaigns.delete", (await mail.campaigns.delete(camp.id)).deleted);
+
+  // Threads (Layer 2 — opened by earlier sends)
+  check("threads.list", Array.isArray((await mail.threads.list()).data));
+
   console.log(`\n${"=".repeat(52)}`);
   console.log(`  RESULT: ${passed} passed, ${failed} failed`);
   console.log("=".repeat(52));
