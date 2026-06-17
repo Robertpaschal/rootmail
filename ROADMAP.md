@@ -193,25 +193,25 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
       gaps with the right permission: asset upload + AI draft + assistant →
       `content.manage`, thread reply → `messages.send`. (API keys get all perms;
       public webhooks/auth routes correctly exempt.)
-- [ ] **5.4 CAN-SPAM / GDPR — FOCUSED BUILD (do carefully, own PR):**
-      1. Schema: `organizations.postal_address` (nullable) + migration; settings UI
-         to set it; expose on the org/billing API.
-      2. **Compliance footer** (physical address + unsubscribe) auto-appended to
-         **marketing/sales** sends only (transactional/replies are CAN-SPAM-exempt).
-         ⚠️ Inject the footer at **message-creation time, BEFORE `content_hash` is
-         computed** (messages route + the worker's campaign render), NOT in the
-         send pipeline — otherwise the Layer-3 proof bundle won't match the sent
-         email. Cover every marketing path: /v1/messages, campaigns, sequences.
-      3. List-Unsubscribe header (deliverability) once SES raw-send is in use.
-      4. GDPR: data **export** + **delete** endpoints (account + contacts).
-      Needs the owner to supply the postal address value (the field/injection is code).
+- [x] **5.4 CAN-SPAM / GDPR — DONE:**
+      1. ✅ `organizations.postal_address` (migration 0014); set via the Settings
+         page (Sender-address card) + `GET/PATCH /v1/organization`.
+      2. ✅ Compliance footer (postal address + unsubscribe) injected for
+         marketing/sales ONLY, BEFORE `content_hash`, in `/v1/messages` and
+         `automationSend` (campaigns + sequences). Transactional/replies exempt.
+         e2e-verified: of 2 sends only the marketing `.eml` carries the footer.
+      3. ⏳ List-Unsubscribe header — deferred until SES raw-send (still on the
+         Simple API). Small follow-up.
+      4. ✅ GDPR `GET /v1/account/export` + `DELETE /v1/account` (owner + name
+         confirm; cascades + removes orphaned users). e2e-verified.
+      Owner still supplies the actual postal-address value via Settings.
 - [x] **5.5 New-account abuse limits** — per-IP sign-up cap (10/hr) + the
       email-verification first-send gate (2.2) + login lockout (2.5). Merged.
 - [x] **5.6 SDK parity** — `@rootmail/node` now exposes templates, sequences
       (+enroll), lists (+contacts), campaigns (+send), threads (+reply), and
       `messages.proof()`. Builds (ESM/CJS/DTS) green.
-  - ◇ **Checkpoints:** per item. **Done: 5.2, 5.3, 5.5, 5.6.** Remaining: 5.1
-      (needs Stripe overage prices) + 5.4 CAN-SPAM (needs a per-org postal address).
+  - ◇ **Checkpoints:** per item. **Done: 5.2, 5.3, 5.4, 5.5, 5.6.** Only 5.1
+      (metered overage) remains — needs the owner to create the Stripe overage prices.
 
 ---
 

@@ -61,3 +61,22 @@ export async function disableMfa(
     return { error: "Couldn't disable two-factor. Try again." };
   }
 }
+
+export interface AddressState {
+  ok?: boolean;
+  error?: string;
+}
+
+export async function saveSenderAddress(
+  _prev: AddressState | null,
+  formData: FormData,
+): Promise<AddressState> {
+  const postal_address = String(formData.get("postal_address") ?? "").trim();
+  try {
+    await api.updateOrganization({ postal_address: postal_address || null });
+    revalidatePath("/settings/security");
+    return { ok: true };
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Couldn't save the address." };
+  }
+}

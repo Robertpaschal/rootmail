@@ -1,21 +1,26 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { api } from "@/lib/rootmail";
 import { MfaCard } from "./mfa-card";
+import { SenderAddressForm } from "./sender-address-form";
 
-export default async function SecurityPage() {
-  let enabled = false;
+export default async function SettingsPage() {
+  let mfaEnabled = false;
+  let postalAddress = "";
   try {
-    enabled = (await api.me()).user.mfa_enabled;
+    const [me, org] = await Promise.all([api.me(), api.getOrganization()]);
+    mfaEnabled = me.user.mfa_enabled;
+    postalAddress = org.postal_address ?? "";
   } catch {
-    /* ignore — render the default (off) state if the lookup fails */
+    /* render defaults if a lookup fails */
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold">Security</h1>
-        <p className="text-sm text-muted-foreground">Manage how you protect your account.</p>
+        <h1 className="text-2xl font-semibold">Settings</h1>
+        <p className="text-sm text-muted-foreground">Account security and sending compliance.</p>
       </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Two-factor authentication</CardTitle>
@@ -24,7 +29,20 @@ export default async function SecurityPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <MfaCard enabled={enabled} />
+          <MfaCard enabled={mfaEnabled} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Sender address</CardTitle>
+          <CardDescription>
+            Your physical postal address — added automatically to the footer of marketing and sales
+            emails to meet CAN-SPAM. Transactional mail is unaffected.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SenderAddressForm initial={postalAddress} />
         </CardContent>
       </Card>
     </div>

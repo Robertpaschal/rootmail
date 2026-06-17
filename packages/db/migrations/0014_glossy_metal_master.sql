@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "postal_address" text;
