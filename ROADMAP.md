@@ -212,11 +212,17 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 
 ## Phase 6 — Hardening + tests  *(Track A6)*
 
-- [ ] Security review of the whole gated surface (authz on every route).
-- [ ] Expand `scripts/smoke.ts` → broader e2e.
-- [ ] Fix/route-around the dashboard **preview-cookie gotcha** so write-flows are
-      testable in CI.
-  - ◇ **Checkpoint:** `chore: e2e + security pass`.
+- [x] Security review of the gated surface → `SECURITY.md`. Audited: no IDOR (every
+      `:id` load is workspace/org-scoped), RBAC perms on all mutations, feature gates,
+      Zod validation, SSRF guards, signed idempotent webhooks, hashed secrets.
+- [x] Expanded `scripts/smoke.ts` 14→27 checks (templates/lists/sequences/campaigns/
+      threads via the SDK). Full run green on a mock stack.
+- [x] Preview-cookie gotcha — it's a *preview-tool* limitation (drops cookies on
+      server-action POSTs), not a product bug. CI-testable route-around = the SDK/API
+      smoke, which now covers the dashboard's write surface. Browser e2e (Playwright)
+      deferred to Phase 8 CI.
+  - ◇ **Checkpoint:** `docs+test: e2e + security pass`. ✅
+  - [ ] Follow-up: wire `pnpm smoke` (+ typecheck/build) into CI in Phase 8.
 
 ---
 
