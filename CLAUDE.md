@@ -8,7 +8,7 @@ captures the non-obvious things an agent needs to work here productively.
 - `apps/worker` — BullMQ send pipeline (suppression → render → provider → audit)
 - `apps/marketing` — Next.js (App Router) marketing site; standalone, **no backend deps** (keeps the modular boundary clean). Tailwind v3 + hand-written shadcn/ui (new-york).
 - `apps/dashboard` — Next.js (App Router) operator console. Talks to the API **server-side only** (Server Components/Actions); the API key lives in an httpOnly cookie, never the browser. `ROOTMAIL_API_URL` (default `http://localhost:4000`).
-- `apps/admin` — Next.js (App Router) **internal staff** console (Phase 7). Same server-side pattern as the dashboard but a **separate staff session** (`rm_staff_session` httpOnly cookie) over the cross-org `/v1/admin/*` API. Distinct near-black theme so staff can't confuse it with the customer dashboard. `pnpm admin` (dev). Seeded staff login is printed by `db:seed`.
+- `apps/admin` — Next.js (App Router) **internal staff** console (Phase 7). Same server-side pattern as the dashboard but a **separate staff session** (`rm_staff_session` httpOnly cookie) over the cross-org `/v1/admin/*` API. Distinct near-black theme so staff can't confuse it with the customer dashboard. `pnpm admin` (dev). Bootstrap a staff login with `pnpm create-staff --email=… --role=superadmin` (generates a password if omitted; works in prod with only migrations applied — no seed). `db:seed` also prints a dev staff login.
 - `packages/core` — ids, env, crypto, DKIM, DNS verify, queue, render, errors, shared `constants`
 - `packages/db` — Drizzle schema (single `src/schema.ts`), client, migrations, seed
 - `packages/sdk` — `@rootmail/node`

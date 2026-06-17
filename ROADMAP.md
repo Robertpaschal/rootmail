@@ -94,15 +94,19 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
 - [ ] _Minor residual:_ AI-credit check is read-then-record (rate-limit-bounded), not
       yet atomic like the send quota.
 
-### 4. Auth & no-seed operability
-- [ ] **4.1** Confirm + lock session-only sign-in (no key-login anywhere); document
-      keys as API-only; polish multiple-API-keys UX (name/list/revoke/last-used).
-- [ ] **4.2 Social signups** — make Google/GitHub/Apple work when creds present;
-      cleanly hide/disable the buttons when unconfigured (no dead buttons).
-- [ ] **4.3 No-seed** — real users self-provision on signup already; add a self-serve
-      **staff bootstrap** for `apps/admin` (guarded first-run / env superadmin /
-      `create-staff` script) so nothing needs `pnpm db:seed`. Migrations stay the
-      only required setup.
+### 4. Auth & no-seed operability *(branch `feat/auth-no-seed`)*
+- [x] **4.1** Verified: sign-in is **session-only** (email/password + OAuth; no
+      key-login path anywhere). Multiple API keys already supported with a polished
+      UX — `last_used_at` is written on every key use (`plugins/auth.ts`) and shown
+      in the dashboard keys table alongside name / created / revoke.
+- [x] **4.2 Social signups** — verified: OAuth buttons render **only** for configured
+      providers (`enabledProviders()` → nothing when none), so no dead buttons; the
+      Google/GitHub/Apple flow is wired and activates once creds are present.
+- [x] **4.3 No-seed** — customers self-provision on signup; added `pnpm create-staff`
+      (`--email/--password/--name/--role`, generates a password if omitted, resets on
+      re-run) so `apps/admin` is bootstrapped with **only migrations applied** — no
+      `db:seed`. Documented in CLAUDE.md + DEPLOY.md. Verified end-to-end (create →
+      login; password reset → old fails, new works).
 
 ### 5. API / SDK / docs contract
 - [ ] **5.1** SDK parity for every public endpoint; consistent error shapes +

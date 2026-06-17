@@ -13,6 +13,7 @@
     "push": "drizzle-kit push",
     "studio": "drizzle-kit studio",
     "seed": "tsx src/seed.ts",
+    "create-staff": "tsx scripts/create-staff.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
