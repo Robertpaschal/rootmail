@@ -71,19 +71,28 @@ abuse-proof, and deployed_.** That's the plan below.
       mobile, and a focused **a11y** sweep (aria-labels on icon-only buttons, focus
       order, contrast). _(remaining)_
 
-### 3. Anti-abuse hardening — "can't game it" *(mostly no deps)*
-Threat-model **price · service · product**; each gap a fix + a test.
-- [ ] **3.1 Billing integrity** — quota can't be bypassed via workspaces /
-      sub-tenants / test-mode / idempotency replay; add-on quantity + seat changes
-      validated server-side; **overage** either metered to Stripe (needs prices,
-      below) or hard-capped so paid overage isn't free.
-- [ ] **3.2 Plan-boundary integrity** — downgrade with over-limit sub-tenants/seats;
-      402 gates on every gated route; re-verify the permission matrix post-admin.
-- [ ] **3.3 Abuse limits** — per-IP signup cap, unverified send-gate (both key +
-      session), disposable-domain handling, login/MFA lockout — re-confirm w/ tests.
-- [ ] **3.4 Service abuse** — per-key/session rate limits, sub-tenant verification
-      can't be spoofed, webhook SSRF, proof tamper-resistance, impersonation audit.
-  - ◇ a documented threat list with a passing test per mitigation.
+### 3. Anti-abuse hardening — "can't game it" *(branch `feat/anti-abuse`)*
+Threat-modelled **price · service · product**; documented in `SECURITY.md`
+("Abuse & billing integrity").
+- [x] **3.1 Billing integrity** — usage is **per-org** (extra workspaces/sub-tenants
+      can't multiply quota); Free hard-cap reserved with an atomic conditional
+      `UPDATE … WHERE used+n<=quota` so concurrent bursts can't overshoot it
+      (`tryConsumeQuota`; regression test `apps/api/scripts/test-quota.ts`, in CI);
+      idempotency replay short-circuits before counting and a race-loser refunds its
+      reserve; test-mode never meters; **self-upgrade fail-closed** — `checkout` and
+      `addons` no longer grant free plan/entitlements in Stripe mode if no real
+      Stripe session/billing exists. **Overage metering to Stripe still blocked on
+      the overage price IDs** (overage is shown, not charged — by design until wired).
+- [x] **3.2 Plan-boundary integrity** — verified already enforced: 402 `feature_locked`
+      gates on every gated route incl. the sub-tenant send re-check (5.2 downgrade
+      guard), permission matrix audited (5.3).
+- [x] **3.3 Abuse limits** — verified already enforced: per-IP signup cap (5.5),
+      unverified send-gate on **both** key + session sends (2.2), login/MFA lockout (2.5).
+- [x] **3.4 Service abuse** — verified already enforced: global + per-route rate limits,
+      webhook SSRF guard, signed idempotent inbound webhooks, Ed25519 proof with
+      content-hash, role-gated + audited impersonation (7.2b).
+- [ ] _Minor residual:_ AI-credit check is read-then-record (rate-limit-bounded), not
+      yet atomic like the send quota.
 
 ### 4. Auth & no-seed operability
 - [ ] **4.1** Confirm + lock session-only sign-in (no key-login anywhere); document

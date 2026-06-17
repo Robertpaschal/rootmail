@@ -65,6 +65,7 @@ jobs:
       - name: Migrate, seed, run the smoke
         run: |
           pnpm db:migrate
+          pnpm --filter @rootmail/api test:quota
           KEY=$(pnpm db:seed 2>&1 | grep -oE 'rm_live_[A-Za-z0-9_-]+' | head -1)
           test -n "$KEY" || { echo "no API key from seed"; exit 1; }
           pnpm --filter @rootmail/api exec tsx src/index.ts > /tmp/api.log 2>&1 &

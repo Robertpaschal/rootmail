@@ -32,6 +32,43 @@ export async function recordSend(organizationId: string, n = 1): Promise<void> {
     });
 }
 
+/**
+ * Atomically reserve one send against the monthly quota. Overage plans always
+ * succeed (they bill the excess); hard-capped plans (Free) only succeed while
+ * under the cap — the check and the increment happen in a single statement, so
+ * a burst of concurrent sends can't overshoot the limit (closes the
+ * read-then-write race in `assertCanSend` + `recordSend`). Returns false when a
+ * hard-capped plan is already at its limit.
+ */
+export async function tryConsumeQuota(
+  org: Pick<Organization, "id" | "plan">,
+  n = 1,
+): Promise<boolean> {
+  const plan = planFor(org);
+  if (plan.allowOverage) {
+    await recordSend(org.id, n);
+    return true;
+  }
+  const period = currentPeriod();
+  // Ensure the counter row exists, then increment only if it stays within cap.
+  await db
+    .insert(usageRecords)
+    .values({ id: newId("usage"), organizationId: org.id, period, emailsSent: 0 })
+    .onConflictDoNothing({ target: [usageRecords.organizationId, usageRecords.period] });
+  const updated = await db
+    .update(usageRecords)
+    .set({ emailsSent: sql`${usageRecords.emailsSent} + ${n}`, updatedAt: new Date() })
+    .where(
+      and(
+        eq(usageRecords.organizationId, org.id),
+        eq(usageRecords.period, period),
+        sql`${usageRecords.emailsSent} + ${n} <= ${plan.monthlyQuota}`,
+      ),
+    )
+    .returning({ id: usageRecords.id });
+  return updated.length > 0;
+}
+
 /** AI template drafts used this calendar month (metered against AI credits). */
 export async function getAiUsage(organizationId: string, period = currentPeriod()): Promise<number> {
   const [row] = await db

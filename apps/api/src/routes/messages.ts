@@ -26,7 +26,7 @@ import {
   type Workspace,
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
-import { assertCanSend, recordSend } from "../lib/billing";
+import { assertEmailVerified, planFor, recordSend, tryConsumeQuota } from "../lib/billing";
 import { requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { openThreadForSend, threadReplyAddress } from "../lib/threads";
@@ -161,7 +161,19 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       .from(organizations)
       .where(eq(organizations.id, workspace.organizationId))
       .limit(1);
-    if (mode === "live" && org) await assertCanSend(org);
+    // Verify the sender, then atomically reserve quota. The reserve is the
+    // single source of truth for the cap (no read-then-write race); replays are
+    // short-circuited by the idempotency check above, so they don't double-count.
+    if (mode === "live" && org) {
+      await assertEmailVerified(org);
+      if (!(await tryConsumeQuota(org))) {
+        const plan = planFor(org);
+        throw Errors.quotaExceeded(
+          `You've reached your monthly limit of ${plan.monthlyQuota.toLocaleString()} emails. Upgrade your plan to keep sending.`,
+          { quota: plan.monthlyQuota },
+        );
+      }
+    }
 
     // Resolve content from a template or inline html.
     let subjectSrc = body.subject;
@@ -266,14 +278,14 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         )
         .limit(1);
       if (!existing) throw Errors.internal("Insert conflict could not be resolved");
+      // This request reserved quota above but produced no new send (the winner
+      // did) — refund the reservation so the duplicate doesn't over-count.
+      if (mode === "live" && org) await recordSend(org.id, -1);
       void reply.header("Idempotent-Replayed", "true");
       return reply.status(200).send(serializeMessage(existing));
     }
 
     const message = insertedRows[0];
-
-    // Meter the live send against the monthly quota (sandbox is free).
-    if (mode === "live" && org) await recordSend(org.id);
 
     // Open a conversation thread (Layer 2) — best-effort, never fails the send.
     let thread: Awaited<ReturnType<typeof openThreadForSend>> | undefined;
