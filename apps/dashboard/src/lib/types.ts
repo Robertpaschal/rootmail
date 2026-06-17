@@ -344,6 +344,34 @@ export interface UploadedAsset {
   filename: string;
 }
 
+export interface Asset extends UploadedAsset {
+  created_at: string;
+}
+
+export interface WebhookEndpoint {
+  object: "webhook_endpoint";
+  id: string;
+  url: string;
+  events: string[];
+  description: string | null;
+  status: "active" | "disabled";
+  disabled_at: string | null;
+  created_at: string;
+}
+export interface CreatedWebhookEndpoint extends WebhookEndpoint {
+  secret: string;
+}
+export interface WebhookDelivery {
+  object: "webhook_delivery";
+  id: string;
+  event: string;
+  status: string;
+  attempt: number;
+  response_status: number | null;
+  error: string | null;
+  created_at: string;
+}
+
 export interface AuthSession extends MeResult {
   session_token: string;
   session_expires_at: string;

@@ -9,7 +9,7 @@ import {
   WEBHOOK_ENDPOINT_STATUSES,
   WEBHOOK_EVENTS,
 } from "@rootmail/core";
-import { db, type WebhookEndpoint, webhookEndpoints } from "@rootmail/db";
+import { db, type WebhookEndpoint, webhookDeliveries, webhookEndpoints } from "@rootmail/db";
 import { requirePermission } from "../lib/permissions";
 import { parse } from "../lib/validate";
 
@@ -98,6 +98,31 @@ export async function webhookRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/webhook-endpoints/:id", async (req) => {
     const { id } = req.params as { id: string };
     return serialize(await getScoped(req, id));
+  });
+
+  // --- Recent deliveries (the log) — read baseline ------------------------
+  app.get("/v1/webhook-endpoints/:id/deliveries", async (req) => {
+    const { id } = req.params as { id: string };
+    await getScoped(req, id); // workspace scope + existence check
+    const rows = await db
+      .select()
+      .from(webhookDeliveries)
+      .where(eq(webhookDeliveries.endpointId, id))
+      .orderBy(desc(webhookDeliveries.createdAt))
+      .limit(50);
+    return {
+      object: "list",
+      data: rows.map((d) => ({
+        object: "webhook_delivery",
+        id: d.id,
+        event: d.event,
+        status: d.status,
+        attempt: d.attempt,
+        response_status: d.responseStatus,
+        error: d.error,
+        created_at: d.createdAt.toISOString(),
+      })),
+    };
   });
 
   // --- Update (re-validates the URL; can re-enable a disabled endpoint) ----

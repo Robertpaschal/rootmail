@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   CreditCard,
   FileText,
+  Images,
   Inbox,
   KeyRound,
   LayoutDashboard,
@@ -18,6 +19,7 @@ import {
   Sparkles,
   UserCog,
   Users,
+  Webhook,
   Workflow,
 } from "lucide-react";
 import { Logo } from "./logo";
@@ -30,12 +32,14 @@ const items = [
   { href: "/messages", label: "Messages", icon: Mail },
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/templates", label: "Templates", icon: FileText },
+  { href: "/assets", label: "Assets", icon: Images },
   { href: "/sequences", label: "Sequences", icon: Workflow },
   { href: "/campaigns", label: "Campaigns", icon: Megaphone },
   { href: "/sub-tenants", label: "Sub-tenants", icon: Network },
   { href: "/contacts", label: "Contacts", icon: Users },
   { href: "/lists", label: "Lists", icon: ListChecks },
   { href: "/api-keys", label: "API keys", icon: KeyRound },
+  { href: "/webhooks", label: "Webhooks", icon: Webhook },
   { href: "/billing", label: "Plan & usage", icon: CreditCard },
   { href: "/members", label: "Team", icon: UserCog },
   { href: "/roles", label: "Roles", icon: ShieldCheck },

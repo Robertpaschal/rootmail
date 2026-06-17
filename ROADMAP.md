@@ -152,12 +152,16 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 - [x] Toasts (sonner, global).
 - [x] Global search / **⌘K command palette** (+ topbar trigger).
 
-**Follow-ups (deferred — net-new features / ongoing polish):**
-- [ ] Asset library UI — needs a backend `GET /v1/assets` list endpoint first.
-- [ ] Webhook-delivery log/console — needs the webhook API wired into the client.
-- [ ] Richer sequence/campaign/enrollment views.
-- [ ] Mobile responsiveness + a11y (cross-cutting).
-- [ ] Starter template on signup.
+**Follow-ups:**
+- [x] Asset library UI — `GET /v1/assets` + dashboard grid (upload, copy-URL).
+- [x] Webhook console + delivery log — `GET …/:id/deliveries` + dashboard CRUD,
+      secret-once reveal, enable/disable, expandable per-endpoint delivery log.
+- [x] Richer sequence/campaign/enrollment views — already present (campaign stats;
+      sequence enrollments with per-status badges).
+- [x] Starter template on signup — already seeded in `provisionAccount`.
+- [ ] **Mobile responsiveness + a11y** — responsive Tailwind is used throughout;
+      new components are labeled. A full a11y audit (aria-labels on every icon-only
+      button, focus order, contrast) is worth a dedicated pass — its own ticket.
 
 ---
 
@@ -184,8 +188,18 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
       gaps with the right permission: asset upload + AI draft + assistant →
       `content.manage`, thread reply → `messages.send`. (API keys get all perms;
       public webhooks/auth routes correctly exempt.)
-- [ ] **5.4 CAN-SPAM / GDPR** — physical address in footer (needs a per-org postal
-      address field + auto-injected marketing footer), data export + delete.
+- [ ] **5.4 CAN-SPAM / GDPR — FOCUSED BUILD (do carefully, own PR):**
+      1. Schema: `organizations.postal_address` (nullable) + migration; settings UI
+         to set it; expose on the org/billing API.
+      2. **Compliance footer** (physical address + unsubscribe) auto-appended to
+         **marketing/sales** sends only (transactional/replies are CAN-SPAM-exempt).
+         ⚠️ Inject the footer at **message-creation time, BEFORE `content_hash` is
+         computed** (messages route + the worker's campaign render), NOT in the
+         send pipeline — otherwise the Layer-3 proof bundle won't match the sent
+         email. Cover every marketing path: /v1/messages, campaigns, sequences.
+      3. List-Unsubscribe header (deliverability) once SES raw-send is in use.
+      4. GDPR: data **export** + **delete** endpoints (account + contacts).
+      Needs the owner to supply the postal address value (the field/injection is code).
 - [x] **5.5 New-account abuse limits** — per-IP sign-up cap (10/hr) + the
       email-verification first-send gate (2.2) + login lockout (2.5). Merged.
 - [x] **5.6 SDK parity** — `@rootmail/node` now exposes templates, sequences
