@@ -106,29 +106,42 @@ export function Pricing() {
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-6xl items-start gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mx-auto grid max-w-6xl items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {tiers.map((t) => (
             <div
               key={t.name}
               className={cn(
                 "relative flex h-full flex-col rounded-2xl border bg-card p-6 shadow-sm",
-                t.featured && "border-primary/50 shadow-md ring-1 ring-primary/20",
+                t.featured && "border-primary/60 shadow-md ring-1 ring-primary/20",
               )}
             >
               {t.featured ? (
-                <Badge className="absolute -top-3 left-6">Most popular</Badge>
+                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 shadow-sm">
+                  Most popular
+                </Badge>
               ) : null}
+
               <h3 className="text-lg font-semibold">{t.name}</h3>
-              <p className="mt-1 text-sm text-muted-foreground">{t.blurb}</p>
-              <div className="mt-5 flex items-baseline gap-1">
+              <p className="mt-1 min-h-[2.5rem] text-sm text-muted-foreground">{t.blurb}</p>
+
+              <div className="mt-4 flex items-baseline gap-1">
                 <span className="text-4xl font-bold tracking-tight">{t.price}</span>
                 {t.cadence ? <span className="text-sm text-muted-foreground">{t.cadence}</span> : null}
               </div>
 
-              <div className="mt-5 rounded-lg border bg-secondary/40 px-3 py-2.5">
+              <div className="mt-4 rounded-lg border bg-secondary/40 px-3 py-2.5">
                 <div className="text-sm font-medium">{t.included}</div>
                 <div className="mt-0.5 text-xs text-muted-foreground">{t.overage}</div>
               </div>
+
+              <ul className="mt-6 flex-1 space-y-3">
+                {t.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm">
+                    <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                    <span className="text-muted-foreground">{f}</span>
+                  </li>
+                ))}
+              </ul>
 
               <Link
                 href={t.href}
@@ -139,20 +152,12 @@ export function Pricing() {
               >
                 {t.cta}
               </Link>
-              <ul className="mt-6 space-y-3">
-                {t.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm">
-                    <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span className="text-muted-foreground">{f}</span>
-                  </li>
-                ))}
-              </ul>
             </div>
           ))}
         </div>
 
         {/* Pay-as-you-go — for people who just want to send, no plan to pick. */}
-        <div className="mx-auto mt-6 flex max-w-5xl flex-col items-start justify-between gap-4 rounded-2xl border border-dashed bg-card p-6 sm:flex-row sm:items-center">
+        <div className="mx-auto mt-6 flex max-w-6xl flex-col items-start justify-between gap-4 rounded-2xl border border-dashed bg-card p-6 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
               <Zap className="size-5" />
@@ -174,7 +179,7 @@ export function Pricing() {
           </Link>
         </div>
 
-        <div className="mx-auto mt-10 max-w-5xl rounded-2xl border bg-card p-6">
+        <div className="mx-auto mt-10 max-w-6xl rounded-2xl border bg-card p-6">
           <p className="text-sm font-semibold">Every plan includes</p>
           <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-3">
             {baseline.map((f) => (
