@@ -151,6 +151,15 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     if (result.mode === "stripe" && result.url) {
       return { object: "checkout", mode: "stripe", url: result.url };
     }
+    // Fail CLOSED in Stripe mode: if a checkout session couldn't be created
+    // (misconfigured price, Stripe outage), never silently grant a free upgrade.
+    // The direct switch below is only for local/self-host mode where there's no
+    // Stripe to bill against.
+    if (BILLING_MODE === "stripe") {
+      throw Errors.badRequest(
+        "Couldn't start checkout right now — please try again in a moment or contact support.",
+      );
+    }
     const [updated] = await db
       .update(organizations)
       .set({ plan, planStatus: "active", billingInterval: interval, updatedAt: new Date() })
@@ -169,6 +178,15 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     );
     const org = await orgForReq(req);
     await requirePermission(req, "billing.manage");
+    // Fail CLOSED in Stripe mode: add-ons are paid entitlements (seats, dedicated
+    // IP, sub-tenant packs, AI credits). Until Stripe subscription-item billing is
+    // wired, self-serve granting would hand them out free — so block it here. In
+    // local/self-host mode there's no Stripe to bill, so it's applied directly.
+    if (BILLING_MODE === "stripe") {
+      throw Errors.badRequest(
+        "Add-ons are billed through your subscription — contact support to adjust them.",
+      );
+    }
 
     await db
       .insert(orgAddons)

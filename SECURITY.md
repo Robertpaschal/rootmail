@@ -55,7 +55,33 @@ hardening review. (For reporting a vulnerability, email security@rootmail.io.)
 - Global limit (300/min per key/IP) + tighter per-route caps on the AI endpoints, plus
   the auth lockout and sign-up cap above.
 
-## Known follow-ups
-- CAN-SPAM postal-address footer + GDPR export/delete (Phase 5.4).
-- Full accessibility audit (Phase 3 follow-up).
-- A dedicated dependency/secret-scanning step in CI (Phase 8).
+## Abuse & billing integrity
+- **Quota is atomic and per-organization.** Monthly send usage is counted per org,
+  not per workspace, so spinning up extra workspaces or sub-tenants can't multiply a
+  plan's allowance. Free is hard-capped: the cap is reserved in a single conditional
+  `UPDATE … WHERE emails_sent + n <= quota`, so a burst of concurrent sends can't
+  overshoot it (regression test: `apps/api/scripts/test-quota.ts`,
+  `pnpm --filter @rootmail/api test:quota`). An `idempotency_key` replay short-circuits
+  before it counts; a concurrent duplicate that loses the insert race refunds its
+  reservation, so retries never over-count.
+- **Self-upgrade is fail-closed.** In Stripe mode a plan change applies only after a
+  real Checkout session is created — a misconfigured price or a Stripe outage returns
+  an error instead of silently granting a free upgrade. The direct `POST /v1/billing/plan`
+  switch is rejected in Stripe mode. Paid add-ons (extra seats, dedicated IP, sub-tenant
+  packs, AI-credit packs) are also refused via self-serve in Stripe mode until
+  subscription-item billing is wired, so they can't be self-granted for free.
+- **AI spend is capped.** AI drafts and the assistant meter against the plan's AI-credit
+  allowance (plus purchased packs) and are rate-limited (20/min and 10/min); over-allowance
+  calls return `402`.
+- **Test mode can't send real mail or consume quota** — sandbox sends route to the mock
+  provider and are never metered.
+
+## Known follow-ups / blocked
+- **Overage metering to Stripe** — paid plans surface overage on the in-app bill but
+  don't yet report metered usage to Stripe (needs the overage price IDs). Until then
+  overage is shown, not charged, and high-volume paid sends are not hard-blocked (by
+  design — overage plans bill rather than block).
+- Minor: the AI-credit check is read-then-record (not yet atomic like the send quota);
+  the per-route rate limits bound any concurrent overshoot.
+- A dedicated dependency/secret-scanning step in CI.
+- Full accessibility/UX audit (workstream 2.3).
