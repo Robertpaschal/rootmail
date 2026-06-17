@@ -158,6 +158,7 @@ function EndpointCard({ endpoint }: { endpoint: WebhookEndpoint }) {
             variant="ghost"
             onClick={remove}
             disabled={pending}
+            aria-label="Delete endpoint"
             className="ml-auto text-muted-foreground hover:text-destructive"
           >
             <Trash2 className="size-4" />

@@ -152,12 +152,16 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 - [x] Toasts (sonner, global).
 - [x] Global search / **⌘K command palette** (+ topbar trigger).
 
-**Follow-ups (deferred — net-new features / ongoing polish):**
-- [ ] Asset library UI — needs a backend `GET /v1/assets` list endpoint first.
-- [ ] Webhook-delivery log/console — needs the webhook API wired into the client.
-- [ ] Richer sequence/campaign/enrollment views.
-- [ ] Mobile responsiveness + a11y (cross-cutting).
-- [ ] Starter template on signup.
+**Follow-ups:**
+- [x] Asset library UI — `GET /v1/assets` + dashboard grid (upload, copy-URL).
+- [x] Webhook console + delivery log — `GET …/:id/deliveries` + dashboard CRUD,
+      secret-once reveal, enable/disable, expandable per-endpoint delivery log.
+- [x] Richer sequence/campaign/enrollment views — already present (campaign stats;
+      sequence enrollments with per-status badges).
+- [x] Starter template on signup — already seeded in `provisionAccount`.
+- [ ] **Mobile responsiveness + a11y** — responsive Tailwind is used throughout;
+      new components are labeled. A full a11y audit (aria-labels on every icon-only
+      button, focus order, contrast) is worth a dedicated pass — its own ticket.
 
 ---
 
