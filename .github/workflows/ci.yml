@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: typecheck + build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm build
+
+  e2e:
+    name: e2e smoke
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rootmail
+          POSTGRES_PASSWORD: rootmail
+          POSTGRES_DB: rootmail
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rootmail"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgres://rootmail:rootmail@localhost:5432/rootmail
+      REDIS_URL: redis://localhost:6379
+      MAIL_PROVIDER: mock
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Migrate, seed, run the smoke
+        run: |
+          pnpm db:migrate
+          KEY=$(pnpm db:seed 2>&1 | grep -oE 'rm_live_[A-Za-z0-9_-]+' | head -1)
+          test -n "$KEY" || { echo "no API key from seed"; exit 1; }
+          pnpm --filter @rootmail/api exec tsx src/index.ts > /tmp/api.log 2>&1 &
+          pnpm --filter @rootmail/worker exec tsx src/index.ts > /tmp/worker.log 2>&1 &
+          for i in $(seq 1 60); do curl -sf http://localhost:4000/health >/dev/null && break; sleep 2; done
+          ROOTMAIL_API_KEY="$KEY" pnpm exec tsx scripts/smoke.ts
+      - name: Service logs (on failure)
+        if: failure()
+        run: tail -n 80 /tmp/api.log /tmp/worker.log 2>/dev/null || true

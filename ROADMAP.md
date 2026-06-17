@@ -227,7 +227,7 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
       smoke, which now covers the dashboard's write surface. Browser e2e (Playwright)
       deferred to Phase 8 CI.
   - ◇ **Checkpoint:** `docs+test: e2e + security pass`. ✅
-  - [ ] Follow-up: wire `pnpm smoke` (+ typecheck/build) into CI in Phase 8.
+  - [x] Follow-up: `pnpm smoke` (+ typecheck/build) wired into CI (Phase 8).
 
 ---
 
@@ -252,13 +252,17 @@ admin-scoped, cross-org API. CRM-shaped.
 
 ## Phase 8 — Infra & launch ops  *(Track C — overlaps A)*
 
-- [ ] Deploy api/worker/dashboards; **managed Postgres/Redis** — wire RDS
-      (`rootmail.culya0sie5af...`, needs master user + db + `sslmode`) + ElastiCache
-      (`gateml-redis-ytrhu7...`, VPC-only) **from inside the VPC**.
-- [ ] CI/CD + prod migrations + secrets management.
+- [x] **CI** — `.github/workflows/ci.yml`: typecheck + build gates + an e2e job
+      (Postgres/Redis services → migrate → seed → api+worker on mock → 27-check smoke).
+- [x] **Container images** — `apps/api/Dockerfile` + `apps/worker/Dockerfile` (+ `.dockerignore`).
+- [x] **Deploy guide** — `DEPLOY.md`: components, infra (VPC/SSL), env/secrets,
+      the prod-migration release step, webhook setup.
+- [ ] **Needs your infra:** deploy api/worker/dashboards; wire **managed Postgres/Redis**
+      (RDS `rootmail.culya0sie5af…` master user+db+`sslmode`; ElastiCache
+      `gateml-redis-ytrhu7…`, VPC-only) **from inside the VPC**; prod secrets manager.
 - [ ] Observability (logs/metrics/alerts) + queue monitoring; backups; status page.
 - [ ] Domain + email DNS (prod `rootmail.io`); OpenAPI/SDK docs + changelog; load tests.
-  - ◇ **Checkpoints:** per area.
+  - ◇ **Checkpoints:** CI + Docker + DEPLOY.md done; the rest needs the target platform.
 
 ---
 
