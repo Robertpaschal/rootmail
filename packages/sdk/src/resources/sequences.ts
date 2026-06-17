@@ -38,4 +38,12 @@ export class Sequences {
   enrollments(id: string): Promise<ListResponse<Enrollment>> {
     return this.client.request({ method: "GET", path: `/v1/sequences/${id}/enrollments` });
   }
+
+  /** Remove a contact from a sequence (stops further steps). */
+  cancelEnrollment(id: string, enrollmentId: string): Promise<Enrollment> {
+    return this.client.request({
+      method: "POST",
+      path: `/v1/sequences/${id}/enrollments/${enrollmentId}/cancel`,
+    });
+  }
 }

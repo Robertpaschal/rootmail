@@ -146,13 +146,30 @@ async function main() {
   check("sequences.enroll + enrollments", (await mail.sequences.enrollments(seq.id)).data.length >= 1);
   check("sequences.delete", (await mail.sequences.delete(seq.id)).deleted);
 
-  // Campaigns (create/delete only — no blast)
+  // Campaigns (create/get/update/delete only — no blast)
   const camp = await mail.campaigns.create({ name: `Smoke campaign ${Date.now()}` });
   check("campaigns.create", Boolean(camp.id), camp.id);
+  check("campaigns.get", (await mail.campaigns.get(camp.id)).id === camp.id);
+  check("campaigns.update", (await mail.campaigns.update(camp.id, { name: "Renamed" })).name === "Renamed");
   check("campaigns.delete", (await mail.campaigns.delete(camp.id)).deleted);
 
   // Threads (Layer 2 — opened by earlier sends)
   check("threads.list", Array.isArray((await mail.threads.list()).data));
+
+  // Webhooks (endpoint management + signing secret + delivery log)
+  const hook = await mail.webhooks.create({
+    url: "https://example.com/rootmail-hook",
+    events: ["message.delivered"],
+    description: "smoke",
+  });
+  check("webhooks.create returns signing secret", hook.secret?.startsWith("whsec_"), hook.id);
+  check("webhooks.list", (await mail.webhooks.list()).data.some((w) => w.id === hook.id));
+  check(
+    "webhooks.update",
+    (await mail.webhooks.update(hook.id, { status: "disabled" })).status === "disabled",
+  );
+  check("webhooks.deliveries", Array.isArray((await mail.webhooks.deliveries(hook.id)).data));
+  check("webhooks.delete", (await mail.webhooks.delete(hook.id)).deleted);
 
   console.log(`\n${"=".repeat(52)}`);
   console.log(`  RESULT: ${passed} passed, ${failed} failed`);

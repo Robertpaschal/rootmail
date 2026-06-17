@@ -15,4 +15,9 @@ export class Threads {
   reply(id: string, body: { html?: string; text?: string }): Promise<Thread> {
     return this.client.request({ method: "POST", path: `/v1/threads/${id}/reply`, body });
   }
+
+  /** Test helper — simulate an inbound reply landing on this thread. */
+  simulateReply(id: string, body: { body_text?: string } = {}): Promise<Thread> {
+    return this.client.request({ method: "POST", path: `/v1/threads/${id}/simulate-reply`, body });
+  }
 }

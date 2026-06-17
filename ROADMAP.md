@@ -108,10 +108,21 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
       `db:seed`. Documented in CLAUDE.md + DEPLOY.md. Verified end-to-end (create →
       login; password reset → old fails, new works).
 
-### 5. API / SDK / docs contract
-- [ ] **5.1** SDK parity for every public endpoint; consistent error shapes +
-      snake/camel mapping; `scripts/smoke.ts` covers the full surface.
-- [ ] **5.2** (Optional) generate OpenAPI as the single source for the API reference.
+### 5. API / SDK / docs contract *(branch `feat/api-sdk-docs`)*
+- [x] **5.1** SDK parity closed for the developer (API-key) surface — added
+      `campaigns.get/update`, `sequences.cancelEnrollment`, `threads.simulateReply`,
+      and a full **`webhooks`** resource (CRUD + `deliveries`, signing secret on
+      create). Errors are consistent (`RootMailError` ← `error.type/message/details`),
+      snake/camel mapped at the boundary. `scripts/smoke.ts` now exercises the new
+      methods — **34 checks, all green**. README API reference + SDK README updated
+      (session/admin/webhook-inbound endpoints are intentionally web-app/staff-only,
+      not in the dev SDK). Docs verified: no stale "Layer 1 only", no dead links.
+- [~] **5.2 OpenAPI — deferred (not needed yet).** The contract is already accurate
+      and drift-guarded by the typed SDK + the README reference + the 34-check smoke
+      (it fails if the surface breaks). A generated spec pays off when a **public API**
+      with external integrators needs codegen / an interactive explorer — revisit then.
+      (Routes validate via Zod `parse()`, not JSON schemas, so it'd need a zod→openapi
+      pipeline.)
 
 ### 6. Admin console — remaining modules *(Phase 7 cont.)*
 - [ ] Analytics (revenue/usage/deliverability/AI-credit) — read-only, low-risk.

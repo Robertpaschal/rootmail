@@ -8,6 +8,26 @@ export class Campaigns {
     return this.client.request({ method: "GET", path: "/v1/campaigns" });
   }
 
+  get(id: string): Promise<Campaign> {
+    return this.client.request({ method: "GET", path: `/v1/campaigns/${id}` });
+  }
+
+  update(
+    id: string,
+    params: { name?: string; listId?: string; templateId?: string; subject?: string },
+  ): Promise<Campaign> {
+    return this.client.request({
+      method: "PATCH",
+      path: `/v1/campaigns/${id}`,
+      body: {
+        name: params.name,
+        list_id: params.listId,
+        template_id: params.templateId,
+        subject: params.subject,
+      },
+    });
+  }
+
   create(params: { name: string; listId?: string; templateId?: string; subject?: string }): Promise<Campaign> {
     return this.client.request({
       method: "POST",

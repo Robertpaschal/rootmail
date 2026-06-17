@@ -9,4 +9,5 @@ export { Sequences } from "./resources/sequences";
 export { Lists } from "./resources/lists";
 export { Campaigns } from "./resources/campaigns";
 export { Threads } from "./resources/threads";
+export { Webhooks } from "./resources/webhooks";
 export * from "./types";
