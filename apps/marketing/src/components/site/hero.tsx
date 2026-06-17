@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { CodeBlock } from "./code-block";
+import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
 const snippet = `import { RootMail } from "@rootmail/node";
@@ -35,7 +36,7 @@ export function Hero() {
               <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
                 New
               </span>
-              Sub-tenancy is live in Phase 1
+              All three layers are live
               <ArrowRight className="size-3" />
             </Badge>
           </Link>
@@ -54,10 +55,10 @@ export function Hero() {
           </p>
 
           <div className="flex flex-col items-center gap-3 sm:flex-row">
-            <Link href="#cta" className={cn(buttonVariants({ size: "lg" }))}>
+            <Link href={signupUrl} className={cn(buttonVariants({ size: "lg" }))}>
               Start sending <ArrowRight className="size-4" />
             </Link>
-            <Link href="#code" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
+            <Link href="/docs" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
               <BookOpen className="size-4" /> Read the docs
             </Link>
           </div>

@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { Github } from "lucide-react";
 import { Logo } from "./logo";
+
+const CONTACT_EMAIL = "support@rootmail.io";
 
 const columns = [
   {
@@ -9,25 +10,14 @@ const columns = [
       { label: "Platform", href: "/#layers" },
       { label: "Features", href: "/#features" },
       { label: "Pricing", href: "/pricing" },
-      { label: "Changelog", href: "#" },
     ],
   },
   {
     title: "Developers",
     links: [
       { label: "Documentation", href: "/docs" },
-      { label: "Node SDK", href: "/docs" },
       { label: "API reference", href: "/docs" },
-      { label: "Status", href: "#" },
-    ],
-  },
-  {
-    title: "Company",
-    links: [
-      { label: "About", href: "#" },
-      { label: "Blog", href: "#" },
-      { label: "Careers", href: "#" },
-      { label: "Contact", href: "#" },
+      { label: "Node SDK", href: "/docs" },
     ],
   },
   {
@@ -45,7 +35,7 @@ export function Footer() {
   return (
     <footer className="border-t border-border/60">
       <div className="container py-14">
-        <div className="grid gap-10 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
+        <div className="grid gap-10 lg:grid-cols-[1.5fr_repeat(3,1fr)]">
           <div className="max-w-xs">
             <Logo />
             <p className="mt-4 text-sm text-muted-foreground">
@@ -77,19 +67,12 @@ export function Footer() {
           <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} rootmail. All rights reserved.
           </p>
-          <div className="flex items-center gap-4">
-            <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
-              <span className="size-2 rounded-full bg-emerald-500" />
-              All systems operational
-            </span>
-            <Link
-              href="#"
-              aria-label="GitHub"
-              className="text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <Github className="size-5" />
-            </Link>
-          </div>
+          <Link
+            href={`mailto:${CONTACT_EMAIL}`}
+            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {CONTACT_EMAIL}
+          </Link>
         </div>
       </div>
     </footer>

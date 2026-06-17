@@ -12,7 +12,7 @@ const faqs = [
   },
   {
     q: "Is there an SDK?",
-    a: "Yes — @rootmail/node ships today with a fully typed client and withSubTenant() scoping. A Python SDK is on the Phase 2 roadmap.",
+    a: "Yes — @rootmail/node ships today with a fully typed client and withSubTenant() scoping, covering messages, sub-tenants, templates, sequences, lists, campaigns, threads, and proof. A Python SDK is planned.",
   },
   {
     q: "What's the difference between live and test keys?",
@@ -23,8 +23,8 @@ const faqs = [
     a: "rootmail is a standard TypeScript monorepo — a Fastify API, a BullMQ worker, Postgres, and Redis — so it runs anywhere Docker does. Managed cloud hosting is on the roadmap.",
   },
   {
-    q: "When do Conversation and Proof ship?",
-    a: "Layer 1 (Identity & Sending) is live now. Layer 2 (Conversation: inbound parsing, threads, shared inbox) and Layer 3 (Proof: signed lifecycle bundles) are the next milestones.",
+    q: "Are Conversation and Proof available yet?",
+    a: "Yes — all three layers are live today. Layer 2 (Conversation) gives you inbound parsing, threads, a shared inbox, and exit-on-reply; Layer 3 (Proof) gives you Ed25519-signed, exportable lifecycle bundles with a content hash. Turn each on as you need it — same API, nothing to migrate.",
   },
 ];
 
