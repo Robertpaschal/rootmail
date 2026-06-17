@@ -1,5 +1,6 @@
 import { getStaffToken } from "./session";
 import type {
+  AdminAnalytics,
   ListResponse,
   LoginResult,
   MessageDetail,
@@ -98,5 +99,7 @@ export const adminApi = {
       method: "POST",
       body: {},
     }),
+
+  analytics: () => adminFetch<AdminAnalytics>("/v1/admin/analytics"),
 };
 

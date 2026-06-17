@@ -61,6 +61,23 @@ export interface ListResponse<T> {
   data: T[];
 }
 
+export interface AdminAnalytics {
+  object: "admin_analytics";
+  period: string;
+  orgs: { total: number; paid: number; by_plan: Record<string, number> };
+  revenue: { currency: string; mrr_estimate: number; by_plan: Record<string, number> };
+  volume: { emails_this_period: number; trend: { period: string; emails: number }[] };
+  deliverability: {
+    total: number;
+    by_status: Record<string, number>;
+    delivered_rate: number;
+    bounce_rate: number;
+    complaint_rate: number;
+  };
+  ai: { credits_this_period: number };
+  growth: { new_orgs_30d: number; prev_30d: number; change_pct: number | null };
+}
+
 export interface MessageSummary {
   id: string;
   object: "message";
