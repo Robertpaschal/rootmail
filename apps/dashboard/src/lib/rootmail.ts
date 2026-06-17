@@ -3,6 +3,7 @@ import type {
   AiDraftResponse,
   ApiKey,
   Asset,
+  CreatedWebhookEndpoint,
   AssistantResponse,
   AuditTrail,
   AuthSession,
@@ -36,6 +37,8 @@ import type {
   Thread,
   ThreadStatus,
   VerifyResult,
+  WebhookDelivery,
+  WebhookEndpoint,
 } from "./types";
 
 /** Where the rootmail REST API lives. The dashboard only ever calls it server-side. */
@@ -307,6 +310,18 @@ export const api = {
   deleteRole: (id: string) => rmFetch<{ deleted: boolean }>(`/v1/roles/${id}`, { method: "DELETE" }),
   revokeInvite: (id: string) =>
     rmFetch<{ deleted: boolean }>(`/v1/invitations/${id}`, { method: "DELETE" }),
+
+  listWebhooks: () => rmFetch<ListResponse<WebhookEndpoint>>("/v1/webhook-endpoints"),
+  createWebhook: (body: { url: string; events?: string[]; description?: string }) =>
+    rmFetch<CreatedWebhookEndpoint>("/v1/webhook-endpoints", { method: "POST", body }),
+  updateWebhook: (
+    id: string,
+    body: Partial<{ url: string; events: string[]; description: string | null; status: "active" | "disabled" }>,
+  ) => rmFetch<WebhookEndpoint>(`/v1/webhook-endpoints/${id}`, { method: "PATCH", body }),
+  deleteWebhook: (id: string) =>
+    rmFetch<{ deleted: boolean }>(`/v1/webhook-endpoints/${id}`, { method: "DELETE" }),
+  webhookDeliveries: (id: string) =>
+    rmFetch<ListResponse<WebhookDelivery>>(`/v1/webhook-endpoints/${id}/deliveries`),
 
   listApiKeys: () => rmFetch<ListResponse<ApiKey>>("/v1/api-keys"),
   createApiKey: (body: { name: string }) =>
