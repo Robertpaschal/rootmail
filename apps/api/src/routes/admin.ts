@@ -1,10 +1,11 @@
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { Errors, verifyPassword } from "@rootmail/core";
+import { Errors, generateSessionToken, newId, verifyPassword } from "@rootmail/core";
 import {
   auditEntries,
   db,
+  impersonationGrants,
   type Message,
   memberships,
   messages,
@@ -20,8 +21,10 @@ import {
   createStaffSession,
   deleteStaffSession,
   requireStaff,
+  requireStaffRole,
   serializeStaff,
   staffBearer,
+  writeStaffAudit,
 } from "../lib/admin-auth";
 import { currentPeriod } from "../lib/billing";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
@@ -129,7 +132,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     const wsIds = ws.map((w) => w.id);
 
     const members = await db
-      .select({ email: users.email, name: users.name, role: memberships.role })
+      .select({ user_id: users.id, email: users.email, name: users.name, role: memberships.role })
       .from(memberships)
       .innerJoin(users, eq(users.id, memberships.userId))
       .where(eq(memberships.organizationId, id));
@@ -230,5 +233,36 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       workspace_id: message.workspaceId,
       audit: trail.map(serializeAudit),
     };
+  });
+
+  // --- Impersonation (support/superadmin only) ----------------------------
+  // Mints a ONE-TIME, 60s handoff code. The dashboard exchanges it for a
+  // short-lived, impersonation-marked customer session — the session token
+  // never travels in a URL. Every grant is written to the staff audit log.
+  app.post("/v1/admin/users/:userId/impersonate", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff, "support"); // superadmin auto-passes; readonly is rejected
+    const { userId } = req.params as { userId: string };
+    const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (!user) throw Errors.notFound("User not found");
+
+    const { token: code, hash } = generateSessionToken();
+    const expiresAt = new Date(Date.now() + 60_000);
+    await db.insert(impersonationGrants).values({
+      id: newId("impersonationGrant"),
+      codeHash: hash,
+      staffUserId: staff.id,
+      targetUserId: userId,
+      expiresAt,
+    });
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "impersonate.grant",
+      targetType: "user",
+      targetId: userId,
+      metadata: { email: user.email },
+      ip: req.ip,
+    });
+    return { code, expires_at: expiresAt };
   });
 }

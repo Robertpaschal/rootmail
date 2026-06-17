@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
 import { Errors, generateSessionToken, newId, sha256Hex, type StaffRole } from "@rootmail/core";
-import { db, type StaffUser, staffSessions, staffUsers } from "@rootmail/db";
+import { db, staffAudit, type StaffUser, staffSessions, staffUsers } from "@rootmail/db";
 
 // Staff sessions are deliberately separate from customer sessions, and shorter
 // lived — apps/admin authenticates here, never with a customer key/session.
@@ -61,4 +61,24 @@ export function requireStaffRole(staff: StaffUser, ...roles: StaffRole[]): void 
 
 export function serializeStaff(s: StaffUser) {
   return { object: "staff_user", id: s.id, email: s.email, name: s.name, role: s.role };
+}
+
+/** Append-only record of a privileged staff action. Never blocks the action. */
+export async function writeStaffAudit(entry: {
+  staffUserId: string;
+  action: string;
+  targetType?: string;
+  targetId?: string;
+  metadata?: Record<string, unknown>;
+  ip?: string;
+}): Promise<void> {
+  await db.insert(staffAudit).values({
+    id: newId("staffAudit"),
+    staffUserId: entry.staffUserId,
+    action: entry.action,
+    targetType: entry.targetType ?? null,
+    targetId: entry.targetId ?? null,
+    metadata: entry.metadata ?? {},
+    ip: entry.ip ?? null,
+  });
 }

@@ -35,6 +35,8 @@ export const ID_PREFIXES = {
   authToken: "atk",
   staffUser: "stf",
   staffSession: "sts",
+  staffAudit: "sta",
+  impersonationGrant: "img",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

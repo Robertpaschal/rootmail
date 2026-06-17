@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/app/status-badge";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import { ImpersonateButton } from "./impersonate-button";
 
 export const metadata: Metadata = { title: "Organization" };
 
@@ -128,15 +129,19 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
                   <TableHead>Email</TableHead>
                   <TableHead>Name</TableHead>
                   <TableHead>Role</TableHead>
+                  <TableHead className="text-right">Support</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {org.members.map((m) => (
-                  <TableRow key={m.email}>
+                  <TableRow key={m.user_id}>
                     <TableCell className="font-medium">{m.email}</TableCell>
                     <TableCell className="text-muted-foreground">{m.name ?? "—"}</TableCell>
                     <TableCell>
                       <Badge variant="secondary">{m.role}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <ImpersonateButton userId={m.user_id} email={m.email} />
                     </TableCell>
                   </TableRow>
                 ))}

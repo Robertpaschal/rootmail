@@ -33,6 +33,7 @@ export interface OrgWorkspace {
 }
 
 export interface OrgMember {
+  user_id: string;
   email: string;
   name: string | null;
   role: string;

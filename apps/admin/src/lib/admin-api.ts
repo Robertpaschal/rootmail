@@ -92,5 +92,11 @@ export const adminApi = {
   listOrgMessages: (id: string, limit = 25) =>
     adminFetch<ListResponse<MessageSummary>>(`/v1/admin/orgs/${id}/messages?limit=${limit}`),
   getMessage: (id: string) => adminFetch<MessageDetail>(`/v1/admin/messages/${id}`),
+
+  impersonate: (userId: string) =>
+    adminFetch<{ code: string; expires_at: string }>(`/v1/admin/users/${userId}/impersonate`, {
+      method: "POST",
+      body: {},
+    }),
 };
 

@@ -147,6 +147,8 @@ export interface MeResult {
   user: User;
   workspaces: Workspace[];
   active_workspace: Workspace | null;
+  /** True when a staff member is impersonating this user for support. */
+  impersonating?: boolean;
 }
 
 export type PlanId = "free" | "pro" | "scale" | "enterprise";

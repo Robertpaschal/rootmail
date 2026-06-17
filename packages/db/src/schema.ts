@@ -256,6 +256,11 @@ export const sessions = pgTable(
     }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+    // Set when a staff member is impersonating this user for support — lets the
+    // dashboard show a banner and keeps the action auditable.
+    impersonatedByStaffId: text("impersonated_by_staff_id").references(() => staffUsers.id, {
+      onDelete: "set null",
+    }),
     createdAt: createdAt(),
   },
   (t) => [index("sessions_user_idx").on(t.userId)],
@@ -709,11 +714,52 @@ export const staffSessions = pgTable(
   (t) => [index("staff_sessions_user_idx").on(t.staffUserId)],
 );
 
+// Append-only log of privileged staff actions (impersonation, etc.).
+export const staffAudit = pgTable(
+  "staff_audit",
+  {
+    id: text("id").primaryKey(),
+    staffUserId: text("staff_user_id")
+      .notNull()
+      .references(() => staffUsers.id, { onDelete: "cascade" }),
+    action: text("action").notNull(),
+    targetType: text("target_type"),
+    targetId: text("target_id"),
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    ip: text("ip"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("staff_audit_staff_idx").on(t.staffUserId, t.createdAt)],
+);
+
+// One-time, short-lived handoff codes for impersonation. The staff app gets a
+// code; the dashboard exchanges it for a real (impersonated) customer session,
+// so the session token never travels in a URL.
+export const impersonationGrants = pgTable(
+  "impersonation_grants",
+  {
+    id: text("id").primaryKey(),
+    codeHash: text("code_hash").notNull().unique(),
+    staffUserId: text("staff_user_id")
+      .notNull()
+      .references(() => staffUsers.id, { onDelete: "cascade" }),
+    targetUserId: text("target_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("impersonation_grants_target_idx").on(t.targetUserId)],
+);
+
 // ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
 export type StaffUser = typeof staffUsers.$inferSelect;
 export type StaffSession = typeof staffSessions.$inferSelect;
+export type StaffAudit = typeof staffAudit.$inferSelect;
+export type ImpersonationGrant = typeof impersonationGrants.$inferSelect;
 export type User = typeof users.$inferSelect;
 export type AuthToken = typeof authTokens.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
