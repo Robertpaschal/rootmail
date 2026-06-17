@@ -27,6 +27,7 @@ import type {
   LoginResult,
   MeResult,
   MfaActivated,
+  Organization,
   MfaSetup,
   Message,
   MessageStatus,
@@ -349,6 +350,10 @@ export const api = {
     rmFetch<{ reset: boolean }>("/v1/auth/reset-password", { method: "POST", body, noAuth: true }),
   me: () => rmFetch<MeResult>("/v1/auth/me"),
   logout: () => rmFetch<{ ok: boolean }>("/v1/auth/logout", { method: "POST" }),
+
+  getOrganization: () => rmFetch<Organization>("/v1/organization"),
+  updateOrganization: (body: { name?: string; postal_address?: string | null }) =>
+    rmFetch<Organization>("/v1/organization", { method: "PATCH", body }),
 };
 
 /**

@@ -151,6 +151,14 @@ export interface MeResult {
 
 export type PlanId = "free" | "pro" | "scale" | "enterprise";
 
+export interface Organization {
+  object: "organization";
+  id: string;
+  name: string;
+  plan: PlanId;
+  postal_address: string | null;
+}
+
 export interface Plan {
   id: PlanId;
   name: string;

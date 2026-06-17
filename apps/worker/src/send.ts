@@ -1,5 +1,6 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
+  appendComplianceFooter,
   type AuditEvent,
   enqueueSend,
   enqueueWebhookEvent,
@@ -10,7 +11,7 @@ import {
   unsubscribeUrl,
   WEBHOOK_EVENTS,
 } from "@rootmail/core";
-import { auditEntries, contacts, db, messages, suppressions, usageRecords } from "@rootmail/db";
+import { auditEntries, contacts, db, messages, organizations, suppressions, usageRecords } from "@rootmail/db";
 
 // Shared send primitive for worker-driven automation (sequences + campaigns).
 // Mirrors the API's dispatchMessage (apps/api/src/lib/dispatch.ts) but lives in
@@ -76,12 +77,33 @@ export async function automationSend(
     ...(input.variables ?? {}),
     unsubscribe_url: unsubscribeUrl({ w: input.workspaceId, e: input.to, s: input.subTenantId }),
   };
-  const rendered = render({
+  let rendered = render({
     subject: input.subject,
     html: input.html,
     text: input.text ?? null,
     variables,
   });
+  // CAN-SPAM: campaigns/sequences are commercial mail — append the sender's
+  // postal address + unsubscribe BEFORE hashing (so Layer-3 proof matches the
+  // sent email). Transactional automation, if any, is exempt.
+  if (input.type === "marketing" || input.type === "sales") {
+    let postalAddress: string | null = null;
+    if (input.organizationId) {
+      const [o] = await db
+        .select({ a: organizations.postalAddress })
+        .from(organizations)
+        .where(eq(organizations.id, input.organizationId))
+        .limit(1);
+      postalAddress = o?.a ?? null;
+    }
+    rendered = {
+      ...rendered,
+      ...appendComplianceFooter(rendered, {
+        postalAddress,
+        unsubscribeUrl: variables.unsubscribe_url,
+      }),
+    };
+  }
   const contentHash = sha256Hex(rendered.html);
 
   const suppRows = await db

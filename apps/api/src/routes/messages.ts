@@ -2,6 +2,7 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  appendComplianceFooter,
   enqueueSend,
   env,
   Errors,
@@ -196,12 +197,24 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       unsubscribe_url: unsubscribeUrl({ w: workspace.id, e: toEmail, s: subTenantId }),
     };
 
-    const rendered = render({
+    let rendered = render({
       subject: subjectSrc,
       html: htmlSrc,
       text: textSrc,
       variables,
     });
+    // CAN-SPAM: marketing/sales mail must carry the sender's postal address + an
+    // unsubscribe link. Inject BEFORE hashing so the Layer-3 proof matches the
+    // email actually sent. Transactional mail is exempt.
+    if (body.type === "marketing" || body.type === "sales") {
+      rendered = {
+        ...rendered,
+        ...appendComplianceFooter(rendered, {
+          postalAddress: org?.postalAddress ?? null,
+          unsubscribeUrl: variables.unsubscribe_url,
+        }),
+      };
+    }
     const contentHash = sha256Hex(rendered.html);
     const from = resolveFrom(body.from, subTenant, workspace);
     const contact = await findContact(workspace.id, subTenantId, toEmail);

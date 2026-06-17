@@ -110,6 +110,8 @@ export const organizations = pgTable("organizations", {
   stripeSubscriptionId: text("stripe_subscription_id"),
   planStatus: planStatusEnum("plan_status").notNull().default("active"),
   billingInterval: billingIntervalEnum("billing_interval").notNull().default("month"),
+  // Physical postal address shown in the CAN-SPAM footer on marketing/sales mail.
+  postalAddress: text("postal_address"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
