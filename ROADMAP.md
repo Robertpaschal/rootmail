@@ -125,7 +125,10 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
       pipeline.)
 
 ### 6. Admin console — remaining modules *(Phase 7 cont.)*
-- [ ] Analytics (revenue/usage/deliverability/AI-credit) — read-only, low-risk.
+- [x] **Analytics** *(branch `feat/admin-analytics`)* — `GET /v1/admin/analytics`
+      (plan mix + MRR estimate, email volume + trend, deliverability rates, AI
+      credits, 30d growth) and an Analytics page (stat cards + plan-mix /
+      deliverability / volume bars). curl + browser verified.
 - [ ] Suppression management (view/clear a customer's suppressions).
 - [ ] Billing ops (Stripe subscription view + credits/comps/refunds/dunning).
 - [ ] Pricing management — plans/add-ons/AI-credits **data-driven** + Stripe-synced.

@@ -1,7 +1,7 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { Errors, generateSessionToken, newId, verifyPassword } from "@rootmail/core";
+import { Errors, generateSessionToken, newId, PLANS, verifyPassword } from "@rootmail/core";
 import {
   auditEntries,
   db,
@@ -264,5 +264,109 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { code, expires_at: expiresAt };
+  });
+
+  // --- Platform analytics (read-only) -------------------------------------
+  app.get("/v1/admin/analytics", async (req) => {
+    await requireStaff(req);
+    const period = currentPeriod();
+
+    // Plan mix + MRR estimate (active paid orgs × list price; Enterprise = custom).
+    const planRows = await db
+      .select({
+        plan: organizations.plan,
+        status: organizations.planStatus,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(organizations)
+      .groupBy(organizations.plan, organizations.planStatus);
+
+    const byPlan: Record<string, number> = { free: 0, pro: 0, scale: 0, enterprise: 0 };
+    const revenueByPlan: Record<string, number> = { pro: 0, scale: 0 };
+    let totalOrgs = 0;
+    let paidOrgs = 0;
+    let mrr = 0;
+    for (const r of planRows) {
+      byPlan[r.plan] = (byPlan[r.plan] ?? 0) + r.n;
+      totalOrgs += r.n;
+      const price = PLANS[r.plan]?.price ?? null;
+      if (price && price > 0) {
+        paidOrgs += r.n;
+        if (r.status === "active") {
+          mrr += price * r.n;
+          revenueByPlan[r.plan] = (revenueByPlan[r.plan] ?? 0) + price * r.n;
+        }
+      }
+    }
+
+    // Email + AI volume this period.
+    const [vol] = await db
+      .select({
+        emails: sql<number>`coalesce(sum(${usageRecords.emailsSent}),0)::int`,
+        ai: sql<number>`coalesce(sum(${usageRecords.aiCreditsUsed}),0)::int`,
+      })
+      .from(usageRecords)
+      .where(eq(usageRecords.period, period));
+
+    // Volume trend — last 6 periods, oldest first for charting.
+    const trendDesc = await db
+      .select({
+        period: usageRecords.period,
+        emails: sql<number>`coalesce(sum(${usageRecords.emailsSent}),0)::int`,
+      })
+      .from(usageRecords)
+      .groupBy(usageRecords.period)
+      .orderBy(desc(usageRecords.period))
+      .limit(6);
+
+    // Deliverability — status breakdown of real (non-sandbox) messages.
+    const statusRows = await db
+      .select({ status: messages.status, n: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(eq(messages.sandbox, false))
+      .groupBy(messages.status);
+    const byStatus: Record<string, number> = {};
+    let totalMsgs = 0;
+    for (const s of statusRows) {
+      byStatus[s.status] = s.n;
+      totalMsgs += s.n;
+    }
+    const rate = (n: number) => (totalMsgs > 0 ? Math.round((n / totalMsgs) * 1000) / 10 : 0);
+
+    // Growth — new orgs in the last 30 days vs the prior 30.
+    const now = Date.now();
+    const d30 = new Date(now - 30 * 86_400_000);
+    const d60 = new Date(now - 60 * 86_400_000);
+    const [g] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(organizations)
+      .where(gte(organizations.createdAt, d30));
+    const [gp] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(organizations)
+      .where(and(gte(organizations.createdAt, d60), lt(organizations.createdAt, d30)));
+    const new30 = g?.n ?? 0;
+    const prev30 = gp?.n ?? 0;
+
+    return {
+      object: "admin_analytics",
+      period,
+      orgs: { total: totalOrgs, paid: paidOrgs, by_plan: byPlan },
+      revenue: { currency: "usd", mrr_estimate: mrr, by_plan: revenueByPlan },
+      volume: { emails_this_period: vol?.emails ?? 0, trend: trendDesc.reverse() },
+      deliverability: {
+        total: totalMsgs,
+        by_status: byStatus,
+        delivered_rate: rate(byStatus.delivered ?? 0),
+        bounce_rate: rate(byStatus.bounced ?? 0),
+        complaint_rate: rate(byStatus.complained ?? 0),
+      },
+      ai: { credits_this_period: vol?.ai ?? 0 },
+      growth: {
+        new_orgs_30d: new30,
+        prev_30d: prev30,
+        change_pct: prev30 > 0 ? Math.round(((new30 - prev30) / prev30) * 1000) / 10 : null,
+      },
+    };
   });
 }
