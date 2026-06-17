@@ -167,12 +167,17 @@ is `us-east-1`; a verified test recipient address for sandbox-era sends.
 
 ## Phase 4 — Marketing site  *(Track A4)*
 
-- [ ] Hero + sharpened value prop; the Layer 1/2/3 story.
-- [ ] Per-feature pages (sequences, campaigns, sub-tenancy, proof, AI).
-- [ ] Pricing clarity (aligned to constants) + interactive plan compare.
-- [ ] Quickstart / docs + live code samples; social proof / FAQ.
-- [ ] SEO/OG meta; legal (Terms / Privacy / DPA); signup→dashboard funnel.
-  - ◇ **Checkpoints:** per section.
+- [x] Hero + value prop + the Layer 1/2/3 story — already on the home page
+      (Hero, LayerModel, Features, SubTenancy, Cta).
+- [x] Quickstart / docs + live code samples — `/docs` (install → key → send +
+      template/sub-tenant samples); FAQ already on home.
+- [x] Legal — `/legal/{privacy,terms,dpa,security}` (templates, counsel-review note).
+- [x] SEO — `sitemap.ts` covers all routes; per-page metadata; robots present.
+      Footer/nav wired to the new pages; copyright fixed.
+- [ ] Polish (optional): dedicated per-feature pages; interactive monthly/yearly
+      pricing compare; per-page OG images; real signup→dashboard funnel URL
+      (needs the deployed app origin — Phase 8).
+  - ◇ **Checkpoints:** legal+docs+SEO done; rest is optional polish.
 
 ---
 

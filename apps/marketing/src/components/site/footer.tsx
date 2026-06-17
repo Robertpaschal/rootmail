@@ -15,9 +15,9 @@ const columns = [
   {
     title: "Developers",
     links: [
-      { label: "Documentation", href: "#" },
-      { label: "Node SDK", href: "/#code" },
-      { label: "API reference", href: "#" },
+      { label: "Documentation", href: "/docs" },
+      { label: "Node SDK", href: "/docs" },
+      { label: "API reference", href: "/docs" },
       { label: "Status", href: "#" },
     ],
   },
@@ -33,10 +33,10 @@ const columns = [
   {
     title: "Legal",
     links: [
-      { label: "Privacy", href: "#" },
-      { label: "Terms", href: "#" },
-      { label: "DPA", href: "#" },
-      { label: "Security", href: "#" },
+      { label: "Privacy", href: "/legal/privacy" },
+      { label: "Terms", href: "/legal/terms" },
+      { label: "DPA", href: "/legal/dpa" },
+      { label: "Security", href: "/legal/security" },
     ],
   },
 ];
@@ -75,7 +75,7 @@ export function Footer() {
 
         <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row">
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Acme. All rights reserved.
+            © {new Date().getFullYear()} rootmail. All rights reserved.
           </p>
           <div className="flex items-center gap-4">
             <span className="inline-flex items-center gap-2 text-sm text-muted-foreground">
