@@ -248,13 +248,21 @@ admin-scoped, cross-org API. CRM-shaped.
       staff login (server-side, `rm_staff_session` httpOnly cookie), Overview
       (cross-org totals), Organizations directory + org detail (workspaces /
       members / usage / account). Browser-verified end-to-end on the live API.
-- [ ] CRM — user/org profiles, activity, **impersonate** for support.
+- [x] **7.2a Support inspection** — org "Recent activity" (recent sends across
+      its workspaces) + a message detail view with delivery metadata, proof
+      `content_hash`, and the full audit timeline. Cross-org, staff-only, slim
+      payloads (no rendered body). curl + browser verified.
+- [x] **7.2b Impersonation** — "Impersonate" on an org member mints a ONE-TIME
+      60s handoff code (role-gated to support/superadmin; readonly → 403; every
+      grant in `staff_audit`); the dashboard `/impersonate` route exchanges it for
+      a short-lived (30m), impersonation-marked session (token never in a URL) and
+      shows a red banner + "Stop impersonating". Verified end-to-end.
 - [ ] Billing ops — Stripe subscriptions view, credits/overrides/refunds/comps, dunning.
 - [ ] Pricing management — make plans/add-ons/AI-credits **data-driven** + Stripe-synced.
 - [ ] Promotions — coupons, trials, discounts.
 - [ ] Comms — dogfood rootmail for announcements/lifecycle.
 - [ ] Sales — leads, deals, enterprise/custom-pricing quotes, pipeline.
-- [ ] Support tooling — inspect a customer's sends/audit/proof; suppression mgmt.
+- [ ] Suppression management — view/clear a customer's suppressions.
 - [ ] Analytics — revenue, churn, usage, deliverability, AI-credit consumption.
 - [ ] New tables as modules land: leads, deals, coupons, internal notes.
   - ◇ **Checkpoints:** per module.
