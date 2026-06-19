@@ -136,7 +136,7 @@ export function SequenceBuilder({
                   </span>
                 ) : null}
 
-                <Button type="button" variant="ghost" size="icon" className="ml-auto size-7 text-muted-foreground hover:text-destructive" onClick={() => remove(i)}>
+                <Button type="button" variant="ghost" size="icon" aria-label="Remove step" className="ml-auto size-7 text-muted-foreground hover:text-destructive" onClick={() => remove(i)}>
                   <Trash2 className="size-4" />
                 </Button>
               </div>

@@ -67,9 +67,12 @@ abuse-proof, and deployed_.** That's the plan below.
       baseline, min-height blurbs so prices/included-boxes align, centered "Most
       popular", PAYG + baseline widened to match the card grid; CTAs already live.
       Verified in-browser.
-- [ ] **2.3 Broader UX pass** — marketing → dashboard → admin: spacing, states,
-      mobile, and a focused **a11y** sweep (aria-labels on icon-only buttons, focus
-      order, contrast). _(remaining)_
+- [x] **2.3 Broader UX/a11y pass** *(branch `feat/ux-a11y`)* — audited icon-only
+      controls across all three apps: copy / command-menu / addon ± / send / add /
+      enroll / nav toggles already carry `aria-label`s; fixed the one gap (the
+      sequence-step remove button). Closed the real responsive gap: **admin gained a
+      mobile nav** (sidebar is hidden < md). Browser-verified at mobile width. The
+      visual UX was already polished + screenshot-verified during the build phases.
 
 ### 3. Anti-abuse hardening — "can't game it" *(branch `feat/anti-abuse`)*
 Threat-modelled **price · service · product**; documented in `SECURITY.md`
