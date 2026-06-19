@@ -70,9 +70,13 @@ hardening review. (For reporting a vulnerability, email security@rootmail.io.)
   switch is rejected in Stripe mode. Paid add-ons (extra seats, dedicated IP, sub-tenant
   packs, AI-credit packs) are also refused via self-serve in Stripe mode until
   subscription-item billing is wired, so they can't be self-granted for free.
-- **AI spend is capped.** AI drafts and the assistant meter against the plan's AI-credit
-  allowance (plus purchased packs) and are rate-limited (20/min and 10/min); over-allowance
-  calls return `402`.
+- **AI spend is capped and cost-aligned.** AI drafts and the assistant meter against the
+  plan's AI-credit allowance (plus purchased packs), rate-limited (20/min and 10/min);
+  over-allowance calls return `402`. Credits bill **per model call** (1 per token-bounded
+  call: a draft = 1; an agentic assistant run = 1 per step, capped at 6), so a heavier
+  request costs proportionally more — never the same flat rate regardless of work done.
+  Output is capped (`max_tokens`) and input is length-limited, so each call's cost is
+  bounded and a credit always covers it.
 - **Test mode can't send real mail or consume quota** — sandbox sends route to the mock
   provider and are never metered.
 
@@ -82,7 +86,7 @@ hardening review. (For reporting a vulnerability, email security@rootmail.io.)
   the overage prices recreated as recurring metered + their meter `event_name`s set
   (see ROADMAP "Blocked on you"). High-volume paid sends bill rather than block (by
   design).
-- Minor: the AI-credit check is read-then-record (not yet atomic like the send quota);
-  the per-route rate limits bound any concurrent overshoot.
+- Minor: the AI-credit check is read-then-record (not atomic like the send quota); the
+  per-route rate limits + the 6-call cap bound any boundary overshoot.
 - A dedicated dependency/secret-scanning step in CI.
 - Full accessibility/UX audit (workstream 2.3).

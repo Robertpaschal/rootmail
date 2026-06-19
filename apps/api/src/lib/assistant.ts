@@ -132,6 +132,8 @@ export interface AssistantResult {
   reply: string;
   actions: Array<{ tool: string; status: number }>;
   source: "claude" | "mock";
+  /** Billable AI credits = number of model calls made (1 per bounded call). */
+  calls: number;
 }
 
 export async function runAssistant(
@@ -139,15 +141,17 @@ export async function runAssistant(
   req: FastifyRequest,
   prompt: string,
 ): Promise<AssistantResult> {
-  if (!env.ANTHROPIC_API_KEY) return mockAssistant(app, req, prompt);
+  if (!env.ANTHROPIC_API_KEY) return { ...(await mockAssistant(app, req, prompt)), calls: 0 };
 
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
   const tools = TOOLS.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: prompt }];
   const actions: Array<{ tool: string; status: number }> = [];
+  let calls = 0;
 
   try {
     for (let step = 0; step < 6; step++) {
+      calls++; // each model call is one billable, token-bounded AI credit
       const resp = await client.messages.create({
         model: env.AI_MODEL,
         max_tokens: 1024,
@@ -182,12 +186,18 @@ export async function runAssistant(
         .filter((b): b is Anthropic.TextBlock => b.type === "text")
         .map((b) => b.text)
         .join("\n");
-      return { reply: reply || "Done.", actions, source: "claude" };
+      return { reply: reply || "Done.", actions, source: "claude", calls };
     }
-    return { reply: "That needed too many steps — try a more specific request.", actions, source: "claude" };
+    return {
+      reply: "That needed too many steps — try a more specific request.",
+      actions,
+      source: "claude",
+      calls,
+    };
   } catch (err) {
     console.warn(`[assistant] claude failed, using mock: ${String(err)}`);
-    return mockAssistant(app, req, prompt);
+    // The failed attempt(s) still consumed tokens — bill those calls.
+    return { ...(await mockAssistant(app, req, prompt)), calls };
   }
 }
 
@@ -209,7 +219,7 @@ async function mockAssistant(
   app: FastifyInstance,
   req: FastifyRequest,
   prompt: string,
-): Promise<AssistantResult> {
+): Promise<Omit<AssistantResult, "calls">> {
   const p = prompt.toLowerCase();
   const tool = (name: string) => TOOLS.find((t) => t.name === name)!;
   const actions: Array<{ tool: string; status: number }> = [];
