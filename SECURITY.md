@@ -77,10 +77,11 @@ hardening review. (For reporting a vulnerability, email security@rootmail.io.)
   provider and are never metered.
 
 ## Known follow-ups / blocked
-- **Overage metering to Stripe** — paid plans surface overage on the in-app bill but
-  don't yet report metered usage to Stripe (needs the overage price IDs). Until then
-  overage is shown, not charged, and high-volume paid sends are not hard-blocked (by
-  design — overage plans bill rather than block).
+- **Overage metering to Stripe** — wired (add-on subscription items live-verified;
+  overage reported via the Billing Meter, delta-tracked). Activation per plan needs
+  the overage prices recreated as recurring metered + their meter `event_name`s set
+  (see ROADMAP "Blocked on you"). High-volume paid sends bill rather than block (by
+  design).
 - Minor: the AI-credit check is read-then-record (not yet atomic like the send quota);
   the per-route rate limits bound any concurrent overshoot.
 - A dedicated dependency/secret-scanning step in CI.

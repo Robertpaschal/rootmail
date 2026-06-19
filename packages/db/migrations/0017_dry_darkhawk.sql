@@ -1,0 +1,1 @@
+ALTER TABLE "usage_records" ADD COLUMN "overage_reported_units" integer DEFAULT 0 NOT NULL;

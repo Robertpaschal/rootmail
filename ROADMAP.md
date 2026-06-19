@@ -130,7 +130,15 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
       credits, 30d growth) and an Analytics page (stat cards + plan-mix /
       deliverability / volume bars). curl + browser verified.
 - [ ] Suppression management (view/clear a customer's suppressions).
-- [ ] Billing ops (Stripe subscription view + credits/comps/refunds/dunning).
+- [x] **Billing wiring** *(branch `feat/stripe-billing`)* — checkout now builds the
+      full subscription (plan + add-ons + metered overage item); **add-on changes
+      sync to Stripe subscription items** (add/update/remove, with rollback if Stripe
+      fails — live-verified in test mode); **overage reported via the Billing Meter**
+      (delta-tracked, `usage_records.overage_reported_units`), lazy on bill view;
+      env split `STRIPE_PRICE_OVERAGE_PRO/_SCALE` + `STRIPE_METER_OVERAGE_PRO/_SCALE`.
+      `pnpm --filter @rootmail/api test:stripe` checks it. _Activation pending the
+      overage price/meter fix in "Blocked on you."_
+- [ ] Billing ops UI (admin Stripe subscription view + credits/comps/refunds/dunning).
 - [ ] Pricing management — plans/add-ons/AI-credits **data-driven** + Stripe-synced.
 - [ ] Promotions (coupons/trials/discounts) · Comms (dogfood lifecycle) ·
       Sales CRM (leads/deals/pipeline). New tables as each lands.
@@ -146,8 +154,12 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
 
 ## Blocked on you (inputs)
 - [ ] OAuth app credentials — Google, GitHub, Apple (→ 4.2).
-- [ ] Stripe **overage** usage prices: `STRIPE_PRICE_OVERAGE_PRO` ($0.85/1k),
-      `STRIPE_PRICE_OVERAGE_SCALE` ($0.70/1k) (→ 3.1 overage metering).
+- [ ] Stripe **overage**: the `STRIPE_PRICE_OVERAGE_PRO/_SCALE` you created are
+      `type=one_time` — recreate them as **recurring usage-based (metered)** prices
+      ($0.85 / $0.70 per unit = 1,000 emails), each backed by a **Billing Meter**,
+      then set `STRIPE_METER_OVERAGE_PRO/_SCALE` to the meters' `event_name`. The
+      code is wired + verified; it activates per-plan once both are set. (Add-on
+      subscription-item billing is already wired + live-verified.)
 - [ ] SES: exit sandbox (prod-access) + confirm region; prod sending DNS.
 - [ ] Infra: RDS master user + db + `sslmode`; ElastiCache reachable in-VPC; bastion/VPC plan.
 - [ ] Postal address value (Settings) for the CAN-SPAM footer.

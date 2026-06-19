@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
@@ -19,7 +19,7 @@ import { currentPeriod, type QuotaState, quotaState } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { type SeatState, seatState } from "../lib/seats";
-import { createCheckout } from "../lib/stripe";
+import { createCheckout, reportOverage, syncAddonItems } from "../lib/stripe";
 import { parse } from "../lib/validate";
 
 function serializePlan(p: PlanDef) {
@@ -131,6 +131,11 @@ async function orgForReq(req: FastifyRequest): Promise<Organization> {
 export async function billingRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/billing", async (req) => {
     const org = await orgForReq(req);
+    // Lazily push current-period overage to Stripe's metered item (best-effort —
+    // never block or fail the bill view on a Stripe round-trip).
+    if (BILLING_MODE === "stripe") {
+      void reportOverage(org).catch((err) => req.log.warn({ err }, "overage report failed"));
+    }
     return billingPayload(org, await quotaState(org));
   });
 
@@ -170,7 +175,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
 
   // Set an add-on quantity (extra seats, dedicated IP, sub-tenant packs, AI
   // credit packs). org_addons is the entitlement source of truth the app reads;
-  // real Stripe subscription-item billing syncs here once Stripe is configured.
+  // in Stripe mode the change is mirrored to the subscription as a billed item.
   app.post("/v1/billing/addons", async (req) => {
     const { addon_id, quantity } = parse(
       z.object({ addon_id: z.enum(ADD_ON_IDS), quantity: z.coerce.number().int().min(0).max(1000) }),
@@ -178,15 +183,21 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     );
     const org = await orgForReq(req);
     await requirePermission(req, "billing.manage");
-    // Fail CLOSED in Stripe mode: add-ons are paid entitlements (seats, dedicated
-    // IP, sub-tenant packs, AI credits). Until Stripe subscription-item billing is
-    // wired, self-serve granting would hand them out free — so block it here. In
-    // local/self-host mode there's no Stripe to bill, so it's applied directly.
-    if (BILLING_MODE === "stripe") {
-      throw Errors.badRequest(
-        "Add-ons are billed through your subscription — contact support to adjust them.",
-      );
+
+    // In Stripe mode, add-ons bill as subscription items, so the org needs an
+    // active subscription to attach them to (free orgs have none → upgrade first).
+    if (BILLING_MODE === "stripe" && !org.stripeSubscriptionId) {
+      throw Errors.badRequest("Start a paid plan before adding add-ons.");
     }
+
+    // Remember the prior quantity so we can roll back if the Stripe sync fails —
+    // we must never grant an un-billed entitlement.
+    const [priorRow] = await db
+      .select({ quantity: orgAddons.quantity })
+      .from(orgAddons)
+      .where(and(eq(orgAddons.organizationId, org.id), eq(orgAddons.addonId, addon_id)))
+      .limit(1);
+    const prior = priorRow?.quantity ?? 0;
 
     await db
       .insert(orgAddons)
@@ -195,6 +206,23 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
         target: [orgAddons.organizationId, orgAddons.addonId],
         set: { quantity, updatedAt: new Date() },
       });
+
+    if (BILLING_MODE === "stripe") {
+      try {
+        await syncAddonItems(org);
+      } catch (err) {
+        // Roll the entitlement back to its prior value, then surface the failure.
+        await db
+          .insert(orgAddons)
+          .values({ id: newId("orgAddon"), organizationId: org.id, addonId: addon_id, quantity: prior })
+          .onConflictDoUpdate({
+            target: [orgAddons.organizationId, orgAddons.addonId],
+            set: { quantity: prior, updatedAt: new Date() },
+          });
+        req.log.error({ err }, "addon stripe sync failed");
+        throw Errors.badRequest("Couldn't update your subscription — please try again.");
+      }
+    }
     return billingPayload(org, await quotaState(org));
   });
 

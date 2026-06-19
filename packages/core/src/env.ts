@@ -83,7 +83,13 @@ const EnvSchema = z.object({
   STRIPE_PRICE_SCALE: z.string().optional(),
   STRIPE_PRICE_PRO_YEAR: z.string().optional(),
   STRIPE_PRICE_SCALE_YEAR: z.string().optional(),
-  STRIPE_PRICE_OVERAGE: z.string().optional(),
+  // Metered overage prices — per plan, since the per-1,000 rate differs by tier.
+  // These must be usage-based prices backed by a Billing Meter; the meter's
+  // event_name goes in STRIPE_METER_OVERAGE_* below (used to report usage).
+  STRIPE_PRICE_OVERAGE_PRO: z.string().optional(),
+  STRIPE_PRICE_OVERAGE_SCALE: z.string().optional(),
+  STRIPE_METER_OVERAGE_PRO: z.string().optional(),
+  STRIPE_METER_OVERAGE_SCALE: z.string().optional(),
   STRIPE_PRICE_SEAT: z.string().optional(),
   STRIPE_PRICE_ADDON_DEDICATED_IP: z.string().optional(),
   STRIPE_PRICE_ADDON_SUBTENANT_PACK: z.string().optional(),
