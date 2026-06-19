@@ -11,28 +11,53 @@ const items = [
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
 ];
 
+function isActive(pathname: string, href: string): boolean {
+  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+}
+
 export function Nav() {
   const pathname = usePathname();
   return (
     <nav className="space-y-1">
-      {items.map((it) => {
-        const active = it.href === "/" ? pathname === "/" : pathname.startsWith(it.href);
-        return (
-          <Link
-            key={it.href}
-            href={it.href}
-            className={cn(
-              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-              active
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-            )}
-          >
-            <it.icon className="size-4" />
-            {it.label}
-          </Link>
-        );
-      })}
+      {items.map((it) => (
+        <Link
+          key={it.href}
+          href={it.href}
+          className={cn(
+            "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+            isActive(pathname, it.href)
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
+        >
+          <it.icon className="size-4" />
+          {it.label}
+        </Link>
+      ))}
+    </nav>
+  );
+}
+
+/** Horizontal nav shown on small screens, where the sidebar is hidden. */
+export function MobileNav() {
+  const pathname = usePathname();
+  return (
+    <nav className="flex gap-1 overflow-x-auto border-b bg-card px-3 py-2 md:hidden">
+      {items.map((it) => (
+        <Link
+          key={it.href}
+          href={it.href}
+          className={cn(
+            "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            isActive(pathname, it.href)
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+          )}
+        >
+          <it.icon className="size-4" />
+          {it.label}
+        </Link>
+      ))}
     </nav>
   );
 }

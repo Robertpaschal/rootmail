@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 import { adminApi, ConnectionError } from "@/lib/admin-api";
 import { Logo } from "@/components/app/logo";
-import { Nav } from "@/components/app/nav";
+import { MobileNav, Nav } from "@/components/app/nav";
 import { Topbar } from "@/components/app/topbar";
 import type { StaffUser } from "@/lib/types";
 
@@ -40,6 +40,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar staff={staff} />
+        <MobileNav />
         <main className="flex-1 p-6">{children}</main>
       </div>
     </div>
