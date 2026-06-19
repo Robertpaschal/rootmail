@@ -181,6 +181,9 @@ export const usageRecords = pgTable(
     emailsSent: integer("emails_sent").notNull().default(0),
     // AI template drafts used this period (metered against the plan's AI credits).
     aiCreditsUsed: integer("ai_credits_used").notNull().default(0),
+    // Overage units (1 unit = 1,000 emails) already reported to Stripe's meter
+    // this period — so we only ever report the delta (meters aggregate by sum).
+    overageReportedUnits: integer("overage_reported_units").notNull().default(0),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

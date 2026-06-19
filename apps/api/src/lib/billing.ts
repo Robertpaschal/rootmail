@@ -91,6 +91,34 @@ export async function recordAiUse(organizationId: string, n = 1): Promise<void> 
     });
 }
 
+/** Overage units (1 unit = 1,000 emails) already reported to Stripe this period. */
+export async function getReportedOverage(
+  organizationId: string,
+  period = currentPeriod(),
+): Promise<number> {
+  const [row] = await db
+    .select({ n: usageRecords.overageReportedUnits })
+    .from(usageRecords)
+    .where(and(eq(usageRecords.organizationId, organizationId), eq(usageRecords.period, period)))
+    .limit(1);
+  return row?.n ?? 0;
+}
+
+/** Persist the running total of overage units reported to Stripe this period. */
+export async function setReportedOverage(
+  organizationId: string,
+  units: number,
+  period = currentPeriod(),
+): Promise<void> {
+  await db
+    .insert(usageRecords)
+    .values({ id: newId("usage"), organizationId, period, overageReportedUnits: units })
+    .onConflictDoUpdate({
+      target: [usageRecords.organizationId, usageRecords.period],
+      set: { overageReportedUnits: units, updatedAt: new Date() },
+    });
+}
+
 export interface QuotaState {
   plan: PlanDef;
   used: number;

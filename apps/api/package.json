@@ -7,7 +7,8 @@
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
-    "test:quota": "tsx scripts/test-quota.ts"
+    "test:quota": "tsx scripts/test-quota.ts",
+    "test:stripe": "tsx scripts/test-stripe-billing.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
