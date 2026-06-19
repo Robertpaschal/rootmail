@@ -129,7 +129,10 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
       (plan mix + MRR estimate, email volume + trend, deliverability rates, AI
       credits, 30d growth) and an Analytics page (stat cards + plan-mix /
       deliverability / volume bars). curl + browser verified.
-- [ ] Suppression management (view/clear a customer's suppressions).
+- [x] **Suppression management** *(branch `feat/admin-suppressions`)* —
+      `GET /v1/admin/orgs/:id/suppressions` + `DELETE /v1/admin/suppressions/:id`
+      (role-gated, audited); org-detail "Suppressions" card with per-row Clear
+      (form → action → revalidate). curl + browser verified (list/clear/persist).
 - [x] **Billing wiring** *(branch `feat/stripe-billing`)* — checkout now builds the
       full subscription (plan + add-ons + metered overage item); **add-on changes
       sync to Stripe subscription items** (add/update/remove, with rollback if Stripe

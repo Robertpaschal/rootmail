@@ -14,7 +14,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/app/status-badge";
+import { SubmitButton } from "@/components/app/submit-button";
 import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import { clearSuppression } from "./actions";
 import { ImpersonateButton } from "./impersonate-button";
 
 export const metadata: Metadata = { title: "Organization" };
@@ -29,6 +31,7 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
     throw err;
   }
   const { data: messages } = await adminApi.listOrgMessages(id, 25);
+  const { data: suppressionList } = await adminApi.listOrgSuppressions(id, 50);
 
   const stats = [
     { label: "Emails this period", value: formatNumber(org.usage_this_period) },
@@ -178,6 +181,56 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
               ))}
             </TableBody>
           </Table>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Suppressions</CardTitle>
+        </CardHeader>
+        <CardContent className="px-0">
+          {suppressionList.length === 0 ? (
+            <p className="px-6 text-sm text-muted-foreground">No suppressed recipients.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead>Since</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {suppressionList.map((s) => (
+                  <TableRow key={s.id}>
+                    <TableCell className="font-medium">{s.email}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          s.reason === "bounce" || s.reason === "complaint" ? "destructive" : "muted"
+                        }
+                      >
+                        {s.reason}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
+                      {formatDate(s.created_at)}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <form action={clearSuppression}>
+                        <input type="hidden" name="id" value={s.id} />
+                        <input type="hidden" name="orgId" value={org.id} />
+                        <SubmitButton variant="outline" size="sm" pendingLabel="Clearing…">
+                          Clear
+                        </SubmitButton>
+                      </form>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
 

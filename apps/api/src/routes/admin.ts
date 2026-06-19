@@ -12,6 +12,7 @@ import {
   organizations,
   staffUsers,
   subTenants,
+  suppressions,
   usageRecords,
   users,
   workspaces,
@@ -233,6 +234,56 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       workspace_id: message.workspaceId,
       audit: trail.map(serializeAudit),
     };
+  });
+
+  // --- Suppression management (support tooling) ---------------------------
+  app.get("/v1/admin/orgs/:id/suppressions", async (req) => {
+    await requireStaff(req);
+    const { id } = req.params as { id: string };
+    const { limit } = parse(msgQuery, req.query);
+    const ws = await db
+      .select({ id: workspaces.id })
+      .from(workspaces)
+      .where(eq(workspaces.organizationId, id));
+    const wsIds = ws.map((w) => w.id);
+    if (wsIds.length === 0) return { object: "list", data: [] };
+    const rows = await db
+      .select()
+      .from(suppressions)
+      .where(inArray(suppressions.workspaceId, wsIds))
+      .orderBy(desc(suppressions.createdAt))
+      .limit(limit);
+    return {
+      object: "list",
+      data: rows.map((s) => ({
+        object: "suppression",
+        id: s.id,
+        email: s.email,
+        reason: s.reason,
+        source: s.source,
+        sub_tenant_id: s.subTenantId,
+        created_at: s.createdAt,
+      })),
+    };
+  });
+
+  // Clear a suppression (e.g. a wrongly-bounced contact). Audited; role-gated.
+  app.delete("/v1/admin/suppressions/:id", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff, "support"); // superadmin auto-passes; readonly rejected
+    const { id } = req.params as { id: string };
+    const [row] = await db.select().from(suppressions).where(eq(suppressions.id, id)).limit(1);
+    if (!row) throw Errors.notFound("Suppression not found");
+    await db.delete(suppressions).where(eq(suppressions.id, id));
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "suppression.clear",
+      targetType: "suppression",
+      targetId: id,
+      metadata: { email: row.email, reason: row.reason },
+      ip: req.ip,
+    });
+    return { object: "suppression", id, deleted: true };
   });
 
   // --- Impersonation (support/superadmin only) ----------------------------
