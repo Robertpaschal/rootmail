@@ -8,6 +8,7 @@ import type {
   OrgDetail,
   OrgSummary,
   StaffUser,
+  Suppression,
 } from "./types";
 
 /** Where the rootmail REST API lives. The admin console only ever calls it server-side. */
@@ -101,5 +102,10 @@ export const adminApi = {
     }),
 
   analytics: () => adminFetch<AdminAnalytics>("/v1/admin/analytics"),
+
+  listOrgSuppressions: (id: string, limit = 50) =>
+    adminFetch<ListResponse<Suppression>>(`/v1/admin/orgs/${id}/suppressions?limit=${limit}`),
+  clearSuppression: (id: string) =>
+    adminFetch<{ deleted: boolean }>(`/v1/admin/suppressions/${id}`, { method: "DELETE" }),
 };
 

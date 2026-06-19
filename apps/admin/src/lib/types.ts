@@ -61,6 +61,16 @@ export interface ListResponse<T> {
   data: T[];
 }
 
+export interface Suppression {
+  object: "suppression";
+  id: string;
+  email: string;
+  reason: string;
+  source: string | null;
+  sub_tenant_id: string | null;
+  created_at: string;
+}
+
 export interface AdminAnalytics {
   object: "admin_analytics";
   period: string;
