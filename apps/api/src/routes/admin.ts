@@ -2,8 +2,17 @@ import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type Stripe from "stripe";
 import { z } from "zod";
-import { Errors, generateSessionToken, newId, PLAN_IDS, type PlanId, verifyPassword } from "@rootmail/core";
 import {
+  ADD_ON_IDS,
+  Errors,
+  generateSessionToken,
+  newId,
+  PLAN_IDS,
+  type PlanId,
+  verifyPassword,
+} from "@rootmail/core";
+import {
+  addons,
   auditEntries,
   db,
   impersonationGrants,
@@ -31,7 +40,7 @@ import {
 } from "../lib/admin-auth";
 import { currentPeriod } from "../lib/billing";
 import { getPlan, refreshPlanCache } from "../lib/plans";
-import { getStripe, syncPlanPrice } from "../lib/stripe";
+import { getStripe, syncAddonPrice, syncPlanPrice } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { parse } from "../lib/validate";
 
@@ -94,6 +103,21 @@ function serializePromo(p: Stripe.PromotionCode) {
     times_redeemed: p.times_redeemed,
     max_redemptions: p.max_redemptions ?? null,
     expires_at: p.expires_at ?? null,
+  };
+}
+
+function serializeAddonRow(a: typeof addons.$inferSelect) {
+  return {
+    object: "addon" as const,
+    id: a.id,
+    name: a.name,
+    description: a.description,
+    unit: a.unit,
+    unit_amount: a.unitAmount,
+    grant: a.grant,
+    active: a.active,
+    rank: a.rank,
+    stripe_price_id: a.stripePriceId,
   };
 }
 
@@ -735,5 +759,74 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { object: "promotion", id, active: false };
+  });
+
+  // --- Add-on catalog (data-driven, like plans) ---------------------------
+  app.get("/v1/admin/addons", async (req) => {
+    await requireStaff(req);
+    const rows = await db.select().from(addons).orderBy(asc(addons.rank));
+    return { object: "list", data: rows.map(serializeAddonRow) };
+  });
+
+  const addonPatch = z.object({
+    name: z.string().min(1).max(60).optional(),
+    description: z.string().max(300).optional(),
+    unit: z.string().max(60).optional(),
+    unit_amount: z.coerce.number().int().min(0).max(100_000).optional(),
+    grant: z.coerce.number().int().min(1).max(1_000_000).optional(),
+    active: z.boolean().optional(),
+  });
+  // Edit an add-on (superadmin, audited). Price change → Stripe sync (like plans);
+  // grant/unit changes take effect immediately via the cache.
+  app.patch("/v1/admin/addons/:id", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const { id } = req.params as { id: string };
+    if (!(ADD_ON_IDS as readonly string[]).includes(id)) throw Errors.notFound("Add-on not found");
+    const body = parse(addonPatch, req.body);
+
+    const [before] = await db.select().from(addons).where(eq(addons.id, id)).limit(1);
+    if (!before) throw Errors.notFound("Add-on not found");
+
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (body.name !== undefined) set.name = body.name;
+    if (body.description !== undefined) set.description = body.description;
+    if (body.unit !== undefined) set.unit = body.unit;
+    if (body.unit_amount !== undefined) set.unitAmount = body.unit_amount;
+    if (body.grant !== undefined) set.grant = body.grant;
+    if (body.active !== undefined) set.active = body.active;
+
+    const [updated] = await db.update(addons).set(set).where(eq(addons.id, id)).returning();
+    await refreshPlanCache();
+
+    const priceChanged = body.unit_amount !== undefined && body.unit_amount !== before.unitAmount;
+    let stripeSync: "synced" | "skipped" | "failed" | "unchanged" = priceChanged
+      ? "skipped"
+      : "unchanged";
+    let row = updated;
+    if (priceChanged) {
+      try {
+        const synced = await syncAddonPrice(updated);
+        if (synced) {
+          await refreshPlanCache();
+          const [after] = await db.select().from(addons).where(eq(addons.id, id)).limit(1);
+          if (after) row = after;
+          stripeSync = "synced";
+        }
+      } catch (err) {
+        req.log.error({ err }, "addon price sync to Stripe failed");
+        stripeSync = "failed";
+      }
+    }
+
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "addon.update",
+      targetType: "addon",
+      targetId: id,
+      metadata: { ...body, stripe_sync: stripeSync },
+      ip: req.ip,
+    });
+    return { ...serializeAddonRow(row), stripe_sync: stripeSync };
   });
 }

@@ -3,7 +3,6 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   ADD_ON_IDS,
-  ADD_ONS,
   type AddOnId,
   BILLING_INTERVALS,
   BILLING_MODE,
@@ -17,7 +16,7 @@ import { db, type Organization, organizations, type OrgAddon, orgAddons } from "
 import { currentPeriod, type QuotaState, quotaState } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { getTrialDays, listPlans } from "../lib/plans";
+import { getAddon, getAiCredits, getTrialDays, listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
 import { createCheckout, reportOverage, syncAddonItems } from "../lib/stripe";
 import { parse } from "../lib/validate";
@@ -34,6 +33,7 @@ function serializePlan(p: PlanDef) {
     included_sub_tenants: p.includedSubTenants,
     seats: p.seats,
     trial_days: getTrialDays(p.id),
+    ai_credits: getAiCredits(p.id),
     features: p.features,
   };
 }
@@ -59,8 +59,8 @@ function billingSummary(org: Organization, usage: QuotaState, seats: SeatState, 
   const addonLines = addons
     .filter((a) => a.quantity > 0)
     .map((a) => {
-      const def = ADD_ONS[a.addonId as AddOnId];
-      const unit = def?.defaultUnitAmount ?? 0;
+      const def = getAddon(a.addonId as AddOnId);
+      const unit = def?.unitAmount ?? 0;
       return {
         id: a.addonId,
         name: def?.name ?? a.addonId,
@@ -85,7 +85,7 @@ function billingSummary(org: Organization, usage: QuotaState, seats: SeatState, 
       purchased: seats.purchased,
       used: seats.used,
       capacity: seats.capacity === Infinity ? -1 : seats.capacity,
-      unit_price: ADD_ONS.extra_seat.defaultUnitAmount,
+      unit_price: getAddon("extra_seat").unitAmount,
     },
     add_ons: addonLines,
     monthly_total: monthlyTotal,

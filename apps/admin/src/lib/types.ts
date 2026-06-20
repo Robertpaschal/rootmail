@@ -119,6 +119,26 @@ export type PlanPatch = Partial<{
   active: boolean;
 }>;
 
+export interface AdminAddon {
+  object: "addon";
+  id: string;
+  name: string;
+  description: string;
+  unit: string;
+  unit_amount: number;
+  grant: number;
+  active: boolean;
+  rank: number;
+  stripe_price_id: string | null;
+}
+
+export type AddonPatch = Partial<{
+  name: string;
+  unit_amount: number;
+  grant: number;
+  active: boolean;
+}>;
+
 export interface Promotion {
   object: "promotion";
   id: string;

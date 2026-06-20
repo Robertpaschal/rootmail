@@ -195,6 +195,24 @@ export const plans = pgTable("plans", {
 });
 export type Plan = typeof plans.$inferSelect;
 
+// Add-on catalog — admin-editable like plans. Seeded from the ADD_ONS constants;
+// read through the same cached loader (constant fallback). `unit_amount` is the
+// monthly USD price per unit; `grant` is what one unit gives (e.g. 100 AI credits).
+export const addons = pgTable("addons", {
+  id: text("id").primaryKey(), // matches AddOnId: extra_seat | dedicated_ip | subtenant_pack | ai_credit_pack
+  name: text("name").notNull(),
+  description: text("description").notNull().default(""),
+  unit: text("unit").notNull().default(""),
+  unitAmount: integer("unit_amount").notNull().default(0),
+  grant: integer("grant").notNull().default(1),
+  active: boolean("active").notNull().default(true),
+  rank: integer("rank").notNull().default(0),
+  stripePriceId: text("stripe_price_id"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+export type Addon = typeof addons.$inferSelect;
+
 // Monthly send meter per organization (period = "YYYY-MM", UTC). Sandbox/test
 // sends are never metered.
 export const usageRecords = pgTable(

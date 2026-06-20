@@ -175,11 +175,25 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
           page (create form + codes table + deactivate). Redeemable at checkout
           (allow_promotion_codes already on); dashboard billing shows a "have a promo
           code?" hint. curl + browser verified (create/list/deactivate, %/$ types).
-    - [ ] **C.2 trials** — `plan.trialDays` (admin-editable) → checkout trial period
-          + "free trial" surfaced on dashboard/marketing.
-  - [ ] Fold add-ons into the same DB-backed, admin-editable model.
-- [ ] Promotions (coupons/trials/discounts) · Comms (dogfood lifecycle) ·
-      Sales CRM (leads/deals/pipeline). New tables as each lands.
+    - [x] **C.2 trials** — `plan.trial_days` (admin-editable) → checkout trial period;
+          "N-day free trial" on dashboard cards (marketing copy static).
+  - [x] **Add-ons data-driven** — `addons` table (migration 0020) seeded from constants;
+        prices/grants admin-editable + **Stripe-synced** (`syncAddonPrice`); every read
+        (priceForAddOn, AI/sub-tenant grants, bill lines, seat price) goes through the
+        cache; admin Pricing page has an Add-ons editor. **Pricing initiative COMPLETE —
+        nothing constant.**
+
+### 6b. Carried-forward notes (from owner, drive upcoming builds)
+- [~] **Plan-card feature completeness** — AI credits now shown on dashboard +
+      marketing cards; still review remaining offerings (proof, dedicated IP, residency,
+      seats, AI assistant, webhooks…) so every card honestly shows the full value.
+- [ ] **Custom / enterprise plans + Sales CRM** — admin can create **custom Stripe
+      packages** for enterprise customers; **"Contact sales" becomes an in-app lead
+      form** (not a `mailto`) capturing what we need to build the custom plan; **leads +
+      deals + lifecycle** managed in the admin (CRM). New tables: leads / deals.
+- [ ] **Comms** — dogfood rootmail to send customer lifecycle / announcement emails.
+- [ ] **UI / dark-mode pass** — dark mode + visual refinements across marketing,
+      dashboard, and admin (customer- and staff-facing).
 
 ### 7. Deploy & launch ops *(Phase 8 — blocked on infra access)*
 - [x] CI (typecheck + build + e2e smoke on PG/Redis services), api/worker

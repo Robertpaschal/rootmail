@@ -172,6 +172,7 @@ export interface Plan {
   included_sub_tenants: number;
   seats: number;
   trial_days: number;
+  ai_credits: number;
   features: string[];
 }
 
