@@ -7,9 +7,11 @@ import type {
   LoginResult,
   MessageDetail,
   MessageSummary,
+  CreatePromotion,
   OrgDetail,
   OrgSummary,
   PlanPatch,
+  Promotion,
   StaffUser,
   Suppression,
 } from "./types";
@@ -105,6 +107,15 @@ export const adminApi = {
     }),
 
   analytics: () => adminFetch<AdminAnalytics>("/v1/admin/analytics"),
+
+  listPromotions: () => adminFetch<ListResponse<Promotion>>("/v1/admin/promotions"),
+  createPromotion: (body: CreatePromotion) =>
+    adminFetch<Promotion>("/v1/admin/promotions", { method: "POST", body }),
+  deactivatePromotion: (id: string) =>
+    adminFetch<{ active: boolean }>(`/v1/admin/promotions/${id}/deactivate`, {
+      method: "POST",
+      body: {},
+    }),
 
   listPlans: () => adminFetch<ListResponse<AdminPlan>>("/v1/admin/plans"),
   updatePlan: (id: string, patch: PlanPatch) =>

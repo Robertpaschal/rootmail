@@ -73,6 +73,29 @@ function serializePlanRow(p: typeof plans.$inferSelect) {
   };
 }
 
+function serializePromo(p: Stripe.PromotionCode) {
+  const c = typeof p.promotion.coupon === "object" ? p.promotion.coupon : null;
+  const discount = c
+    ? c.percent_off
+      ? `${c.percent_off}% off`
+      : c.amount_off
+        ? `$${(c.amount_off / 100).toFixed(2)} off`
+        : ""
+    : "";
+  return {
+    object: "promotion" as const,
+    id: p.id,
+    code: p.code,
+    active: p.active,
+    discount,
+    duration: c?.duration ?? null,
+    duration_in_months: c?.duration_in_months ?? null,
+    times_redeemed: p.times_redeemed,
+    max_redemptions: p.max_redemptions ?? null,
+    expires_at: p.expires_at ?? null,
+  };
+}
+
 // Admin surface — cross-org, staff-authenticated. Mounted under /v1/admin, which
 // the customer auth hook treats as public so these routes can do their OWN staff
 // auth (a customer key/session never reaches admin data).
@@ -628,5 +651,86 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { ...serializePlanRow(row), stripe_sync: stripeSync };
+  });
+
+  // --- Promotions (coupons + promo codes; Stripe-native) ------------------
+  app.get("/v1/admin/promotions", async (req) => {
+    await requireStaff(req);
+    const stripe = getStripe();
+    if (!stripe) return { object: "list", data: [] };
+    const codes = await stripe.promotionCodes.list({
+      limit: 100,
+      expand: ["data.promotion.coupon"],
+    });
+    return { object: "list", data: codes.data.map(serializePromo) };
+  });
+
+  const promoBody = z.object({
+    code: z
+      .string()
+      .min(3)
+      .max(40)
+      .regex(/^[A-Za-z0-9_-]+$/, "Letters, numbers, - and _ only"),
+    type: z.enum(["percent", "amount"]),
+    value: z.coerce.number().positive(),
+    duration: z.enum(["once", "repeating", "forever"]).default("once"),
+    duration_in_months: z.coerce.number().int().positive().max(36).optional(),
+    max_redemptions: z.coerce.number().int().positive().optional(),
+  });
+  // Create a coupon + a customer-facing promo code. Money lever → superadmin only,
+  // audited. Redeemable immediately at checkout (allow_promotion_codes is on).
+  app.post("/v1/admin/promotions", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const b = parse(promoBody, req.body);
+    const stripe = getStripe();
+    if (!stripe) throw Errors.badRequest("Stripe isn't configured.");
+    if (b.type === "percent" && b.value > 100) {
+      throw Errors.badRequest("Percent discount can't exceed 100.");
+    }
+
+    const coupon = await stripe.coupons.create({
+      name: b.code.toUpperCase(),
+      duration: b.duration,
+      ...(b.type === "percent"
+        ? { percent_off: b.value }
+        : { amount_off: Math.round(b.value * 100), currency: "usd" }),
+      ...(b.duration === "repeating" && b.duration_in_months
+        ? { duration_in_months: b.duration_in_months }
+        : {}),
+    });
+    const promo = await stripe.promotionCodes.create({
+      promotion: { type: "coupon", coupon: coupon.id },
+      code: b.code.toUpperCase(),
+      expand: ["promotion.coupon"],
+      ...(b.max_redemptions ? { max_redemptions: b.max_redemptions } : {}),
+    });
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "promotion.create",
+      targetType: "promotion",
+      targetId: promo.id,
+      metadata: { code: promo.code, type: b.type, value: b.value, duration: b.duration },
+      ip: req.ip,
+    });
+    return serializePromo(promo);
+  });
+
+  app.post("/v1/admin/promotions/:id/deactivate", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const { id } = req.params as { id: string };
+    const stripe = getStripe();
+    if (!stripe) throw Errors.badRequest("Stripe isn't configured.");
+    const promo = await stripe.promotionCodes.update(id, { active: false });
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "promotion.deactivate",
+      targetType: "promotion",
+      targetId: id,
+      metadata: { code: promo.code },
+      ip: req.ip,
+    });
+    return { object: "promotion", id, active: false };
   });
 }

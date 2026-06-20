@@ -168,8 +168,15 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         price, falling back to env. Checkout/cache pick it up immediately; the admin
         editor shows "Stripe price synced". `test:pricing-sync` verifies it in test
         mode (new prices + default + archive); browser-verified.
-  - [ ] **Phase C — promotions:** coupons / discounts / trials (Stripe coupons +
-        promo codes), admin-managed.
+  - [~] **Phase C — promotions** *(branch `feat/promotions`)*.
+    - [x] **C.1 coupons + promo codes** — admin `GET/POST /v1/admin/promotions` +
+          `…/:id/deactivate` (Stripe-native coupons + promotion codes; percent or
+          amount, once/repeating/forever; superadmin, audited). Admin **Promotions**
+          page (create form + codes table + deactivate). Redeemable at checkout
+          (allow_promotion_codes already on); dashboard billing shows a "have a promo
+          code?" hint. curl + browser verified (create/list/deactivate, %/$ types).
+    - [ ] **C.2 trials** — `plan.trialDays` (admin-editable) → checkout trial period
+          + "free trial" surfaced on dashboard/marketing.
   - [ ] Fold add-ons into the same DB-backed, admin-editable model.
 - [ ] Promotions (coupons/trials/discounts) · Comms (dogfood lifecycle) ·
       Sales CRM (leads/deals/pipeline). New tables as each lands.

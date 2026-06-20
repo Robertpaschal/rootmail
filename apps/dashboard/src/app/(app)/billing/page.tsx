@@ -130,6 +130,9 @@ export default async function BillingPage() {
 
       <h2 className="mb-3 text-sm font-semibold">Plans</h2>
       <PlanCards plans={plans} currentId={plan.id} />
+      <p className="mt-3 text-xs text-muted-foreground">
+        Have a promo code? Enter it at checkout to apply your discount.
+      </p>
     </>
   );
 }
