@@ -10,9 +10,9 @@ import {
   type PlanId,
   type PlanStatus,
 } from "@rootmail/core";
-import { db, type Organization, orgAddons, organizations } from "@rootmail/db";
+import { db, type Organization, orgAddons, organizations, type Plan, plans } from "@rootmail/db";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
-import { getPlan } from "./plans";
+import { getPlan, getStripePrices } from "./plans";
 
 // ---------------------------------------------------------------------------
 // Stripe billing abstraction.
@@ -38,11 +38,21 @@ export function stripeEnabled(): boolean {
   return BILLING_MODE === "stripe" && getStripe() !== null;
 }
 
-/** Configured Stripe price id for a plan's recurring base at an interval, or null. */
-export function priceForPlan(planId: PlanId, interval: BillingInterval = "month"): string | null {
+/** Env-configured Stripe price id for a plan/interval (the original setup). */
+function envPriceForPlan(planId: PlanId, interval: BillingInterval): string | null {
   if (planId === "pro") return (interval === "year" ? env.STRIPE_PRICE_PRO_YEAR : env.STRIPE_PRICE_PRO) ?? null;
   if (planId === "scale") return (interval === "year" ? env.STRIPE_PRICE_SCALE_YEAR : env.STRIPE_PRICE_SCALE) ?? null;
   return null; // free = cancel; enterprise = sales-assisted (no self-serve price)
+}
+
+/**
+ * Stripe price id for a plan/interval. Prefers the admin-synced DB price (set by
+ * `syncPlanPrice`), falling back to the env price before any sync has happened.
+ */
+export function priceForPlan(planId: PlanId, interval: BillingInterval = "month"): string | null {
+  const synced = getStripePrices(planId);
+  const syncedId = synced ? (interval === "year" ? synced.year : synced.month) : null;
+  return syncedId ?? envPriceForPlan(planId, interval);
 }
 
 /** Configured Stripe price id for an add-on, or null (→ use default constant). */
@@ -276,4 +286,65 @@ export async function reportOverage(org: Organization): Promise<void> {
     payload: { value: String(delta), stripe_customer_id: org.stripeCustomerId },
   });
   await setReportedOverage(org.id, units);
+}
+
+/**
+ * Sync a plan's billed price to Stripe after an admin edit. Stripe prices are
+ * immutable, so we create NEW monthly + yearly prices (yearly = 10× monthly, "2
+ * months free") on the plan's product, make the monthly the product default,
+ * archive the previously-synced prices (existing subscriptions are grandfathered
+ * — archived prices keep billing current subs, they just can't start new ones),
+ * and persist the new ids. No-op for plans without a self-serve price (free $0 /
+ * enterprise custom) or when Stripe is unconfigured.
+ */
+export async function syncPlanPrice(plan: Plan): Promise<{ month: string; year: string } | null> {
+  const stripe = getStripe();
+  if (!stripe || plan.price == null || plan.price <= 0) return null;
+
+  // Find the plan's Stripe product — reuse the one behind an existing price, else
+  // create a product for this plan.
+  const existing = plan.stripePriceMonthId ?? envPriceForPlan(plan.id, "month");
+  let productId: string;
+  if (existing) {
+    const ep = await stripe.prices.retrieve(existing);
+    productId = typeof ep.product === "string" ? ep.product : ep.product.id;
+  } else {
+    const product = await stripe.products.create({
+      name: `rootmail ${plan.name}`,
+      metadata: { planId: plan.id },
+    });
+    productId = product.id;
+  }
+
+  const month = await stripe.prices.create({
+    product: productId,
+    currency: "usd",
+    unit_amount: plan.price * 100,
+    recurring: { interval: "month" },
+    metadata: { planId: plan.id, interval: "month" },
+  });
+  const year = await stripe.prices.create({
+    product: productId,
+    currency: "usd",
+    unit_amount: plan.price * 10 * 100, // 2 months free
+    recurring: { interval: "year" },
+    metadata: { planId: plan.id, interval: "year" },
+  });
+  await stripe.products.update(productId, { default_price: month.id });
+
+  // Grandfather: archive only previously-synced prices (leave the original env
+  // price active for any subs still on it).
+  if (plan.stripePriceMonthId) {
+    await stripe.prices.update(plan.stripePriceMonthId, { active: false }).catch(() => {});
+  }
+  if (plan.stripePriceYearId) {
+    await stripe.prices.update(plan.stripePriceYearId, { active: false }).catch(() => {});
+  }
+
+  await db
+    .update(plans)
+    .set({ stripePriceMonthId: month.id, stripePriceYearId: year.id, updatedAt: new Date() })
+    .where(eq(plans.id, plan.id));
+
+  return { month: month.id, year: year.id };
 }

@@ -31,7 +31,7 @@ import {
 } from "../lib/admin-auth";
 import { currentPeriod } from "../lib/billing";
 import { getPlan, refreshPlanCache } from "../lib/plans";
-import { getStripe } from "../lib/stripe";
+import { getStripe, syncPlanPrice } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { parse } from "../lib/validate";
 
@@ -587,21 +587,46 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     if (body.features !== undefined) set.features = body.features;
     if (body.active !== undefined) set.active = body.active;
 
+    const [before] = await db.select().from(plans).where(eq(plans.id, id as PlanId)).limit(1);
+    if (!before) throw Errors.notFound("Plan not found");
+
     const [updated] = await db
       .update(plans)
       .set(set)
       .where(eq(plans.id, id as PlanId))
       .returning();
-    if (!updated) throw Errors.notFound("Plan not found");
-    await refreshPlanCache(); // make the edit live immediately
+    await refreshPlanCache(); // economics live immediately
+
+    // Billed-price change → create/swap the Stripe price (existing subs grandfathered).
+    const priceChanged = body.price !== undefined && body.price !== before.price;
+    let stripeSync: "synced" | "skipped" | "failed" | "unchanged" = priceChanged
+      ? "skipped"
+      : "unchanged";
+    let row = updated;
+    if (priceChanged) {
+      try {
+        const synced = await syncPlanPrice(updated);
+        if (synced) {
+          await refreshPlanCache(); // pick up the new Stripe price ids
+          // Re-read so the response carries the freshly-synced price ids.
+          const [after] = await db.select().from(plans).where(eq(plans.id, id as PlanId)).limit(1);
+          if (after) row = after;
+          stripeSync = "synced";
+        }
+      } catch (err) {
+        req.log.error({ err }, "plan price sync to Stripe failed");
+        stripeSync = "failed";
+      }
+    }
+
     await writeStaffAudit({
       staffUserId: staff.id,
       action: "plan.update",
       targetType: "plan",
       targetId: id,
-      metadata: body,
+      metadata: { ...body, stripe_sync: stripeSync },
       ip: req.ip,
     });
-    return serializePlanRow(updated);
+    return { ...serializePlanRow(row), stripe_sync: stripeSync };
   });
 }

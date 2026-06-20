@@ -9,6 +9,7 @@ import { db, type Plan, plans as plansTable } from "@rootmail/db";
 const TTL_MS = 30_000;
 let planCache: Record<PlanId, PlanDef> = { ...PLANS };
 let aiCache: Record<PlanId, number> = { ...AI_CREDITS };
+let stripePriceCache: Partial<Record<PlanId, { month: string | null; year: string | null }>> = {};
 let loadedAt = 0;
 
 function toDef(r: Plan): PlanDef {
@@ -32,14 +33,17 @@ export async function refreshPlanCache(): Promise<void> {
     if (rows.length > 0) {
       const p = { ...PLANS };
       const ai = { ...AI_CREDITS };
+      const sp: Partial<Record<PlanId, { month: string | null; year: string | null }>> = {};
       for (const r of rows) {
         if ((PLAN_IDS as readonly string[]).includes(r.id)) {
           p[r.id as PlanId] = toDef(r);
           ai[r.id as PlanId] = r.aiCredits;
+          sp[r.id as PlanId] = { month: r.stripePriceMonthId, year: r.stripePriceYearId };
         }
       }
       planCache = p;
       aiCache = ai;
+      stripePriceCache = sp;
     }
     loadedAt = Date.now();
   } catch {
@@ -55,6 +59,12 @@ function maybeRefresh(): void {
 export function getPlan(planId: PlanId): PlanDef {
   maybeRefresh();
   return planCache[planId] ?? PLANS.free;
+}
+
+/** Admin-synced Stripe price ids for a plan, if any (else null → use env). */
+export function getStripePrices(planId: PlanId): { month: string | null; year: string | null } | undefined {
+  maybeRefresh();
+  return stripePriceCache[planId];
 }
 
 /** Included monthly AI credits for a plan (-1 = unlimited). */

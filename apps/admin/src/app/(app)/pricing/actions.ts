@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { adminApi, ApiError } from "@/lib/admin-api";
 import type { PlanPatch } from "@/lib/types";
 
-export type PlanState = { ok?: boolean; error?: string };
+export type PlanState = { ok?: boolean; error?: string; sync?: string };
 
 export async function updatePlan(_prev: PlanState, formData: FormData): Promise<PlanState> {
   const id = String(formData.get("id") ?? "");
@@ -30,12 +30,14 @@ export async function updatePlan(_prev: PlanState, formData: FormData): Promise<
     active: formData.get("active") === "on",
   };
 
+  let sync: string | undefined;
   try {
-    await adminApi.updatePlan(id, patch);
+    const res = await adminApi.updatePlan(id, patch);
+    sync = res.stripe_sync;
   } catch (err) {
     if (err instanceof ApiError && err.status === 403) return { error: "Superadmins only." };
     return { error: "Couldn't save — check the values." };
   }
   revalidatePath("/pricing");
-  return { ok: true };
+  return { ok: true, sync };
 }
