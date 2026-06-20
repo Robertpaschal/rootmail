@@ -77,6 +77,18 @@ export const STAFF_ROLES = ["superadmin", "support", "readonly"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
 
 // ---------------------------------------------------------------------------
+// Sales / CRM — enterprise "Contact sales" leads and their lifecycle.
+// ---------------------------------------------------------------------------
+// Pipeline stages a lead moves through. `new` is where the public form drops
+// them; `won` links to a real org (often via a custom plan); `lost` closes it.
+export const LEAD_STATUSES = ["new", "contacted", "qualified", "proposal", "won", "lost"] as const;
+export type LeadStatus = (typeof LEAD_STATUSES)[number];
+
+// Where a lead came from — defaulted by the writer (the public form sets it),
+// kept as free text so new entry points don't need a migration.
+export const LEAD_SOURCE_CONTACT_FORM = "contact_form";
+
+// ---------------------------------------------------------------------------
 // RBAC — a permission matrix enforced on every tier; custom roles (which remix
 // these permissions) are a Scale feature.
 // ---------------------------------------------------------------------------

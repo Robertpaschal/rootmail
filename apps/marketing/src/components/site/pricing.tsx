@@ -5,8 +5,6 @@ import { buttonVariants } from "@/components/ui/button";
 import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
-const SALES_EMAIL = "mailto:sales@rootmail.io";
-
 // Mirrors the plans the product actually enforces (see packages/core PLANS).
 // Each tier adds volume AND a capability, so the upgrade has a real trigger.
 const tiers = [
@@ -80,7 +78,7 @@ const tiers = [
       "SSO / SAML · EU residency · SLA",
     ],
     cta: "Contact sales",
-    href: SALES_EMAIL,
+    href: "/contact",
     featured: false,
   },
 ];

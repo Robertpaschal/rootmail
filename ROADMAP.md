@@ -187,10 +187,28 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
 - [~] **Plan-card feature completeness** — AI credits now shown on dashboard +
       marketing cards; still review remaining offerings (proof, dedicated IP, residency,
       seats, AI assistant, webhooks…) so every card honestly shows the full value.
-- [ ] **Custom / enterprise plans + Sales CRM** — admin can create **custom Stripe
-      packages** for enterprise customers; **"Contact sales" becomes an in-app lead
-      form** (not a `mailto`) capturing what we need to build the custom plan; **leads +
-      deals + lifecycle** managed in the admin (CRM). New tables: leads / deals.
+- [~] **Custom / enterprise plans + Sales CRM** — phased.
+  - [x] **Phase 1 — lead capture + CRM.** `leads` + append-only `lead_notes` tables
+        (migration 0021); public rate-limited + honeypot-guarded `POST /v1/leads`;
+        marketing **`/contact` form** replaces the `mailto:sales@` (Enterprise CTA +
+        footer link); admin **Leads** section (list with pipeline tabs/counts, detail
+        with lifecycle status, claim/assign, and an activity timeline of hand-written +
+        auto system notes). Staff endpoints `GET/PATCH /v1/admin/leads[/:id]` +
+        `POST …/notes` (support+ role, audited). E2E test `pnpm --filter @rootmail/api
+        test:leads` (22 checks) + browser-verified end-to-end.
+  - [ ] **Phase 2 — custom enterprise plans.** Admin creates a bespoke Stripe package
+        tied to a won lead/org, grandfathered into checkout/billing; **linking the lead to
+        the org converts it to a customer** (lead → customer lifecycle).
+- [ ] **Discounts / sales surfaced across pricing** — beyond the existing coupon/promo
+      codes, we should be able to put plans/add-ons **on sale** and show it everywhere
+      pricing renders (marketing cards, dashboard billing, checkout): strike-through
+      original price, "X% off", sale end date. Admin-controlled, Stripe-synced, honest
+      (what's marketed is what's charged — no hidden math). Fold into the discount work.
+- [ ] **Custom in-app checkout (no Stripe redirect)** — replace the hosted Stripe Checkout
+      redirect with **embedded checkout** (Stripe Elements / Payment Element or embedded
+      Checkout) on our own page(s): compare tiers/models side by side, toggle add-ons
+      inline with live total, pay without leaving the site. UX priority; must keep the
+      same server-side gating, promo/discount support, trials, and grandfathering.
 - [ ] **Comms** — dogfood rootmail to send customer lifecycle / announcement emails.
 - [ ] **UI / dark-mode pass** — dark mode + visual refinements across marketing,
       dashboard, and admin (customer- and staff-facing).

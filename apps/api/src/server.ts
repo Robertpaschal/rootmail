@@ -15,6 +15,7 @@ import { campaignRoutes } from "./routes/campaigns";
 import { contactRoutes } from "./routes/contacts";
 import { listRoutes } from "./routes/lists";
 import { healthRoutes } from "./routes/health";
+import { leadRoutes } from "./routes/leads";
 import { memberRoutes } from "./routes/members";
 import { messageRoutes } from "./routes/messages";
 import { adminRoutes } from "./routes/admin";
@@ -74,6 +75,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(assetRoutes);
   await app.register(proofRoutes);
   await app.register(assistantRoutes);
+  await app.register(leadRoutes);
   await app.register(adminRoutes);
 
   return app;

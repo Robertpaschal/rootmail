@@ -148,6 +148,13 @@
       "when": 1781964338488,
       "tag": "0020_graceful_meteorite",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1781982406327,
+      "tag": "0021_wealthy_scourge",
+      "breakpoints": true
     }
   ]
 }
