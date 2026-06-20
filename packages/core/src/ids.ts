@@ -39,6 +39,7 @@ export const ID_PREFIXES = {
   impersonationGrant: "img",
   lead: "led",
   leadNote: "lnt",
+  customPlan: "cpl",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

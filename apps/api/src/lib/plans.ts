@@ -9,7 +9,16 @@ import {
   type PlanFeature,
   type PlanId,
 } from "@rootmail/core";
-import { type Addon, addons as addonsTable, db, type Plan, plans as plansTable } from "@rootmail/db";
+import { eq } from "drizzle-orm";
+import {
+  type Addon,
+  addons as addonsTable,
+  type CustomPlan,
+  customPlans as customPlansTable,
+  db,
+  type Plan,
+  plans as plansTable,
+} from "@rootmail/db";
 
 // Admin-editable plan economics live in the `plans` table. Reads happen on every
 // send (quota), so we keep a small in-memory cache refreshed on boot, on a short
@@ -53,6 +62,27 @@ function addonFallback(): Record<AddOnId, AddOnInfo> {
 }
 
 let addonCache: Record<AddOnId, AddOnInfo> = addonFallback();
+
+// Per-org bespoke enterprise plans, keyed by organization id. Only ACTIVE plans
+// are cached; an org with one runs on enterprise features but these economics.
+let customPlanCache = new Map<string, { def: PlanDef; aiCredits: number }>();
+
+function toCustomDef(cp: CustomPlan): { def: PlanDef; aiCredits: number } {
+  return {
+    def: {
+      id: "enterprise", // inherit enterprise's feature unlocks
+      name: cp.name,
+      price: cp.priceCents / 100,
+      monthlyQuota: cp.monthlyQuota,
+      allowOverage: cp.allowOverage,
+      overagePer1000: cp.overagePer1000Cents / 100,
+      includedSubTenants: cp.includedSubTenants,
+      seats: cp.seats,
+      features: PLANS.enterprise.features,
+    },
+    aiCredits: cp.aiCredits,
+  };
+}
 
 function toAddonInfo(r: Addon): AddOnInfo {
   return {
@@ -112,6 +142,15 @@ export async function refreshPlanCache(): Promise<void> {
       }
       addonCache = ac;
     }
+
+    const customRows = await db
+      .select()
+      .from(customPlansTable)
+      .where(eq(customPlansTable.active, true));
+    const cp = new Map<string, { def: PlanDef; aiCredits: number }>();
+    for (const r of customRows) cp.set(r.organizationId, toCustomDef(r));
+    customPlanCache = cp;
+
     loadedAt = Date.now();
   } catch {
     /* keep the last good cache (or constants) */
@@ -126,6 +165,25 @@ function maybeRefresh(): void {
 export function getPlan(planId: PlanId): PlanDef {
   maybeRefresh();
   return planCache[planId] ?? PLANS.free;
+}
+
+/**
+ * Effective plan economics for an org — a per-org custom (enterprise) plan wins
+ * over the standard tier, otherwise the tier's catalog definition. This is the
+ * single hot-path resolver: quota, overage, seats, and sub-tenant limits all flow
+ * through it, so a custom plan is enforced exactly as it was sold.
+ */
+export function planForOrg(org: { id: string; plan: PlanId }): PlanDef {
+  maybeRefresh();
+  const custom = customPlanCache.get(org.id);
+  return custom ? custom.def : getPlan(org.plan);
+}
+
+/** Effective monthly AI credits for an org (custom plan wins; -1 = unlimited). */
+export function aiCreditsForOrg(org: { id: string; plan: PlanId }): number {
+  maybeRefresh();
+  const custom = customPlanCache.get(org.id);
+  return custom ? custom.aiCredits : getAiCredits(org.plan);
 }
 
 /** Admin-synced Stripe price ids for a plan, if any (else null → use env). */

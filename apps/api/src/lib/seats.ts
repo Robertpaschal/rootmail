@@ -1,6 +1,6 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { db, invitations, memberships, type Organization, orgAddons } from "@rootmail/db";
-import { getPlan } from "./plans";
+import { planForOrg } from "./plans";
 
 /** Purchased quantity of an add-on for an org (0 if none). */
 export async function addonQuantity(organizationId: string, addonId: string): Promise<number> {
@@ -23,7 +23,7 @@ export interface SeatState {
 
 /** Seats used = active members + pending (unexpired, unaccepted) invitations. */
 export async function seatState(org: Organization): Promise<SeatState> {
-  const included = getPlan(org.plan).seats;
+  const included = planForOrg(org).seats;
   const purchased = await addonQuantity(org.id, "extra_seat");
 
   const members = await db

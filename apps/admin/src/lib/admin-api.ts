@@ -5,6 +5,8 @@ import type {
   AdminBilling,
   AdminPlan,
   AddonPatch,
+  CustomPlan,
+  CustomPlanInput,
   Lead,
   LeadDetail,
   LeadListResponse,
@@ -158,5 +160,21 @@ export const adminApi = {
     adminFetch<Lead>(`/v1/admin/leads/${id}`, { method: "PATCH", body: patch }),
   addLeadNote: (id: string, body: string) =>
     adminFetch<LeadNote>(`/v1/admin/leads/${id}/notes`, { method: "POST", body: { body } }),
+
+  saveCustomPlan: (orgId: string, body: CustomPlanInput) =>
+    adminFetch<CustomPlan & { stripe_sync?: string }>(`/v1/admin/orgs/${orgId}/custom-plan`, {
+      method: "POST",
+      body,
+    }),
+  billCustomPlan: (orgId: string) =>
+    adminFetch<{ provisioned: boolean; subscription_id?: string }>(
+      `/v1/admin/orgs/${orgId}/custom-plan/bill`,
+      { method: "POST", body: {} },
+    ),
+  deactivateCustomPlan: (orgId: string) =>
+    adminFetch<{ active: boolean }>(`/v1/admin/orgs/${orgId}/custom-plan/deactivate`, {
+      method: "POST",
+      body: {},
+    }),
 };
 

@@ -4,6 +4,7 @@ import type Stripe from "stripe";
 import { z } from "zod";
 import {
   ADD_ON_IDS,
+  BILLING_INTERVALS,
   Errors,
   generateSessionToken,
   LEAD_STATUSES,
@@ -15,6 +16,8 @@ import {
 import {
   addons,
   auditEntries,
+  type CustomPlan,
+  customPlans,
   db,
   impersonationGrants,
   type Lead,
@@ -45,7 +48,13 @@ import {
 } from "../lib/admin-auth";
 import { currentPeriod } from "../lib/billing";
 import { getPlan, refreshPlanCache } from "../lib/plans";
-import { getStripe, syncAddonPrice, syncPlanPrice } from "../lib/stripe";
+import {
+  getStripe,
+  provisionCustomSubscription,
+  syncAddonPrice,
+  syncCustomPlanPrice,
+  syncPlanPrice,
+} from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { parse } from "../lib/validate";
 
@@ -146,6 +155,29 @@ function serializeLead(l: Lead, ownerEmail?: string | null) {
     organization_id: l.organizationId,
     created_at: l.createdAt,
     updated_at: l.updatedAt,
+  };
+}
+
+function serializeCustomPlan(c: CustomPlan) {
+  return {
+    object: "custom_plan" as const,
+    id: c.id,
+    organization_id: c.organizationId,
+    lead_id: c.leadId,
+    name: c.name,
+    price_cents: c.priceCents,
+    interval: c.interval,
+    monthly_quota: c.monthlyQuota,
+    allow_overage: c.allowOverage,
+    overage_per_1000_cents: c.overagePer1000Cents,
+    included_sub_tenants: c.includedSubTenants,
+    seats: c.seats,
+    ai_credits: c.aiCredits,
+    active: c.active,
+    stripe_product_id: c.stripeProductId,
+    stripe_price_id: c.stripePriceId,
+    created_at: c.createdAt,
+    updated_at: c.updatedAt,
   };
 }
 
@@ -262,6 +294,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ? await db.select({ n: sql<number>`count(*)::int` }).from(subTenants).where(inArray(subTenants.workspaceId, wsIds))
       : [{ n: 0 }];
 
+    const [customPlan] = await db
+      .select()
+      .from(customPlans)
+      .where(eq(customPlans.organizationId, id))
+      .limit(1);
+
     return {
       object: "org_detail",
       id: org.id,
@@ -271,12 +309,14 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       plan_status: org.planStatus,
       postal_address: org.postalAddress ?? null,
       stripe_customer_id: org.stripeCustomerId ?? null,
+      stripe_subscription_id: org.stripeSubscriptionId ?? null,
       created_at: org.createdAt,
       workspaces: ws,
       members,
       usage_this_period: usg?.sent ?? 0,
       total_messages: msgCount?.n ?? 0,
       sub_tenants: tenantCount?.n ?? 0,
+      custom_plan: customPlan ? serializeCustomPlan(customPlan) : null,
     };
   });
 
@@ -1032,5 +1072,142 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return serializeLeadNote(note, staff.email);
+  });
+
+  // --- Custom / enterprise plans (per-org bespoke economics) ---------------
+  const customPlanBody = z.object({
+    name: z.string().min(1).max(80),
+    price_cents: z.coerce.number().int().min(0).max(100_000_000),
+    interval: z.enum(BILLING_INTERVALS).default("month"),
+    monthly_quota: z.coerce.number().int().min(0),
+    allow_overage: z.boolean().default(true),
+    overage_per_1000_cents: z.coerce.number().int().min(0).max(100_000).default(0),
+    included_sub_tenants: z.coerce.number().int().min(-1).default(-1),
+    seats: z.coerce.number().int().min(-1).default(-1),
+    ai_credits: z.coerce.number().int().min(-1).default(-1),
+    lead_id: z.string().optional(),
+  });
+  // Create or update an org's bespoke enterprise plan. Money/plan action →
+  // superadmin only, audited. Puts the org on enterprise (feature unlocks) with
+  // these economics, makes the plan real in Stripe, and — if a lead is linked —
+  // converts that lead to a won customer. Economics take effect immediately.
+  app.post("/v1/admin/orgs/:id/custom-plan", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const { id } = req.params as { id: string };
+    const b = parse(customPlanBody, req.body);
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
+    if (!org) throw Errors.notFound("Organization not found");
+    if (b.lead_id) {
+      const [lead] = await db.select({ id: leads.id }).from(leads).where(eq(leads.id, b.lead_id)).limit(1);
+      if (!lead) throw Errors.badRequest("Unknown lead to link.");
+    }
+
+    const values = {
+      organizationId: id,
+      leadId: b.lead_id ?? null,
+      name: b.name,
+      priceCents: b.price_cents,
+      interval: b.interval,
+      monthlyQuota: b.monthly_quota,
+      allowOverage: b.allow_overage,
+      overagePer1000Cents: b.overage_per_1000_cents,
+      includedSubTenants: b.included_sub_tenants,
+      seats: b.seats,
+      aiCredits: b.ai_credits,
+      active: true,
+      updatedAt: new Date(),
+    };
+    const [row] = await db
+      .insert(customPlans)
+      .values({ id: newId("customPlan"), ...values })
+      .onConflictDoUpdate({ target: customPlans.organizationId, set: values })
+      .returning();
+
+    await db
+      .update(organizations)
+      .set({ plan: "enterprise", planStatus: "active", billingInterval: b.interval, updatedAt: new Date() })
+      .where(eq(organizations.id, id));
+
+    if (b.lead_id) {
+      await db
+        .update(leads)
+        .set({ status: "won", organizationId: id, updatedAt: new Date() })
+        .where(eq(leads.id, b.lead_id));
+      await db.insert(leadNotes).values({
+        id: newId("leadNote"),
+        leadId: b.lead_id,
+        staffUserId: staff.id,
+        kind: "system",
+        body: `Converted to customer — custom plan "${b.name}" created for ${org.name}.`,
+      });
+    }
+
+    // Make the plan real + billable in Stripe (best-effort; economics already apply).
+    let stripeSync: "synced" | "skipped" | "failed" = "skipped";
+    try {
+      const synced = await syncCustomPlanPrice(row);
+      stripeSync = synced ? "synced" : "skipped";
+    } catch (err) {
+      req.log.error({ err }, "custom plan price sync to Stripe failed");
+      stripeSync = "failed";
+    }
+
+    await refreshPlanCache(); // economics live immediately
+    const [after] = await db.select().from(customPlans).where(eq(customPlans.id, row.id)).limit(1);
+
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "custom_plan.upsert",
+      targetType: "organization",
+      targetId: id,
+      metadata: { ...b, stripe_sync: stripeSync },
+      ip: req.ip,
+    });
+    return { ...serializeCustomPlan(after ?? row), stripe_sync: stripeSync };
+  });
+
+  // Provision billing for the custom plan (send-invoice subscription). Superadmin.
+  app.post("/v1/admin/orgs/:id/custom-plan/bill", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const { id } = req.params as { id: string };
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
+    if (!org) throw Errors.notFound("Organization not found");
+    const [cp] = await db.select().from(customPlans).where(eq(customPlans.organizationId, id)).limit(1);
+    if (!cp || !cp.active) throw Errors.badRequest("No active custom plan for this org.");
+
+    const result = await provisionCustomSubscription(org, cp);
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "custom_plan.bill",
+      targetType: "organization",
+      targetId: id,
+      metadata: { ...result },
+      ip: req.ip,
+    });
+    if (!result.provisioned) throw Errors.badRequest(result.reason ?? "Couldn't provision billing.");
+    return { object: "custom_plan_billing", ...result };
+  });
+
+  // Deactivate the custom plan — the org reverts to the standard enterprise
+  // economics (it stays on the enterprise tier). Superadmin, audited.
+  app.post("/v1/admin/orgs/:id/custom-plan/deactivate", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const { id } = req.params as { id: string };
+    const [cp] = await db.select().from(customPlans).where(eq(customPlans.organizationId, id)).limit(1);
+    if (!cp) throw Errors.notFound("No custom plan for this org.");
+    await db.update(customPlans).set({ active: false, updatedAt: new Date() }).where(eq(customPlans.id, cp.id));
+    await refreshPlanCache();
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "custom_plan.deactivate",
+      targetType: "organization",
+      targetId: id,
+      ip: req.ip,
+    });
+    return { object: "custom_plan", id: cp.id, active: false };
   });
 }

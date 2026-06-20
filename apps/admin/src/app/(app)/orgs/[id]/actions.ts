@@ -53,3 +53,76 @@ export async function createImpersonationLink(
     return { error: "Couldn't start impersonation. Please try again." };
   }
 }
+
+export type CustomPlanState = { ok?: boolean; error?: string; stripeSync?: string };
+
+/** Create/update an org's bespoke enterprise plan (superadmin). useActionState. */
+export async function saveCustomPlan(
+  _prev: CustomPlanState,
+  formData: FormData,
+): Promise<CustomPlanState> {
+  const orgId = String(formData.get("orgId") ?? "");
+  const name = String(formData.get("name") ?? "").trim();
+  const price = Number.parseFloat(String(formData.get("price") ?? ""));
+  const interval = String(formData.get("interval") ?? "month") === "year" ? "year" : "month";
+  const monthlyQuota = Number(formData.get("monthly_quota"));
+  const allowOverage = formData.get("allow_overage") != null; // checkbox present = on
+  const overage = Number.parseFloat(String(formData.get("overage_per_1000") ?? "0"));
+  const subtenants = Number(formData.get("included_sub_tenants"));
+  const seats = Number(formData.get("seats"));
+  const aiCredits = Number(formData.get("ai_credits"));
+  const leadId = String(formData.get("lead_id") ?? "").trim() || undefined;
+
+  if (!orgId) return { error: "Missing organization." };
+  if (!name) return { error: "Give the plan a name." };
+  if (!Number.isFinite(price) || price < 0) return { error: "Enter a valid monthly/annual price." };
+  if (!Number.isInteger(monthlyQuota) || monthlyQuota < 0) {
+    return { error: "Enter the included monthly email quota." };
+  }
+
+  try {
+    const res = await adminApi.saveCustomPlan(orgId, {
+      name,
+      price_cents: Math.round(price * 100),
+      interval: interval as "month" | "year",
+      monthly_quota: monthlyQuota,
+      allow_overage: allowOverage,
+      overage_per_1000_cents: Number.isFinite(overage) ? Math.round(overage * 100) : 0,
+      included_sub_tenants: Number.isFinite(subtenants) ? subtenants : -1,
+      seats: Number.isFinite(seats) ? seats : -1,
+      ai_credits: Number.isFinite(aiCredits) ? aiCredits : -1,
+      lead_id: leadId,
+    });
+    revalidatePath(`/orgs/${orgId}`);
+    return { ok: true, stripeSync: res.stripe_sync };
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 403) return { error: "Superadmins only." };
+    if (err instanceof ApiError) return { error: err.message || "Couldn't save the custom plan." };
+    return { error: "Couldn't save the custom plan." };
+  }
+}
+
+export type BillState = { ok?: boolean; error?: string; subscriptionId?: string };
+
+/** Provision a send-invoice subscription for the custom plan. useActionState. */
+export async function billCustomPlan(_prev: BillState, formData: FormData): Promise<BillState> {
+  const orgId = String(formData.get("orgId") ?? "");
+  if (!orgId) return { error: "Missing organization." };
+  try {
+    const res = await adminApi.billCustomPlan(orgId);
+    revalidatePath(`/orgs/${orgId}`);
+    return { ok: true, subscriptionId: res.subscription_id };
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 403) return { error: "Superadmins only." };
+    if (err instanceof ApiError) return { error: err.message || "Couldn't provision billing." };
+    return { error: "Couldn't provision billing." };
+  }
+}
+
+/** Deactivate the custom plan (org reverts to standard enterprise). Form action. */
+export async function deactivateCustomPlan(formData: FormData): Promise<void> {
+  const orgId = String(formData.get("orgId") ?? "");
+  if (!orgId) return;
+  await adminApi.deactivateCustomPlan(orgId);
+  revalidatePath(`/orgs/${orgId}`);
+}
