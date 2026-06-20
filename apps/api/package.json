@@ -8,7 +8,8 @@
     "start": "tsx src/index.ts",
     "typecheck": "tsc --noEmit",
     "test:quota": "tsx scripts/test-quota.ts",
-    "test:stripe": "tsx scripts/test-stripe-billing.ts"
+    "test:stripe": "tsx scripts/test-stripe-billing.ts",
+    "test:billing-ops": "tsx scripts/test-billing-ops.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

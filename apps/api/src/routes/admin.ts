@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
+import type Stripe from "stripe";
 import { z } from "zod";
 import { Errors, generateSessionToken, newId, PLANS, verifyPassword } from "@rootmail/core";
 import {
@@ -28,6 +29,7 @@ import {
   writeStaffAudit,
 } from "../lib/admin-auth";
 import { currentPeriod } from "../lib/billing";
+import { getStripe } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { parse } from "../lib/validate";
 
@@ -419,5 +421,106 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         change_pct: prev30 > 0 ? Math.round(((new30 - prev30) / prev30) * 1000) / 10 : null,
       },
     };
+  });
+
+  // --- Billing ops --------------------------------------------------------
+  // Live Stripe view for an org: subscription items, recent invoices, balance.
+  app.get("/v1/admin/orgs/:id/billing", async (req) => {
+    await requireStaff(req);
+    const { id } = req.params as { id: string };
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
+    if (!org) throw Errors.notFound("Organization not found");
+
+    const out: {
+      object: "admin_billing";
+      plan: string;
+      plan_status: string;
+      stripe_customer_id: string | null;
+      balance: number; // Stripe customer balance in cents (negative = credit)
+      subscription: {
+        status: string;
+        items: { description: string; unit_amount: number | null; quantity: number | null; interval: string | null }[];
+      } | null;
+      invoices: {
+        id: string;
+        number: string | null;
+        status: string | null;
+        total: number;
+        currency: string;
+        created: number;
+        url: string | null;
+      }[];
+    } = {
+      object: "admin_billing",
+      plan: org.plan,
+      plan_status: org.planStatus,
+      stripe_customer_id: org.stripeCustomerId,
+      balance: 0,
+      subscription: null,
+      invoices: [],
+    };
+
+    const stripe = getStripe();
+    if (stripe && org.stripeCustomerId) {
+      const customer = (await stripe.customers.retrieve(org.stripeCustomerId)) as Stripe.Customer;
+      out.balance = customer.balance ?? 0;
+      if (org.stripeSubscriptionId) {
+        const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
+        out.subscription = {
+          status: sub.status,
+          items: sub.items.data.map((i) => ({
+            description: i.price.nickname ?? i.price.id,
+            unit_amount: i.price.unit_amount,
+            quantity: i.quantity ?? null,
+            interval: i.price.recurring?.interval ?? null,
+          })),
+        };
+      }
+      const invoices = await stripe.invoices.list({ customer: org.stripeCustomerId, limit: 10 });
+      out.invoices = invoices.data.map((v) => ({
+        id: v.id ?? "",
+        number: v.number,
+        status: v.status,
+        total: v.total,
+        currency: v.currency,
+        created: v.created,
+        url: v.hosted_invoice_url ?? null,
+      }));
+    }
+    return out;
+  });
+
+  // Grant a goodwill account credit (Stripe customer balance). Money action →
+  // superadmin only, and audited.
+  const creditBody = z.object({
+    amount_cents: z.coerce.number().int().min(1).max(1_000_000),
+    reason: z.string().max(500).optional(),
+  });
+  app.post("/v1/admin/orgs/:id/credit", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff); // superadmin only (no other role passes)
+    const { id } = req.params as { id: string };
+    const { amount_cents, reason } = parse(creditBody, req.body);
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
+    if (!org) throw Errors.notFound("Organization not found");
+    const stripe = getStripe();
+    if (!stripe || !org.stripeCustomerId) {
+      throw Errors.badRequest("This org has no Stripe customer to credit.");
+    }
+    // Negative balance delta = a credit applied to future invoices.
+    await stripe.customers.createBalanceTransaction(org.stripeCustomerId, {
+      amount: -amount_cents,
+      currency: "usd",
+      description: reason ? `Goodwill credit: ${reason}` : "Goodwill credit (staff)",
+    });
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "billing.credit",
+      targetType: "organization",
+      targetId: id,
+      metadata: { amount_cents, reason: reason ?? null },
+      ip: req.ip,
+    });
+    return { object: "credit", amount_cents, applied: true };
   });
 }
