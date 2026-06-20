@@ -117,6 +117,28 @@ export type PlanPatch = Partial<{
   active: boolean;
 }>;
 
+export interface Promotion {
+  object: "promotion";
+  id: string;
+  code: string;
+  active: boolean;
+  discount: string;
+  duration: string | null;
+  duration_in_months: number | null;
+  times_redeemed: number;
+  max_redemptions: number | null;
+  expires_at: number | null;
+}
+
+export interface CreatePromotion {
+  code: string;
+  type: "percent" | "amount";
+  value: number;
+  duration: "once" | "repeating" | "forever";
+  duration_in_months?: number;
+  max_redemptions?: number;
+}
+
 export interface Suppression {
   object: "suppression";
   id: string;
