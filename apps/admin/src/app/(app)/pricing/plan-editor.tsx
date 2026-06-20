@@ -62,6 +62,7 @@ export function PlanEditor({ plan }: { plan: AdminPlan }) {
           hint="-1 = ∞"
         />
         <Field name="ai_credits" label="AI credits" defaultValue={plan.ai_credits} hint="-1 = ∞" />
+        <Field name="trial_days" label="Trial days" defaultValue={plan.trial_days} hint="0 = none" />
       </div>
 
       {plan.features.length > 0 ? (

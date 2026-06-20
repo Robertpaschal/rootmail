@@ -17,7 +17,7 @@ import { db, type Organization, organizations, type OrgAddon, orgAddons } from "
 import { currentPeriod, type QuotaState, quotaState } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { listPlans } from "../lib/plans";
+import { getTrialDays, listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
 import { createCheckout, reportOverage, syncAddonItems } from "../lib/stripe";
 import { parse } from "../lib/validate";
@@ -33,6 +33,7 @@ function serializePlan(p: PlanDef) {
     overage_per_1000: p.overagePer1000,
     included_sub_tenants: p.includedSubTenants,
     seats: p.seats,
+    trial_days: getTrialDays(p.id),
     features: p.features,
   };
 }

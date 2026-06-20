@@ -27,6 +27,7 @@ export async function updatePlan(_prev: PlanState, formData: FormData): Promise<
     included_sub_tenants: intField("included_sub_tenants"),
     seats: intField("seats"),
     ai_credits: intField("ai_credits"),
+    trial_days: intField("trial_days"),
     active: formData.get("active") === "on",
   };
 

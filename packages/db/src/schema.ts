@@ -185,6 +185,8 @@ export const plans = pgTable("plans", {
   features: jsonb("features").$type<string[]>().notNull().default([]),
   rank: integer("rank").notNull().default(0),
   active: boolean("active").notNull().default(true),
+  // Free-trial length in days for this plan's checkout (0 = no trial).
+  trialDays: integer("trial_days").notNull().default(0),
   // Stripe linkage (Phase B — dynamic price sync). Null = use env price ids.
   stripePriceMonthId: text("stripe_price_month_id"),
   stripePriceYearId: text("stripe_price_year_id"),

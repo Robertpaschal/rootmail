@@ -171,6 +171,7 @@ export interface Plan {
   overage_per_1000: number;
   included_sub_tenants: number;
   seats: number;
+  trial_days: number;
   features: string[];
 }
 

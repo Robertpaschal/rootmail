@@ -12,7 +12,7 @@ import {
 } from "@rootmail/core";
 import { db, type Organization, orgAddons, organizations, type Plan, plans } from "@rootmail/db";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
-import { getPlan, getStripePrices } from "./plans";
+import { getPlan, getStripePrices, getTrialDays } from "./plans";
 
 // ---------------------------------------------------------------------------
 // Stripe billing abstraction.
@@ -163,6 +163,7 @@ export async function createCheckout(
     const overagePrice = overagePriceForPlan(planId);
     if (overagePrice && overageMeterEvent(planId)) lineItems.push({ price: overagePrice });
 
+    const trialDays = getTrialDays(planId);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer,
@@ -170,7 +171,10 @@ export async function createCheckout(
       success_url: `${base}/billing?checkout=success`,
       cancel_url: `${base}/billing?checkout=cancel`,
       metadata: { organizationId: org.id, planId, interval },
-      subscription_data: { metadata: { organizationId: org.id, planId, interval } },
+      subscription_data: {
+        metadata: { organizationId: org.id, planId, interval },
+        ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
+      },
       allow_promotion_codes: true,
     });
     if (session.url) return { mode: "stripe", url: session.url };

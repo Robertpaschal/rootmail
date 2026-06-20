@@ -65,6 +65,7 @@ function serializePlanRow(p: typeof plans.$inferSelect) {
     included_sub_tenants: p.includedSubTenants,
     seats: p.seats,
     ai_credits: p.aiCredits,
+    trial_days: p.trialDays,
     features: p.features,
     rank: p.rank,
     active: p.active,
@@ -585,6 +586,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     included_sub_tenants: z.coerce.number().int().min(-1).optional(),
     seats: z.coerce.number().int().min(-1).optional(),
     ai_credits: z.coerce.number().int().min(-1).optional(),
+    trial_days: z.coerce.number().int().min(0).max(365).optional(),
     features: z.array(z.string()).optional(),
     active: z.boolean().optional(),
   });
@@ -607,6 +609,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     if (body.included_sub_tenants !== undefined) set.includedSubTenants = body.included_sub_tenants;
     if (body.seats !== undefined) set.seats = body.seats;
     if (body.ai_credits !== undefined) set.aiCredits = body.ai_credits;
+    if (body.trial_days !== undefined) set.trialDays = body.trial_days;
     if (body.features !== undefined) set.features = body.features;
     if (body.active !== undefined) set.active = body.active;
 
