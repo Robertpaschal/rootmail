@@ -15,8 +15,9 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/app/status-badge";
 import { SubmitButton } from "@/components/app/submit-button";
-import { formatDate, formatDateTime, formatNumber } from "@/lib/format";
+import { formatDate, formatDateTime, formatMoney, formatNumber, formatUnix } from "@/lib/format";
 import { clearSuppression } from "./actions";
+import { GrantCreditForm } from "./grant-credit-form";
 import { ImpersonateButton } from "./impersonate-button";
 
 export const metadata: Metadata = { title: "Organization" };
@@ -32,6 +33,8 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
   }
   const { data: messages } = await adminApi.listOrgMessages(id, 25);
   const { data: suppressionList } = await adminApi.listOrgSuppressions(id, 50);
+  // Billing pulls from Stripe — never let a Stripe hiccup break the whole page.
+  const billing = await adminApi.getOrgBilling(id).catch(() => null);
 
   const stats = [
     { label: "Emails this period", value: formatNumber(org.usage_this_period) },
@@ -183,6 +186,110 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
           </Table>
         </CardContent>
       </Card>
+
+      {billing ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Billing</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="flex flex-wrap gap-8 text-sm">
+              <div>
+                <div className="text-muted-foreground">Account balance</div>
+                <div className="text-lg font-semibold">
+                  {billing.balance < 0
+                    ? `${formatMoney(-billing.balance)} credit`
+                    : billing.balance > 0
+                      ? `${formatMoney(billing.balance)} due`
+                      : "$0.00"}
+                </div>
+              </div>
+              <div>
+                <div className="text-muted-foreground">Subscription</div>
+                <div className="mt-0.5">
+                  {billing.subscription ? (
+                    <Badge variant={billing.subscription.status === "active" ? "success" : "warning"}>
+                      {billing.subscription.status}
+                    </Badge>
+                  ) : (
+                    <span className="text-muted-foreground">none</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {billing.subscription && billing.subscription.items.length > 0 ? (
+              <div>
+                <div className="mb-1.5 text-sm font-medium">Subscription items</div>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {billing.subscription.items.map((it, i) => (
+                    <li key={`${it.description}-${i}`}>
+                      {it.description}
+                      {it.quantity && it.quantity > 1 ? ` ×${it.quantity}` : ""}
+                      {it.unit_amount != null
+                        ? ` — ${formatMoney(it.unit_amount)}${it.interval ? `/${it.interval}` : ""}`
+                        : " — metered"}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+
+            {billing.invoices.length > 0 ? (
+              <div>
+                <div className="mb-2 text-sm font-medium">Recent invoices</div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Total</TableHead>
+                      <TableHead>Date</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {billing.invoices.map((v) => (
+                      <TableRow key={v.id}>
+                        <TableCell className="font-medium">
+                          {v.url ? (
+                            <a href={v.url} target="_blank" rel="noreferrer" className="hover:underline">
+                              {v.number ?? v.id}
+                            </a>
+                          ) : (
+                            (v.number ?? v.id)
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={v.status === "paid" ? "success" : "muted"}>
+                            {v.status ?? "—"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right tabular-nums">
+                          {formatMoney(v.total, v.currency)}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {formatUnix(v.created)}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : null}
+
+            <div className="border-t pt-4">
+              <div className="mb-2 text-sm font-medium">Grant account credit</div>
+              {billing.stripe_customer_id ? (
+                <GrantCreditForm orgId={org.id} />
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No Stripe customer yet — available once the org is on a paid plan.
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>

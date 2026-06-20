@@ -61,6 +61,33 @@ export interface ListResponse<T> {
   data: T[];
 }
 
+export interface AdminBilling {
+  object: "admin_billing";
+  plan: string;
+  plan_status: string;
+  stripe_customer_id: string | null;
+  /** Stripe customer balance in cents; negative = credit toward future invoices. */
+  balance: number;
+  subscription: {
+    status: string;
+    items: {
+      description: string;
+      unit_amount: number | null;
+      quantity: number | null;
+      interval: string | null;
+    }[];
+  } | null;
+  invoices: {
+    id: string;
+    number: string | null;
+    status: string | null;
+    total: number;
+    currency: string;
+    created: number;
+    url: string | null;
+  }[];
+}
+
 export interface Suppression {
   object: "suppression";
   id: string;

@@ -144,7 +144,12 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
       env split `STRIPE_PRICE_OVERAGE_PRO/_SCALE` + `STRIPE_METER_OVERAGE_PRO/_SCALE`.
       `pnpm --filter @rootmail/api test:stripe` checks it. _Activation pending the
       overage price/meter fix in "Blocked on you."_
-- [ ] Billing ops UI (admin Stripe subscription view + credits/comps/refunds/dunning).
+- [x] **Billing ops** *(branch `feat/admin-billing-ops`)* — `GET /v1/admin/orgs/:id/
+      billing` (live Stripe: subscription items, recent invoices, balance) + audited
+      `POST …/credit` (goodwill account credit via Stripe customer balance,
+      superadmin-only). Org-detail "Billing" card: balance, subscription items,
+      invoices, grant-credit form. `test:billing-ops` e2e-verifies it in test mode
+      (sub + invoice read; $5 credit → balance −500). _Refunds/dunning: future._
 - [ ] Pricing management — plans/add-ons/AI-credits **data-driven** + Stripe-synced.
 - [ ] Promotions (coupons/trials/discounts) · Comms (dogfood lifecycle) ·
       Sales CRM (leads/deals/pipeline). New tables as each lands.

@@ -1,6 +1,7 @@
 import { getStaffToken } from "./session";
 import type {
   AdminAnalytics,
+  AdminBilling,
   ListResponse,
   LoginResult,
   MessageDetail,
@@ -102,6 +103,13 @@ export const adminApi = {
     }),
 
   analytics: () => adminFetch<AdminAnalytics>("/v1/admin/analytics"),
+
+  getOrgBilling: (id: string) => adminFetch<AdminBilling>(`/v1/admin/orgs/${id}/billing`),
+  grantCredit: (id: string, amountCents: number, reason?: string) =>
+    adminFetch<{ applied: boolean }>(`/v1/admin/orgs/${id}/credit`, {
+      method: "POST",
+      body: { amount_cents: amountCents, reason },
+    }),
 
   listOrgSuppressions: (id: string, limit = 50) =>
     adminFetch<ListResponse<Suppression>>(`/v1/admin/orgs/${id}/suppressions?limit=${limit}`),
