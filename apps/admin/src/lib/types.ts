@@ -88,6 +88,35 @@ export interface AdminBilling {
   }[];
 }
 
+export interface AdminPlan {
+  object: "plan";
+  id: string;
+  name: string;
+  price: number | null;
+  monthly_quota: number;
+  allow_overage: boolean;
+  overage_per_1000_cents: number;
+  included_sub_tenants: number;
+  seats: number;
+  ai_credits: number;
+  features: string[];
+  rank: number;
+  active: boolean;
+  stripe_price_month_id: string | null;
+  stripe_price_year_id: string | null;
+}
+
+export type PlanPatch = Partial<{
+  name: string;
+  price: number | null;
+  monthly_quota: number;
+  overage_per_1000_cents: number;
+  included_sub_tenants: number;
+  seats: number;
+  ai_credits: number;
+  active: boolean;
+}>;
+
 export interface Suppression {
   object: "suppression";
   id: string;

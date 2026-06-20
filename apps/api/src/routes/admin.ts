@@ -2,7 +2,7 @@ import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type Stripe from "stripe";
 import { z } from "zod";
-import { Errors, generateSessionToken, newId, PLANS, verifyPassword } from "@rootmail/core";
+import { Errors, generateSessionToken, newId, PLAN_IDS, type PlanId, verifyPassword } from "@rootmail/core";
 import {
   auditEntries,
   db,
@@ -11,6 +11,7 @@ import {
   memberships,
   messages,
   organizations,
+  plans,
   staffUsers,
   subTenants,
   suppressions,
@@ -29,6 +30,7 @@ import {
   writeStaffAudit,
 } from "../lib/admin-auth";
 import { currentPeriod } from "../lib/billing";
+import { getPlan, refreshPlanCache } from "../lib/plans";
 import { getStripe } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { parse } from "../lib/validate";
@@ -48,6 +50,26 @@ function slimMessage(m: Message) {
     sub_tenant_id: m.subTenantId,
     sandbox: m.sandbox,
     created_at: m.createdAt,
+  };
+}
+
+function serializePlanRow(p: typeof plans.$inferSelect) {
+  return {
+    object: "plan" as const,
+    id: p.id,
+    name: p.name,
+    price: p.price,
+    monthly_quota: p.monthlyQuota,
+    allow_overage: p.allowOverage,
+    overage_per_1000_cents: p.overagePer1000Cents,
+    included_sub_tenants: p.includedSubTenants,
+    seats: p.seats,
+    ai_credits: p.aiCredits,
+    features: p.features,
+    rank: p.rank,
+    active: p.active,
+    stripe_price_month_id: p.stripePriceMonthId,
+    stripe_price_year_id: p.stripePriceYearId,
   };
 }
 
@@ -342,7 +364,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     for (const r of planRows) {
       byPlan[r.plan] = (byPlan[r.plan] ?? 0) + r.n;
       totalOrgs += r.n;
-      const price = PLANS[r.plan]?.price ?? null;
+      const price = getPlan(r.plan).price;
       if (price && price > 0) {
         paidOrgs += r.n;
         if (r.status === "active") {
@@ -522,5 +544,64 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { object: "credit", amount_cents, applied: true };
+  });
+
+  // --- Pricing management (data-driven plans) -----------------------------
+  app.get("/v1/admin/plans", async (req) => {
+    await requireStaff(req);
+    const rows = await db.select().from(plans).orderBy(asc(plans.rank));
+    return { object: "list", data: rows.map(serializePlanRow) };
+  });
+
+  const planPatch = z.object({
+    name: z.string().min(1).max(60).optional(),
+    price: z.number().int().min(0).max(1_000_000).nullable().optional(),
+    monthly_quota: z.coerce.number().int().min(0).optional(),
+    allow_overage: z.boolean().optional(),
+    overage_per_1000_cents: z.coerce.number().int().min(0).max(100_000).optional(),
+    included_sub_tenants: z.coerce.number().int().min(-1).optional(),
+    seats: z.coerce.number().int().min(-1).optional(),
+    ai_credits: z.coerce.number().int().min(-1).optional(),
+    features: z.array(z.string()).optional(),
+    active: z.boolean().optional(),
+  });
+  // Edit plan economics. Pricing = money → superadmin only, and audited. App-side
+  // fields (quota, seats, overage, AI credits, features) take effect immediately;
+  // the billed Stripe price is synced separately (Phase B).
+  app.patch("/v1/admin/plans/:id", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff); // superadmin only
+    const { id } = req.params as { id: string };
+    if (!(PLAN_IDS as readonly string[]).includes(id)) throw Errors.notFound("Plan not found");
+    const body = parse(planPatch, req.body);
+
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (body.name !== undefined) set.name = body.name;
+    if (body.price !== undefined) set.price = body.price;
+    if (body.monthly_quota !== undefined) set.monthlyQuota = body.monthly_quota;
+    if (body.allow_overage !== undefined) set.allowOverage = body.allow_overage;
+    if (body.overage_per_1000_cents !== undefined) set.overagePer1000Cents = body.overage_per_1000_cents;
+    if (body.included_sub_tenants !== undefined) set.includedSubTenants = body.included_sub_tenants;
+    if (body.seats !== undefined) set.seats = body.seats;
+    if (body.ai_credits !== undefined) set.aiCredits = body.ai_credits;
+    if (body.features !== undefined) set.features = body.features;
+    if (body.active !== undefined) set.active = body.active;
+
+    const [updated] = await db
+      .update(plans)
+      .set(set)
+      .where(eq(plans.id, id as PlanId))
+      .returning();
+    if (!updated) throw Errors.notFound("Plan not found");
+    await refreshPlanCache(); // make the edit live immediately
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "plan.update",
+      targetType: "plan",
+      targetId: id,
+      metadata: body,
+      ip: req.ip,
+    });
+    return serializePlanRow(updated);
   });
 }

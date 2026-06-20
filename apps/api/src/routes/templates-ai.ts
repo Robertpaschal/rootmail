@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { ADD_ONS, AI_CREDITS, env, Errors } from "@rootmail/core";
+import { ADD_ONS, env, Errors } from "@rootmail/core";
 import { getAiUsage, recordAiUse } from "../lib/billing";
 import { generateTemplateDraft } from "../lib/ai";
+import { getAiCredits } from "../lib/plans";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { addonQuantity } from "../lib/seats";
@@ -23,7 +24,7 @@ export async function templateAiRoutes(app: FastifyInstance): Promise<void> {
       const org = await loadOrg(req);
 
       // Each plan includes an AI-credit allocation; buyable packs add to it.
-      const base = AI_CREDITS[org.plan];
+      const base = getAiCredits(org.plan);
       const packs = await addonQuantity(org.id, "ai_credit_pack");
       const allowance = base === -1 ? -1 : base + packs * ADD_ONS.ai_credit_pack.grant;
       const used = await getAiUsage(org.id);

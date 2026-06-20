@@ -10,7 +10,6 @@ import {
   Errors,
   newId,
   PLAN_IDS,
-  PLANS,
   type PlanDef,
   yearlyPrice,
 } from "@rootmail/core";
@@ -18,6 +17,7 @@ import { db, type Organization, organizations, type OrgAddon, orgAddons } from "
 import { currentPeriod, type QuotaState, quotaState } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
+import { listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
 import { createCheckout, reportOverage, syncAddonItems } from "../lib/stripe";
 import { parse } from "../lib/validate";
@@ -120,7 +120,7 @@ async function billingPayload(org: Organization, usage: QuotaState) {
       over_limit: usage.over_limit,
     },
     summary: billingSummary(org, usage, seats, addons),
-    plans: PLAN_IDS.map((id) => serializePlan(PLANS[id])),
+    plans: listPlans().map(serializePlan),
   };
 }
 

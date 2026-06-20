@@ -9,13 +9,13 @@ import {
   generateDkimKeypair,
   isVerified,
   newId,
-  PLANS,
   randomToken,
   verifyDnsRecords,
 } from "@rootmail/core";
 import { db, type SubTenant, subTenants, workspaces } from "@rootmail/db";
 import { loadOrg, requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
+import { getPlan } from "../lib/plans";
 import { addonQuantity } from "../lib/seats";
 import { serializeSubTenant } from "../lib/serialize";
 import { parse } from "../lib/validate";
@@ -65,7 +65,7 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
 
     // Enforce the sub-tenant ceiling (plan-included + purchased packs), org-wide.
     const org = await loadOrg(req);
-    const included = PLANS[org.plan].includedSubTenants;
+    const included = getPlan(org.plan).includedSubTenants;
     if (included !== -1) {
       const packs = await addonQuantity(org.id, "subtenant_pack");
       const ceiling = included + packs * ADD_ONS.subtenant_pack.grant;

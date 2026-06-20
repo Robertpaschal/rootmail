@@ -168,6 +168,31 @@ export const billingEvents = pgTable("billing_events", {
   createdAt: createdAt(),
 });
 
+// Plan catalog — the admin-editable source of truth for plan economics. Seeded
+// from the PLANS/AI_CREDITS constants; the app reads it through a cached loader
+// that falls back to the constants when a row is missing. Overage is stored as
+// integer cents per 1,000 emails (85 = $0.85) to avoid floats.
+export const plans = pgTable("plans", {
+  id: planEnum("id").primaryKey(),
+  name: text("name").notNull(),
+  price: integer("price"), // monthly USD; null = custom / contact sales
+  monthlyQuota: integer("monthly_quota").notNull(),
+  allowOverage: boolean("allow_overage").notNull().default(false),
+  overagePer1000Cents: integer("overage_per_1000_cents").notNull().default(0),
+  includedSubTenants: integer("included_sub_tenants").notNull().default(0),
+  seats: integer("seats").notNull().default(1),
+  aiCredits: integer("ai_credits").notNull().default(0),
+  features: jsonb("features").$type<string[]>().notNull().default([]),
+  rank: integer("rank").notNull().default(0),
+  active: boolean("active").notNull().default(true),
+  // Stripe linkage (Phase B — dynamic price sync). Null = use env price ids.
+  stripePriceMonthId: text("stripe_price_month_id"),
+  stripePriceYearId: text("stripe_price_year_id"),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+});
+export type Plan = typeof plans.$inferSelect;
+
 // Monthly send meter per organization (period = "YYYY-MM", UTC). Sandbox/test
 // sends are never metered.
 export const usageRecords = pgTable(

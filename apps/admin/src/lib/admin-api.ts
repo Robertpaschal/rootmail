@@ -2,12 +2,14 @@ import { getStaffToken } from "./session";
 import type {
   AdminAnalytics,
   AdminBilling,
+  AdminPlan,
   ListResponse,
   LoginResult,
   MessageDetail,
   MessageSummary,
   OrgDetail,
   OrgSummary,
+  PlanPatch,
   StaffUser,
   Suppression,
 } from "./types";
@@ -103,6 +105,10 @@ export const adminApi = {
     }),
 
   analytics: () => adminFetch<AdminAnalytics>("/v1/admin/analytics"),
+
+  listPlans: () => adminFetch<ListResponse<AdminPlan>>("/v1/admin/plans"),
+  updatePlan: (id: string, patch: PlanPatch) =>
+    adminFetch<AdminPlan>(`/v1/admin/plans/${id}`, { method: "PATCH", body: patch }),
 
   getOrgBilling: (id: string) => adminFetch<AdminBilling>(`/v1/admin/orgs/${id}/billing`),
   grantCredit: (id: string, amountCents: number, reason?: string) =>

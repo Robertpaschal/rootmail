@@ -1,10 +1,11 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { env, Errors, MEMBERSHIP_ROLES, newId, PLANS, randomToken, sha256Hex } from "@rootmail/core";
+import { env, Errors, MEMBERSHIP_ROLES, newId, randomToken, sha256Hex } from "@rootmail/core";
 import { db, invitations, memberships, organizations, orgAddons, roles, users } from "@rootmail/db";
 import { loadOrg, requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
+import { getPlan } from "../lib/plans";
 import { seatState } from "../lib/seats";
 import { parse } from "../lib/validate";
 
@@ -99,7 +100,7 @@ export async function memberRoutes(app: FastifyInstance): Promise<void> {
         .where(eq(organizations.id, org.id))
         .for("update");
 
-      const included = PLANS[org.plan].seats;
+      const included = getPlan(org.plan).seats;
       const [pq] = await tx
         .select({ q: orgAddons.quantity })
         .from(orgAddons)

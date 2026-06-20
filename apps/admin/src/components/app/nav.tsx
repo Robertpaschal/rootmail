@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, LayoutDashboard } from "lucide-react";
+import { BarChart3, Building2, LayoutDashboard, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
   { href: "/", label: "Overview", icon: LayoutDashboard },
   { href: "/orgs", label: "Organizations", icon: Building2 },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
+  { href: "/pricing", label: "Pricing", icon: Tag },
 ];
 
 function isActive(pathname: string, href: string): boolean {
