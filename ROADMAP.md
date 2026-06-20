@@ -160,8 +160,14 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         sub-tenants, feature-gate target, AI credits, MRR, billing display). Admin
         `GET/PATCH /v1/admin/plans` (superadmin, audited) + a Pricing editor page.
         Edits go live immediately. Verified: curl + browser (edit → reflected).
-  - [ ] **Phase B — Stripe price sync:** editing a billed price creates/swaps the
-        Stripe price + keeps the product/subscriptions in sync.
+  - [x] **Phase B — Stripe price sync** *(branch `feat/pricing-stripe-sync`)*. Editing
+        a plan's billed price creates NEW Stripe monthly+yearly prices on the plan's
+        product (yearly = 10× = 2 months free), sets the monthly as the product
+        default, archives the prior synced prices (existing subs **grandfathered** —
+        a v1/v2 model), and stores the new ids. `priceForPlan` prefers the synced
+        price, falling back to env. Checkout/cache pick it up immediately; the admin
+        editor shows "Stripe price synced". `test:pricing-sync` verifies it in test
+        mode (new prices + default + archive); browser-verified.
   - [ ] **Phase C — promotions:** coupons / discounts / trials (Stripe coupons +
         promo codes), admin-managed.
   - [ ] Fold add-ons into the same DB-backed, admin-editable model.

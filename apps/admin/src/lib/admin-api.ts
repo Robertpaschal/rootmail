@@ -108,7 +108,10 @@ export const adminApi = {
 
   listPlans: () => adminFetch<ListResponse<AdminPlan>>("/v1/admin/plans"),
   updatePlan: (id: string, patch: PlanPatch) =>
-    adminFetch<AdminPlan>(`/v1/admin/plans/${id}`, { method: "PATCH", body: patch }),
+    adminFetch<AdminPlan & { stripe_sync?: string }>(`/v1/admin/plans/${id}`, {
+      method: "PATCH",
+      body: patch,
+    }),
 
   getOrgBilling: (id: string) => adminFetch<AdminBilling>(`/v1/admin/orgs/${id}/billing`),
   grantCredit: (id: string, amountCents: number, reason?: string) =>

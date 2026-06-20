@@ -82,7 +82,17 @@ export function PlanEditor({ plan }: { plan: AdminPlan }) {
         </label>
         <div className="flex items-center gap-3">
           {state.error ? <span className="text-sm text-destructive">{state.error}</span> : null}
-          {state.ok ? <span className="text-sm text-emerald-600">Saved.</span> : null}
+          {state.ok ? (
+            <span
+              className={`text-sm ${state.sync === "failed" ? "text-amber-600" : "text-emerald-600"}`}
+            >
+              {state.sync === "synced"
+                ? "Saved · Stripe price synced"
+                : state.sync === "failed"
+                  ? "Saved · Stripe sync failed"
+                  : "Saved"}
+            </span>
+          ) : null}
           <SubmitButton variant="outline" pendingLabel="Saving…">
             Save
           </SubmitButton>
