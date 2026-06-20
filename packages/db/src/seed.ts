@@ -1,6 +1,17 @@
 import { and, eq } from "drizzle-orm";
-import { AI_CREDITS, env, generateApiKey, hashPassword, newId, PLAN_IDS, PLANS } from "@rootmail/core";
 import {
+  ADD_ON_IDS,
+  ADD_ONS,
+  AI_CREDITS,
+  env,
+  generateApiKey,
+  hashPassword,
+  newId,
+  PLAN_IDS,
+  PLANS,
+} from "@rootmail/core";
+import {
+  addons,
   apiKeys,
   closeDb,
   db,
@@ -13,6 +24,28 @@ import {
   type Workspace,
   workspaces,
 } from "./index";
+
+// Seed the add-on catalog from the constants. onConflictDoNothing so re-seeding
+// never clobbers prices/grants an admin has since edited.
+async function ensureAddons(): Promise<void> {
+  for (let i = 0; i < ADD_ON_IDS.length; i++) {
+    const id = ADD_ON_IDS[i];
+    const a = ADD_ONS[id];
+    await db
+      .insert(addons)
+      .values({
+        id,
+        name: a.name,
+        description: a.description,
+        unit: a.unit,
+        unitAmount: a.defaultUnitAmount,
+        grant: a.grant,
+        rank: i,
+        active: true,
+      })
+      .onConflictDoNothing({ target: addons.id });
+  }
+}
 
 // Seed the plan catalog from the constants. onConflictDoNothing so re-seeding
 // never clobbers prices an admin has since edited in the DB.
@@ -152,6 +185,7 @@ async function createApiKey(
 
 async function main() {
   await ensurePlans();
+  await ensureAddons();
   const org = await ensureOrganization();
   // Sub-tenant-pack headroom for the demo org: showcases an add-on line on the
   // collective bill AND keeps repeated smoke runs (each creates a sub-tenant)

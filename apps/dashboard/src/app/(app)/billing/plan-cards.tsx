@@ -94,6 +94,10 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
               </p>
 
               <ul className="mt-4 flex-1 space-y-1.5">
+                <li className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                  {p.ai_credits === -1 ? "Unlimited AI credits" : `${p.ai_credits} AI credits / mo`}
+                </li>
                 {p.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
                     <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />

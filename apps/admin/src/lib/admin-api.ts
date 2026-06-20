@@ -1,8 +1,10 @@
 import { getStaffToken } from "./session";
 import type {
+  AdminAddon,
   AdminAnalytics,
   AdminBilling,
   AdminPlan,
+  AddonPatch,
   ListResponse,
   LoginResult,
   MessageDetail,
@@ -120,6 +122,13 @@ export const adminApi = {
   listPlans: () => adminFetch<ListResponse<AdminPlan>>("/v1/admin/plans"),
   updatePlan: (id: string, patch: PlanPatch) =>
     adminFetch<AdminPlan & { stripe_sync?: string }>(`/v1/admin/plans/${id}`, {
+      method: "PATCH",
+      body: patch,
+    }),
+
+  listAddons: () => adminFetch<ListResponse<AdminAddon>>("/v1/admin/addons"),
+  updateAddon: (id: string, patch: AddonPatch) =>
+    adminFetch<AdminAddon & { stripe_sync?: string }>(`/v1/admin/addons/${id}`, {
       method: "PATCH",
       body: patch,
     }),

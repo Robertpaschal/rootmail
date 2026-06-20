@@ -10,9 +10,18 @@ import {
   type PlanId,
   type PlanStatus,
 } from "@rootmail/core";
-import { db, type Organization, orgAddons, organizations, type Plan, plans } from "@rootmail/db";
+import {
+  type Addon,
+  addons as addonsTable,
+  db,
+  type Organization,
+  orgAddons,
+  organizations,
+  type Plan,
+  plans,
+} from "@rootmail/db";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
-import { getPlan, getStripePrices, getTrialDays } from "./plans";
+import { getAddon, getPlan, getStripePrices, getTrialDays } from "./plans";
 
 // ---------------------------------------------------------------------------
 // Stripe billing abstraction.
@@ -57,6 +66,8 @@ export function priceForPlan(planId: PlanId, interval: BillingInterval = "month"
 
 /** Configured Stripe price id for an add-on, or null (→ use default constant). */
 export function priceForAddOn(id: AddOnId): string | null {
+  const synced = getAddon(id).stripePriceId;
+  if (synced) return synced;
   const val = env[ADD_ONS[id].priceEnvKey as keyof typeof env];
   return typeof val === "string" && val ? val : null;
 }
@@ -351,4 +362,45 @@ export async function syncPlanPrice(plan: Plan): Promise<{ month: string; year: 
     .where(eq(plans.id, plan.id));
 
   return { month: month.id, year: year.id };
+}
+
+/**
+ * Sync an add-on's price to Stripe after an admin edit — same immutable-price
+ * dance as plans: create a new recurring price on the add-on's product, make it
+ * the default, archive the prior synced price, persist the id. No-op without
+ * Stripe or a positive price.
+ */
+export async function syncAddonPrice(addon: Addon): Promise<string | null> {
+  const stripe = getStripe();
+  if (!stripe || addon.unitAmount <= 0) return null;
+
+  const existing = addon.stripePriceId ?? priceForAddOn(addon.id as AddOnId);
+  let productId: string;
+  if (existing) {
+    const ep = await stripe.prices.retrieve(existing);
+    productId = typeof ep.product === "string" ? ep.product : ep.product.id;
+  } else {
+    const product = await stripe.products.create({
+      name: `rootmail ${addon.name}`,
+      metadata: { addonId: addon.id },
+    });
+    productId = product.id;
+  }
+
+  const price = await stripe.prices.create({
+    product: productId,
+    currency: "usd",
+    unit_amount: addon.unitAmount * 100,
+    recurring: { interval: "month" },
+    metadata: { addonId: addon.id },
+  });
+  await stripe.products.update(productId, { default_price: price.id });
+  if (addon.stripePriceId) {
+    await stripe.prices.update(addon.stripePriceId, { active: false }).catch(() => {});
+  }
+  await db
+    .update(addonsTable)
+    .set({ stripePriceId: price.id, updatedAt: new Date() })
+    .where(eq(addonsTable.id, addon.id));
+  return price.id;
 }

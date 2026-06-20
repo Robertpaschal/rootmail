@@ -141,6 +141,13 @@
       "when": 1781946922287,
       "tag": "0019_perfect_shinko_yamashiro",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1781964338488,
+      "tag": "0020_graceful_meteorite",
+      "breakpoints": true
     }
   ]
 }

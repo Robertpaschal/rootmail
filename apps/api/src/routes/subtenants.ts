@@ -2,7 +2,6 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
-  ADD_ONS,
   buildDnsRecords,
   env,
   Errors,
@@ -15,7 +14,7 @@ import {
 import { db, type SubTenant, subTenants, workspaces } from "@rootmail/db";
 import { loadOrg, requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { getPlan } from "../lib/plans";
+import { getAddon, getPlan } from "../lib/plans";
 import { addonQuantity } from "../lib/seats";
 import { serializeSubTenant } from "../lib/serialize";
 import { parse } from "../lib/validate";
@@ -68,7 +67,7 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
     const included = getPlan(org.plan).includedSubTenants;
     if (included !== -1) {
       const packs = await addonQuantity(org.id, "subtenant_pack");
-      const ceiling = included + packs * ADD_ONS.subtenant_pack.grant;
+      const ceiling = included + packs * getAddon("subtenant_pack").grant;
       const wsIds = (
         await db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.organizationId, org.id))
       ).map((w) => w.id);

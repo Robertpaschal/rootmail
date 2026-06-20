@@ -20,6 +20,7 @@ const tiers = [
     features: [
       "Transactional + marketing sends",
       "Full audit trail & suppression",
+      "3 AI credits / month",
       "Sandbox (test-mode) keys",
       "Community support",
     ],
@@ -39,6 +40,7 @@ const tiers = [
       "Reply threads & shared inbox",
       "Sequences & automation",
       "Campaigns & lists",
+      "50 AI credits / month",
       "3 teammates · email support",
     ],
     cta: "Start sending",
@@ -56,6 +58,7 @@ const tiers = [
       "Everything in Pro",
       "Sub-tenants — their own domains",
       "Per-tenant DKIM & reputation",
+      "250 AI credits / month",
       "Team roles (RBAC) · unlimited seats",
     ],
     cta: "Start scaling",
@@ -72,6 +75,7 @@ const tiers = [
     features: [
       "Everything in Scale",
       "Proof bundles (Layer 3)",
+      "Unlimited AI credits",
       "Dedicated IPs & warming",
       "SSO / SAML · EU residency · SLA",
     ],

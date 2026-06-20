@@ -2,12 +2,16 @@ import type { Metadata } from "next";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminApi } from "@/lib/admin-api";
+import { AddonEditor } from "./addon-editor";
 import { PlanEditor } from "./plan-editor";
 
 export const metadata: Metadata = { title: "Pricing" };
 
 export default async function PricingPage() {
-  const { data: plans } = await adminApi.listPlans();
+  const [{ data: plans }, { data: addons }] = await Promise.all([
+    adminApi.listPlans(),
+    adminApi.listAddons(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -36,6 +40,17 @@ export default async function PricingPage() {
           </Card>
         ))}
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Add-ons</CardTitle>
+        </CardHeader>
+        <CardContent className="py-0">
+          {addons.map((a) => (
+            <AddonEditor key={a.id} addon={a} />
+          ))}
+        </CardContent>
+      </Card>
     </div>
   );
 }
