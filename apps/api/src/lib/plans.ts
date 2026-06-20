@@ -10,6 +10,7 @@ const TTL_MS = 30_000;
 let planCache: Record<PlanId, PlanDef> = { ...PLANS };
 let aiCache: Record<PlanId, number> = { ...AI_CREDITS };
 let stripePriceCache: Partial<Record<PlanId, { month: string | null; year: string | null }>> = {};
+let trialCache: Partial<Record<PlanId, number>> = {};
 let loadedAt = 0;
 
 function toDef(r: Plan): PlanDef {
@@ -34,16 +35,19 @@ export async function refreshPlanCache(): Promise<void> {
       const p = { ...PLANS };
       const ai = { ...AI_CREDITS };
       const sp: Partial<Record<PlanId, { month: string | null; year: string | null }>> = {};
+      const tr: Partial<Record<PlanId, number>> = {};
       for (const r of rows) {
         if ((PLAN_IDS as readonly string[]).includes(r.id)) {
           p[r.id as PlanId] = toDef(r);
           ai[r.id as PlanId] = r.aiCredits;
           sp[r.id as PlanId] = { month: r.stripePriceMonthId, year: r.stripePriceYearId };
+          tr[r.id as PlanId] = r.trialDays;
         }
       }
       planCache = p;
       aiCache = ai;
       stripePriceCache = sp;
+      trialCache = tr;
     }
     loadedAt = Date.now();
   } catch {
@@ -65,6 +69,12 @@ export function getPlan(planId: PlanId): PlanDef {
 export function getStripePrices(planId: PlanId): { month: string | null; year: string | null } | undefined {
   maybeRefresh();
   return stripePriceCache[planId];
+}
+
+/** Free-trial length in days for a plan's checkout (0 = no trial). */
+export function getTrialDays(planId: PlanId): number {
+  maybeRefresh();
+  return trialCache[planId] ?? 0;
 }
 
 /** Included monthly AI credits for a plan (-1 = unlimited). */

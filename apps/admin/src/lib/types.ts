@@ -99,6 +99,7 @@ export interface AdminPlan {
   included_sub_tenants: number;
   seats: number;
   ai_credits: number;
+  trial_days: number;
   features: string[];
   rank: number;
   active: boolean;
@@ -114,6 +115,7 @@ export type PlanPatch = Partial<{
   included_sub_tenants: number;
   seats: number;
   ai_credits: number;
+  trial_days: number;
   active: boolean;
 }>;
 

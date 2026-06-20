@@ -134,6 +134,13 @@
       "when": 1781929275159,
       "tag": "0018_massive_dust",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1781946922287,
+      "tag": "0019_perfect_shinko_yamashiro",
+      "breakpoints": true
     }
   ]
 }

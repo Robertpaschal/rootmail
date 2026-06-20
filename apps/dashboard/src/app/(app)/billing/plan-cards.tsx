@@ -77,6 +77,11 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
                   <span className="text-xs text-muted-foreground">/{interval === "year" ? "yr" : "mo"}</span>
                 ) : null}
               </div>
+              {p.trial_days > 0 ? (
+                <p className="mt-1 text-xs font-medium text-emerald-600">
+                  {p.trial_days}-day free trial
+                </p>
+              ) : null}
               <p className="mt-2 text-sm text-muted-foreground">
                 {p.monthly_quota.toLocaleString()} emails / mo
                 {p.allow_overage ? (
