@@ -171,6 +171,63 @@ export interface Suppression {
   created_at: string;
 }
 
+export type LeadStatus = "new" | "contacted" | "qualified" | "proposal" | "won" | "lost";
+
+export const LEAD_STATUSES: LeadStatus[] = [
+  "new",
+  "contacted",
+  "qualified",
+  "proposal",
+  "won",
+  "lost",
+];
+
+export interface Lead {
+  object: "lead";
+  id: string;
+  name: string;
+  email: string;
+  company: string | null;
+  website: string | null;
+  phone: string | null;
+  company_size: string | null;
+  expected_volume: string | null;
+  current_provider: string | null;
+  message: string | null;
+  status: LeadStatus;
+  source: string;
+  owner_staff_id: string | null;
+  owner_email: string | null;
+  organization_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface LeadNote {
+  object: "lead_note";
+  id: string;
+  body: string;
+  kind: string;
+  staff_user_id: string | null;
+  staff_email: string | null;
+  created_at: string;
+}
+
+export interface LeadDetail extends Lead {
+  organization: { id: string; name: string; plan: string } | null;
+  notes: LeadNote[];
+}
+
+export interface LeadListResponse extends ListResponse<Lead> {
+  counts: Record<LeadStatus, number>;
+}
+
+export type LeadPatch = Partial<{
+  status: LeadStatus;
+  owner_staff_id: string | null;
+  organization_id: string | null;
+}>;
+
 export interface AdminAnalytics {
   object: "admin_analytics";
   period: string;

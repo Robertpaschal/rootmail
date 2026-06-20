@@ -37,6 +37,8 @@ export const ID_PREFIXES = {
   staffSession: "sts",
   staffAudit: "sta",
   impersonationGrant: "img",
+  lead: "led",
+  leadNote: "lnt",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

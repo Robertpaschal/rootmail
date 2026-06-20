@@ -6,6 +6,7 @@ import {
   ADD_ON_IDS,
   Errors,
   generateSessionToken,
+  LEAD_STATUSES,
   newId,
   PLAN_IDS,
   type PlanId,
@@ -16,6 +17,10 @@ import {
   auditEntries,
   db,
   impersonationGrants,
+  type Lead,
+  leadNotes,
+  leads,
+  type LeadNote,
   type Message,
   memberships,
   messages,
@@ -118,6 +123,41 @@ function serializeAddonRow(a: typeof addons.$inferSelect) {
     active: a.active,
     rank: a.rank,
     stripe_price_id: a.stripePriceId,
+  };
+}
+
+function serializeLead(l: Lead, ownerEmail?: string | null) {
+  return {
+    object: "lead" as const,
+    id: l.id,
+    name: l.name,
+    email: l.email,
+    company: l.company,
+    website: l.website,
+    phone: l.phone,
+    company_size: l.companySize,
+    expected_volume: l.expectedVolume,
+    current_provider: l.currentProvider,
+    message: l.message,
+    status: l.status,
+    source: l.source,
+    owner_staff_id: l.ownerStaffId,
+    owner_email: ownerEmail ?? null,
+    organization_id: l.organizationId,
+    created_at: l.createdAt,
+    updated_at: l.updatedAt,
+  };
+}
+
+function serializeLeadNote(n: LeadNote, authorEmail?: string | null) {
+  return {
+    object: "lead_note" as const,
+    id: n.id,
+    body: n.body,
+    kind: n.kind,
+    staff_user_id: n.staffUserId,
+    staff_email: authorEmail ?? null,
+    created_at: n.createdAt,
   };
 }
 
@@ -828,5 +868,169 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { ...serializeAddonRow(row), stripe_sync: stripeSync };
+  });
+
+  // --- Sales CRM (enterprise "Contact sales" leads) -----------------------
+  const leadQuery = z.object({
+    status: z.enum(LEAD_STATUSES).optional(),
+    limit: z.coerce.number().int().min(1).max(200).default(100),
+  });
+  app.get("/v1/admin/leads", async (req) => {
+    await requireStaff(req);
+    const { status, limit } = parse(leadQuery, req.query);
+    const rows = await db
+      .select({ lead: leads, ownerEmail: staffUsers.email })
+      .from(leads)
+      .leftJoin(staffUsers, eq(staffUsers.id, leads.ownerStaffId))
+      .where(status ? eq(leads.status, status) : undefined)
+      .orderBy(desc(leads.createdAt))
+      .limit(limit);
+
+    // Pipeline counts power the status tabs in the admin UI.
+    const countRows = await db
+      .select({ status: leads.status, n: sql<number>`count(*)::int` })
+      .from(leads)
+      .groupBy(leads.status);
+    const counts: Record<string, number> = {};
+    for (const s of LEAD_STATUSES) counts[s] = 0;
+    for (const r of countRows) counts[r.status] = r.n;
+
+    return {
+      object: "list",
+      data: rows.map((r) => serializeLead(r.lead, r.ownerEmail)),
+      counts,
+    };
+  });
+
+  app.get("/v1/admin/leads/:id", async (req) => {
+    await requireStaff(req);
+    const { id } = req.params as { id: string };
+    const [row] = await db
+      .select({ lead: leads, ownerEmail: staffUsers.email })
+      .from(leads)
+      .leftJoin(staffUsers, eq(staffUsers.id, leads.ownerStaffId))
+      .where(eq(leads.id, id))
+      .limit(1);
+    if (!row) throw Errors.notFound("Lead not found");
+
+    const notes = await db
+      .select({ note: leadNotes, authorEmail: staffUsers.email })
+      .from(leadNotes)
+      .leftJoin(staffUsers, eq(staffUsers.id, leadNotes.staffUserId))
+      .where(eq(leadNotes.leadId, id))
+      .orderBy(desc(leadNotes.createdAt));
+
+    let organization: { id: string; name: string; plan: string } | null = null;
+    if (row.lead.organizationId) {
+      const [o] = await db
+        .select({ id: organizations.id, name: organizations.name, plan: organizations.plan })
+        .from(organizations)
+        .where(eq(organizations.id, row.lead.organizationId))
+        .limit(1);
+      organization = o ?? null;
+    }
+
+    return {
+      ...serializeLead(row.lead, row.ownerEmail),
+      organization,
+      notes: notes.map((n) => serializeLeadNote(n.note, n.authorEmail)),
+    };
+  });
+
+  const leadPatch = z.object({
+    status: z.enum(LEAD_STATUSES).optional(),
+    owner_staff_id: z.string().nullable().optional(),
+    organization_id: z.string().nullable().optional(),
+  });
+  // Work a lead's pipeline (status / owner / linked org). Not a money action, so
+  // support staff (and superadmins) can; readonly cannot. Status & assignment
+  // changes are auto-logged to the lead's activity timeline and the staff audit.
+  app.patch("/v1/admin/leads/:id", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff, "support");
+    const { id } = req.params as { id: string };
+    const body = parse(leadPatch, req.body);
+
+    const [before] = await db.select().from(leads).where(eq(leads.id, id)).limit(1);
+    if (!before) throw Errors.notFound("Lead not found");
+
+    if (body.owner_staff_id) {
+      const [s] = await db
+        .select({ id: staffUsers.id })
+        .from(staffUsers)
+        .where(eq(staffUsers.id, body.owner_staff_id))
+        .limit(1);
+      if (!s) throw Errors.badRequest("Unknown staff user for owner.");
+    }
+    if (body.organization_id) {
+      const [o] = await db
+        .select({ id: organizations.id })
+        .from(organizations)
+        .where(eq(organizations.id, body.organization_id))
+        .limit(1);
+      if (!o) throw Errors.badRequest("Unknown organization to link.");
+    }
+
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (body.status !== undefined) set.status = body.status;
+    if (body.owner_staff_id !== undefined) set.ownerStaffId = body.owner_staff_id;
+    if (body.organization_id !== undefined) set.organizationId = body.organization_id;
+
+    const [updated] = await db.update(leads).set(set).where(eq(leads.id, id)).returning();
+
+    const systemNotes: string[] = [];
+    if (body.status !== undefined && body.status !== before.status) {
+      systemNotes.push(`Status: ${before.status} → ${body.status}`);
+    }
+    if (body.owner_staff_id !== undefined && body.owner_staff_id !== before.ownerStaffId) {
+      systemNotes.push(
+        body.owner_staff_id
+          ? body.owner_staff_id === staff.id
+            ? `Claimed by ${staff.email}`
+            : "Reassigned"
+          : "Unassigned",
+      );
+    }
+    for (const body_ of systemNotes) {
+      await db
+        .insert(leadNotes)
+        .values({ id: newId("leadNote"), leadId: id, staffUserId: staff.id, kind: "system", body: body_ });
+    }
+
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "lead.update",
+      targetType: "lead",
+      targetId: id,
+      metadata: { ...body },
+      ip: req.ip,
+    });
+
+    const ownerEmail = updated.ownerStaffId === staff.id ? staff.email : undefined;
+    return serializeLead(updated, ownerEmail);
+  });
+
+  const noteBody = z.object({ body: z.string().trim().min(1).max(4000) });
+  app.post("/v1/admin/leads/:id/notes", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff, "support");
+    const { id } = req.params as { id: string };
+    const { body } = parse(noteBody, req.body);
+
+    const [lead] = await db.select({ id: leads.id }).from(leads).where(eq(leads.id, id)).limit(1);
+    if (!lead) throw Errors.notFound("Lead not found");
+
+    const [note] = await db
+      .insert(leadNotes)
+      .values({ id: newId("leadNote"), leadId: id, staffUserId: staff.id, body, kind: "note" })
+      .returning();
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "lead.note",
+      targetType: "lead",
+      targetId: id,
+      ip: req.ip,
+    });
+    return serializeLeadNote(note, staff.email);
   });
 }

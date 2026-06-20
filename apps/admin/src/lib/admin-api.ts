@@ -5,6 +5,12 @@ import type {
   AdminBilling,
   AdminPlan,
   AddonPatch,
+  Lead,
+  LeadDetail,
+  LeadListResponse,
+  LeadNote,
+  LeadPatch,
+  LeadStatus,
   ListResponse,
   LoginResult,
   MessageDetail,
@@ -144,5 +150,13 @@ export const adminApi = {
     adminFetch<ListResponse<Suppression>>(`/v1/admin/orgs/${id}/suppressions?limit=${limit}`),
   clearSuppression: (id: string) =>
     adminFetch<{ deleted: boolean }>(`/v1/admin/suppressions/${id}`, { method: "DELETE" }),
+
+  listLeads: (status?: LeadStatus) =>
+    adminFetch<LeadListResponse>(`/v1/admin/leads${status ? `?status=${status}` : ""}`),
+  getLead: (id: string) => adminFetch<LeadDetail>(`/v1/admin/leads/${id}`),
+  updateLead: (id: string, patch: LeadPatch) =>
+    adminFetch<Lead>(`/v1/admin/leads/${id}`, { method: "PATCH", body: patch }),
+  addLeadNote: (id: string, body: string) =>
+    adminFetch<LeadNote>(`/v1/admin/leads/${id}/notes`, { method: "POST", body: { body } }),
 };
 

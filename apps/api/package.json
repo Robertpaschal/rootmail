@@ -10,7 +10,8 @@
     "test:quota": "tsx scripts/test-quota.ts",
     "test:stripe": "tsx scripts/test-stripe-billing.ts",
     "test:billing-ops": "tsx scripts/test-billing-ops.ts",
-    "test:pricing-sync": "tsx scripts/test-pricing-sync.ts"
+    "test:pricing-sync": "tsx scripts/test-pricing-sync.ts",
+    "test:leads": "tsx scripts/test-leads.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

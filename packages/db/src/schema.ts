@@ -15,6 +15,7 @@ import {
   CAMPAIGN_STATUSES,
   CONTACT_STATUSES,
   ENROLLMENT_STATUSES,
+  LEAD_STATUSES,
   MEMBERSHIP_ROLES,
   MESSAGE_DIRECTIONS,
   MESSAGE_STATUSES,
@@ -57,6 +58,7 @@ export const enrollmentStatusEnum = pgEnum("enrollment_status", ENROLLMENT_STATU
 export const campaignStatusEnum = pgEnum("campaign_status", CAMPAIGN_STATUSES);
 export const threadStatusEnum = pgEnum("thread_status", THREAD_STATUSES);
 export const messageDirectionEnum = pgEnum("message_direction", MESSAGE_DIRECTIONS);
+export const leadStatusEnum = pgEnum("lead_status", LEAD_STATUSES);
 
 // Fresh builders each call so no column instance is shared across tables.
 const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -802,9 +804,69 @@ export const impersonationGrants = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// Sales / CRM
+// ---------------------------------------------------------------------------
+// Enterprise "Contact sales" leads. The public POST /v1/leads endpoint writes
+// these (no auth — rate-limited + honeypot-guarded); staff work the pipeline in
+// apps/admin. `organizationId` links the lead to a real customer once won (often
+// alongside a custom plan). ip/userAgent are light anti-abuse breadcrumbs.
+export const leads = pgTable(
+  "leads",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    company: text("company"),
+    website: text("website"),
+    phone: text("phone"),
+    companySize: text("company_size"),
+    expectedVolume: text("expected_volume"),
+    currentProvider: text("current_provider"),
+    message: text("message"),
+    status: leadStatusEnum("status").notNull().default("new"),
+    source: text("source").notNull().default("contact_form"),
+    ownerStaffId: text("owner_staff_id").references(() => staffUsers.id, { onDelete: "set null" }),
+    organizationId: text("organization_id").references(() => organizations.id, {
+      onDelete: "set null",
+    }),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [
+    index("leads_status_idx").on(t.status, t.createdAt),
+    index("leads_owner_idx").on(t.ownerStaffId),
+    index("leads_email_idx").on(t.email),
+  ],
+);
+
+// Append-only activity timeline for a lead: hand-written staff notes plus
+// auto-logged events (status changes, assignment). Never updated, only inserted.
+export const leadNotes = pgTable(
+  "lead_notes",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id")
+      .notNull()
+      .references(() => leads.id, { onDelete: "cascade" }),
+    staffUserId: text("staff_user_id").references(() => staffUsers.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    // "note" (hand-written) | "system" (status/assignment events).
+    kind: text("kind").notNull().default("note"),
+    createdAt: createdAt(),
+  },
+  (t) => [index("lead_notes_lead_idx").on(t.leadId, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
 export type StaffUser = typeof staffUsers.$inferSelect;
+export type Lead = typeof leads.$inferSelect;
+export type NewLead = typeof leads.$inferInsert;
+export type LeadNote = typeof leadNotes.$inferSelect;
+export type NewLeadNote = typeof leadNotes.$inferInsert;
 export type StaffSession = typeof staffSessions.$inferSelect;
 export type StaffAudit = typeof staffAudit.$inferSelect;
 export type ImpersonationGrant = typeof impersonationGrants.$inferSelect;

@@ -10,6 +10,7 @@ const columns = [
       { label: "Platform", href: "/#layers" },
       { label: "Features", href: "/#features" },
       { label: "Pricing", href: "/pricing" },
+      { label: "Contact sales", href: "/contact" },
     ],
   },
   {
