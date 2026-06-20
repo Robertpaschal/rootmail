@@ -1,9 +1,10 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Errors, newId, PLANS, type PlanDef } from "@rootmail/core";
+import { Errors, newId, type PlanDef } from "@rootmail/core";
 import { db, memberships, type Organization, usageRecords, users } from "@rootmail/db";
+import { getPlan } from "./plans";
 
 export function planFor(org: Pick<Organization, "plan">): PlanDef {
-  return PLANS[org.plan] ?? PLANS.free;
+  return getPlan(org.plan);
 }
 
 /** Calendar-month period key in UTC, e.g. "2026-06". */

@@ -1,8 +1,10 @@
 import { env } from "@rootmail/core";
 import { closeDb } from "@rootmail/db";
+import { refreshPlanCache } from "./lib/plans";
 import { buildServer } from "./server";
 
 async function main() {
+  await refreshPlanCache(); // warm the DB-backed plan cache before serving
   const app = await buildServer();
   await app.listen({ port: env.API_PORT, host: env.API_HOST });
 

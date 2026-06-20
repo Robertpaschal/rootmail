@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { env, generateApiKey, hashPassword, newId } from "@rootmail/core";
+import { AI_CREDITS, env, generateApiKey, hashPassword, newId, PLAN_IDS, PLANS } from "@rootmail/core";
 import {
   apiKeys,
   closeDb,
@@ -7,11 +7,38 @@ import {
   organizations,
   type Organization,
   orgAddons,
+  plans,
   staffUsers,
   templates,
   type Workspace,
   workspaces,
 } from "./index";
+
+// Seed the plan catalog from the constants. onConflictDoNothing so re-seeding
+// never clobbers prices an admin has since edited in the DB.
+async function ensurePlans(): Promise<void> {
+  for (let i = 0; i < PLAN_IDS.length; i++) {
+    const id = PLAN_IDS[i];
+    const p = PLANS[id];
+    await db
+      .insert(plans)
+      .values({
+        id,
+        name: p.name,
+        price: p.price,
+        monthlyQuota: p.monthlyQuota,
+        allowOverage: p.allowOverage,
+        overagePer1000Cents: Math.round(p.overagePer1000 * 100),
+        includedSubTenants: p.includedSubTenants,
+        seats: p.seats,
+        aiCredits: AI_CREDITS[id],
+        features: [...p.features],
+        rank: i,
+        active: true,
+      })
+      .onConflictDoNothing({ target: plans.id });
+  }
+}
 
 // Dev staff login for apps/admin. Idempotent: re-seeding resets the password so
 // the printed credential is always valid locally. Change this in production.
@@ -124,6 +151,7 @@ async function createApiKey(
 }
 
 async function main() {
+  await ensurePlans();
   const org = await ensureOrganization();
   // Sub-tenant-pack headroom for the demo org: showcases an add-on line on the
   // collective bill AND keeps repeated smoke runs (each creates a sub-tenant)

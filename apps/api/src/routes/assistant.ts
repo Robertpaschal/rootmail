@@ -1,8 +1,9 @@
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { ADD_ONS, AI_CREDITS, env, Errors } from "@rootmail/core";
+import { ADD_ONS, env, Errors } from "@rootmail/core";
 import { runAssistant } from "../lib/assistant";
 import { getAiUsage, recordAiUse } from "../lib/billing";
+import { getAiCredits } from "../lib/plans";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { addonQuantity } from "../lib/seats";
@@ -19,7 +20,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       const { prompt } = parse(z.object({ prompt: z.string().min(1).max(2000) }), req.body);
       const org = await loadOrg(req);
 
-      const base = AI_CREDITS[org.plan];
+      const base = getAiCredits(org.plan);
       const packs = await addonQuantity(org.id, "ai_credit_pack");
       const allowance = base === -1 ? -1 : base + packs * ADD_ONS.ai_credit_pack.grant;
       const used = await getAiUsage(org.id);

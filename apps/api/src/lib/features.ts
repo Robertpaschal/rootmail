@@ -5,10 +5,10 @@ import {
   Errors,
   featureUnlocked,
   type PlanFeature,
-  PLANS,
   requiredPlanFor,
 } from "@rootmail/core";
 import { db, memberships, type Organization, organizations } from "@rootmail/db";
+import { getPlan } from "./plans";
 
 /** Load the org behind the authenticated request's workspace. */
 export async function loadOrg(req: FastifyRequest): Promise<Organization> {
@@ -54,7 +54,7 @@ export async function requireFeature(
   if (featureUnlocked(org.plan, feature)) return org;
 
   const required = requiredPlanFor(feature);
-  const requiredPlan = required ? PLANS[required] : null;
+  const requiredPlan = required ? getPlan(required) : null;
   throw Errors.featureLocked(feature, {
     current_plan: org.plan,
     required_plan: required,

@@ -150,7 +150,21 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
       superadmin-only). Org-detail "Billing" card: balance, subscription items,
       invoices, grant-credit form. `test:billing-ops` e2e-verifies it in test mode
       (sub + invoice read; $5 credit → balance −500). _Refunds/dunning: future._
-- [ ] Pricing management — plans/add-ons/AI-credits **data-driven** + Stripe-synced.
+- [~] **Pricing management — fully admin-controlled, in phases** *(branch
+      `feat/pricing-data-driven`)*. Goal: nothing constant; admin edits everything,
+      Stripe-synced; trials/promotions/coupons/discounts.
+  - [x] **Phase A — data-driven plans.** `plans` table (migration 0018) seeded from
+        the constants (zero behavior change); a cached, DB-backed loader (`lib/plans.ts`,
+        boot-warmed + 30s TTL + refresh-on-edit) with constant fallback. **All
+        enforcement + display reads rewired** off the constants (quota, overage, seats,
+        sub-tenants, feature-gate target, AI credits, MRR, billing display). Admin
+        `GET/PATCH /v1/admin/plans` (superadmin, audited) + a Pricing editor page.
+        Edits go live immediately. Verified: curl + browser (edit → reflected).
+  - [ ] **Phase B — Stripe price sync:** editing a billed price creates/swaps the
+        Stripe price + keeps the product/subscriptions in sync.
+  - [ ] **Phase C — promotions:** coupons / discounts / trials (Stripe coupons +
+        promo codes), admin-managed.
+  - [ ] Fold add-ons into the same DB-backed, admin-editable model.
 - [ ] Promotions (coupons/trials/discounts) · Comms (dogfood lifecycle) ·
       Sales CRM (leads/deals/pipeline). New tables as each lands.
 

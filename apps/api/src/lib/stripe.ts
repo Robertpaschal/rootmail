@@ -7,12 +7,12 @@ import {
   type BillingInterval,
   BILLING_MODE,
   env,
-  PLANS,
   type PlanId,
   type PlanStatus,
 } from "@rootmail/core";
 import { db, type Organization, orgAddons, organizations } from "@rootmail/db";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
+import { getPlan } from "./plans";
 
 // ---------------------------------------------------------------------------
 // Stripe billing abstraction.
@@ -265,7 +265,7 @@ export async function reportOverage(org: Organization): Promise<void> {
   if (!eventName) return; // meter not configured yet → nothing to report
 
   const used = await getUsage(org.id);
-  const quota = PLANS[org.plan]?.monthlyQuota ?? 0;
+  const quota = getPlan(org.plan).monthlyQuota;
   const units = Math.max(0, Math.ceil((used - quota) / 1000));
   const alreadyReported = await getReportedOverage(org.id);
   const delta = units - alreadyReported;
