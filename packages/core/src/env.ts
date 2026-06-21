@@ -85,6 +85,9 @@ const EnvSchema = z.object({
   // below has a default-constant fallback in PLANS/ADD_ONS, so a missing or
   // slow-loading price never breaks the app.
   STRIPE_SECRET_KEY: z.string().optional(),
+  // Publishable key (pk_…) — safe to expose to the browser. Needed for on-page
+  // (embedded) checkout; without it the dashboard falls back to the hosted redirect.
+  STRIPE_PUBLISHABLE_KEY: z.string().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
   STRIPE_PRICE_PRO: z.string().optional(),
   STRIPE_PRICE_SCALE: z.string().optional(),

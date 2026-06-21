@@ -222,11 +222,17 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         used in checkout + add-on sync (no coupon stacking with a plan sale); admin
         sets/clears it on /pricing, dashboard add-on manager shows it live. E2E test
         `test:pricing-sales` now 27 checks (plan + add-on) + browser-verified.
-- [ ] **Custom in-app checkout (no Stripe redirect)** — replace the hosted Stripe Checkout
-      redirect with **embedded checkout** (Stripe Elements / Payment Element or embedded
-      Checkout) on our own page(s): compare tiers/models side by side, toggle add-ons
-      inline with live total, pay without leaving the site. UX priority; must keep the
-      same server-side gating, promo/discount support, trials, and grandfathering.
+- [x] **Custom in-app checkout (no Stripe redirect)** — Stripe **Embedded Checkout**
+      (`ui_mode: "embedded_page"`) mounts inline on `/billing/checkout` (no redirect);
+      `createEmbeddedCheckout` reuses the hosted line-item / sale-coupon-or-promo / trial
+      logic, so gating, discounts, trials, and grandfathering carry over. New env
+      `STRIPE_PUBLISHABLE_KEY` (present in `.env`) + `@stripe/react-stripe-js`. Graceful
+      fallback to the hosted redirect when the publishable key/price is absent. Plan cards
+      route paid upgrades to the on-page checkout. E2E `test:embedded-checkout` (6 checks)
+      + browser-verified (the Stripe payment form renders inline, TEST MODE, promo-code +
+      overage line intact). The tier comparison + add-on selection already live on
+      /billing. Follow-up idea: a unified "configure + pay" page that re-creates the
+      session as add-ons toggle (live total) — current flow uses the org's existing add-ons.
 - [ ] **Comms** — dogfood rootmail to send customer lifecycle / announcement emails.
 - [ ] **UI / dark-mode pass** — dark mode + visual refinements across marketing,
       dashboard, and admin (customer- and staff-facing).

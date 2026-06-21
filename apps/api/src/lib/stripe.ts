@@ -172,11 +172,41 @@ export interface CheckoutResult {
   url?: string;
 }
 
+/** Plan + add-ons (as quantity items) + the metered overage item — the full set of
+ * subscription line items shared by hosted and embedded checkout. */
+async function buildCheckoutLineItems(
+  org: Organization,
+  planId: PlanId,
+  price: string,
+): Promise<Stripe.Checkout.SessionCreateParams.LineItem[]> {
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price, quantity: 1 }];
+  for (const a of await loadAddonQuantities(org.id)) {
+    const addonPrice = priceForAddOn(a.id);
+    if (addonPrice) lineItems.push({ price: addonPrice, quantity: a.quantity });
+  }
+  // Only attach overage once it's FULLY configured (price + meter), so a half-set-up
+  // (e.g. one-time) overage price can't break subscription checkout.
+  const overagePrice = overagePriceForPlan(planId);
+  if (overagePrice && overageMeterEvent(planId)) lineItems.push({ price: overagePrice });
+  return lineItems;
+}
+
+/** On sale → auto-apply the sale coupon (so the charge matches the marketed price);
+ * otherwise allow a manual promo code. Stripe forbids both at once. */
+function checkoutDiscountParams(
+  planId: PlanId,
+): { discounts: Array<{ coupon: string }> } | { allow_promotion_codes: true } {
+  const sale = getSale(planId);
+  if (sale?.couponId && saleActive({ percentOff: sale.percentOff, endsAt: sale.endsAt })) {
+    return { discounts: [{ coupon: sale.couponId }] };
+  }
+  return { allow_promotion_codes: true };
+}
+
 /**
- * Start a plan change. In Stripe mode with a resolvable price this returns a
- * hosted Checkout URL; otherwise (local mode, or a missing/unloadable price) it
- * returns `{ mode: "local" }` so the caller applies the change from the PLANS
- * defaults — Stripe being unavailable never blocks the upgrade.
+ * Start a plan change via HOSTED Stripe Checkout. Returns a redirect URL in Stripe
+ * mode with a resolvable price; otherwise `{ mode: "local" }` so the caller applies
+ * the change from the PLANS defaults — Stripe being unavailable never blocks it.
  */
 export async function createCheckout(
   org: Organization,
@@ -190,26 +220,8 @@ export async function createCheckout(
   try {
     const customer = await ensureCustomer(org);
     const base = env.DASHBOARD_URL.replace(/\/$/, "");
-
-    // Build the full subscription: base plan + any add-ons (as quantity items) +
-    // the metered overage item (no quantity — usage is reported against it).
-    const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price, quantity: 1 }];
-    for (const a of await loadAddonQuantities(org.id)) {
-      const addonPrice = priceForAddOn(a.id);
-      if (addonPrice) lineItems.push({ price: addonPrice, quantity: a.quantity });
-    }
-    // Only attach overage once it's FULLY configured (price + meter), so a
-    // half-set-up (e.g. one-time) overage price can't break subscription checkout.
-    const overagePrice = overagePriceForPlan(planId);
-    if (overagePrice && overageMeterEvent(planId)) lineItems.push({ price: overagePrice });
-
+    const lineItems = await buildCheckoutLineItems(org, planId, price);
     const trialDays = getTrialDays(planId);
-    // If the plan is on sale, auto-apply its coupon so the customer is charged the
-    // marketed sale price. Stripe forbids both a pre-applied discount AND manual
-    // promo codes, so it's one or the other.
-    const sale = getSale(planId);
-    const onSale =
-      !!sale?.couponId && saleActive({ percentOff: sale.percentOff, endsAt: sale.endsAt });
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer,
@@ -221,9 +233,7 @@ export async function createCheckout(
         metadata: { organizationId: org.id, planId, interval },
         ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
       },
-      ...(onSale
-        ? { discounts: [{ coupon: sale!.couponId! }] }
-        : { allow_promotion_codes: true }),
+      ...checkoutDiscountParams(planId),
     });
     if (session.url) return { mode: "stripe", url: session.url };
   } catch (err) {
@@ -231,6 +241,62 @@ export async function createCheckout(
     console.warn(`[stripe] checkout failed, falling back to local: ${String(err)}`);
   }
   return { mode: "local" };
+}
+
+export interface EmbeddedCheckoutResult {
+  mode: "embedded" | "unavailable";
+  client_secret?: string;
+  publishable_key?: string;
+}
+
+/**
+ * Start a plan change via ON-PAGE (embedded) Stripe Checkout: returns a session
+ * client_secret + the publishable key for the dashboard to mount inline (no
+ * redirect). Same subscription / add-ons / overage / trial + sale-or-promo logic
+ * as the hosted flow. Returns `{ mode: "unavailable" }` when Stripe, the price, or
+ * the publishable key isn't configured — the caller then falls back to the hosted
+ * redirect (or local), so checkout always works.
+ */
+export async function createEmbeddedCheckout(
+  org: Organization,
+  planId: PlanId,
+  interval: BillingInterval = "month",
+): Promise<EmbeddedCheckoutResult> {
+  const stripe = getStripe();
+  const price = priceForPlan(planId, interval);
+  const pk = env.STRIPE_PUBLISHABLE_KEY;
+  if (!stripe || !price || !pk) return { mode: "unavailable" };
+
+  try {
+    const customer = await ensureCustomer(org);
+    const base = env.DASHBOARD_URL.replace(/\/$/, "");
+    const lineItems = await buildCheckoutLineItems(org, planId, price);
+    const trialDays = getTrialDays(planId);
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      // This SDK pins a Stripe API version whose embedded UI mode is "embedded_page"
+      // (the stable alias is "embedded"); @stripe/react-stripe-js consumes the
+      // resulting client_secret either way.
+      ui_mode: "embedded_page",
+      customer,
+      line_items: lineItems,
+      // Embedded sessions return here in-page after completion; the webhook is what
+      // actually flips the plan (return is just UX).
+      return_url: `${base}/billing?checkout=complete&session_id={CHECKOUT_SESSION_ID}`,
+      metadata: { organizationId: org.id, planId, interval },
+      subscription_data: {
+        metadata: { organizationId: org.id, planId, interval },
+        ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
+      },
+      ...checkoutDiscountParams(planId),
+    });
+    if (session.client_secret) {
+      return { mode: "embedded", client_secret: session.client_secret, publishable_key: pk };
+    }
+  } catch (err) {
+    console.warn(`[stripe] embedded checkout failed: ${String(err)}`);
+  }
+  return { mode: "unavailable" };
 }
 
 /**

@@ -20,7 +20,7 @@ import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { getAddon, getAiCredits, getSale, getTrialDays, listAddons, listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
-import { createCheckout, reportOverage, syncAddonItems } from "../lib/stripe";
+import { createCheckout, createEmbeddedCheckout, reportOverage, syncAddonItems } from "../lib/stripe";
 import { parse } from "../lib/validate";
 
 function serializePlan(p: PlanDef) {
@@ -210,6 +210,33 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(organizations.id, org.id))
       .returning();
     return { object: "checkout", mode: "local", billing: await billingPayload(updated, await quotaState(updated)) };
+  });
+
+  // Start an ON-PAGE (embedded) checkout: returns a session client_secret + the
+  // publishable key for the dashboard to mount inline. `available: false` when
+  // embedded isn't configured (no publishable key, unresolved price) — the caller
+  // falls back to the hosted /checkout. Same gating as hosted checkout.
+  app.post("/v1/billing/checkout/embedded", async (req) => {
+    const { plan, interval } = parse(
+      z.object({ plan: z.enum(PLAN_IDS), interval: z.enum(BILLING_INTERVALS).default("month") }),
+      req.body,
+    );
+    const org = await orgForReq(req);
+    await requirePermission(req, "billing.manage");
+    if (plan === "enterprise") {
+      throw Errors.badRequest("Enterprise is sales-assisted — contact sales to upgrade.");
+    }
+
+    const result = await createEmbeddedCheckout(org, plan, interval);
+    if (result.mode === "embedded" && result.client_secret && result.publishable_key) {
+      return {
+        object: "embedded_checkout",
+        available: true,
+        client_secret: result.client_secret,
+        publishable_key: result.publishable_key,
+      };
+    }
+    return { object: "embedded_checkout", available: false };
   });
 
   // Set an add-on quantity (extra seats, dedicated IP, sub-tenant packs, AI

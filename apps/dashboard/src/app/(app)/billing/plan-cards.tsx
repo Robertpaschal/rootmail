@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Check, Loader2 } from "lucide-react";
 import { changePlan } from "./actions";
 import { Badge } from "@/components/ui/badge";
@@ -159,6 +160,7 @@ function PlanButton({
   custom: boolean;
 }) {
   const [pending, start] = useTransition();
+  const router = useRouter();
 
   if (isCurrent) {
     return (
@@ -169,6 +171,9 @@ function PlanButton({
   }
 
   const label = custom ? "Contact sales" : direction === "up" ? "Upgrade" : "Switch";
+  // Paid plans go to the on-page checkout; Free (cancel/downgrade) and custom keep
+  // the direct action.
+  const toCheckout = !custom && planId !== "free";
 
   return (
     <Button
@@ -176,6 +181,10 @@ function PlanButton({
       className="mt-5 w-full"
       disabled={pending}
       onClick={() => {
+        if (toCheckout) {
+          start(() => router.push(`/billing/checkout?plan=${planId}&interval=${interval}`));
+          return;
+        }
         if (!confirm(`Switch to the ${planId} plan (${interval === "year" ? "yearly" : "monthly"})?`)) return;
         const fd = new FormData();
         fd.set("plan", planId);
