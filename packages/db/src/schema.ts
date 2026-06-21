@@ -859,6 +859,38 @@ export const leadNotes = pgTable(
   (t) => [index("lead_notes_lead_idx").on(t.leadId, t.createdAt)],
 );
 
+// A bespoke enterprise plan for one organization (the concrete "Enterprise" a
+// sales conversation lands on). The org runs on plan="enterprise" (so it inherits
+// every feature gate); these rows override the *numeric economics* (quota, overage,
+// seats, AI credits) per-org. `stripeProductId/PriceId` are created on save so the
+// plan is real + billable. One active plan per org (unique organizationId).
+export const customPlans = pgTable(
+  "custom_plans",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // The lead this enterprise deal originated from, if any (for the CRM trail).
+    leadId: text("lead_id").references(() => leads.id, { onDelete: "set null" }),
+    name: text("name").notNull(),
+    priceCents: integer("price_cents").notNull().default(0),
+    interval: billingIntervalEnum("interval").notNull().default("month"),
+    monthlyQuota: integer("monthly_quota").notNull(),
+    allowOverage: boolean("allow_overage").notNull().default(true),
+    overagePer1000Cents: integer("overage_per_1000_cents").notNull().default(0),
+    includedSubTenants: integer("included_sub_tenants").notNull().default(-1),
+    seats: integer("seats").notNull().default(-1),
+    aiCredits: integer("ai_credits").notNull().default(-1),
+    active: boolean("active").notNull().default(true),
+    stripeProductId: text("stripe_product_id"),
+    stripePriceId: text("stripe_price_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("custom_plans_org_uq").on(t.organizationId)],
+);
+
 // ---------------------------------------------------------------------------
 // Inferred types
 // ---------------------------------------------------------------------------
@@ -867,6 +899,8 @@ export type Lead = typeof leads.$inferSelect;
 export type NewLead = typeof leads.$inferInsert;
 export type LeadNote = typeof leadNotes.$inferSelect;
 export type NewLeadNote = typeof leadNotes.$inferInsert;
+export type CustomPlan = typeof customPlans.$inferSelect;
+export type NewCustomPlan = typeof customPlans.$inferInsert;
 export type StaffSession = typeof staffSessions.$inferSelect;
 export type StaffAudit = typeof staffAudit.$inferSelect;
 export type ImpersonationGrant = typeof impersonationGrants.$inferSelect;

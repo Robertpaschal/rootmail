@@ -17,6 +17,7 @@ import { StatusBadge } from "@/components/app/status-badge";
 import { SubmitButton } from "@/components/app/submit-button";
 import { formatDate, formatDateTime, formatMoney, formatNumber, formatUnix } from "@/lib/format";
 import { clearSuppression } from "./actions";
+import { CustomPlanForm } from "./custom-plan-form";
 import { GrantCreditForm } from "./grant-credit-form";
 import { ImpersonateButton } from "./impersonate-button";
 
@@ -35,6 +36,11 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
   const { data: suppressionList } = await adminApi.listOrgSuppressions(id, 50);
   // Billing pulls from Stripe — never let a Stripe hiccup break the whole page.
   const billing = await adminApi.getOrgBilling(id).catch(() => null);
+  // Open leads (for the "convert from lead" picker on the custom-plan form).
+  const leadResp = await adminApi.listLeads().catch(() => null);
+  const openLeads = (leadResp?.data ?? [])
+    .filter((l) => l.status !== "won" && l.status !== "lost")
+    .map((l) => ({ id: l.id, label: l.company ? `${l.company} — ${l.name}` : l.name }));
 
   const stats = [
     { label: "Emails this period", value: formatNumber(org.usage_this_period) },
@@ -290,6 +296,25 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
           </CardContent>
         </Card>
       ) : null}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Custom / enterprise plan</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="mb-4 text-sm text-muted-foreground">
+            {org.custom_plan
+              ? "This org runs on a bespoke enterprise plan — edit its economics below; changes apply immediately."
+              : "Create a bespoke enterprise plan for this customer: it puts them on the enterprise tier (all features unlocked) with the economics you set, and can convert an originating lead into a customer."}
+          </p>
+          <CustomPlanForm
+            orgId={org.id}
+            plan={org.custom_plan}
+            openLeads={openLeads}
+            hasStripeCustomer={!!org.stripe_customer_id}
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

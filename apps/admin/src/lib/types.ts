@@ -39,6 +39,40 @@ export interface OrgMember {
   role: string;
 }
 
+export interface CustomPlan {
+  object: "custom_plan";
+  id: string;
+  organization_id: string;
+  lead_id: string | null;
+  name: string;
+  price_cents: number;
+  interval: "month" | "year";
+  monthly_quota: number;
+  allow_overage: boolean;
+  overage_per_1000_cents: number;
+  included_sub_tenants: number;
+  seats: number;
+  ai_credits: number;
+  active: boolean;
+  stripe_product_id: string | null;
+  stripe_price_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CustomPlanInput {
+  name: string;
+  price_cents: number;
+  interval: "month" | "year";
+  monthly_quota: number;
+  allow_overage: boolean;
+  overage_per_1000_cents: number;
+  included_sub_tenants: number;
+  seats: number;
+  ai_credits: number;
+  lead_id?: string;
+}
+
 export interface OrgDetail {
   object: "org_detail";
   id: string;
@@ -48,12 +82,14 @@ export interface OrgDetail {
   plan_status: string;
   postal_address: string | null;
   stripe_customer_id: string | null;
+  stripe_subscription_id: string | null;
   created_at: string;
   workspaces: OrgWorkspace[];
   members: OrgMember[];
   usage_this_period: number;
   total_messages: number;
   sub_tenants: number;
+  custom_plan: CustomPlan | null;
 }
 
 export interface ListResponse<T> {

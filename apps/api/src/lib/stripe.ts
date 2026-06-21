@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import Stripe from "stripe";
 import {
   ADD_ON_IDS,
@@ -13,15 +13,19 @@ import {
 import {
   type Addon,
   addons as addonsTable,
+  type CustomPlan,
+  customPlans,
   db,
+  memberships,
   type Organization,
   orgAddons,
   organizations,
   type Plan,
   plans,
+  users,
 } from "@rootmail/db";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
-import { getAddon, getPlan, getStripePrices, getTrialDays } from "./plans";
+import { getAddon, getStripePrices, getTrialDays, planForOrg } from "./plans";
 
 // ---------------------------------------------------------------------------
 // Stripe billing abstraction.
@@ -201,6 +205,13 @@ export async function createCheckout(
  * the org up by customer id, then by the subscription metadata as a fallback.
  */
 export async function syncSubscription(sub: Stripe.Subscription): Promise<void> {
+  // Custom/enterprise subscriptions (send-invoice, created by provisionCustomSubscription)
+  // are administered through the admin custom-plan endpoints, which set the org's plan,
+  // status, and subscription id directly. Their webhook events must NOT drive the
+  // self-serve resolver — in particular, canceling one (via deactivate or in the Stripe
+  // dashboard) must not silently downgrade the org to Free or re-attach the dead sub.
+  if (sub.metadata?.custom === "true") return;
+
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
 
   let [org] = await db
@@ -290,7 +301,7 @@ export async function reportOverage(org: Organization): Promise<void> {
   if (!eventName) return; // meter not configured yet → nothing to report
 
   const used = await getUsage(org.id);
-  const quota = getPlan(org.plan).monthlyQuota;
+  const quota = planForOrg(org).monthlyQuota;
   const units = Math.max(0, Math.ceil((used - quota) / 1000));
   const alreadyReported = await getReportedOverage(org.id);
   const delta = units - alreadyReported;
@@ -403,4 +414,139 @@ export async function syncAddonPrice(addon: Addon): Promise<string | null> {
     .set({ stripePriceId: price.id, updatedAt: new Date() })
     .where(eq(addonsTable.id, addon.id));
   return price.id;
+}
+
+/**
+ * Create/refresh the Stripe product + recurring price for a bespoke enterprise
+ * plan (same immutable-price dance as plans, at the plan's own interval). Persists
+ * the ids on the custom_plans row so the plan is real and billable. No-op without
+ * Stripe or a positive price — the economics still apply locally either way.
+ */
+export async function syncCustomPlanPrice(cp: CustomPlan): Promise<string | null> {
+  const stripe = getStripe();
+  if (!stripe || cp.priceCents <= 0) return null;
+
+  let productId: string;
+  if (cp.stripeProductId) {
+    productId = cp.stripeProductId;
+  } else {
+    const product = await stripe.products.create({
+      name: `rootmail ${cp.name}`,
+      metadata: { organizationId: cp.organizationId, customPlanId: cp.id },
+    });
+    productId = product.id;
+  }
+
+  const price = await stripe.prices.create({
+    product: productId,
+    currency: "usd",
+    unit_amount: cp.priceCents, // already cents
+    recurring: { interval: cp.interval },
+    metadata: { organizationId: cp.organizationId, customPlanId: cp.id },
+  });
+  await stripe.products.update(productId, { default_price: price.id });
+  if (cp.stripePriceId) {
+    await stripe.prices.update(cp.stripePriceId, { active: false }).catch(() => {});
+  }
+  await db
+    .update(customPlans)
+    .set({ stripeProductId: productId, stripePriceId: price.id, updatedAt: new Date() })
+    .where(eq(customPlans.id, cp.id));
+  return price.id;
+}
+
+export interface CustomBillingResult {
+  provisioned: boolean;
+  reason?: string;
+  subscription_id?: string;
+}
+
+/**
+ * Provision billing for a custom plan as a SEND-INVOICE subscription (the honest
+ * enterprise model — invoice the customer on agreed terms, don't silently charge a
+ * card). Cancels any existing subscription first so they aren't double-billed.
+ * Best-effort + status-reported; the plan economics already apply regardless.
+ */
+export async function provisionCustomSubscription(
+  org: Organization,
+  cp: CustomPlan,
+): Promise<CustomBillingResult> {
+  const stripe = getStripe();
+  if (!stripe) return { provisioned: false, reason: "Stripe is not configured." };
+  if (!cp.stripePriceId) return { provisioned: false, reason: "Custom plan has no Stripe price." };
+
+  // Send-invoice billing requires an email on the customer — use the org owner's.
+  const [owner] = await db
+    .select({ email: users.email })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .where(and(eq(memberships.organizationId, org.id), eq(memberships.role, "owner")))
+    .limit(1);
+  if (!owner?.email) {
+    return { provisioned: false, reason: "The organization has no owner email to invoice." };
+  }
+
+  const customer = await ensureCustomer(org);
+  await stripe.customers.update(customer, { email: owner.email });
+  if (org.stripeSubscriptionId) {
+    await stripe.subscriptions.cancel(org.stripeSubscriptionId).catch(() => {});
+  }
+  const sub = await stripe.subscriptions.create({
+    customer,
+    items: [{ price: cp.stripePriceId }],
+    collection_method: "send_invoice",
+    days_until_due: 30,
+    metadata: { organizationId: org.id, customPlanId: cp.id, custom: "true" },
+  });
+  await db
+    .update(organizations)
+    .set({
+      stripeSubscriptionId: sub.id,
+      planStatus: toPlanStatus(sub.status),
+      updatedAt: new Date(),
+    })
+    .where(eq(organizations.id, org.id));
+  return { provisioned: true, subscription_id: sub.id };
+}
+
+export interface CancelCustomResult {
+  canceled: boolean;
+  reason?: string;
+  subscription_id?: string;
+}
+
+/**
+ * Cancel the send-invoice subscription that backs a (now-deactivated) custom plan so
+ * the customer stops being invoiced the bespoke price, then detach it from the org and
+ * revert it to standard enterprise economics (plan stays "enterprise", planStatus
+ * "active"). Only cancels a subscription that actually corresponds to THIS custom plan
+ * — matched by the subscription's custom metadata or its price — so an unrelated
+ * subscription is never touched. No-op without Stripe or a tracked subscription; the
+ * economics revert locally either way. Lets Stripe errors propagate so the caller can
+ * report them — deactivation itself never depends on this succeeding.
+ */
+export async function cancelCustomSubscription(
+  org: Organization,
+  cp: CustomPlan,
+): Promise<CancelCustomResult> {
+  const stripe = getStripe();
+  if (!stripe) return { canceled: false, reason: "Stripe is not configured." };
+  if (!org.stripeSubscriptionId) return { canceled: false, reason: "No subscription to cancel." };
+
+  const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
+  // Guard: only cancel the subscription provisioned for THIS custom plan.
+  const matchesPlan =
+    sub.metadata?.customPlanId === cp.id ||
+    (!!cp.stripePriceId && sub.items.data.some((i) => i.price?.id === cp.stripePriceId));
+  if (!matchesPlan) {
+    return { canceled: false, reason: "Org subscription doesn't match this custom plan." };
+  }
+
+  // Idempotent across retries: a subscription already canceled just needs detaching.
+  if (sub.status !== "canceled") await stripe.subscriptions.cancel(sub.id);
+  await db
+    .update(organizations)
+    .set({ stripeSubscriptionId: null, planStatus: "active", updatedAt: new Date() })
+    .where(eq(organizations.id, org.id));
+  return { canceled: true, subscription_id: sub.id };
 }

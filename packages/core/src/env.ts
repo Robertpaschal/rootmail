@@ -32,6 +32,13 @@ const EnvSchema = z.object({
 
   API_PORT: z.coerce.number().int().positive().default(4000),
   API_HOST: z.string().default("0.0.0.0"),
+  // How many reverse-proxy hops to trust when deriving the client IP (used for
+  // rate limiting, login throttling, and audit). `true` trusts a client-supplied
+  // X-Forwarded-For — which is spoofable, letting an attacker dodge per-IP limits
+  // — so DON'T use it in prod. Default `1` (single LB/CDN in front); set to the
+  // real hop count, or an IP/CIDR allowlist, for your topology. `false` = use the
+  // socket address directly (no proxy).
+  TRUST_PROXY: z.string().default("1"),
   LOG_LEVEL: z
     .enum(["fatal", "error", "warn", "info", "debug", "trace", "silent"])
     .default("info"),

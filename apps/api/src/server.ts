@@ -31,10 +31,21 @@ import { webhookRoutes } from "./routes/webhooks";
 import { sesWebhookRoutes } from "./routes/webhooks-ses";
 import { stripeWebhookRoutes } from "./routes/webhooks-stripe";
 
+/** Fastify's trustProxy accepts a boolean, a hop count, or an IP/CIDR allowlist. */
+function parseTrustProxy(v: string): boolean | number | string {
+  if (v === "true") return true;
+  if (v === "false") return false;
+  const n = Number(v);
+  if (Number.isInteger(n) && n >= 0) return n;
+  return v; // comma-separated IP/CIDR allowlist, passed through to Fastify
+}
+
 export async function buildServer(): Promise<FastifyInstance> {
   const app = Fastify({
     logger: { level: env.LOG_LEVEL },
-    trustProxy: true,
+    // Bounded by default (trust one proxy hop) so a spoofed X-Forwarded-For can't
+    // be used to evade per-IP rate limits; override via TRUST_PROXY per topology.
+    trustProxy: parseTrustProxy(env.TRUST_PROXY),
     bodyLimit: 5 * 1024 * 1024,
   });
 

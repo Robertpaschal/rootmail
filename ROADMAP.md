@@ -187,7 +187,7 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
 - [~] **Plan-card feature completeness** — AI credits now shown on dashboard +
       marketing cards; still review remaining offerings (proof, dedicated IP, residency,
       seats, AI assistant, webhooks…) so every card honestly shows the full value.
-- [~] **Custom / enterprise plans + Sales CRM** — phased.
+- [x] **Custom / enterprise plans + Sales CRM** — both phases shipped.
   - [x] **Phase 1 — lead capture + CRM.** `leads` + append-only `lead_notes` tables
         (migration 0021); public rate-limited + honeypot-guarded `POST /v1/leads`;
         marketing **`/contact` form** replaces the `mailto:sales@` (Enterprise CTA +
@@ -196,9 +196,16 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         auto system notes). Staff endpoints `GET/PATCH /v1/admin/leads[/:id]` +
         `POST …/notes` (support+ role, audited). E2E test `pnpm --filter @rootmail/api
         test:leads` (22 checks) + browser-verified end-to-end.
-  - [ ] **Phase 2 — custom enterprise plans.** Admin creates a bespoke Stripe package
-        tied to a won lead/org, grandfathered into checkout/billing; **linking the lead to
-        the org converts it to a customer** (lead → customer lifecycle).
+  - [x] **Phase 2 — custom enterprise plans.** `custom_plans` table (one per org;
+        migration 0022) holds bespoke economics; the org runs on the enterprise tier (all
+        features) while a per-org override in the cached resolver (`planForOrg`/
+        `aiCreditsForOrg`) **enforces** the custom quota/overage/seats/AI exactly as sold.
+        Admin creates/edits it from the org page (superadmin, audited); save provisions a
+        real Stripe product+price; **linking the originating lead converts it → won +
+        linked customer**. Billing is a separate **send-invoice subscription** (honest
+        enterprise model; uses the org owner's email). Deactivate reverts to standard
+        enterprise. E2E test `pnpm --filter @rootmail/api test:custom-plans` (24 checks,
+        incl. real test-mode Stripe sub + cleanup) + browser-verified.
 - [ ] **Discounts / sales surfaced across pricing** — beyond the existing coupon/promo
       codes, we should be able to put plans/add-ons **on sale** and show it everywhere
       pricing renders (marketing cards, dashboard billing, checkout): strike-through

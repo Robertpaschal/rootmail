@@ -19,8 +19,9 @@ const leadBody = z.object({
   message: z.string().trim().max(4000).optional(),
   source: z.string().trim().max(40).optional(),
   // Honeypot: a field hidden from humans. Bots fill it; if non-empty we silently
-  // accept (so the bot sees success) but store nothing.
-  company_fax: z.string().max(0).optional().or(z.string()),
+  // accept (so the bot sees success) but store nothing. Capped so it can't be used
+  // as an oversized-payload vector.
+  company_fax: z.string().max(200).optional(),
 });
 
 export async function leadRoutes(app: FastifyInstance): Promise<void> {
