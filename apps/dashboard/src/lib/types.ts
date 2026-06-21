@@ -358,6 +358,10 @@ export type CheckoutResponse =
   | { object: "checkout"; mode: "stripe"; url: string }
   | { object: "checkout"; mode: "local"; billing: Billing };
 
+export type EmbeddedCheckoutResponse =
+  | { object: "embedded_checkout"; available: true; client_secret: string; publishable_key: string }
+  | { object: "embedded_checkout"; available: false };
+
 export interface AiDraftResponse {
   object: "ai_draft";
   subject: string;

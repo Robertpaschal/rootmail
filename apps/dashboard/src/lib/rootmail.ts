@@ -10,6 +10,7 @@ import type {
   Billing,
   Campaign,
   CheckoutResponse,
+  EmbeddedCheckoutResponse,
   Contact,
   ContactList,
   ContactStatus,
@@ -255,6 +256,13 @@ export const api = {
   // mode applies the switch and returns the updated billing.
   checkout: (plan: string, interval: "month" | "year" = "month") =>
     rmFetch<CheckoutResponse>("/v1/billing/checkout", { method: "POST", body: { plan, interval } }),
+  // On-page checkout: returns a session client_secret + publishable key to mount
+  // inline, or { available: false } so the caller falls back to hosted checkout.
+  embeddedCheckout: (plan: string, interval: "month" | "year" = "month") =>
+    rmFetch<EmbeddedCheckoutResponse>("/v1/billing/checkout/embedded", {
+      method: "POST",
+      body: { plan, interval },
+    }),
   setPlan: (plan: string) =>
     rmFetch<Billing>("/v1/billing/plan", { method: "POST", body: { plan } }),
   setAddon: (addon_id: string, quantity: number) =>
