@@ -184,9 +184,14 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         nothing constant.**
 
 ### 6b. Carried-forward notes (from owner, drive upcoming builds)
-- [~] **Plan-card feature completeness** — AI credits now shown on dashboard +
-      marketing cards; still review remaining offerings (proof, dedicated IP, residency,
-      seats, AI assistant, webhooks…) so every card honestly shows the full value.
+- [x] **Plan-card feature completeness** — every card now shows the full value. Dashboard
+      cards surface team seats (incl. "Unlimited") + the sub-tenant count (e.g. "10
+      sub-tenants"), AI is framed as "AI assistant credits", and a shared "Every plan
+      includes" footer lists the baseline (API & SDK, webhooks, audit, suppression,
+      sandbox, usage-based billing). Marketing tiers align the AI-assistant wording (they
+      already listed proof / dedicated IP / SSO / residency / RBAC / seats per tier).
+      Gated features (proof, dedicated_ip, sso, residency, rbac) render from the plan's
+      feature set. Browser-verified.
 - [x] **Custom / enterprise plans + Sales CRM** — both phases shipped.
   - [x] **Phase 1 — lead capture + CRM.** `leads` + append-only `lead_notes` tables
         (migration 0021); public rate-limited + honeypot-guarded `POST /v1/leads`;

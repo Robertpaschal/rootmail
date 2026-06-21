@@ -1,3 +1,4 @@
+import { Check } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -130,6 +131,26 @@ export default async function BillingPage() {
 
       <h2 className="mb-3 text-sm font-semibold">Plans</h2>
       <PlanCards plans={plans} currentId={plan.id} />
+
+      <div className="mt-4 rounded-lg border bg-card p-4">
+        <p className="text-xs font-semibold">Every plan includes</p>
+        <ul className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            "Full REST API & Node SDK",
+            "Append-only audit trail",
+            "Automatic suppression handling",
+            "Webhooks & delivery events",
+            "Sandbox (test-mode) keys",
+            "Usage-based billing — pay for what you send",
+          ].map((f) => (
+            <li key={f} className="flex items-start gap-2">
+              <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+              {f}
+            </li>
+          ))}
+        </ul>
+      </div>
+
       <p className="mt-3 text-xs text-muted-foreground">
         Have a promo code? Enter it at checkout to apply your discount.
       </p>
