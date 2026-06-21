@@ -258,10 +258,14 @@ export const api = {
     rmFetch<CheckoutResponse>("/v1/billing/checkout", { method: "POST", body: { plan, interval } }),
   // On-page checkout: returns a session client_secret + publishable key to mount
   // inline, or { available: false } so the caller falls back to hosted checkout.
-  embeddedCheckout: (plan: string, interval: "month" | "year" = "month") =>
+  embeddedCheckout: (
+    plan: string,
+    interval: "month" | "year" = "month",
+    addons?: Record<string, number>,
+  ) =>
     rmFetch<EmbeddedCheckoutResponse>("/v1/billing/checkout/embedded", {
       method: "POST",
-      body: { plan, interval },
+      body: { plan, interval, ...(addons ? { addons } : {}) },
     }),
   setPlan: (plan: string) =>
     rmFetch<Billing>("/v1/billing/plan", { method: "POST", body: { plan } }),

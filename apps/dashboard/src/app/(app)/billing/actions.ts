@@ -25,6 +25,34 @@ export async function changePlan(formData: FormData): Promise<void> {
   revalidatePath("/");
 }
 
+export type EmbeddedSessionResult =
+  | { clientSecret: string; publishableKey: string }
+  | { redirectUrl: string }
+  | { error: string };
+
+/**
+ * Create an embedded checkout session for the configured plan + add-ons. Falls back
+ * to the hosted Checkout URL when embedded isn't available, or an error to show.
+ */
+export async function createEmbeddedSession(
+  plan: string,
+  interval: "month" | "year",
+  addons: Record<string, number>,
+): Promise<EmbeddedSessionResult> {
+  try {
+    const res = await api.embeddedCheckout(plan, interval, addons);
+    if (res.available) {
+      return { clientSecret: res.client_secret, publishableKey: res.publishable_key };
+    }
+    // Embedded unavailable (no publishable key) → hosted redirect / local apply.
+    const hosted = await api.checkout(plan, interval);
+    if (hosted.mode === "stripe" && hosted.url) return { redirectUrl: hosted.url };
+    return { redirectUrl: "/billing?checkout=success" };
+  } catch {
+    return { error: "Couldn't start checkout. Please try again." };
+  }
+}
+
 /** Set an add-on quantity (extra seats, dedicated IP, sub-tenant / AI packs). */
 export async function setAddon(formData: FormData): Promise<void> {
   const addonId = String(formData.get("addon_id") ?? "");

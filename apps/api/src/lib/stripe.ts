@@ -7,6 +7,7 @@ import {
   type BillingInterval,
   BILLING_MODE,
   env,
+  newId,
   type PlanId,
   type PlanStatus,
   saleActive,
@@ -136,6 +137,43 @@ async function loadAddonQuantities(orgId: string): Promise<{ id: AddOnId; quanti
     .map((r) => ({ id: r.addonId as AddOnId, quantity: r.quantity }));
 }
 
+/** Reverse lookup: which add-on (if any) does a Stripe price id correspond to? Matches
+ * the regular OR the sale price id, so add-on items are recognized on either. */
+function addOnForPrice(priceId: string): AddOnId | null {
+  for (const id of ADD_ON_IDS) {
+    if (regularAddOnPriceId(id) === priceId) return id;
+    if (getAddon(id).saleStripePriceId === priceId) return id;
+  }
+  return null;
+}
+
+/**
+ * Make an org's `org_addons` entitlements exactly match what a subscription bills —
+ * the source of truth after a "configure at checkout" purchase (where add-ons are
+ * chosen on the checkout page, not via /v1/billing/addons). Every catalog add-on is
+ * set to its billed quantity (0 when absent / on a canceled sub).
+ */
+export async function reconcileAddonsFromSubscription(
+  orgId: string,
+  sub: Stripe.Subscription,
+): Promise<void> {
+  const billed = new Map<AddOnId, number>();
+  for (const item of sub.items.data) {
+    const id = item.price?.id ? addOnForPrice(item.price.id) : null;
+    if (id) billed.set(id, (billed.get(id) ?? 0) + (item.quantity ?? 0));
+  }
+  for (const id of ADD_ON_IDS) {
+    const qty = sub.status === "canceled" ? 0 : (billed.get(id) ?? 0);
+    await db
+      .insert(orgAddons)
+      .values({ id: newId("orgAddon"), organizationId: orgId, addonId: id, quantity: qty })
+      .onConflictDoUpdate({
+        target: [orgAddons.organizationId, orgAddons.addonId],
+        set: { quantity: qty, updatedAt: new Date() },
+      });
+  }
+}
+
 /** Reverse lookup: which plan does a Stripe price id correspond to? */
 function planForPrice(priceId: string): PlanId | null {
   if (priceId === env.STRIPE_PRICE_PRO || priceId === env.STRIPE_PRICE_PRO_YEAR) return "pro";
@@ -173,14 +211,20 @@ export interface CheckoutResult {
 }
 
 /** Plan + add-ons (as quantity items) + the metered overage item — the full set of
- * subscription line items shared by hosted and embedded checkout. */
+ * subscription line items shared by hosted and embedded checkout. `addonQtys`, when
+ * given, overrides the org's current add-ons (the "configure at checkout" flow);
+ * otherwise the org's existing add-ons are carried over. */
 async function buildCheckoutLineItems(
   org: Organization,
   planId: PlanId,
   price: string,
+  addonQtys?: Record<string, number>,
 ): Promise<Stripe.Checkout.SessionCreateParams.LineItem[]> {
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price, quantity: 1 }];
-  for (const a of await loadAddonQuantities(org.id)) {
+  const selected = addonQtys
+    ? ADD_ON_IDS.filter((id) => (addonQtys[id] ?? 0) > 0).map((id) => ({ id, quantity: addonQtys[id] }))
+    : await loadAddonQuantities(org.id);
+  for (const a of selected) {
     const addonPrice = priceForAddOn(a.id);
     if (addonPrice) lineItems.push({ price: addonPrice, quantity: a.quantity });
   }
@@ -261,6 +305,7 @@ export async function createEmbeddedCheckout(
   org: Organization,
   planId: PlanId,
   interval: BillingInterval = "month",
+  addonQtys?: Record<string, number>,
 ): Promise<EmbeddedCheckoutResult> {
   const stripe = getStripe();
   const price = priceForPlan(planId, interval);
@@ -270,7 +315,7 @@ export async function createEmbeddedCheckout(
   try {
     const customer = await ensureCustomer(org);
     const base = env.DASHBOARD_URL.replace(/\/$/, "");
-    const lineItems = await buildCheckoutLineItems(org, planId, price);
+    const lineItems = await buildCheckoutLineItems(org, planId, price, addonQtys);
     const trialDays = getTrialDays(planId);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -349,6 +394,10 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
       updatedAt: new Date(),
     })
     .where(eq(organizations.id, org.id));
+
+  // Keep entitlements honest: match org_addons to what the subscription actually
+  // bills (covers add-ons chosen on the checkout page).
+  await reconcileAddonsFromSubscription(org.id, sub);
 }
 
 /**

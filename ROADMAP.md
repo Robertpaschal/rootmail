@@ -230,9 +230,16 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
       fallback to the hosted redirect when the publishable key/price is absent. Plan cards
       route paid upgrades to the on-page checkout. E2E `test:embedded-checkout` (6 checks)
       + browser-verified (the Stripe payment form renders inline, TEST MODE, promo-code +
-      overage line intact). The tier comparison + add-on selection already live on
-      /billing. Follow-up idea: a unified "configure + pay" page that re-creates the
-      session as add-ons toggle (live total) — current flow uses the org's existing add-ons.
+      overage line intact).
+  - [x] **Configure + pay on one page.** `/billing/checkout` is now an interactive
+        configurator: pick interval + toggle add-ons with a **live total**, then "Continue
+        to payment" builds the embedded session from exactly that config (`createEmbeddedCheckout`
+        + the endpoint take an `addons` override). Entitlements stay honest — `syncSubscription`
+        **reconciles `org_addons` from the paid subscription** (`reconcileAddonsFromSubscription`),
+        so add-ons chosen at checkout match what's billed. Add-ons bill monthly, so they're
+        gated to monthly billing (Stripe = one interval per sub). `test:embedded-checkout`
+        now 9 checks (config line items + reconcile) + browser-verified (live $28 total ==
+        Stripe's "$28.00 due today").
 - [ ] **Comms** — dogfood rootmail to send customer lifecycle / announcement emails.
 - [ ] **UI / dark-mode pass** — dark mode + visual refinements across marketing,
       dashboard, and admin (customer- and staff-facing).
