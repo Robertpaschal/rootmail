@@ -1,13 +1,17 @@
 /**
- * Custom / enterprise plan flow — needs the API running (`pnpm api`). No Stripe,
- * no seed. Verifies the whole Phase-2 slice:
+ * Custom / enterprise plan flow — needs the API running (`pnpm api`), no seed. Runs
+ * with or without Stripe: the Stripe-mode assertions (billing → real subscription,
+ * deactivate → canceled subscription) are skipped in local mode. Verifies the whole
+ * Phase-2 slice:
  *   - POST /v1/admin/orgs/:id/custom-plan creates the plan, puts the org on
  *     enterprise, and converts a linked lead → won + linked
  *   - the per-org resolver ENFORCES the custom economics (quota/overage/seats/AI)
  *     while features come from enterprise (sso/proof unlocked)
  *   - re-save upserts the same row (one plan per org)
- *   - bill in local mode is reported (no Stripe → 400 with a reason)
- *   - deactivate reverts the org to the standard enterprise economics
+ *   - bill provisions a send-invoice subscription (Stripe mode) or is reported
+ *     unavailable (local mode → 400 with a reason)
+ *   - deactivate reverts the org to standard enterprise economics AND (in Stripe
+ *     mode) cancels + detaches the bespoke subscription so billing matches
  * Creates a throwaway org + superadmin + lead and cleans them all up.
  */
 import { eq } from "drizzle-orm";
@@ -156,6 +160,7 @@ async function main(): Promise<void> {
     // Bill: in Stripe mode this provisions a real (test-mode) send-invoice
     // subscription; in local mode it's reported as unavailable.
     const stripeOn = !!getStripe();
+    let billedSubId: string | undefined;
     const bill = await fetch(`${API}/v1/admin/orgs/${orgId}/custom-plan/bill`, {
       method: "POST",
       headers: H,
@@ -165,20 +170,41 @@ async function main(): Promise<void> {
       const billBody = (await bill.json()) as Record<string, unknown>;
       check(bill.status === 200 && billBody.provisioned === true, `bill → 200 + provisioned (got ${bill.status})`);
       check(typeof billBody.subscription_id === "string", "bill returns a subscription id");
+      billedSubId = billBody.subscription_id as string;
+      const [orgBilled] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+      check(orgBilled?.stripeSubscriptionId === billedSubId, "org references the custom subscription after billing");
     } else {
       check(bill.status === 400, `bill without Stripe → 400 (got ${bill.status})`);
     }
 
-    // Deactivate → org reverts to the standard enterprise economics.
+    // Deactivate → org reverts to the standard enterprise economics, and (in Stripe
+    // mode) the bespoke subscription is canceled + detached so billing matches.
     const deact = await fetch(`${API}/v1/admin/orgs/${orgId}/custom-plan/deactivate`, {
       method: "POST",
       headers: H,
       body: "{}",
     });
     check(deact.status === 200, `deactivate → 200 (got ${deact.status})`);
+    const deactBody = (await deact.json()) as Record<string, unknown>;
     await refreshPlanCache();
     check(planForOrg(resolverOrg).monthlyQuota === 1_000_000, "after deactivate, resolver falls back to enterprise quota (1,000,000)");
     check(aiCreditsForOrg(resolverOrg) === -1, "after deactivate, AI credits fall back to enterprise (unlimited)");
+
+    // Billing is made consistent with the reverted economics: the org stays on the
+    // enterprise tier, and the custom subscription is canceled in Stripe + detached.
+    const [orgAfter] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+    check(orgAfter?.plan === "enterprise", "after deactivate, org stays on the enterprise tier");
+    if (stripeOn) {
+      check(deactBody.billing === "canceled", `deactivate cancels the custom subscription (billing=${deactBody.billing})`);
+      check(orgAfter?.stripeSubscriptionId === null, "after deactivate, org subscription id is cleared");
+      check(orgAfter?.planStatus === "active", "after deactivate, plan status reverts to active");
+      if (billedSubId) {
+        const sub = await getStripe()!.subscriptions.retrieve(billedSubId);
+        check(sub.status === "canceled", `the custom subscription is canceled in Stripe (status=${sub.status})`);
+      }
+    } else {
+      check(deactBody.billing === "skipped", `deactivate without Stripe → billing skipped (got ${deactBody.billing})`);
+    }
 
     // Non-superadmin can't create one.
     const supportId = newId("staffUser");

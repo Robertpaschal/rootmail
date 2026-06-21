@@ -205,6 +205,13 @@ export async function createCheckout(
  * the org up by customer id, then by the subscription metadata as a fallback.
  */
 export async function syncSubscription(sub: Stripe.Subscription): Promise<void> {
+  // Custom/enterprise subscriptions (send-invoice, created by provisionCustomSubscription)
+  // are administered through the admin custom-plan endpoints, which set the org's plan,
+  // status, and subscription id directly. Their webhook events must NOT drive the
+  // self-serve resolver — in particular, canceling one (via deactivate or in the Stripe
+  // dashboard) must not silently downgrade the org to Free or re-attach the dead sub.
+  if (sub.metadata?.custom === "true") return;
+
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
 
   let [org] = await db
@@ -500,4 +507,46 @@ export async function provisionCustomSubscription(
     })
     .where(eq(organizations.id, org.id));
   return { provisioned: true, subscription_id: sub.id };
+}
+
+export interface CancelCustomResult {
+  canceled: boolean;
+  reason?: string;
+  subscription_id?: string;
+}
+
+/**
+ * Cancel the send-invoice subscription that backs a (now-deactivated) custom plan so
+ * the customer stops being invoiced the bespoke price, then detach it from the org and
+ * revert it to standard enterprise economics (plan stays "enterprise", planStatus
+ * "active"). Only cancels a subscription that actually corresponds to THIS custom plan
+ * — matched by the subscription's custom metadata or its price — so an unrelated
+ * subscription is never touched. No-op without Stripe or a tracked subscription; the
+ * economics revert locally either way. Lets Stripe errors propagate so the caller can
+ * report them — deactivation itself never depends on this succeeding.
+ */
+export async function cancelCustomSubscription(
+  org: Organization,
+  cp: CustomPlan,
+): Promise<CancelCustomResult> {
+  const stripe = getStripe();
+  if (!stripe) return { canceled: false, reason: "Stripe is not configured." };
+  if (!org.stripeSubscriptionId) return { canceled: false, reason: "No subscription to cancel." };
+
+  const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
+  // Guard: only cancel the subscription provisioned for THIS custom plan.
+  const matchesPlan =
+    sub.metadata?.customPlanId === cp.id ||
+    (!!cp.stripePriceId && sub.items.data.some((i) => i.price?.id === cp.stripePriceId));
+  if (!matchesPlan) {
+    return { canceled: false, reason: "Org subscription doesn't match this custom plan." };
+  }
+
+  // Idempotent across retries: a subscription already canceled just needs detaching.
+  if (sub.status !== "canceled") await stripe.subscriptions.cancel(sub.id);
+  await db
+    .update(organizations)
+    .set({ stripeSubscriptionId: null, planStatus: "active", updatedAt: new Date() })
+    .where(eq(organizations.id, org.id));
+  return { canceled: true, subscription_id: sub.id };
 }

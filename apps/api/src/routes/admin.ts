@@ -49,6 +49,7 @@ import {
 import { currentPeriod } from "../lib/billing";
 import { getPlan, refreshPlanCache } from "../lib/plans";
 import {
+  cancelCustomSubscription,
   getStripe,
   provisionCustomSubscription,
   syncAddonPrice,
@@ -1192,22 +1193,46 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // Deactivate the custom plan — the org reverts to the standard enterprise
-  // economics (it stays on the enterprise tier). Superadmin, audited.
+  // economics (it stays on the enterprise tier). If the bespoke plan was billed as a
+  // send-invoice subscription, that subscription is canceled + detached so billing
+  // matches what's now enforced (no more invoicing the custom price). Superadmin, audited.
   app.post("/v1/admin/orgs/:id/custom-plan/deactivate", async (req) => {
     const staff = await requireStaff(req);
     requireStaffRole(staff);
     const { id } = req.params as { id: string };
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
+    if (!org) throw Errors.notFound("Organization not found");
     const [cp] = await db.select().from(customPlans).where(eq(customPlans.organizationId, id)).limit(1);
     if (!cp) throw Errors.notFound("No custom plan for this org.");
+
+    // Revert economics first — this is the core operation and must always succeed.
+    // The org keeps plan="enterprise"; the resolver only honors ACTIVE custom plans,
+    // so it now falls back to the standard enterprise catalog economics.
     await db.update(customPlans).set({ active: false, updatedAt: new Date() }).where(eq(customPlans.id, cp.id));
     await refreshPlanCache();
+
+    // Then make billing consistent by canceling the custom subscription. Fail-soft like
+    // the rest of the Stripe module — a Stripe hiccup must never block the deactivation
+    // (the economics have already reverted above).
+    let billing: "canceled" | "skipped" | "failed" = "skipped";
+    let canceledSubId: string | null = null;
+    try {
+      const result = await cancelCustomSubscription(org, cp);
+      billing = result.canceled ? "canceled" : "skipped";
+      canceledSubId = result.subscription_id ?? null;
+    } catch (err) {
+      req.log.error({ err }, "custom plan subscription cancel on deactivate failed");
+      billing = "failed";
+    }
+
     await writeStaffAudit({
       staffUserId: staff.id,
       action: "custom_plan.deactivate",
       targetType: "organization",
       targetId: id,
+      metadata: { billing, subscription_id: canceledSubId },
       ip: req.ip,
     });
-    return { object: "custom_plan", id: cp.id, active: false };
+    return { object: "custom_plan", id: cp.id, active: false, billing, subscription_id: canceledSubId };
   });
 }
