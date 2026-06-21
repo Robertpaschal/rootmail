@@ -7,9 +7,11 @@
  * Creates a throwaway org/workspace/key and cleans up (incl. any Stripe customer).
  */
 import { eq } from "drizzle-orm";
+import type Stripe from "stripe";
 import { env, generateApiKey, newId } from "@rootmail/core";
-import { apiKeys, closeDb, db, organizations, workspaces } from "@rootmail/db";
-import { getStripe } from "../src/lib/stripe";
+import { apiKeys, closeDb, db, orgAddons, organizations, workspaces } from "@rootmail/db";
+import { getStripe, priceForAddOn, reconcileAddonsFromSubscription } from "../src/lib/stripe";
+import { refreshPlanCache } from "../src/lib/plans";
 
 const API = "http://localhost:4000";
 const TAG = `embedtest+${Date.now()}`;
@@ -77,9 +79,62 @@ async function main(): Promise<void> {
       check(body.available === true, "embedded available (publishable key set)");
       check(typeof body.client_secret === "string", "returns a session client_secret");
       check(typeof body.publishable_key === "string", "returns the publishable key");
+
+      // Configure add-ons AT checkout → the session's line items reflect them.
+      const cfg = await fetch(`${API}/v1/billing/checkout/embedded`, {
+        method: "POST",
+        headers: H,
+        body: JSON.stringify({ plan: "pro", interval: "month", addons: { ai_credit_pack: 2 } }),
+      });
+      const cfgBody = await json(cfg);
+      const cs = String(cfgBody.client_secret ?? "");
+      const sessionId = cs.split("_secret_")[0];
+      await refreshPlanCache();
+      const aiPrice = priceForAddOn("ai_credit_pack");
+      if (sessionId && aiPrice) {
+        const full = await stripe.checkout.sessions.retrieve(sessionId, { expand: ["line_items"] });
+        const items = full.line_items?.data ?? [];
+        const aiItem = items.find((i) => i.price?.id === aiPrice);
+        check(!!aiItem && aiItem.quantity === 2, "configured add-on (×2) is on the session line items");
+      } else {
+        check(false, "could not resolve session id / add-on price for the config check");
+      }
     } else {
       check(body.available === false, "embedded reports unavailable (no publishable key) → caller falls back");
       console.log("NOTE — set STRIPE_PUBLISHABLE_KEY to exercise the on-page payment path.");
+    }
+
+    // Reconciliation: org_addons matches what a subscription bills (the source of
+    // truth after a configure-at-checkout purchase).
+    await refreshPlanCache();
+    const aiPrice = priceForAddOn("ai_credit_pack");
+    if (aiPrice) {
+      const subWith = {
+        id: "sub_test",
+        status: "active",
+        customer: "cus_test",
+        metadata: {},
+        items: { data: [{ price: { id: aiPrice }, quantity: 3 } ] },
+      } as unknown as Stripe.Subscription;
+      await reconcileAddonsFromSubscription(orgId, subWith);
+      const aiRow = (
+        await db.select().from(orgAddons).where(eq(orgAddons.organizationId, orgId))
+      ).find((r) => r.addonId === "ai_credit_pack");
+      check(aiRow?.quantity === 3, `reconcile sets org_addons from the sub (got ${aiRow?.quantity})`);
+
+      // A sub without the add-on → reconcile zeroes it.
+      const subWithout = {
+        id: "sub_test2",
+        status: "active",
+        customer: "cus_test",
+        metadata: {},
+        items: { data: [] },
+      } as unknown as Stripe.Subscription;
+      await reconcileAddonsFromSubscription(orgId, subWithout);
+      const aiRow2 = (
+        await db.select().from(orgAddons).where(eq(orgAddons.organizationId, orgId))
+      ).find((r) => r.addonId === "ai_credit_pack");
+      check(aiRow2?.quantity === 0, `reconcile zeroes a removed add-on (got ${aiRow2?.quantity})`);
     }
   } finally {
     const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);

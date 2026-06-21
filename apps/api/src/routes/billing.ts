@@ -217,8 +217,14 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
   // embedded isn't configured (no publishable key, unresolved price) — the caller
   // falls back to the hosted /checkout. Same gating as hosted checkout.
   app.post("/v1/billing/checkout/embedded", async (req) => {
-    const { plan, interval } = parse(
-      z.object({ plan: z.enum(PLAN_IDS), interval: z.enum(BILLING_INTERVALS).default("month") }),
+    const { plan, interval, addons } = parse(
+      z.object({
+        plan: z.enum(PLAN_IDS),
+        interval: z.enum(BILLING_INTERVALS).default("month"),
+        // Add-ons chosen on the checkout page (id → quantity). Omitted → carry over
+        // the org's current add-ons. Unknown ids are ignored downstream.
+        addons: z.record(z.string(), z.coerce.number().int().min(0).max(1000)).optional(),
+      }),
       req.body,
     );
     const org = await orgForReq(req);
@@ -227,7 +233,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       throw Errors.badRequest("Enterprise is sales-assisted — contact sales to upgrade.");
     }
 
-    const result = await createEmbeddedCheckout(org, plan, interval);
+    const result = await createEmbeddedCheckout(org, plan, interval, addons);
     if (result.mode === "embedded" && result.client_secret && result.publishable_key) {
       return {
         object: "embedded_checkout",
