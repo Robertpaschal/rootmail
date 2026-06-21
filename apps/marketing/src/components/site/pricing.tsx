@@ -3,6 +3,7 @@ import { Check, Zap } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { signupUrl } from "@/lib/links";
+import { getPublicPricing } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 // Mirrors the plans the product actually enforces (see packages/core PLANS).
@@ -10,6 +11,7 @@ import { cn } from "@/lib/utils";
 const tiers = [
   {
     name: "Free",
+    id: "free",
     price: "$0",
     cadence: "forever",
     blurb: "For solo devs and side projects.",
@@ -28,6 +30,7 @@ const tiers = [
   },
   {
     name: "Pro",
+    id: "pro",
     price: "$20",
     cadence: "/ month",
     blurb: "For startups shipping real product.",
@@ -47,6 +50,7 @@ const tiers = [
   },
   {
     name: "Scale",
+    id: "scale",
     price: "$80",
     cadence: "/ month",
     blurb: "For platforms onboarding their own customers.",
@@ -65,6 +69,7 @@ const tiers = [
   },
   {
     name: "Enterprise",
+    id: "enterprise",
     price: "Custom",
     cadence: "",
     blurb: "For scale, compliance & data residency.",
@@ -94,7 +99,8 @@ const baseline = [
   "Usage-based billing — pay only for what you send",
 ];
 
-export function Pricing() {
+export async function Pricing() {
+  const pricing = await getPublicPricing();
   return (
     <section id="pricing" className="border-t border-border/60 bg-secondary/30 py-20 md:py-28">
       <div className="container">
@@ -109,7 +115,11 @@ export function Pricing() {
         </div>
 
         <div className="mx-auto grid max-w-6xl items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {tiers.map((t) => (
+          {tiers.map((t) => {
+            const live = pricing[t.id];
+            // Narrowed: non-null only when there's a real sale (lets TS see the fields).
+            const sale = live && live.sale_price != null && live.price != null ? live : null;
+            return (
             <div
               key={t.name}
               className={cn(
@@ -122,14 +132,38 @@ export function Pricing() {
                   Most popular
                 </Badge>
               ) : null}
+              {sale ? (
+                <Badge className="absolute -top-3 right-4 border-transparent bg-rose-600 text-white shadow-sm">
+                  {sale.sale_percent_off}% off
+                </Badge>
+              ) : null}
 
               <h3 className="text-lg font-semibold">{t.name}</h3>
               <p className="mt-1 min-h-[2.5rem] text-sm text-muted-foreground">{t.blurb}</p>
 
-              <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-4xl font-bold tracking-tight">{t.price}</span>
-                {t.cadence ? <span className="text-sm text-muted-foreground">{t.cadence}</span> : null}
-              </div>
+              {sale ? (
+                <div className="mt-4">
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-bold tracking-tight">${sale.sale_price}</span>
+                    <span className="text-lg text-muted-foreground line-through">${sale.price}</span>
+                    {t.cadence ? (
+                      <span className="text-sm text-muted-foreground">{t.cadence}</span>
+                    ) : null}
+                  </div>
+                  {sale.sale_ends_at ? (
+                    <p className="mt-1 text-xs font-medium text-rose-600">
+                      Sale ends {new Date(sale.sale_ends_at).toLocaleDateString()}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-4 flex items-baseline gap-1">
+                  <span className="text-4xl font-bold tracking-tight">{t.price}</span>
+                  {t.cadence ? (
+                    <span className="text-sm text-muted-foreground">{t.cadence}</span>
+                  ) : null}
+                </div>
+              )}
 
               <div className="mt-4 rounded-lg border bg-secondary/40 px-3 py-2.5">
                 <div className="text-sm font-medium">{t.included}</div>
@@ -155,7 +189,8 @@ export function Pricing() {
                 {t.cta}
               </Link>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Pay-as-you-go — for people who just want to send, no plan to pick. */}

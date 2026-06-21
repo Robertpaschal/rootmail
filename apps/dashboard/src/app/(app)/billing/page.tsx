@@ -30,7 +30,7 @@ export default async function BillingPage() {
     );
   }
 
-  const { plan, usage, plans, summary } = billing;
+  const { plan, usage, plans, summary, addons_catalog } = billing;
   const addonQty: Record<string, number> = {};
   for (const a of summary.add_ons) addonQty[a.id] = a.quantity;
   const pct = Math.min(100, Math.round((usage.used / Math.max(1, usage.quota)) * 100));
@@ -123,7 +123,7 @@ export default async function BillingPage() {
                 ? `${summary.seats.used} seats in use · unlimited included.`
                 : `${summary.seats.used} of ${summary.seats.capacity} seats in use (${summary.seats.included} included${summary.seats.purchased ? ` + ${summary.seats.purchased} purchased` : ""}).`}
             </p>
-            <AddonManager quantities={addonQty} />
+            <AddonManager quantities={addonQty} catalog={addons_catalog} />
           </CardContent>
         </Card>
       </div>

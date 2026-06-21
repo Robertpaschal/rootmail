@@ -188,7 +188,20 @@ export interface BillingAddonLine {
   name: string;
   quantity: number;
   unit_amount: number;
+  original_unit_amount: number | null;
+  sale_percent_off: number | null;
   amount: number;
+}
+
+export interface AddonCatalogItem {
+  id: string;
+  name: string;
+  unit: string;
+  description: string;
+  unit_amount: number;
+  sale_percent_off: number | null;
+  sale_price: number | null;
+  sale_ends_at: string | null;
 }
 
 export interface BillingSummaryLine {
@@ -227,6 +240,7 @@ export interface Billing {
   };
   summary: BillingSummary;
   plans: Plan[];
+  addons_catalog: AddonCatalogItem[];
 }
 
 export interface Member {

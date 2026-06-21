@@ -14,6 +14,7 @@
 import { eq } from "drizzle-orm";
 import { generateApiKey, hashPassword, newId } from "@rootmail/core";
 import {
+  addons,
   apiKeys,
   closeDb,
   db,
@@ -22,8 +23,8 @@ import {
   staffUsers,
   workspaces,
 } from "@rootmail/db";
-import { getSale, refreshPlanCache } from "../src/lib/plans";
-import { getStripe } from "../src/lib/stripe";
+import { getAddon, getSale, refreshPlanCache } from "../src/lib/plans";
+import { getStripe, priceForAddOn } from "../src/lib/stripe";
 
 const API = "http://localhost:4000";
 const TAG = `saletest+${Date.now()}`;
@@ -176,6 +177,51 @@ async function main(): Promise<void> {
       const gone = await stripe!.coupons.retrieve(saleCouponId).catch(() => null);
       check(gone === null || gone.valid === false, "the sale coupon was deleted on clear");
     }
+
+    // --- Add-on sale (charged via a discounted sale price) ---
+    const aSet = await fetch(`${API}/v1/admin/addons/ai_credit_pack/sale`, {
+      method: "POST",
+      headers: H,
+      body: JSON.stringify({ percent_off: 50 }),
+    });
+    check(aSet.status === 200, `set add-on sale → 200 (got ${aSet.status})`);
+    const aBody = (await aSet.json()) as Record<string, unknown>;
+    check(aBody.sale_percent_off === 50, "add-on returns sale_percent_off = 50");
+
+    await refreshPlanCache();
+    const aInfo = getAddon("ai_credit_pack");
+    check(aInfo.salePercentOff === 50, "resolver sees the add-on sale");
+    if (stripeOn) {
+      check(!!aInfo.saleStripePriceId, "add-on sale price created");
+      // priceForAddOn now bills the discounted sale price.
+      check(
+        priceForAddOn("ai_credit_pack") === aInfo.saleStripePriceId,
+        "priceForAddOn returns the sale price while on sale",
+      );
+    }
+
+    // Customer billing payload shows the discounted add-on price.
+    const bill = await json(
+      await fetch(`${API}/v1/billing`, { headers: { Authorization: `Bearer ${key.key}` } }),
+    );
+    const catalog = (bill.addons_catalog ?? []) as { id: string; sale_price: number | null }[];
+    const aiPack = catalog.find((c) => c.id === "ai_credit_pack");
+    check(aiPack?.sale_price === 2.5, `billing catalog shows add-on sale price $2.50 (got ${aiPack?.sale_price})`);
+
+    // Clear the add-on sale.
+    const aClr = await fetch(`${API}/v1/admin/addons/ai_credit_pack/sale`, {
+      method: "DELETE",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    check(aClr.status === 200, `clear add-on sale → 200 (got ${aClr.status})`);
+    await refreshPlanCache();
+    check(getAddon("ai_credit_pack").salePercentOff === null, "add-on sale cleared");
+    if (stripeOn) {
+      check(
+        priceForAddOn("ai_credit_pack") !== aInfo.saleStripePriceId,
+        "priceForAddOn reverts to the regular price after clear",
+      );
+    }
   } finally {
     // Make sure the pro plan is never left on sale, then drop throwaway data.
     const [pro] = await db.select().from(plans).where(eq(plans.id, "pro")).limit(1);
@@ -186,6 +232,15 @@ async function main(): Promise<void> {
       .update(plans)
       .set({ salePercentOff: null, saleEndsAt: null, saleStripeCouponId: null })
       .where(eq(plans.id, "pro"));
+    // Same for the add-on used in the sale checks.
+    const [aiPack] = await db.select().from(addons).where(eq(addons.id, "ai_credit_pack")).limit(1);
+    if (aiPack?.saleStripePriceId && stripe) {
+      await stripe.prices.update(aiPack.saleStripePriceId, { active: false }).catch(() => {});
+    }
+    await db
+      .update(addons)
+      .set({ salePercentOff: null, saleEndsAt: null, saleStripePriceId: null })
+      .where(eq(addons.id, "ai_credit_pack"));
     // Drop the throwaway customer (+ its Stripe customer if checkout created one).
     const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
     if (org?.stripeCustomerId && stripe) await stripe.customers.del(org.stripeCustomerId).catch(() => {});

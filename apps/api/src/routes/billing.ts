@@ -18,7 +18,7 @@ import { db, type Organization, organizations, type OrgAddon, orgAddons } from "
 import { currentPeriod, type QuotaState, quotaState } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { getAddon, getAiCredits, getSale, getTrialDays, listPlans } from "../lib/plans";
+import { getAddon, getAiCredits, getSale, getTrialDays, listAddons, listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
 import { createCheckout, reportOverage, syncAddonItems } from "../lib/stripe";
 import { parse } from "../lib/validate";
@@ -72,12 +72,16 @@ function billingSummary(org: Organization, usage: QuotaState, seats: SeatState, 
     .map((a) => {
       const def = getAddon(a.addonId as AddOnId);
       const unit = def?.unitAmount ?? 0;
+      const onSale = !!def && saleActive({ percentOff: def.salePercentOff ?? 0, endsAt: def.saleEndsAt });
+      const effUnit = onSale ? salePrice(unit, def.salePercentOff as number) : unit;
       return {
         id: a.addonId,
         name: def?.name ?? a.addonId,
         quantity: a.quantity,
-        unit_amount: unit,
-        amount: a.quantity * unit,
+        unit_amount: effUnit,
+        original_unit_amount: onSale ? unit : null,
+        sale_percent_off: onSale ? (def.salePercentOff as number) : null,
+        amount: a.quantity * effUnit,
       };
     });
   for (const a of addonLines) {
@@ -133,6 +137,22 @@ async function billingPayload(org: Organization, usage: QuotaState) {
     },
     summary: billingSummary(org, usage, seats, addons),
     plans: listPlans().map(serializePlan),
+    // Live add-on catalog (with any active sale) so the dashboard shows real prices.
+    addons_catalog: listAddons()
+      .filter((a) => a.active)
+      .map((a) => {
+        const onSale = saleActive({ percentOff: a.salePercentOff ?? 0, endsAt: a.saleEndsAt });
+        return {
+          id: a.id,
+          name: a.name,
+          unit: a.unit,
+          description: a.description,
+          unit_amount: a.unitAmount,
+          sale_percent_off: onSale ? a.salePercentOff : null,
+          sale_price: onSale ? salePrice(a.unitAmount, a.salePercentOff as number) : null,
+          sale_ends_at: onSale ? a.saleEndsAt : null,
+        };
+      }),
   };
 }
 
@@ -141,6 +161,13 @@ async function orgForReq(req: FastifyRequest): Promise<Organization> {
 }
 
 export async function billingRoutes(app: FastifyInstance): Promise<void> {
+  // Public pricing catalog (no auth — see PUBLIC_PREFIXES) so the marketing site
+  // can show live prices + any active sale. Org-agnostic: the same plan data the
+  // dashboard sees, with no usage/seat specifics.
+  app.get("/v1/pricing", async () => {
+    return { object: "list", data: listPlans().map(serializePlan) };
+  });
+
   app.get("/v1/billing", async (req) => {
     const org = await orgForReq(req);
     // Lazily push current-period overage to Stripe's metered item (best-effort —
