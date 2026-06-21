@@ -169,6 +169,8 @@ export interface AdminAddon {
   active: boolean;
   rank: number;
   stripe_price_id: string | null;
+  sale_percent_off: number | null;
+  sale_ends_at: string | null;
 }
 
 export type AddonPatch = Partial<{

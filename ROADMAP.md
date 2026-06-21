@@ -206,7 +206,7 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         enterprise model; uses the org owner's email). Deactivate reverts to standard
         enterprise. E2E test `pnpm --filter @rootmail/api test:custom-plans` (24 checks,
         incl. real test-mode Stripe sub + cleanup) + browser-verified.
-- [~] **Discounts / sales surfaced across pricing** — phased.
+- [x] **Discounts / sales surfaced across pricing** — both phases shipped.
   - [x] **Phase 1 — plan sales (admin + dashboard + honest checkout).** A plan can go
         on sale: `sale_percent_off` + `sale_ends_at` (migration 0023) synced to an
         auto-applied Stripe coupon. Admin sets/clears it from /pricing (superadmin,
@@ -214,8 +214,14 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         struck-through + sale price + "X% off · ends …"; checkout auto-applies the coupon
         so the customer is charged the sale price (verified: amount_discount > 0). E2E
         test `pnpm --filter @rootmail/api test:pricing-sales` (18 checks) + browser-verified.
-  - [ ] **Phase 2 — surface on marketing pricing** (make it read live sale data) +
-        extend sales to add-ons.
+  - [x] **Phase 2 — marketing surface + add-on sales.** Public `GET /v1/pricing`
+        (no auth) feeds the marketing pricing cards live, so an active sale shows
+        there too (struck-through original + sale price + "X% off" badge), with a
+        graceful fallback to static prices if the API is down. Add-ons can also go
+        on sale (migration 0024) — charged honestly via a discounted "sale price"
+        used in checkout + add-on sync (no coupon stacking with a plan sale); admin
+        sets/clears it on /pricing, dashboard add-on manager shows it live. E2E test
+        `test:pricing-sales` now 27 checks (plan + add-on) + browser-verified.
 - [ ] **Custom in-app checkout (no Stripe redirect)** — replace the hosted Stripe Checkout
       redirect with **embedded checkout** (Stripe Elements / Payment Element or embedded
       Checkout) on our own page(s): compare tiers/models side by side, toggle add-ons

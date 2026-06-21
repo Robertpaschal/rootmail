@@ -47,6 +47,11 @@ export interface AddOnInfo {
   grant: number;
   active: boolean;
   stripePriceId: string | null;
+  // Public sale (like plans): a % off + a discounted Stripe "sale price" used
+  // while active. null = no sale.
+  salePercentOff: number | null;
+  saleEndsAt: Date | null;
+  saleStripePriceId: string | null;
 }
 
 function addonFallback(): Record<AddOnId, AddOnInfo> {
@@ -62,6 +67,9 @@ function addonFallback(): Record<AddOnId, AddOnInfo> {
       grant: a.grant,
       active: true,
       stripePriceId: null,
+      salePercentOff: null,
+      saleEndsAt: null,
+      saleStripePriceId: null,
     };
   }
   return out;
@@ -100,6 +108,9 @@ function toAddonInfo(r: Addon): AddOnInfo {
     grant: r.grant,
     active: r.active,
     stripePriceId: r.stripePriceId,
+    salePercentOff: r.salePercentOff,
+    saleEndsAt: r.saleEndsAt,
+    saleStripePriceId: r.saleStripePriceId,
   };
 }
 

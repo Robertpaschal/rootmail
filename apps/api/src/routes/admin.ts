@@ -50,10 +50,12 @@ import { currentPeriod } from "../lib/billing";
 import { getPlan, refreshPlanCache } from "../lib/plans";
 import {
   cancelCustomSubscription,
+  deleteAddonSalePrice,
   deletePlanSaleCoupon,
   getStripe,
   provisionCustomSubscription,
   syncAddonPrice,
+  syncAddonSalePrice,
   syncCustomPlanPrice,
   syncPlanPrice,
   syncPlanSaleCoupon,
@@ -138,6 +140,8 @@ function serializeAddonRow(a: typeof addons.$inferSelect) {
     active: a.active,
     rank: a.rank,
     stripe_price_id: a.stripePriceId,
+    sale_percent_off: a.salePercentOff,
+    sale_ends_at: a.saleEndsAt,
   };
 }
 
@@ -998,6 +1002,83 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { ...serializeAddonRow(row), stripe_sync: stripeSync };
+  });
+
+  // --- Add-on sales (a visible % off, charged via a discounted sale price) -
+  app.post("/v1/admin/addons/:id/sale", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const { id } = req.params as { id: string };
+    if (!(ADD_ON_IDS as readonly string[]).includes(id)) throw Errors.notFound("Add-on not found");
+    const b = parse(saleBody, req.body);
+    const [addon] = await db.select().from(addons).where(eq(addons.id, id)).limit(1);
+    if (!addon) throw Errors.notFound("Add-on not found");
+    if (addon.unitAmount <= 0) throw Errors.badRequest("Only priced add-ons can go on sale.");
+
+    let endsAt: Date | null = null;
+    if (b.ends_at) {
+      endsAt = new Date(b.ends_at);
+      if (Number.isNaN(endsAt.getTime())) throw Errors.badRequest("Invalid sale end date.");
+      if (endsAt.getTime() <= Date.now()) throw Errors.badRequest("Sale end must be in the future.");
+    }
+
+    let salePriceId: string | null = addon.saleStripePriceId;
+    let stripeSync: "synced" | "skipped" | "failed" = "skipped";
+    try {
+      const synced = await syncAddonSalePrice(addon, b.percent_off);
+      if (synced) {
+        salePriceId = synced;
+        stripeSync = "synced";
+      }
+    } catch (err) {
+      req.log.error({ err }, "addon sale price sync failed");
+      stripeSync = "failed";
+    }
+
+    const [updated] = await db
+      .update(addons)
+      .set({
+        salePercentOff: b.percent_off,
+        saleEndsAt: endsAt,
+        saleStripePriceId: salePriceId,
+        updatedAt: new Date(),
+      })
+      .where(eq(addons.id, id))
+      .returning();
+    await refreshPlanCache();
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "addon.sale.set",
+      targetType: "addon",
+      targetId: id,
+      metadata: { percent_off: b.percent_off, ends_at: endsAt, stripe_sync: stripeSync },
+      ip: req.ip,
+    });
+    return { ...serializeAddonRow(updated), stripe_sync: stripeSync };
+  });
+
+  app.delete("/v1/admin/addons/:id/sale", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const { id } = req.params as { id: string };
+    if (!(ADD_ON_IDS as readonly string[]).includes(id)) throw Errors.notFound("Add-on not found");
+    const [addon] = await db.select().from(addons).where(eq(addons.id, id)).limit(1);
+    if (!addon) throw Errors.notFound("Add-on not found");
+    await deleteAddonSalePrice(addon).catch(() => {});
+    const [updated] = await db
+      .update(addons)
+      .set({ salePercentOff: null, saleEndsAt: null, saleStripePriceId: null, updatedAt: new Date() })
+      .where(eq(addons.id, id))
+      .returning();
+    await refreshPlanCache();
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "addon.sale.clear",
+      targetType: "addon",
+      targetId: id,
+      ip: req.ip,
+    });
+    return serializeAddonRow(updated);
   });
 
   // --- Sales CRM (enterprise "Contact sales" leads) -----------------------

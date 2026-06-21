@@ -69,12 +69,29 @@ export function priceForPlan(planId: PlanId, interval: BillingInterval = "month"
   return syncedId ?? envPriceForPlan(planId, interval);
 }
 
-/** Configured Stripe price id for an add-on, or null (→ use default constant). */
-export function priceForAddOn(id: AddOnId): string | null {
-  const synced = getAddon(id).stripePriceId;
-  if (synced) return synced;
+/** Env-configured Stripe price id for an add-on, or null. */
+function envAddOnPriceId(id: AddOnId): string | null {
   const val = env[ADD_ONS[id].priceEnvKey as keyof typeof env];
   return typeof val === "string" && val ? val : null;
+}
+
+/** The NON-sale (regular) Stripe price id for an add-on (synced → env). */
+function regularAddOnPriceId(id: AddOnId): string | null {
+  return getAddon(id).stripePriceId ?? envAddOnPriceId(id);
+}
+
+/**
+ * Effective Stripe price id for an add-on — the discounted sale price while a sale
+ * is active, otherwise the regular price. Both checkout and add-on sync bill through
+ * this, so an add-on on sale is charged at its sale price everywhere (no coupon
+ * stacking with a plan sale).
+ */
+export function priceForAddOn(id: AddOnId): string | null {
+  const a = getAddon(id);
+  if (a.saleStripePriceId && saleActive({ percentOff: a.salePercentOff ?? 0, endsAt: a.saleEndsAt })) {
+    return a.saleStripePriceId;
+  }
+  return regularAddOnPriceId(id);
 }
 
 /**
@@ -95,10 +112,17 @@ export function overageMeterEvent(planId: PlanId): string | null {
   return null;
 }
 
-/** The set of all configured add-on Stripe price ids (to tell them apart from
- * the plan + overage items on a subscription). */
+/** All add-on Stripe price ids — regular AND sale — so add-on items on a sub are
+ * recognized (and reconciled) no matter which price they currently sit on. */
 function addOnPriceIds(): Set<string> {
-  return new Set(ADD_ON_IDS.map((id) => priceForAddOn(id)).filter((p): p is string => Boolean(p)));
+  const ids = new Set<string>();
+  for (const id of ADD_ON_IDS) {
+    const reg = regularAddOnPriceId(id);
+    if (reg) ids.add(reg);
+    const sale = getAddon(id).saleStripePriceId;
+    if (sale) ids.add(sale);
+  }
+  return ids;
 }
 
 /** Current add-on quantities for an org (only those with quantity > 0). */
@@ -457,6 +481,54 @@ export async function syncAddonPrice(addon: Addon): Promise<string | null> {
     .set({ stripePriceId: price.id, updatedAt: new Date() })
     .where(eq(addonsTable.id, addon.id));
   return price.id;
+}
+
+/**
+ * Create the discounted "sale price" for an add-on (percent off its unit price), on
+ * the same product as its regular price. While a sale is active this is what
+ * `priceForAddOn` bills. Archives any prior sale price. Returns the new price id, or
+ * null without Stripe / a non-positive amount.
+ */
+export async function syncAddonSalePrice(addon: Addon, percentOff: number): Promise<string | null> {
+  const stripe = getStripe();
+  if (!stripe) return null;
+  const saleAmount = Math.round(addon.unitAmount * (1 - percentOff / 100) * 100); // cents
+  if (saleAmount <= 0) return null;
+
+  const regular = addon.stripePriceId ?? envAddOnPriceId(addon.id as AddOnId);
+  let productId: string;
+  if (regular) {
+    const ep = await stripe.prices.retrieve(regular);
+    productId = typeof ep.product === "string" ? ep.product : ep.product.id;
+  } else {
+    const product = await stripe.products.create({
+      name: `rootmail ${addon.name}`,
+      metadata: { addonId: addon.id },
+    });
+    productId = product.id;
+  }
+  if (addon.saleStripePriceId) {
+    await stripe.prices.update(addon.saleStripePriceId, { active: false }).catch(() => {});
+  }
+  const price = await stripe.prices.create({
+    product: productId,
+    currency: "usd",
+    unit_amount: saleAmount,
+    recurring: { interval: "month" },
+    metadata: { addonId: addon.id, kind: "addon_sale" },
+  });
+  await db
+    .update(addonsTable)
+    .set({ saleStripePriceId: price.id, updatedAt: new Date() })
+    .where(eq(addonsTable.id, addon.id));
+  return price.id;
+}
+
+/** Archive an add-on's sale price in Stripe (when an admin clears the sale). */
+export async function deleteAddonSalePrice(addon: Addon): Promise<void> {
+  const stripe = getStripe();
+  if (!stripe || !addon.saleStripePriceId) return;
+  await stripe.prices.update(addon.saleStripePriceId, { active: false }).catch(() => {});
 }
 
 /**

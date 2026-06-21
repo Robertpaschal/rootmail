@@ -147,6 +147,13 @@ export const adminApi = {
       method: "PATCH",
       body: patch,
     }),
+  setAddonSale: (id: string, body: { percent_off: number; ends_at?: string }) =>
+    adminFetch<AdminAddon & { stripe_sync?: string }>(`/v1/admin/addons/${id}/sale`, {
+      method: "POST",
+      body,
+    }),
+  clearAddonSale: (id: string) =>
+    adminFetch<AdminAddon>(`/v1/admin/addons/${id}/sale`, { method: "DELETE" }),
 
   getOrgBilling: (id: string) => adminFetch<AdminBilling>(`/v1/admin/orgs/${id}/billing`),
   grantCredit: (id: string, amountCents: number, reason?: string) =>

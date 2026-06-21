@@ -217,6 +217,11 @@ export const addons = pgTable("addons", {
   active: boolean("active").notNull().default(true),
   rank: integer("rank").notNull().default(0),
   stripePriceId: text("stripe_price_id"),
+  // Public sale (like plans). Charged honestly via a discounted "sale price" used
+  // in checkout + add-on sync while active (no coupon stacking with a plan sale).
+  salePercentOff: integer("sale_percent_off"),
+  saleEndsAt: timestamp("sale_ends_at", { withTimezone: true }),
+  saleStripePriceId: text("sale_stripe_price_id"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
