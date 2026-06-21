@@ -50,11 +50,13 @@ import { currentPeriod } from "../lib/billing";
 import { getPlan, refreshPlanCache } from "../lib/plans";
 import {
   cancelCustomSubscription,
+  deletePlanSaleCoupon,
   getStripe,
   provisionCustomSubscription,
   syncAddonPrice,
   syncCustomPlanPrice,
   syncPlanPrice,
+  syncPlanSaleCoupon,
 } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { parse } from "../lib/validate";
@@ -95,6 +97,9 @@ function serializePlanRow(p: typeof plans.$inferSelect) {
     active: p.active,
     stripe_price_month_id: p.stripePriceMonthId,
     stripe_price_year_id: p.stripePriceYearId,
+    sale_percent_off: p.salePercentOff,
+    sale_ends_at: p.saleEndsAt,
+    sale_stripe_coupon_id: p.saleStripeCouponId,
   };
 }
 
@@ -759,6 +764,90 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { ...serializePlanRow(row), stripe_sync: stripeSync };
+  });
+
+  // --- Plan sales (a visible % off, synced to an auto-applied coupon) ------
+  const saleBody = z.object({
+    percent_off: z.coerce.number().int().min(1).max(90),
+    ends_at: z.string().optional(), // ISO date/datetime; omitted = open-ended
+  });
+  // Put a plan on sale. Money lever → superadmin only, audited. Creates the synced
+  // coupon so the marketed sale price is what's charged; takes effect immediately.
+  app.post("/v1/admin/plans/:id/sale", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const { id } = req.params as { id: string };
+    if (!(PLAN_IDS as readonly string[]).includes(id)) throw Errors.notFound("Plan not found");
+    const b = parse(saleBody, req.body);
+    const [plan] = await db.select().from(plans).where(eq(plans.id, id as PlanId)).limit(1);
+    if (!plan) throw Errors.notFound("Plan not found");
+    if (plan.price == null || plan.price <= 0) throw Errors.badRequest("Only paid plans can go on sale.");
+
+    let endsAt: Date | null = null;
+    if (b.ends_at) {
+      endsAt = new Date(b.ends_at);
+      if (Number.isNaN(endsAt.getTime())) throw Errors.badRequest("Invalid sale end date.");
+      if (endsAt.getTime() <= Date.now()) throw Errors.badRequest("Sale end must be in the future.");
+    }
+
+    let couponId: string | null = plan.saleStripeCouponId;
+    let stripeSync: "synced" | "skipped" | "failed" = "skipped";
+    try {
+      const synced = await syncPlanSaleCoupon(plan, b.percent_off, endsAt);
+      if (synced) {
+        couponId = synced;
+        stripeSync = "synced";
+      }
+    } catch (err) {
+      req.log.error({ err }, "plan sale coupon sync failed");
+      stripeSync = "failed";
+    }
+
+    const [updated] = await db
+      .update(plans)
+      .set({
+        salePercentOff: b.percent_off,
+        saleEndsAt: endsAt,
+        saleStripeCouponId: couponId,
+        updatedAt: new Date(),
+      })
+      .where(eq(plans.id, id as PlanId))
+      .returning();
+    await refreshPlanCache();
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "plan.sale.set",
+      targetType: "plan",
+      targetId: id,
+      metadata: { percent_off: b.percent_off, ends_at: endsAt, stripe_sync: stripeSync },
+      ip: req.ip,
+    });
+    return { ...serializePlanRow(updated), stripe_sync: stripeSync };
+  });
+
+  // End a plan's sale: delete the coupon + clear the fields. Superadmin, audited.
+  app.delete("/v1/admin/plans/:id/sale", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const { id } = req.params as { id: string };
+    if (!(PLAN_IDS as readonly string[]).includes(id)) throw Errors.notFound("Plan not found");
+    const [plan] = await db.select().from(plans).where(eq(plans.id, id as PlanId)).limit(1);
+    if (!plan) throw Errors.notFound("Plan not found");
+    await deletePlanSaleCoupon(plan).catch(() => {});
+    const [updated] = await db
+      .update(plans)
+      .set({ salePercentOff: null, saleEndsAt: null, saleStripeCouponId: null, updatedAt: new Date() })
+      .where(eq(plans.id, id as PlanId))
+      .returning();
+    await refreshPlanCache();
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "plan.sale.clear",
+      targetType: "plan",
+      targetId: id,
+      ip: req.ip,
+    });
+    return serializePlanRow(updated);
   });
 
   // --- Promotions (coupons + promo codes; Stripe-native) ------------------

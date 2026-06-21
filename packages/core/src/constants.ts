@@ -325,6 +325,29 @@ export function yearlyPrice(planId: PlanId): number | null {
   return p === null ? null : p * (12 - YEARLY_MONTHS_FREE);
 }
 
+// ---------------------------------------------------------------------------
+// Sales / discounts — an admin can put a plan on sale (a % off shown everywhere
+// pricing renders and applied at checkout via a synced auto-applied coupon, so
+// what's marketed is what's charged). Shared helpers keep "is it on sale?" and
+// "what's the sale price?" identical across the API, dashboard, and marketing.
+// ---------------------------------------------------------------------------
+export interface SaleState {
+  percentOff: number | null;
+  endsAt: string | Date | null;
+}
+
+/** A sale is on while it has a positive % off and hasn't passed its end date. */
+export function saleActive(sale: SaleState | null | undefined, now: Date = new Date()): boolean {
+  if (!sale || !sale.percentOff || sale.percentOff <= 0) return false;
+  if (!sale.endsAt) return true;
+  return new Date(sale.endsAt).getTime() > now.getTime();
+}
+
+/** Apply a % off to a base price, rounded to cents. */
+export function salePrice(basePrice: number, percentOff: number): number {
+  return Math.round(basePrice * (1 - percentOff / 100) * 100) / 100;
+}
+
 // Monthly "AI credits" = AI template drafts included per plan. AI inference
 // costs us, so it's metered rather than free-for-all on lower tiers. -1 =
 // unlimited. Directional numbers — tune per [[pricing-design-principles]].

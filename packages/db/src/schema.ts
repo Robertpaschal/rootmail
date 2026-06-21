@@ -189,6 +189,13 @@ export const plans = pgTable("plans", {
   active: boolean("active").notNull().default(true),
   // Free-trial length in days for this plan's checkout (0 = no trial).
   trialDays: integer("trial_days").notNull().default(0),
+  // Public sale: a % off shown everywhere pricing renders and applied at checkout
+  // via the synced auto-applied Stripe coupon (so the charge matches the marketing).
+  // A sale is active while salePercentOff > 0 and (saleEndsAt is null or in the
+  // future). null/0 = no sale.
+  salePercentOff: integer("sale_percent_off"),
+  saleEndsAt: timestamp("sale_ends_at", { withTimezone: true }),
+  saleStripeCouponId: text("sale_stripe_coupon_id"),
   // Stripe linkage (Phase B — dynamic price sync). Null = use env price ids.
   stripePriceMonthId: text("stripe_price_month_id"),
   stripePriceYearId: text("stripe_price_year_id"),

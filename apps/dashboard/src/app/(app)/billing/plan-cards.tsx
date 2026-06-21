@@ -71,12 +71,35 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
                 <h3 className="font-semibold">{p.name}</h3>
                 {isCurrent ? <Badge>Current</Badge> : featured ? <Badge variant="secondary">Popular</Badge> : null}
               </div>
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className="text-2xl font-bold">{price(p, interval)}</span>
-                {p.price !== null && p.price > 0 ? (
-                  <span className="text-xs text-muted-foreground">/{interval === "year" ? "yr" : "mo"}</span>
-                ) : null}
-              </div>
+              {(() => {
+                const unit = interval === "year" ? "yr" : "mo";
+                const saleAmt = interval === "year" ? p.sale_price_yearly : p.sale_price;
+                const orig =
+                  interval === "year" && p.price_yearly != null ? p.price_yearly : p.price;
+                if (p.price !== null && p.price > 0 && saleAmt != null && orig != null) {
+                  return (
+                    <div className="mt-2 flex items-baseline gap-1.5">
+                      <span className="text-2xl font-bold">${saleAmt}</span>
+                      <span className="text-sm text-muted-foreground line-through">${orig}</span>
+                      <span className="text-xs text-muted-foreground">/{unit}</span>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <span className="text-2xl font-bold">{price(p, interval)}</span>
+                    {p.price !== null && p.price > 0 ? (
+                      <span className="text-xs text-muted-foreground">/{unit}</span>
+                    ) : null}
+                  </div>
+                );
+              })()}
+              {p.sale_percent_off != null && p.sale_price != null ? (
+                <p className="mt-1 text-xs font-medium text-rose-600">
+                  {p.sale_percent_off}% off
+                  {p.sale_ends_at ? ` · ends ${new Date(p.sale_ends_at).toLocaleDateString()}` : ""}
+                </p>
+              ) : null}
               {p.trial_days > 0 ? (
                 <p className="mt-1 text-xs font-medium text-emerald-600">
                   {p.trial_days}-day free trial

@@ -30,6 +30,12 @@ let planCache: Record<PlanId, PlanDef> = { ...PLANS };
 let aiCache: Record<PlanId, number> = { ...AI_CREDITS };
 let stripePriceCache: Partial<Record<PlanId, { month: string | null; year: string | null }>> = {};
 let trialCache: Partial<Record<PlanId, number>> = {};
+export interface PlanSale {
+  percentOff: number;
+  endsAt: Date | null;
+  couponId: string | null;
+}
+let saleCache: Partial<Record<PlanId, PlanSale>> = {};
 let loadedAt = 0;
 
 export interface AddOnInfo {
@@ -120,18 +126,25 @@ export async function refreshPlanCache(): Promise<void> {
       const ai = { ...AI_CREDITS };
       const sp: Partial<Record<PlanId, { month: string | null; year: string | null }>> = {};
       const tr: Partial<Record<PlanId, number>> = {};
+      const sl: Partial<Record<PlanId, PlanSale>> = {};
       for (const r of rows) {
         if ((PLAN_IDS as readonly string[]).includes(r.id)) {
           p[r.id as PlanId] = toDef(r);
           ai[r.id as PlanId] = r.aiCredits;
           sp[r.id as PlanId] = { month: r.stripePriceMonthId, year: r.stripePriceYearId };
           tr[r.id as PlanId] = r.trialDays;
+          sl[r.id as PlanId] = {
+            percentOff: r.salePercentOff ?? 0,
+            endsAt: r.saleEndsAt,
+            couponId: r.saleStripeCouponId,
+          };
         }
       }
       planCache = p;
       aiCache = ai;
       stripePriceCache = sp;
       trialCache = tr;
+      saleCache = sl;
     }
 
     const addonRows = await db.select().from(addonsTable);
@@ -196,6 +209,12 @@ export function getStripePrices(planId: PlanId): { month: string | null; year: s
 export function getTrialDays(planId: PlanId): number {
   maybeRefresh();
   return trialCache[planId] ?? 0;
+}
+
+/** Current sale for a plan, if any (percentOff 0 = no sale). */
+export function getSale(planId: PlanId): PlanSale | undefined {
+  maybeRefresh();
+  return saleCache[planId];
 }
 
 /** Add-on definition (cached, DB-backed, constant fallback). */

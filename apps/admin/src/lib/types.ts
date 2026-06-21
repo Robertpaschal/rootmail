@@ -141,6 +141,9 @@ export interface AdminPlan {
   active: boolean;
   stripe_price_month_id: string | null;
   stripe_price_year_id: string | null;
+  sale_percent_off: number | null;
+  sale_ends_at: string | null;
+  sale_stripe_coupon_id: string | null;
 }
 
 export type PlanPatch = Partial<{
