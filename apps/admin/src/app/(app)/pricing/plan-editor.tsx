@@ -6,7 +6,13 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { AdminPlan } from "@/lib/types";
-import { type PlanState, updatePlan } from "./actions";
+import { clearPlanSale, type PlanState, setPlanSale, updatePlan } from "./actions";
+
+function saleIsActive(plan: AdminPlan): boolean {
+  if (!plan.sale_percent_off || plan.sale_percent_off <= 0) return false;
+  if (!plan.sale_ends_at) return true;
+  return new Date(plan.sale_ends_at).getTime() > Date.now();
+}
 
 function Field({
   name,
@@ -35,6 +41,7 @@ function Field({
 export function PlanEditor({ plan }: { plan: AdminPlan }) {
   const [state, action] = useActionState<PlanState, FormData>(updatePlan, {});
   return (
+    <div className="space-y-4">
     <form action={action} className="space-y-4">
       <input type="hidden" name="id" value={plan.id} />
       <input type="hidden" name="name" value={plan.name} />
@@ -100,5 +107,79 @@ export function PlanEditor({ plan }: { plan: AdminPlan }) {
         </div>
       </div>
     </form>
+
+    {plan.price != null && plan.price > 0 ? <SaleControls plan={plan} /> : null}
+    </div>
+  );
+}
+
+function SaleControls({ plan }: { plan: AdminPlan }) {
+  const [state, action] = useActionState<PlanState, FormData>(setPlanSale, {});
+  const onSale = saleIsActive(plan);
+  const discounted = onSale ? Math.round(plan.price! * (1 - plan.sale_percent_off! / 100) * 100) / 100 : null;
+
+  return (
+    <div className="rounded-md border border-dashed p-3">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-muted-foreground">Sale</span>
+        {onSale ? (
+          <Badge variant="success">
+            {plan.sale_percent_off}% off → ${discounted}/mo
+            {plan.sale_ends_at ? ` · ends ${new Date(plan.sale_ends_at).toLocaleDateString()}` : ""}
+          </Badge>
+        ) : (
+          <Badge variant="muted">none</Badge>
+        )}
+      </div>
+      <div className="flex flex-wrap items-end gap-3">
+        <form action={action} className="flex flex-wrap items-end gap-3">
+          <input type="hidden" name="id" value={plan.id} />
+          <div className="space-y-1">
+            <Label htmlFor={`sale_pct_${plan.id}`} className="text-xs text-muted-foreground">
+              % off
+            </Label>
+            <Input
+              id={`sale_pct_${plan.id}`}
+              name="percent_off"
+              type="number"
+              min={1}
+              max={90}
+              defaultValue={plan.sale_percent_off ?? ""}
+              placeholder="20"
+              className="w-24"
+            />
+          </div>
+          <div className="space-y-1">
+            <Label htmlFor={`sale_ends_${plan.id}`} className="text-xs text-muted-foreground">
+              Ends (optional)
+            </Label>
+            <Input
+              id={`sale_ends_${plan.id}`}
+              name="ends_at"
+              type="date"
+              defaultValue={plan.sale_ends_at ? plan.sale_ends_at.slice(0, 10) : ""}
+              className="w-40"
+            />
+          </div>
+          <SubmitButton variant="outline" pendingLabel="Saving…">
+            {onSale ? "Update sale" : "Start sale"}
+          </SubmitButton>
+          {state.error ? <span className="text-sm text-destructive">{state.error}</span> : null}
+          {state.ok ? (
+            <span className={`text-sm ${state.sync === "failed" ? "text-amber-600" : "text-emerald-600"}`}>
+              {state.sync === "synced" ? "Sale live · coupon synced" : state.sync === "failed" ? "Saved · coupon sync failed" : "Sale live"}
+            </span>
+          ) : null}
+        </form>
+        {onSale ? (
+          <form action={clearPlanSale}>
+            <input type="hidden" name="id" value={plan.id} />
+            <SubmitButton variant="outline" size="sm" pendingLabel="…">
+              End sale
+            </SubmitButton>
+          </form>
+        ) : null}
+      </div>
+    </div>
   );
 }

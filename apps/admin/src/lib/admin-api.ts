@@ -133,6 +133,13 @@ export const adminApi = {
       method: "PATCH",
       body: patch,
     }),
+  setPlanSale: (id: string, body: { percent_off: number; ends_at?: string }) =>
+    adminFetch<AdminPlan & { stripe_sync?: string }>(`/v1/admin/plans/${id}/sale`, {
+      method: "POST",
+      body,
+    }),
+  clearPlanSale: (id: string) =>
+    adminFetch<AdminPlan>(`/v1/admin/plans/${id}/sale`, { method: "DELETE" }),
 
   listAddons: () => adminFetch<ListResponse<AdminAddon>>("/v1/admin/addons"),
   updateAddon: (id: string, patch: AddonPatch) =>

@@ -174,6 +174,11 @@ export interface Plan {
   trial_days: number;
   ai_credits: number;
   features: string[];
+  // Public sale (null when not on sale); prices are the already-discounted amounts.
+  sale_percent_off: number | null;
+  sale_ends_at: string | null;
+  sale_price: number | null;
+  sale_price_yearly: number | null;
 }
 
 export type AddonId = "extra_seat" | "dedicated_ip" | "subtenant_pack" | "ai_credit_pack";

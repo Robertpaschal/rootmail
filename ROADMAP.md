@@ -206,11 +206,16 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         enterprise model; uses the org owner's email). Deactivate reverts to standard
         enterprise. E2E test `pnpm --filter @rootmail/api test:custom-plans` (24 checks,
         incl. real test-mode Stripe sub + cleanup) + browser-verified.
-- [ ] **Discounts / sales surfaced across pricing** — beyond the existing coupon/promo
-      codes, we should be able to put plans/add-ons **on sale** and show it everywhere
-      pricing renders (marketing cards, dashboard billing, checkout): strike-through
-      original price, "X% off", sale end date. Admin-controlled, Stripe-synced, honest
-      (what's marketed is what's charged — no hidden math). Fold into the discount work.
+- [~] **Discounts / sales surfaced across pricing** — phased.
+  - [x] **Phase 1 — plan sales (admin + dashboard + honest checkout).** A plan can go
+        on sale: `sale_percent_off` + `sale_ends_at` (migration 0023) synced to an
+        auto-applied Stripe coupon. Admin sets/clears it from /pricing (superadmin,
+        audited); the cached resolver exposes it; dashboard plan cards show the original
+        struck-through + sale price + "X% off · ends …"; checkout auto-applies the coupon
+        so the customer is charged the sale price (verified: amount_discount > 0). E2E
+        test `pnpm --filter @rootmail/api test:pricing-sales` (18 checks) + browser-verified.
+  - [ ] **Phase 2 — surface on marketing pricing** (make it read live sale data) +
+        extend sales to add-ons.
 - [ ] **Custom in-app checkout (no Stripe redirect)** — replace the hosted Stripe Checkout
       redirect with **embedded checkout** (Stripe Elements / Payment Element or embedded
       Checkout) on our own page(s): compare tiers/models side by side, toggle add-ons

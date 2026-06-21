@@ -9,6 +9,7 @@ import {
   env,
   type PlanId,
   type PlanStatus,
+  saleActive,
 } from "@rootmail/core";
 import {
   type Addon,
@@ -25,7 +26,7 @@ import {
   users,
 } from "@rootmail/db";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
-import { getAddon, getStripePrices, getTrialDays, planForOrg } from "./plans";
+import { getAddon, getSale, getStripePrices, getTrialDays, planForOrg } from "./plans";
 
 // ---------------------------------------------------------------------------
 // Stripe billing abstraction.
@@ -179,6 +180,12 @@ export async function createCheckout(
     if (overagePrice && overageMeterEvent(planId)) lineItems.push({ price: overagePrice });
 
     const trialDays = getTrialDays(planId);
+    // If the plan is on sale, auto-apply its coupon so the customer is charged the
+    // marketed sale price. Stripe forbids both a pre-applied discount AND manual
+    // promo codes, so it's one or the other.
+    const sale = getSale(planId);
+    const onSale =
+      !!sale?.couponId && saleActive({ percentOff: sale.percentOff, endsAt: sale.endsAt });
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer,
@@ -190,7 +197,9 @@ export async function createCheckout(
         metadata: { organizationId: org.id, planId, interval },
         ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
       },
-      allow_promotion_codes: true,
+      ...(onSale
+        ? { discounts: [{ coupon: sale!.couponId! }] }
+        : { allow_promotion_codes: true }),
     });
     if (session.url) return { mode: "stripe", url: session.url };
   } catch (err) {
@@ -381,6 +390,40 @@ export async function syncPlanPrice(plan: Plan): Promise<{ month: string; year: 
  * the default, archive the prior synced price, persist the id. No-op without
  * Stripe or a positive price.
  */
+/**
+ * Create the auto-applied coupon behind a plan sale (percent off, redeemable until
+ * `endsAt`). `duration: forever` locks the discount in for anyone who subscribes
+ * during the sale — so the struck-through price they saw is the price they keep.
+ * Deletes the prior sale coupon so they don't accumulate. Returns the coupon id,
+ * or null without Stripe (the sale still shows + the % is enforced via the price).
+ */
+export async function syncPlanSaleCoupon(
+  plan: Plan,
+  percentOff: number,
+  endsAt: Date | null,
+): Promise<string | null> {
+  const stripe = getStripe();
+  if (!stripe) return null;
+  if (plan.saleStripeCouponId) {
+    await stripe.coupons.del(plan.saleStripeCouponId).catch(() => {});
+  }
+  const coupon = await stripe.coupons.create({
+    name: `${plan.name} — ${percentOff}% off`,
+    percent_off: percentOff,
+    duration: "forever",
+    ...(endsAt ? { redeem_by: Math.floor(endsAt.getTime() / 1000) } : {}),
+    metadata: { planId: plan.id, kind: "plan_sale" },
+  });
+  return coupon.id;
+}
+
+/** Remove a plan's sale coupon in Stripe (when an admin clears the sale). */
+export async function deletePlanSaleCoupon(plan: Plan): Promise<void> {
+  const stripe = getStripe();
+  if (!stripe || !plan.saleStripeCouponId) return;
+  await stripe.coupons.del(plan.saleStripeCouponId).catch(() => {});
+}
+
 export async function syncAddonPrice(addon: Addon): Promise<string | null> {
   const stripe = getStripe();
   if (!stripe || addon.unitAmount <= 0) return null;

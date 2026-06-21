@@ -44,6 +44,37 @@ export async function updatePlan(_prev: PlanState, formData: FormData): Promise<
   return { ok: true, sync };
 }
 
+export async function setPlanSale(_prev: PlanState, formData: FormData): Promise<PlanState> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missing plan." };
+  const pct = Number(formData.get("percent_off"));
+  if (!Number.isFinite(pct) || pct < 1 || pct > 90) {
+    return { error: "Enter a discount between 1 and 90%." };
+  }
+  const endsAt = String(formData.get("ends_at") ?? "").trim();
+  let sync: string | undefined;
+  try {
+    const res = await adminApi.setPlanSale(id, {
+      percent_off: Math.trunc(pct),
+      ends_at: endsAt || undefined,
+    });
+    sync = res.stripe_sync;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 403) return { error: "Superadmins only." };
+    if (err instanceof ApiError) return { error: err.message || "Couldn't start the sale." };
+    return { error: "Couldn't start the sale." };
+  }
+  revalidatePath("/pricing");
+  return { ok: true, sync };
+}
+
+export async function clearPlanSale(formData: FormData): Promise<void> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return;
+  await adminApi.clearPlanSale(id);
+  revalidatePath("/pricing");
+}
+
 export async function updateAddon(_prev: PlanState, formData: FormData): Promise<PlanState> {
   const id = String(formData.get("id") ?? "");
   if (!id) return { error: "Missing add-on." };

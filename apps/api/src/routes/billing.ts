@@ -10,23 +10,29 @@ import {
   newId,
   PLAN_IDS,
   type PlanDef,
+  saleActive,
+  salePrice,
   yearlyPrice,
 } from "@rootmail/core";
 import { db, type Organization, organizations, type OrgAddon, orgAddons } from "@rootmail/db";
 import { currentPeriod, type QuotaState, quotaState } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { getAddon, getAiCredits, getTrialDays, listPlans } from "../lib/plans";
+import { getAddon, getAiCredits, getSale, getTrialDays, listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
 import { createCheckout, reportOverage, syncAddonItems } from "../lib/stripe";
 import { parse } from "../lib/validate";
 
 function serializePlan(p: PlanDef) {
+  const py = yearlyPrice(p.id);
+  const sale = getSale(p.id);
+  const onSale =
+    p.price != null && p.price > 0 && saleActive(sale ? { percentOff: sale.percentOff, endsAt: sale.endsAt } : null);
   return {
     id: p.id,
     name: p.name,
     price: p.price,
-    price_yearly: yearlyPrice(p.id),
+    price_yearly: py,
     monthly_quota: p.monthlyQuota,
     allow_overage: p.allowOverage,
     overage_per_1000: p.overagePer1000,
@@ -35,6 +41,11 @@ function serializePlan(p: PlanDef) {
     trial_days: getTrialDays(p.id),
     ai_credits: getAiCredits(p.id),
     features: p.features,
+    // Public sale (null when not on sale). Prices are the discounted amounts.
+    sale_percent_off: onSale ? sale!.percentOff : null,
+    sale_ends_at: onSale ? sale!.endsAt : null,
+    sale_price: onSale ? salePrice(p.price as number, sale!.percentOff) : null,
+    sale_price_yearly: onSale && py != null ? salePrice(py, sale!.percentOff) : null,
   };
 }
 
