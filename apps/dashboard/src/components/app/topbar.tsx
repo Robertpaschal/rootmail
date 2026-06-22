@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/rootmail";
 import { CommandTrigger } from "./command-menu";
 import { Logo } from "./logo";
+import { ThemeToggle } from "./theme-toggle";
 
 export async function Topbar() {
   let email: string | null = null;
@@ -44,6 +45,7 @@ export async function Topbar() {
             {email}
           </span>
         ) : null}
+        <ThemeToggle />
         <form action={signOut}>
           <Button variant="ghost" size="sm" type="submit">
             <LogOut className="size-4" /> Sign out

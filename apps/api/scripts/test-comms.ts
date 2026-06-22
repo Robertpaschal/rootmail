@@ -58,13 +58,14 @@ async function main(): Promise<void> {
   const uid = newId("user");
   const cust = `cus_commstest_${Date.now()}`;
   const ownerEmail = `owner-${Date.now()}@example.com`;
-  await db
-    .insert(organizations)
-    .values({ id: orgId, name: "Comms Co", slug: `comms-${Date.now()}`, plan: "pro", stripeCustomerId: cust });
-  await db.insert(users).values({ id: uid, email: ownerEmail, name: "Owner" });
-  await db.insert(memberships).values({ id: newId("membership"), userId: uid, organizationId: orgId, role: "owner" });
 
   try {
+    await db
+      .insert(organizations)
+      .values({ id: orgId, name: "Comms Co", slug: `comms-${Date.now()}`, plan: "pro", stripeCustomerId: cust });
+    await db.insert(users).values({ id: uid, email: ownerEmail, name: "Owner" });
+    await db.insert(memberships).values({ id: newId("membership"), userId: uid, organizationId: orgId, role: "owner" });
+
     const owner = await ownerContactForCustomer(cust);
     check(owner?.email === ownerEmail && owner?.name === "Owner", "ownerContactForCustomer returns the org owner");
     const none = await ownerContactForCustomer("cus_nope_does_not_exist");
