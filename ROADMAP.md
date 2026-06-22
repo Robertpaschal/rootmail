@@ -392,9 +392,15 @@ legal-grade proof. Three bets compound on that, in rough priority:
    offer to act) and richer multi-step planning.
 
 2. **Deliverability as a product, not a footnote.** Email infra is won on inbox
-   placement. A per-domain / per-sub-tenant deliverability score, automated IP/domain
-   **warmup**, DMARC/BIMI setup guidance, and seed-list inbox testing turn our existing
-   suppression/bounce plumbing into a concrete reason to switch.
+   placement. *Phase 1 shipped:* a **deliverability score** (0–100 + grade) computed
+   server-side from real send outcomes over a window — delivery/bounce/complaint/failure
+   rates against industry thresholds, low-volume confidence, the factors hurting the
+   score, and concrete recommendations — scoped per workspace or per sub-tenant
+   (`GET /v1/deliverability`), surfaced on a dashboard page and as an assistant tool
+   (`get_deliverability`, so "how's my reputation?" works). *Still ahead:* DMARC/BIMI/SPF
+   setup guidance (on top of existing DKIM verification), automated IP/domain **warmup**,
+   and seed-list inbox testing — turning our suppression/bounce plumbing into a concrete
+   reason to switch.
 
 3. **Proof & compliance as the wedge no competitor has.** Layer-3 signed proof bundles
    are unique. Lean into regulated buyers (fintech / health / legal): retention

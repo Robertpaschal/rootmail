@@ -501,3 +501,34 @@ export interface ListResponse<T> {
   object: "list";
   data: T[];
 }
+
+export interface DeliverabilityFactor {
+  id: string;
+  severity: "info" | "warning" | "critical";
+  label: string;
+  detail: string;
+}
+
+export interface Deliverability {
+  object: "deliverability";
+  scope: { sub_tenant_id: string | null };
+  window_days: number;
+  volume: {
+    total: number;
+    delivered: number;
+    bounced: number;
+    complained: number;
+    failed: number;
+    suppressed: number;
+    in_flight: number;
+  };
+  rates: { delivery: number; bounce: number; complaint: number; failure: number };
+  suppressions: { total: number; by_reason: Record<string, number> };
+  domains: { total: number; verified: number; unverified: number };
+  score: number | null;
+  grade: "A" | "B" | "C" | "D" | "F" | null;
+  status: "no_data" | "excellent" | "good" | "at_risk" | "critical";
+  confidence: "none" | "low" | "high";
+  factors: DeliverabilityFactor[];
+  recommendations: string[];
+}
