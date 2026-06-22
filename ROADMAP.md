@@ -264,8 +264,12 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         preview + confirm. `test:comms` now 13 checks; dogfood-verified (broadcast → owners'
         `.eml`). Follow-up: an unsubscribe flow if these ever become promotional vs.
         service notices.
-- [ ] **UI / dark-mode pass** — dark mode + visual refinements across marketing,
-      dashboard, and admin (customer- and staff-facing).
+- [x] **UI / dark-mode pass** — class-based dark mode shipped across all three apps:
+      `.dark` palettes (dashboard reuses marketing's indigo dark; admin a monochrome
+      near-black that keeps its staff character), a pre-paint no-flash theme script in
+      each layout, and a ThemeToggle in each app's chrome (persists to localStorage,
+      respects system preference). Browser-verified light↔dark. Ongoing visual polish is
+      continuous, not a discrete item.
 
 ### 7. Deploy & launch ops *(Phase 8 — blocked on infra access)*
 - [x] CI (typecheck + build + e2e smoke on PG/Redis services), api/worker
