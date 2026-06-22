@@ -56,26 +56,30 @@ async function main(): Promise<void> {
   const staffId = newId("staffUser");
   const leadId = newId("lead");
   const userId = newId("user");
-  await db.insert(organizations).values({ id: orgId, name: "Custom Co", slug: TAG, plan: "free" });
-  // An owner with an email, so send-invoice billing can be provisioned.
-  await db.insert(users).values({ id: userId, email: `${TAG}.owner@example.com`, name: "Owner" });
-  await db.insert(memberships).values({ id: newId("membership"), userId, organizationId: orgId, role: "owner" });
-  await db.insert(staffUsers).values({
-    id: staffId,
-    email: `${TAG}@example.com`,
-    name: "CP Test",
-    passwordHash: hashPassword("cp-test-pw-123"),
-    role: "superadmin",
-  });
-  await db.insert(leads).values({
-    id: leadId,
-    name: "Ada Lovelace",
-    email: `${TAG}.lead@example.com`,
-    company: "Custom Co",
-    status: "qualified",
-  });
+  // A throwaway support staff user is created mid-test; declared here so the
+  // finally always cleans it up even if a later step throws.
+  let supportId: string | undefined;
 
   try {
+    await db.insert(organizations).values({ id: orgId, name: "Custom Co", slug: TAG, plan: "free" });
+    // An owner with an email, so send-invoice billing can be provisioned.
+    await db.insert(users).values({ id: userId, email: `${TAG}.owner@example.com`, name: "Owner" });
+    await db.insert(memberships).values({ id: newId("membership"), userId, organizationId: orgId, role: "owner" });
+    await db.insert(staffUsers).values({
+      id: staffId,
+      email: `${TAG}@example.com`,
+      name: "CP Test",
+      passwordHash: hashPassword("cp-test-pw-123"),
+      role: "superadmin",
+    });
+    await db.insert(leads).values({
+      id: leadId,
+      name: "Ada Lovelace",
+      email: `${TAG}.lead@example.com`,
+      company: "Custom Co",
+      status: "qualified",
+    });
+
     const login = await json(
       await fetch(`${API}/v1/admin/auth/login`, {
         method: "POST",
@@ -207,7 +211,7 @@ async function main(): Promise<void> {
     }
 
     // Non-superadmin can't create one.
-    const supportId = newId("staffUser");
+    supportId = newId("staffUser");
     await db.insert(staffUsers).values({
       id: supportId,
       email: `${TAG}.support@example.com`,
@@ -228,7 +232,6 @@ async function main(): Promise<void> {
       body: JSON.stringify({ name: "x", price_cents: 1, monthly_quota: 1 }),
     });
     check(forbidden.status === 403, `support role blocked from custom-plan → 403 (got ${forbidden.status})`);
-    await db.delete(staffUsers).where(eq(staffUsers.id, supportId));
   } finally {
     // Stripe test-mode cleanup: archive the synced price/product, cancel any
     // subscription, and delete the customer the test created.
@@ -247,6 +250,7 @@ async function main(): Promise<void> {
     await db.delete(users).where(eq(users.id, userId));
     await db.delete(leads).where(eq(leads.id, leadId)); // cascades notes
     await db.delete(staffUsers).where(eq(staffUsers.id, staffId));
+    if (supportId) await db.delete(staffUsers).where(eq(staffUsers.id, supportId)).catch(() => {});
   }
 
   console.log(pass ? "\nAll custom-plan checks passed." : "\nSome checks FAILED.");

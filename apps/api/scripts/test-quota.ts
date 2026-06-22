@@ -19,29 +19,34 @@ async function main(): Promise<void> {
   const orgId = newId("organization");
   const period = currentPeriod();
 
-  await db
-    .insert(organizations)
-    .values({ id: orgId, name: "quota-test", slug: `quota-test-${orgId.slice(-6)}`, plan: "free" });
-  await db
-    .insert(usageRecords)
-    .values({ id: newId("usage"), organizationId: orgId, period, emailsSent: quota - SLOTS_LEFT });
+  let granted = -1;
+  let used = -1;
+  let overflow = true;
+  try {
+    await db
+      .insert(organizations)
+      .values({ id: orgId, name: "quota-test", slug: `quota-test-${orgId.slice(-6)}`, plan: "free" });
+    await db
+      .insert(usageRecords)
+      .values({ id: newId("usage"), organizationId: orgId, period, emailsSent: quota - SLOTS_LEFT });
 
-  // Fire many concurrent reserves against the last few slots.
-  const results = await Promise.all(
-    Array.from({ length: CONCURRENCY }, () => tryConsumeQuota({ id: orgId, plan: "free" })),
-  );
-  const granted = results.filter(Boolean).length;
+    // Fire many concurrent reserves against the last few slots.
+    const results = await Promise.all(
+      Array.from({ length: CONCURRENCY }, () => tryConsumeQuota({ id: orgId, plan: "free" })),
+    );
+    granted = results.filter(Boolean).length;
 
-  const [row] = await db
-    .select({ used: usageRecords.emailsSent })
-    .from(usageRecords)
-    .where(and(eq(usageRecords.organizationId, orgId), eq(usageRecords.period, period)));
-  const used = row?.used ?? -1;
+    const [row] = await db
+      .select({ used: usageRecords.emailsSent })
+      .from(usageRecords)
+      .where(and(eq(usageRecords.organizationId, orgId), eq(usageRecords.period, period)));
+    used = row?.used ?? -1;
 
-  // A fully-consumed org must reject the next reserve.
-  const overflow = await tryConsumeQuota({ id: orgId, plan: "free" });
-
-  await db.delete(organizations).where(eq(organizations.id, orgId)); // cascades usage row
+    // A fully-consumed org must reject the next reserve.
+    overflow = await tryConsumeQuota({ id: orgId, plan: "free" });
+  } finally {
+    await db.delete(organizations).where(eq(organizations.id, orgId)).catch(() => {}); // cascades usage row
+  }
 
   const pass = granted === SLOTS_LEFT && used === quota && overflow === false;
   console.log(

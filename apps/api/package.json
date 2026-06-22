@@ -15,7 +15,8 @@
     "test:custom-plans": "tsx scripts/test-custom-plans.ts",
     "test:pricing-sales": "tsx scripts/test-pricing-sales.ts",
     "test:embedded-checkout": "tsx scripts/test-embedded-checkout.ts",
-    "test:comms": "tsx scripts/test-comms.ts"
+    "test:comms": "tsx scripts/test-comms.ts",
+    "cleanup:test-users": "tsx scripts/cleanup-test-users.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",
