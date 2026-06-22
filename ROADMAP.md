@@ -429,8 +429,11 @@ top templates (`GET /v1/analytics`, dashboard `/analytics`, assistant `get_analy
 `/import`) that maps any provider's CSV export (SendGrid/Postmark/Mailgun) — normalizes
 bounce/spam/unsubscribe reasons, dedupes, and deliberately skips sequence triggers so
 migrated contacts aren't auto-enrolled; *still ahead* — template import. And **developer
-love** (Python/Go SDKs, a CLI, a hosted "test inbox" — the dev `.maildir` is the seed of
-that).
+love** — *shipped:* the `@rootmail/node` SDK now covers the full surface (deliverability,
+analytics, compliance export, retention, imports, domain-auth, assistant) and a new
+`@rootmail/cli` (`rootmail send|messages|deliverability|analytics|domains:auth|import:*|
+assistant`, reads `ROOTMAIL_API_KEY`) for terminal/CI use; *still ahead* — Python/Go SDKs
+and a hosted "test inbox" (the dev `.maildir` is the seed of that).
 
 **Queued near-term:** an **unsubscribe flow** for admin announcements if they ever shift
 from service notices to promotional; continuous visual refinement.

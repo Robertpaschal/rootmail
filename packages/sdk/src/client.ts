@@ -1,6 +1,10 @@
 import { RootMailError } from "./errors";
+import { Assistant } from "./resources/assistant";
 import { Campaigns } from "./resources/campaigns";
+import { Exports, Retention } from "./resources/compliance";
 import { Contacts } from "./resources/contacts";
+import { Imports } from "./resources/imports";
+import { AnalyticsResource, DeliverabilityResource } from "./resources/insights";
 import { Lists } from "./resources/lists";
 import { Messages } from "./resources/messages";
 import { Sequences } from "./resources/sequences";
@@ -21,7 +25,7 @@ export interface RootMailOptions {
 }
 
 export interface RequestOptions {
-  method: "GET" | "POST" | "PATCH" | "DELETE";
+  method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   path: string;
   query?: Record<string, string | number | undefined>;
   body?: unknown;
@@ -46,6 +50,12 @@ export class RootMail {
   readonly campaigns: Campaigns;
   readonly threads: Threads;
   readonly webhooks: Webhooks;
+  readonly deliverability: DeliverabilityResource;
+  readonly analytics: AnalyticsResource;
+  readonly exports: Exports;
+  readonly retention: Retention;
+  readonly imports: Imports;
+  readonly assistant: Assistant;
 
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -73,6 +83,12 @@ export class RootMail {
     this.campaigns = new Campaigns(this);
     this.threads = new Threads(this);
     this.webhooks = new Webhooks(this);
+    this.deliverability = new DeliverabilityResource(this);
+    this.analytics = new AnalyticsResource(this);
+    this.exports = new Exports(this);
+    this.retention = new Retention(this);
+    this.imports = new Imports(this);
+    this.assistant = new Assistant(this);
   }
 
   /** Returns a client scoped to a sub-tenant. */

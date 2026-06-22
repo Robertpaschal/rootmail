@@ -10,4 +10,8 @@ export { Lists } from "./resources/lists";
 export { Campaigns } from "./resources/campaigns";
 export { Threads } from "./resources/threads";
 export { Webhooks } from "./resources/webhooks";
+export { DeliverabilityResource, AnalyticsResource } from "./resources/insights";
+export { Exports, Retention } from "./resources/compliance";
+export { Imports } from "./resources/imports";
+export { Assistant } from "./resources/assistant";
 export * from "./types";
