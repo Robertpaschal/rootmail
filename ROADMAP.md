@@ -245,7 +245,7 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         gated to monthly billing (Stripe = one interval per sub). `test:embedded-checkout`
         now 9 checks (config line items + reconcile) + browser-verified (live $28 total ==
         Stripe's "$28.00 due today").
-- [~] **Comms** — dogfood rootmail for its own email.
+- [x] **Comms** — dogfood rootmail for its own email.
   - [x] **Lifecycle emails** — all through the existing `sendSystemEmail` → system-mail
         queue → worker → provider pipeline (mock writes `.eml` in dev, SES in prod).
         Added content builders (`welcomeEmail`, `invitationEmail`, `paymentFailedEmail`,
@@ -256,8 +256,14 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         `customer.subscription.trial_will_end` (owner looked up by `ownerContactForCustomer`).
         `test:comms` (10 checks) + dogfood-verified end-to-end (signup → verification `.eml`,
         invite → invitation `.eml`).
-  - [ ] Remaining: welcome for OAuth signups (skip the verify step today); admin
-        **announcement / broadcast** email to customers.
+  - [x] **OAuth-signup welcome** — OAuth accounts (verified on creation, no verify step)
+        now get the welcome email when `upsertOAuthUser` reports `created`.
+  - [x] **Admin announcement / broadcast** — superadmin composes a subject + body on the
+        admin **Announcements** page; `POST /v1/admin/announcements` fans it out to every
+        verified account owner via `sendSystemEmail` (deduped, audited), with a recipient
+        preview + confirm. `test:comms` now 13 checks; dogfood-verified (broadcast → owners'
+        `.eml`). Follow-up: an unsubscribe flow if these ever become promotional vs.
+        service notices.
 - [ ] **UI / dark-mode pass** — dark mode + visual refinements across marketing,
       dashboard, and admin (customer- and staff-facing).
 

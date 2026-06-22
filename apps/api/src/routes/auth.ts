@@ -200,6 +200,17 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       emailVerified: body.email_verified ?? true,
     });
 
+    // OAuth signups are verified on creation (they skip the verify-email step), so
+    // welcome them here instead. Best-effort.
+    if (created) {
+      try {
+        const mail = welcomeEmail(user.name);
+        await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text });
+      } catch (err) {
+        req.log.warn({ err }, "oauth welcome email enqueue failed");
+      }
+    }
+
     const workspaces = await userWorkspaces(user.id);
     const live = workspaces.find((w) => w.environment === "live") ?? workspaces[0] ?? null;
     const { token, session } = await createSession(user.id, live?.id ?? null);

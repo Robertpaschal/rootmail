@@ -9,6 +9,7 @@ import { eq } from "drizzle-orm";
 import { newId } from "@rootmail/core";
 import { closeDb, db, memberships, organizations, users } from "@rootmail/db";
 import {
+  announcementEmail,
   invitationEmail,
   paymentFailedEmail,
   trialEndingEmail,
@@ -46,6 +47,11 @@ async function main(): Promise<void> {
 
   const anon = welcomeEmail(null);
   check(anon.html.includes("Hi,") && !anon.html.includes("Hi null"), "handles a missing name");
+
+  const ann = announcementEmail({ subject: "Big news", body: "Line one.\n\nLine two.", recipientName: "Ada" });
+  check(ann.subject === "Big news", "announcement keeps the staff subject");
+  check(ann.html.includes("Line one.") && ann.html.includes("Line two."), "announcement renders the body paragraphs");
+  check(ann.text.includes("account") && ann.html.includes("account"), "announcement has a why-you-got-this footer");
 
   // --- ownerContactForCustomer ---
   const orgId = newId("organization");
