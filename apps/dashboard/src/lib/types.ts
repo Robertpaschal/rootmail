@@ -529,6 +529,13 @@ export interface EmailAuthReport {
   summary: { passing: number; total: number; enforced: boolean };
 }
 
+export interface RetentionPolicy {
+  object: "retention";
+  retention_days: number | null;
+  retention_mode: "redact" | "delete";
+  affected_now: number;
+}
+
 export interface ComplianceExport {
   object: "compliance_export";
   bundle: {

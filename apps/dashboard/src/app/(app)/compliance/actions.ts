@@ -1,6 +1,21 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { ApiError, api } from "@/lib/rootmail";
+
+export async function setRetentionPolicy(
+  retention_days: number | null,
+  retention_mode: "redact" | "delete",
+): Promise<{ ok?: boolean; affected?: number; error?: string }> {
+  try {
+    const r = await api.setRetention({ retention_days, retention_mode });
+    revalidatePath("/compliance");
+    return { ok: true, affected: r.affected_now };
+  } catch (err) {
+    if (err instanceof ApiError) return { error: err.message };
+    return { error: "Could not update the retention policy." };
+  }
+}
 
 /**
  * Generate a signed compliance export for a date range. Date inputs arrive as
