@@ -20,6 +20,7 @@ const destinations: { label: string; href: string }[] = [
   { label: "Sub-tenants", href: "/sub-tenants" },
   { label: "Contacts", href: "/contacts" },
   { label: "Lists", href: "/lists" },
+  { label: "Import", href: "/import" },
   { label: "API keys", href: "/api-keys" },
   { label: "Compliance", href: "/compliance" },
   { label: "Plan & usage", href: "/billing" },

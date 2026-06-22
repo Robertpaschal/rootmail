@@ -545,6 +545,18 @@ export interface Analytics {
   }[];
 }
 
+export interface ImportResult {
+  object: "import_result";
+  kind: "suppressions" | "contacts";
+  total: number;
+  imported: number;
+  invalid: number;
+  duplicates?: number;
+  existing?: number;
+  list_id?: string | null;
+  added_to_list?: number;
+}
+
 export interface RetentionPolicy {
   object: "retention";
   retention_days: number | null;
