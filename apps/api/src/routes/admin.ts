@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type Stripe from "stripe";
 import { z } from "zod";
@@ -11,6 +11,7 @@ import {
   newId,
   PLAN_IDS,
   type PlanId,
+  sendSystemEmail,
   verifyPassword,
 } from "@rootmail/core";
 import {
@@ -36,6 +37,7 @@ import {
   users,
   workspaces,
 } from "@rootmail/db";
+import { announcementEmail } from "../lib/emails";
 import { serializeAudit } from "../lib/serialize";
 import {
   createStaffSession,
@@ -1404,5 +1406,48 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { object: "custom_plan", id: cp.id, active: false, billing, subscription_id: canceledSubId };
+  });
+
+  // --- Announcements (broadcast to customers, dogfooded) ------------------
+  // Verified account owners are the recipients (one per person, deduped by email).
+  async function announcementRecipients(): Promise<{ email: string; name: string | null }[]> {
+    return db
+      .selectDistinct({ email: users.email, name: users.name })
+      .from(memberships)
+      .innerJoin(users, eq(users.id, memberships.userId))
+      .where(and(eq(memberships.role, "owner"), isNotNull(users.emailVerifiedAt)));
+  }
+
+  app.get("/v1/admin/announcements/recipients", async (req) => {
+    await requireStaff(req);
+    const rows = await announcementRecipients();
+    return { object: "announcement_recipients", count: rows.length };
+  });
+
+  const announcementBody = z.object({
+    subject: z.string().trim().min(1).max(200),
+    body: z.string().trim().min(1).max(10_000),
+  });
+  // Send a product/service announcement to every account owner via our OWN send
+  // pipeline. Superadmin only (it emails the whole customer base), audited.
+  app.post("/v1/admin/announcements", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffRole(staff);
+    const b = parse(announcementBody, req.body);
+
+    const recipients = await announcementRecipients();
+    for (const r of recipients) {
+      const mail = announcementEmail({ subject: b.subject, body: b.body, recipientName: r.name });
+      await sendSystemEmail({ to: r.email, subject: mail.subject, html: mail.html, text: mail.text });
+    }
+
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "announcement.send",
+      targetType: "broadcast",
+      metadata: { subject: b.subject, recipients: recipients.length },
+      ip: req.ip,
+    });
+    return { object: "announcement", sent: recipients.length };
   });
 }

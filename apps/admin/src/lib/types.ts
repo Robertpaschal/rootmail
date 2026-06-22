@@ -269,6 +269,11 @@ export type LeadPatch = Partial<{
   organization_id: string | null;
 }>;
 
+export interface AnnouncementRecipients {
+  object: "announcement_recipients";
+  count: number;
+}
+
 export interface AdminAnalytics {
   object: "admin_analytics";
   period: string;

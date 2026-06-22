@@ -5,6 +5,7 @@ import type {
   AdminBilling,
   AdminPlan,
   AddonPatch,
+  AnnouncementRecipients,
   CustomPlan,
   CustomPlanInput,
   Lead,
@@ -117,6 +118,11 @@ export const adminApi = {
     }),
 
   analytics: () => adminFetch<AdminAnalytics>("/v1/admin/analytics"),
+
+  announcementRecipients: () =>
+    adminFetch<AnnouncementRecipients>("/v1/admin/announcements/recipients"),
+  sendAnnouncement: (body: { subject: string; body: string }) =>
+    adminFetch<{ sent: number }>("/v1/admin/announcements", { method: "POST", body }),
 
   listPromotions: () => adminFetch<ListResponse<Promotion>>("/v1/admin/promotions"),
   createPromotion: (body: CreatePromotion) =>

@@ -127,6 +127,30 @@ export function trialEndingEmail(name?: string | null, endsAt?: Date | null): Em
   };
 }
 
+/** A staff-authored announcement to a customer. The body is plain text (escaped +
+ * paragraph-wrapped); a footer explains why they received it. */
+export function announcementEmail(opts: {
+  subject: string;
+  body: string;
+  recipientName?: string | null;
+}): EmailContent {
+  const hi = opts.recipientName ? `Hi ${esc(opts.recipientName)},` : "Hi,";
+  const hiText = opts.recipientName ? `Hi ${opts.recipientName},` : "Hi,";
+  const bodyHtml = esc(opts.body)
+    .split(/\n{2,}/)
+    .map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`)
+    .join("");
+  return {
+    subject: opts.subject,
+    text: `${hiText}\n\n${opts.body}\n\n— The rootmail team\n\nYou're receiving this because you own a rootmail account.`,
+    html: wrap(
+      `<p>${hi}</p>${bodyHtml}` +
+        `<p style="color:#666;font-size:13px;margin-top:20px">— The rootmail team</p>` +
+        `<p style="color:#999;font-size:12px">You're receiving this because you own a rootmail account.</p>`,
+    ),
+  };
+}
+
 export function passwordResetEmail(token: string, name?: string | null): EmailContent {
   const link = `${dashboardOrigin()}/reset-password?token=${encodeURIComponent(token)}`;
   const hi = name ? `Hi ${name},` : "Hi,";
