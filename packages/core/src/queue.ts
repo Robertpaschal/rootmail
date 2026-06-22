@@ -177,3 +177,25 @@ export async function sendSystemEmail(job: SystemMailJob): Promise<void> {
     removeOnFail: { age: 7 * 86_400 },
   });
 }
+
+// ---------------------------------------------------------------------------
+// Data retention — a repeatable daily sweep redacts/deletes messages older than
+// each workspace's configured retention window. Concurrency 1 (one sweep at a
+// time); default-disabled per workspace so it's a no-op until a policy is set.
+// ---------------------------------------------------------------------------
+export const RETENTION_QUEUE = "rootmail-retention";
+
+let retentionQueue: Queue | undefined;
+export function getRetentionQueue(): Queue {
+  if (!retentionQueue) retentionQueue = new Queue(RETENTION_QUEUE, { connection: bullConnection() });
+  return retentionQueue;
+}
+
+/** Register the repeatable retention sweep (idempotent — fixed repeat jobId). */
+export async function scheduleRetentionSweep(everyMs = 24 * 60 * 60 * 1000): Promise<void> {
+  await getRetentionQueue().add(
+    "sweep",
+    {},
+    { repeat: { every: everyMs }, jobId: "retention-sweep", removeOnComplete: true, removeOnFail: { count: 50 } },
+  );
+}

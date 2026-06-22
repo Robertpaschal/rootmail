@@ -1,16 +1,20 @@
-import { FileCheck2, ShieldCheck } from "lucide-react";
+import { Clock, FileCheck2, ShieldCheck } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { FeatureLocked } from "@/components/app/feature-locked";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
+import type { RetentionPolicy } from "@/lib/types";
 import { ExportForm } from "./export-form";
+import { RetentionForm } from "./retention-form";
 
 export default async function CompliancePage() {
   let hasProof = false;
+  let retention: RetentionPolicy | null = null;
   try {
     const billing = await api.getBilling();
     hasProof = billing.plan.features.includes("proof");
+    if (hasProof) retention = await api.getRetention().catch(() => null);
   } catch (err) {
     return (
       <>
@@ -33,6 +37,7 @@ export default async function CompliancePage() {
       />
 
       {hasProof ? (
+        <div className="space-y-6">
         <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
@@ -63,6 +68,25 @@ export default async function CompliancePage() {
               <p>The signature covers a canonical serialization, so re-ordering or editing any field breaks it.</p>
             </CardContent>
           </Card>
+        </div>
+
+        {retention ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Clock className="size-4 text-muted-foreground" />
+                Data retention
+              </CardTitle>
+              <CardDescription>
+                Automatically redact or delete messages older than a chosen window — for data-minimization
+                and right-to-erasure obligations.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <RetentionForm policy={retention} />
+            </CardContent>
+          </Card>
+        ) : null}
         </div>
       ) : (
         <FeatureLocked

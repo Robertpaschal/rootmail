@@ -4,6 +4,8 @@ import {
   type CampaignJob,
   createRedis,
   env,
+  RETENTION_QUEUE,
+  scheduleRetentionSweep,
   scheduleSequenceTick,
   SEND_QUEUE,
   SEQUENCE_QUEUE,
@@ -15,6 +17,7 @@ import {
 import { closeDb } from "@rootmail/db";
 import { processCampaignSend } from "./campaigns";
 import { processSend } from "./pipeline";
+import { processRetentionSweep } from "./retention";
 import { processSequenceTick } from "./sequences";
 import { processSystemMail } from "./system-mail";
 import { processWebhookJob } from "./webhooks";
@@ -88,6 +91,21 @@ systemMailWorker.on("ready", () =>
 );
 systemMailWorker.on("error", (err) => console.error("system-mail worker error:", err.message));
 
+// Data retention: a repeatable daily sweep redacts/deletes messages past each
+// workspace's retention window (no-op until a workspace opts in). Concurrency 1.
+const retentionWorker = new Worker(
+  RETENTION_QUEUE,
+  async (job) => {
+    if (job.name === "sweep") await processRetentionSweep();
+  },
+  { connection: createRedis() as unknown as ConnectionOptions, concurrency: 1 },
+);
+retentionWorker.on("ready", () => {
+  console.log(`rootmail retention worker ready — queue "${RETENTION_QUEUE}"`);
+  void scheduleRetentionSweep();
+});
+retentionWorker.on("error", (err) => console.error("retention worker error:", err.message));
+
 const shutdown = async (signal: string) => {
   console.log(`${signal} received — closing worker`);
   await worker.close();
@@ -95,6 +113,7 @@ const shutdown = async (signal: string) => {
   await sequenceWorker.close();
   await campaignWorker.close();
   await systemMailWorker.close();
+  await retentionWorker.close();
   await closeDb();
   process.exit(0);
 };

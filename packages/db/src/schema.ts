@@ -23,6 +23,7 @@ import {
   PLAN_IDS,
   PLAN_STATUSES,
   PRIORITIES,
+  RETENTION_MODES,
   STAFF_ROLES,
   SUBTENANT_STATUSES,
   SEQUENCE_STATUSES,
@@ -58,6 +59,7 @@ export const enrollmentStatusEnum = pgEnum("enrollment_status", ENROLLMENT_STATU
 export const campaignStatusEnum = pgEnum("campaign_status", CAMPAIGN_STATUSES);
 export const threadStatusEnum = pgEnum("thread_status", THREAD_STATUSES);
 export const messageDirectionEnum = pgEnum("message_direction", MESSAGE_DIRECTIONS);
+export const retentionModeEnum = pgEnum("retention_mode", RETENTION_MODES);
 export const leadStatusEnum = pgEnum("lead_status", LEAD_STATUSES);
 
 // Fresh builders each call so no column instance is shared across tables.
@@ -260,6 +262,10 @@ export const workspaces = pgTable(
     slug: text("slug").notNull(),
     environment: workspaceEnvironmentEnum("environment").notNull().default("live"),
     region: text("region").notNull().default("us"),
+    // Data retention: null = keep forever (default). When set, messages older than
+    // this many days are redacted or deleted by the retention sweep.
+    retentionDays: integer("retention_days"),
+    retentionMode: retentionModeEnum("retention_mode").notNull().default("redact"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -665,6 +671,8 @@ export const messages = pgTable(
     providerMessageId: text("provider_message_id"),
     error: text("error"),
     sandbox: boolean("sandbox").notNull().default(false),
+    // Set by the retention sweep when a message's PII/content has been redacted.
+    redactedAt: timestamp("redacted_at", { withTimezone: true }),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

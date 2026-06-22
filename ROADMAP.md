@@ -413,9 +413,13 @@ legal-grade proof. Three bets compound on that, in rough priority:
    timestamped"), tamper-evident and verifiable by anyone via the existing
    `POST /v1/proof/verify` (verified: intact → valid, any edit → invalid). Enterprise-gated
    (`proof` feature); dashboard `/compliance` page generates + downloads the bundle.
-   *Still ahead:* retention policies, then SSO / SAML / SCIM and data residency (already
-   plan features) into a real enterprise tier + a SOC 2 path — the Sales CRM + custom plans
-   already shipped are the GTM rails for it.
+   *Phase 2 shipped:* **data-retention policies** — per-workspace window (`GET`/`PUT
+   /v1/retention`) that **redacts** (strips PII but keeps id + content hash + status +
+   audit, so messages stay provable) or **deletes** messages past the window, enforced by a
+   daily worker sweep; default-disabled (no-op until opted in), owner/admin + Enterprise,
+   surfaced on the `/compliance` page. *Still ahead:* SSO / SAML / SCIM and data residency
+   (already plan features) into a real enterprise tier + a SOC 2 path — the Sales CRM +
+   custom plans already shipped are the GTM rails for it.
 
 **Supporting bets:** a customer-facing **analytics layer** (delivery funnels, per-
 template/sequence performance — mirror the admin analytics we built); **migration

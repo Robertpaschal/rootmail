@@ -67,6 +67,12 @@ export type MessageDirection = (typeof MESSAGE_DIRECTIONS)[number];
 export const WORKSPACE_ENVIRONMENTS = ["live", "test"] as const;
 export type WorkspaceEnvironment = (typeof WORKSPACE_ENVIRONMENTS)[number];
 
+// Data-retention enforcement: "redact" strips PII/content but keeps the message
+// skeleton + audit trail + content hash (so proof survives); "delete" removes the
+// message rows outright (audit cascades).
+export const RETENTION_MODES = ["redact", "delete"] as const;
+export type RetentionMode = (typeof RETENTION_MODES)[number];
+
 export const MEMBERSHIP_ROLES = ["owner", "admin", "member"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 

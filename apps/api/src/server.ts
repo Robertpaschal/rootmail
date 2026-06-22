@@ -23,6 +23,7 @@ import { messageRoutes } from "./routes/messages";
 import { adminRoutes } from "./routes/admin";
 import { organizationRoutes } from "./routes/organization";
 import { proofRoutes } from "./routes/proof";
+import { retentionRoutes } from "./routes/retention";
 import { roleRoutes } from "./routes/roles";
 import { sequenceRoutes } from "./routes/sequences";
 import { subTenantRoutes } from "./routes/subtenants";
@@ -89,6 +90,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(sesWebhookRoutes);
   await app.register(assetRoutes);
   await app.register(proofRoutes);
+  await app.register(retentionRoutes);
   await app.register(assistantRoutes);
   await app.register(leadRoutes);
   await app.register(adminRoutes);

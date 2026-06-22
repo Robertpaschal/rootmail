@@ -12,6 +12,7 @@ import type {
   ComplianceExport,
   Deliverability,
   EmailAuthReport,
+  RetentionPolicy,
   CheckoutResponse,
   EmbeddedCheckoutResponse,
   Contact,
@@ -262,6 +263,10 @@ export const api = {
 
   getComplianceExport: (q: { from: string; to?: string; sub_tenant_id?: string }) =>
     rmFetch<ComplianceExport>("/v1/exports/compliance", { query: q }),
+
+  getRetention: () => rmFetch<RetentionPolicy>("/v1/retention"),
+  setRetention: (body: { retention_days: number | null; retention_mode?: "redact" | "delete" }) =>
+    rmFetch<RetentionPolicy>("/v1/retention", { method: "PUT", body }),
 
   // Starts a plan change. In Stripe mode returns a hosted Checkout URL; in local
   // mode applies the switch and returns the updated billing.
