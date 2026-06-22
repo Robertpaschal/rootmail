@@ -212,3 +212,90 @@ export interface UpdateWebhookParams {
   description?: string | null;
   status?: "active" | "disabled";
 }
+
+// --- Insights, compliance, migration, assistant ---------------------------
+
+export interface Deliverability {
+  object: "deliverability";
+  window_days: number;
+  volume: {
+    total: number;
+    delivered: number;
+    bounced: number;
+    complained: number;
+    failed: number;
+    suppressed: number;
+    in_flight: number;
+  };
+  rates: { delivery: number; bounce: number; complaint: number; failure: number };
+  suppressions: { total: number; by_reason: Record<string, number> };
+  domains: { total: number; verified: number; unverified: number };
+  score: number | null;
+  grade: "A" | "B" | "C" | "D" | "F" | null;
+  status: string;
+  confidence: string;
+  factors: { id: string; severity: string; label: string; detail: string }[];
+  recommendations: string[];
+}
+
+export interface Analytics {
+  object: "analytics";
+  window_days: number;
+  funnel: { sent: number; delivered: number; opened: number; clicked: number };
+  rates: { delivery: number; open: number; click: number; click_to_open: number };
+  series: { date: string; sent: number }[];
+  top_templates: { template_id: string | null; name: string; sent: number; delivered: number; delivered_rate: number }[];
+}
+
+export interface EmailAuthReport {
+  object: "email_auth";
+  sub_tenant_id: string;
+  domain: string;
+  mode: "mock" | "live";
+  dmarc_policy: "none" | "quarantine" | "reject" | null;
+  items: {
+    mechanism: string;
+    status: string;
+    label: string;
+    detail: string;
+    recommendation: string | null;
+    record: { type: string; host: string; value: string } | null;
+    found: string[];
+  }[];
+  summary: { passing: number; total: number; enforced: boolean };
+}
+
+export interface ComplianceExport {
+  object: "compliance_export";
+  bundle: Record<string, unknown>;
+  signature: string;
+  public_key: string;
+  algorithm: "ed25519";
+}
+
+export interface RetentionPolicy {
+  object: "retention";
+  retention_days: number | null;
+  retention_mode: "redact" | "delete";
+  affected_now: number;
+}
+
+export interface ImportResult {
+  object: "import_result";
+  kind: "suppressions" | "contacts";
+  total: number;
+  imported: number;
+  invalid: number;
+  duplicates?: number;
+  existing?: number;
+  list_id?: string | null;
+  added_to_list?: number;
+}
+
+export interface AssistantResponse {
+  object: "assistant_response";
+  reply: string;
+  actions: { tool: string; status: number }[];
+  source: "claude" | "mock";
+  credits: { used: number; allowance: number };
+}

@@ -1,5 +1,5 @@
 import type { RootMail } from "../client";
-import type { CreateSubTenantParams, ListResponse, SubTenant, VerifyResult } from "../types";
+import type { CreateSubTenantParams, EmailAuthReport, ListResponse, SubTenant, VerifyResult } from "../types";
 
 export class SubTenants {
   constructor(private readonly client: RootMail) {}
@@ -28,5 +28,10 @@ export class SubTenants {
   /** Check the domain's DNS records and flip the sub-tenant to `verified` when they pass. */
   verify(id: string): Promise<VerifyResult> {
     return this.client.request<VerifyResult>({ method: "POST", path: `/v1/sub-tenants/${id}/verify` });
+  }
+
+  /** Audit the sending domain's email authentication (SPF/DKIM/DMARC/BIMI). */
+  auth(id: string): Promise<EmailAuthReport> {
+    return this.client.request<EmailAuthReport>({ method: "GET", path: `/v1/sub-tenants/${id}/auth` });
   }
 }
