@@ -407,11 +407,15 @@ legal-grade proof. Three bets compound on that, in rough priority:
    infra/inboxes, so they're not buildable solo.
 
 3. **Proof & compliance as the wedge no competitor has.** Layer-3 signed proof bundles
-   are unique. Lean into regulated buyers (fintech / health / legal): retention
-   policies, audit-grade exports, "prove exactly what we sent, signed + timestamped."
-   Pull SSO / SAML / SCIM and data residency (already plan features) into a real
-   enterprise tier and chart a SOC 2 path — the Sales CRM + custom plans just shipped
-   are the GTM rails for it.
+   are unique. *Phase 1 shipped:* **audit-grade compliance exports** — `GET /v1/exports/
+   compliance?from=&to=` returns an Ed25519-signed bundle of every message + content hash
+   + full delivery audit trail in a window ("prove exactly what we sent, signed +
+   timestamped"), tamper-evident and verifiable by anyone via the existing
+   `POST /v1/proof/verify` (verified: intact → valid, any edit → invalid). Enterprise-gated
+   (`proof` feature); dashboard `/compliance` page generates + downloads the bundle.
+   *Still ahead:* retention policies, then SSO / SAML / SCIM and data residency (already
+   plan features) into a real enterprise tier + a SOC 2 path — the Sales CRM + custom plans
+   already shipped are the GTM rails for it.
 
 **Supporting bets:** a customer-facing **analytics layer** (delivery funnels, per-
 template/sequence performance — mirror the admin analytics we built); **migration
