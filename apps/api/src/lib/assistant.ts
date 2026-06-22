@@ -129,6 +129,17 @@ const TOOLS: ToolDef[] = [
     path: (i) => `/v1/deliverability${qs({ window_days: i.window_days, sub_tenant_id: i.sub_tenant_id })}`,
   },
   {
+    name: "get_analytics",
+    description:
+      "Get engagement analytics — the sent → delivered → opened → clicked funnel with rates (delivery, open, click, click-to-open) over a window, plus top templates by volume. Use for 'what are my open/click rates?' or 'how is my email performing?'. window_days defaults to 30.",
+    input_schema: {
+      type: "object",
+      properties: { window_days: { type: "number" }, sub_tenant_id: { type: "string" } },
+    },
+    method: "GET",
+    path: (i) => `/v1/analytics${qs({ window_days: i.window_days, sub_tenant_id: i.sub_tenant_id })}`,
+  },
+  {
     name: "check_domain_auth",
     description:
       "Audit a sub-tenant sending domain's email authentication — SPF, DKIM, DMARC (with its policy), and BIMI — returning each mechanism's status, the exact DNS record to publish, and how to strengthen a weak setup. Use for 'is my domain set up right?', SPF/DKIM/DMARC questions, or 'why is my mail going to spam?'. Find the sub_tenant_id with list_sub_tenants first.",
@@ -428,6 +439,23 @@ async function mockAssistant(
     const lines = r.items.map((i) => `• ${i.label}: ${i.status}${i.recommendation ? ` — ${i.recommendation}` : ""}`).join("\n");
     return {
       reply: `Email authentication for ${r.domain} (${r.summary.passing}/${r.summary.total} passing):\n${lines}\n(Set ANTHROPIC_API_KEY for full step-by-step guidance.)`,
+      actions,
+      source: "mock",
+    };
+  }
+
+  // Analytics: "what are my open/click rates?", "how is my email performing?"
+  if (p.includes("open rate") || p.includes("click rate") || p.includes("analytics") || p.includes("engagement") || p.includes("perform")) {
+    const out = await runTool(app, req, tool("get_analytics"), {});
+    actions.push({ tool: "get_analytics", status: out.status });
+    if (out.status >= 400) return { reply: describeOutcome("checked analytics", out), actions, source: "mock" };
+    const b = out.body as {
+      funnel: { sent: number; delivered: number; opened: number; clicked: number };
+      rates: { delivery: number; open: number; click: number };
+    } | null;
+    if (!b) return { reply: "Couldn't read analytics.", actions, source: "mock" };
+    return {
+      reply: `Last 30 days — sent ${b.funnel.sent}, delivered ${b.funnel.delivered} (${b.rates.delivery}%), opened ${b.funnel.opened} (${b.rates.open}% open rate), clicked ${b.funnel.clicked} (${b.rates.click}% click rate). (Set ANTHROPIC_API_KEY for deeper analysis.)`,
       actions,
       source: "mock",
     };

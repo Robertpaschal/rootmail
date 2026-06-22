@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
+  BarChart3,
   CreditCard,
   FileCheck2,
   FileText,
@@ -32,6 +33,7 @@ const items = [
   { href: "/", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/assistant", label: "Assistant", icon: Sparkles },
   { href: "/messages", label: "Messages", icon: Mail },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/deliverability", label: "Deliverability", icon: Gauge },
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/templates", label: "Templates", icon: FileText },
