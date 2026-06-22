@@ -29,12 +29,23 @@ OAuth scaffold), **billing** (plans/seats/add-ons/yearly, tier-gating → 402),
 agentic **AI assistant**, and a separate internal **staff admin console**
 (`apps/admin`: cross-org directory, support inspection, audited impersonation).
 
-**Apps:** `api` (Fastify) · `worker` (BullMQ) · `marketing` (Next) · `dashboard`
-(Next) · `admin` (Next). **Live services:** Stripe (test), Anthropic
-(`claude-opus-4-8`), SES send path, Ed25519 proof signing.
+**Commercial & ops layer (all shipped + verified):** Sales CRM (public contact
+form → leads → pipeline) + admin-created **custom enterprise plans** (per-org
+economics, enforced + Stripe-billed); **discounts/sales** everywhere pricing renders
+(plans + add-ons, honest charge); **on-page embedded checkout** (configure tiers +
+add-ons with a live total, pay without leaving the site); rootmail **dogfooding its
+own email** for lifecycle (welcome/invite/dunning/trial) + admin broadcast; full
+**dark mode**. A code scan shows **no TODOs or stubs** — every feature has a test or
+browser verification.
 
-**The work now is not "more features" — it's making the product _honest, polished,
-abuse-proof, and deployed_.** That's the plan below.
+**Apps:** `api` (Fastify) · `worker` (BullMQ) · `marketing` (Next) · `dashboard`
+(Next) · `admin` (Next). **Live services:** Stripe (test mode, incl. embedded
+checkout), Anthropic (`claude-opus-4-8`), SES send path, Ed25519 proof signing.
+
+**The work now is not "more features" — honest, polished, and abuse-proof are done.
+The one thing left is _production launch_** (infra + the owner-supplied switches
+below) — everything is wired in code with a safe dev fallback, so it's all
+incremental.
 
 ---
 
@@ -271,26 +282,127 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
       respects system preference). Browser-verified light↔dark. Ongoing visual polish is
       continuous, not a discrete item.
 
-### 7. Deploy & launch ops *(Phase 8 — blocked on infra access)*
-- [x] CI (typecheck + build + e2e smoke on PG/Redis services), api/worker
-      Dockerfiles, `DEPLOY.md`.
-- [ ] Deploy api/worker/dashboards; wire managed Postgres/Redis **in-VPC**; prod
-      secrets manager; observability + queue monitoring; backups; status page;
-      prod DNS for `rootmail.io`; load tests.
+## Production launch — the only thing left (owner-actionable)
+
+The codebase is done. Everything below is **wired in code with a safe dev fallback**,
+so it's all incremental: until you set a switch, the app runs in its dev/mock mode.
+Each section is the concrete steps for *you*. `DEPLOY.md` has the deploy mechanics;
+this is the ordered checklist + how to get each credential.
+
+Already done (autonomous): CI (typecheck + build + e2e smoke on PG/Redis), `api`/`worker`
+Dockerfiles, `DEPLOY.md`, and — verified in this codebase — Stripe **test** mode incl.
+embedded checkout, the SES outbound send path, and Ed25519 proof signing.
+
+### A. Generate production secrets — ~5 min
+Generate once, store in your platform's secret manager (never commit; never in
+`.env.example`). Each has a dev-insecure fallback that must NOT ship.
+- `LINK_SIGNING_SECRET` = `openssl rand -hex 32` — signs unsubscribe links.
+- `INTERNAL_API_SECRET` = `openssl rand -hex 32` — dashboard→API internal calls; also
+  what enables social login (the OAuth user-upsert endpoint is off until this is set).
+- `PROOF_SIGNING_KEY` = `openssl genpkey -algorithm ed25519` (paste the PKCS8 PEM) —
+  Layer-3 proof signatures.
+
+### B. Stripe — flip to live — ~30 min  *(test mode fully verified)*
+1. From the Stripe dashboard (live mode): set `STRIPE_SECRET_KEY` (`sk_live_…`),
+   `STRIPE_PUBLISHABLE_KEY` (`pk_live_…`), `STRIPE_WEBHOOK_SECRET`.
+2. Recreate the products/prices in live mode (or set the plan price from the admin
+   `/pricing` page once the live key is in — it syncs to Stripe). Set
+   `STRIPE_PRICE_PRO/_SCALE` (+ `_YEAR`) and the add-on prices (`STRIPE_PRICE_SEAT`,
+   `…_DEDICATED_IP`, `…_SUBTENANT_PACK`, `…_AI_CREDITS`).
+3. **Overage (the one still-pending wiring):** create **metered, usage-based** prices
+   for Pro/Scale overage ($0.85 / $0.70 per unit = 1,000 emails), each backed by a
+   **Billing Meter**; set `STRIPE_PRICE_OVERAGE_PRO/_SCALE` + the meters' `event_name`
+   in `STRIPE_METER_OVERAGE_PRO/_SCALE`. Code is wired + verified; it activates per-plan
+   once both are set.
+4. Add a webhook endpoint → `https://<api>/v1/webhooks/stripe`, subscribing:
+   `checkout.session.completed`, `customer.subscription.{created,updated,deleted,trial_will_end}`,
+   `invoice.payment_failed`.
+
+### C. Email — AWS SES — ~1 day (mostly approval wait)
+1. **Verify the domain** `rootmail.io` in SES; publish the **DKIM CNAMEs + SPF** it
+   gives you, and a **DMARC** TXT record (`v=DMARC1; p=quarantine; rua=…`).
+2. **Request production access** (exit the sandbox) — short form in the SES console;
+   approval is usually < 24h. Confirm the **region**.
+3. Set `MAIL_PROVIDER=ses`, `AWS_REGION`, and AWS creds (an IAM user with
+   `ses:SendEmail`/`SendRawEmail`, or an instance role). Set `DNS_VERIFY_MODE=live`
+   so sub-tenant domain verification does real TXT lookups.
+4. **Bounces/complaints/deliveries:** create an SNS topic, point SES notifications at
+   it, and subscribe `https://<api>/v1/webhooks/ses` (feeds auto-suppression).
+5. *(Optional)* **Inbound replies/shared inbox:** set `INBOUND_DOMAIN`, MX → SES
+   inbound, an SES receipt rule → SNS → the inbound webhook.
+
+### D. Social login — OAuth apps — ~20 min each (optional)
+For Google / GitHub / Apple: register an OAuth app, set the redirect URI to
+`<dashboard>/oauth/<provider>/callback`, and put the client id/secret in the
+**dashboard's** env. Needs `INTERNAL_API_SECRET` (A). Until set, the buttons stay
+inert — email/password works regardless. *Where to get them:* Google Cloud Console
+→ Credentials; GitHub → Settings → Developer settings → OAuth Apps; Apple Developer →
+Sign in with Apple.
+
+### E. Infrastructure & deploy — the real work
+- **Managed Postgres** (e.g. RDS) + **Redis** (e.g. ElastiCache), reachable in-VPC.
+  Set `DATABASE_URL` (`?sslmode=require`) + `REDIS_URL`. Run `pnpm db:migrate`
+  (no seed in prod — bootstrap staff with `pnpm create-staff --email=…`).
+- **Deploy the 5 apps:** `api` + `worker` (Dockerfiles provided), and `marketing` /
+  `dashboard` / `admin` (Next). See `DEPLOY.md`.
+- Set `TRUST_PROXY` to your real proxy-hop count (default `1`), `NODE_ENV=production`,
+  and all secrets via the platform's secret manager.
+- *(Optional)* S3 for uploads: `ASSET_S3_BUCKET` + `AWS_REGION` + `ASSET_PUBLIC_URL`.
+- **Ops:** centralized logs/metrics + alerts, BullMQ queue monitoring, automated DB
+  backups, a status page, and a load test before announcing.
+
+### F. DNS & URLs
+- `rootmail.io` → marketing; `app.rootmail.io` → dashboard; admin on an internal host.
+- Set `ROOTMAIL_DOMAIN`, `PUBLIC_API_URL`, `DASHBOARD_URL` (API/Stripe return URLs),
+  `NEXT_PUBLIC_DASHBOARD_URL` (marketing CTAs), and `ROOTMAIL_API_URL` (dashboard/admin/
+  marketing → API) to the real hosts. Plus the SES sending DNS from (C).
+
+### G. In-app, post-deploy
+- In dashboard **Settings → sender address**, set the org **postal address** — it's the
+  CAN-SPAM footer on marketing/sales sends.
+
+### Post-deploy verification (do these before announcing)
+1. `ROOTMAIL_API_KEY=rm_live_… pnpm exec tsx scripts/smoke.ts` against the live API.
+2. Send yourself a real email; confirm SES delivery + a bounce/complaint round-trip
+   lands in suppression.
+3. One small **live** checkout end-to-end; confirm the webhook flips the plan + a
+   `payment_failed` test triggers the dunning email.
 
 ---
 
-## Blocked on you (inputs)
-- [ ] OAuth app credentials — Google, GitHub, Apple (→ 4.2).
-- [ ] Stripe **overage**: the `STRIPE_PRICE_OVERAGE_PRO/_SCALE` you created are
-      `type=one_time` — recreate them as **recurring usage-based (metered)** prices
-      ($0.85 / $0.70 per unit = 1,000 emails), each backed by a **Billing Meter**,
-      then set `STRIPE_METER_OVERAGE_PRO/_SCALE` to the meters' `event_name`. The
-      code is wired + verified; it activates per-plan once both are set. (Add-on
-      subscription-item billing is already wired + live-verified.)
-- [ ] SES: exit sandbox (prod-access) + confirm region; prod sending DNS.
-- [ ] Infra: RDS master user + db + `sslmode`; ElastiCache reachable in-VPC; bastion/VPC plan.
-- [ ] Postal address value (Settings) for the CAN-SPAM footer.
+## Vision — where rootmail goes after launch
+
+The positioning holds: **"email infrastructure that scales with who's asking"** — one
+core that's dead-simple for a solo dev and grows into per-tenant sub-tenancy and
+legal-grade proof. Three bets compound on that, in rough priority:
+
+1. **The AI assistant becomes the operating layer** *(the next big build — see the
+   AI-assistant vision note).* Today it drafts; the vision is an agent that *builds and
+   operates* email — "set up a 3-step onboarding sequence", "why did this bounce?",
+   "draft + schedule a launch announcement" — executing through the **gated API** so it
+   inherits the caller's plan/role/AI-credit limits and surfaces an upgrade at the
+   boundary. It's the headline differentiator and the natural home for AI credits.
+
+2. **Deliverability as a product, not a footnote.** Email infra is won on inbox
+   placement. A per-domain / per-sub-tenant deliverability score, automated IP/domain
+   **warmup**, DMARC/BIMI setup guidance, and seed-list inbox testing turn our existing
+   suppression/bounce plumbing into a concrete reason to switch.
+
+3. **Proof & compliance as the wedge no competitor has.** Layer-3 signed proof bundles
+   are unique. Lean into regulated buyers (fintech / health / legal): retention
+   policies, audit-grade exports, "prove exactly what we sent, signed + timestamped."
+   Pull SSO / SAML / SCIM and data residency (already plan features) into a real
+   enterprise tier and chart a SOC 2 path — the Sales CRM + custom plans just shipped
+   are the GTM rails for it.
+
+**Supporting bets:** a customer-facing **analytics layer** (delivery funnels, per-
+template/sequence performance — mirror the admin analytics we built); **migration
+on-ramps** (import templates / suppression / domains from SendGrid/Postmark/Mailgun —
+the lead form already asks "current provider"); and **developer love** (Python/Go SDKs,
+a CLI, a hosted "test inbox" — the dev `.maildir` is the seed of that).
+
+**Queued near-term:** an **unsubscribe flow** for admin announcements if they ever shift
+from service notices to promotional; continuous visual refinement.
 
 ---
 
