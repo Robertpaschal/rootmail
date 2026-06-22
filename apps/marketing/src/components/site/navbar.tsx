@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Menu, X } from "lucide-react";
 import { Logo } from "./logo";
+import { ThemeToggle } from "./theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { loginUrl, signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
@@ -37,8 +38,9 @@ export function Navbar() {
           ))}
         </nav>
 
-        <div className="hidden items-center gap-2 md:flex">
-          <Link href={loginUrl} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+        <div className="hidden items-center gap-1 md:flex">
+          <ThemeToggle />
+          <Link href={loginUrl} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "ml-1")}>
             Sign in
           </Link>
           <Link href={signupUrl} className={cn(buttonVariants({ size: "sm" }))}>
@@ -46,15 +48,18 @@ export function Navbar() {
           </Link>
         </div>
 
-        <button
-          type="button"
-          className="inline-flex size-9 items-center justify-center rounded-md text-foreground md:hidden"
-          onClick={() => setOpen((v) => !v)}
-          aria-label="Toggle menu"
-          aria-expanded={open}
-        >
-          {open ? <X className="size-5" /> : <Menu className="size-5" />}
-        </button>
+        <div className="flex items-center gap-1 md:hidden">
+          <ThemeToggle />
+          <button
+            type="button"
+            className="inline-flex size-9 items-center justify-center rounded-md text-foreground"
+            onClick={() => setOpen((v) => !v)}
+            aria-label="Toggle menu"
+            aria-expanded={open}
+          >
+            {open ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
+        </div>
       </div>
 
       {open && (
