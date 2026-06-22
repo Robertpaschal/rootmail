@@ -424,10 +424,13 @@ legal-grade proof. Three bets compound on that, in rough priority:
 **Supporting bets:** a customer-facing **analytics layer** — *shipped:* the sent →
 delivered → opened → clicked **engagement funnel** with rates, a daily send series, and
 top templates (`GET /v1/analytics`, dashboard `/analytics`, assistant `get_analytics`);
-*still ahead* — per-sequence/campaign breakdowns. Plus **migration on-ramps** (import
-templates / suppression / domains from SendGrid/Postmark/Mailgun — the lead form already
-asks "current provider"); and **developer love** (Python/Go SDKs, a CLI, a hosted "test
-inbox" — the dev `.maildir` is the seed of that).
+*still ahead* — per-sequence/campaign breakdowns. Plus **migration on-ramps** — *shipped:* bulk
+**suppression** + **contacts** import (`POST /v1/imports/suppressions|contacts`, dashboard
+`/import`) that maps any provider's CSV export (SendGrid/Postmark/Mailgun) — normalizes
+bounce/spam/unsubscribe reasons, dedupes, and deliberately skips sequence triggers so
+migrated contacts aren't auto-enrolled; *still ahead* — template import. And **developer
+love** (Python/Go SDKs, a CLI, a hosted "test inbox" — the dev `.maildir` is the seed of
+that).
 
 **Queued near-term:** an **unsubscribe flow** for admin announcements if they ever shift
 from service notices to promotional; continuous visual refinement.

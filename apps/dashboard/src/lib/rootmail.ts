@@ -13,6 +13,7 @@ import type {
   ComplianceExport,
   Deliverability,
   EmailAuthReport,
+  ImportResult,
   RetentionPolicy,
   CheckoutResponse,
   EmbeddedCheckoutResponse,
@@ -264,6 +265,11 @@ export const api = {
 
   getAnalytics: (q: { window_days?: number; sub_tenant_id?: string } = {}) =>
     rmFetch<Analytics>("/v1/analytics", { query: q }),
+
+  importSuppressions: (body: { entries: { email: string; reason?: string }[]; source?: string }) =>
+    rmFetch<ImportResult>("/v1/imports/suppressions", { method: "POST", body }),
+  importContacts: (body: { entries: { email: string; name?: string; tags?: string[] }[]; list_id?: string }) =>
+    rmFetch<ImportResult>("/v1/imports/contacts", { method: "POST", body }),
 
   getComplianceExport: (q: { from: string; to?: string; sub_tenant_id?: string }) =>
     rmFetch<ComplianceExport>("/v1/exports/compliance", { query: q }),
