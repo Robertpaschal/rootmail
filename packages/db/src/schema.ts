@@ -82,6 +82,8 @@ export const users = pgTable("users", {
   mfaSecret: text("mfa_secret"),
   mfaEnabledAt: timestamp("mfa_enabled_at", { withTimezone: true }),
   mfaRecoveryCodes: jsonb("mfa_recovery_codes").$type<string[]>(),
+  // Set when the user opts out of staff broadcast announcements (CAN-SPAM).
+  announcementOptOutAt: timestamp("announcement_opt_out_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

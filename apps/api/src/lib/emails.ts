@@ -133,6 +133,7 @@ export function announcementEmail(opts: {
   subject: string;
   body: string;
   recipientName?: string | null;
+  unsubscribeUrl?: string;
 }): EmailContent {
   const hi = opts.recipientName ? `Hi ${esc(opts.recipientName)},` : "Hi,";
   const hiText = opts.recipientName ? `Hi ${opts.recipientName},` : "Hi,";
@@ -140,13 +141,18 @@ export function announcementEmail(opts: {
     .split(/\n{2,}/)
     .map((p) => `<p>${p.replace(/\n/g, "<br>")}</p>`)
     .join("");
+  const unsubText = opts.unsubscribeUrl ? `\n\nUnsubscribe from announcements: ${opts.unsubscribeUrl}` : "";
+  const unsubHtml = opts.unsubscribeUrl
+    ? `<p style="color:#999;font-size:12px">Don't want these? <a href="${opts.unsubscribeUrl}" style="color:#999">Unsubscribe from announcements</a>.</p>`
+    : "";
   return {
     subject: opts.subject,
-    text: `${hiText}\n\n${opts.body}\n\n— The rootmail team\n\nYou're receiving this because you own a rootmail account.`,
+    text: `${hiText}\n\n${opts.body}\n\n— The rootmail team\n\nYou're receiving this because you own a rootmail account.${unsubText}`,
     html: wrap(
       `<p>${hi}</p>${bodyHtml}` +
         `<p style="color:#666;font-size:13px;margin-top:20px">— The rootmail team</p>` +
-        `<p style="color:#999;font-size:12px">You're receiving this because you own a rootmail account.</p>`,
+        `<p style="color:#999;font-size:12px">You're receiving this because you own a rootmail account.</p>` +
+        unsubHtml,
     ),
   };
 }

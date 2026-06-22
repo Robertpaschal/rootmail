@@ -8,7 +8,7 @@ import { defaultWorkspaceForUser, resolveSession, workspaceForUser } from "../li
 // Paths that don't require an API key (auth endpoints carry their own session).
 // /v1/admin is exempt from the CUSTOMER auth hook so the admin routes can run
 // their OWN staff auth — a customer key/session must never reach admin data.
-const PUBLIC_PREFIXES = ["/health", "/v1/webhooks", "/v1/auth", "/v1/unsubscribe", "/assets", "/v1/proof", "/v1/admin", "/v1/leads", "/v1/pricing"];
+const PUBLIC_PREFIXES = ["/health", "/v1/webhooks", "/v1/auth", "/v1/unsubscribe", "/v1/announcements/unsubscribe", "/assets", "/v1/proof", "/v1/admin", "/v1/leads", "/v1/pricing"];
 
 function isPublic(url: string): boolean {
   const path = url.split("?")[0] ?? url;
