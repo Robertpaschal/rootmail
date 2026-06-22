@@ -21,6 +21,18 @@ function wrap(inner: string): string {
   return `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.5;color:#111;max-width:480px">${inner}</div>`;
 }
 
+/** Escape user-controlled text before interpolating into email HTML. */
+function esc(s: string): string {
+  return s.replace(
+    /[&<>"]/g,
+    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string,
+  );
+}
+
+function domain(): string {
+  return env.ROOTMAIL_DOMAIN;
+}
+
 export function verificationEmail(token: string, name?: string | null): EmailContent {
   const link = `${dashboardOrigin()}/verify-email?token=${encodeURIComponent(token)}`;
   const hi = name ? `Hi ${name},` : "Hi,";
@@ -32,6 +44,85 @@ export function verificationEmail(token: string, name?: string | null): EmailCon
         `<p>${button(link, "Verify email")}</p>` +
         `<p style="color:#666;font-size:13px">Or paste this link:<br>${link}</p>` +
         `<p style="color:#666;font-size:13px">This link expires in 24 hours. If you didn't sign up, ignore this email.</p>`,
+    ),
+  };
+}
+
+export function welcomeEmail(name?: string | null): EmailContent {
+  const hi = name ? `Hi ${esc(name)},` : "Hi,";
+  const dash = dashboardOrigin();
+  return {
+    subject: "Welcome to rootmail 👋",
+    text:
+      `${name ? `Hi ${name},` : "Hi,"}\n\nYour email is verified and your rootmail account is ready.\n\n` +
+      `Open your dashboard, grab an API key, and send your first email:\n${dash}\n\n` +
+      `Docs: https://${domain()}/docs\n\n— The rootmail team`,
+    html: wrap(
+      `<p>${hi}</p><p>Your email is verified and your rootmail account is ready.</p>` +
+        `<p>${button(dash, "Open your dashboard")}</p>` +
+        `<p style="color:#666;font-size:13px">Grab an API key and send your first email, or explore the ` +
+        `<a href="https://${domain()}/docs">docs</a>.</p>`,
+    ),
+  };
+}
+
+export interface InvitationEmailOpts {
+  orgName: string;
+  inviterName?: string | null;
+  acceptUrl: string;
+  role: string;
+}
+
+export function invitationEmail(opts: InvitationEmailOpts): EmailContent {
+  const whoText = opts.inviterName ? `${opts.inviterName} invited you` : "You've been invited";
+  const whoHtml = opts.inviterName ? `${esc(opts.inviterName)} invited you` : "You've been invited";
+  return {
+    subject: `You're invited to join ${opts.orgName} on rootmail`,
+    text:
+      `${whoText} to join ${opts.orgName} on rootmail as ${opts.role}.\n\n` +
+      `Accept your invitation:\n${opts.acceptUrl}\n\n` +
+      `If you weren't expecting this, you can ignore this email.`,
+    html: wrap(
+      `<p>${whoHtml} to join <strong>${esc(opts.orgName)}</strong> on rootmail as ${esc(opts.role)}.</p>` +
+        `<p>${button(opts.acceptUrl, "Accept invitation")}</p>` +
+        `<p style="color:#666;font-size:13px">Or paste this link:<br>${opts.acceptUrl}</p>` +
+        `<p style="color:#666;font-size:13px">If you weren't expecting this, you can ignore this email.</p>`,
+    ),
+  };
+}
+
+export function paymentFailedEmail(name?: string | null): EmailContent {
+  const hi = name ? `Hi ${esc(name)},` : "Hi,";
+  const billing = `${dashboardOrigin()}/billing`;
+  return {
+    subject: "Your rootmail payment didn't go through",
+    text:
+      `${name ? `Hi ${name},` : "Hi,"}\n\nWe couldn't process your latest rootmail payment. ` +
+      `Please update your payment method to keep your plan active:\n${billing}\n\n` +
+      `We'll retry automatically — if the card keeps failing, your plan may be paused.`,
+    html: wrap(
+      `<p>${hi}</p><p>We couldn't process your latest rootmail payment.</p>` +
+        `<p>${button(billing, "Update payment method")}</p>` +
+        `<p style="color:#666;font-size:13px">We'll retry automatically — if it keeps failing, your plan may be paused.</p>`,
+    ),
+  };
+}
+
+export function trialEndingEmail(name?: string | null, endsAt?: Date | null): EmailContent {
+  const hi = name ? `Hi ${esc(name)},` : "Hi,";
+  const billing = `${dashboardOrigin()}/billing`;
+  const when = endsAt
+    ? ` on ${endsAt.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`
+    : " soon";
+  return {
+    subject: "Your rootmail trial is ending soon",
+    text:
+      `${name ? `Hi ${name},` : "Hi,"}\n\nYour rootmail free trial ends${when}. ` +
+      `Add a payment method to keep your plan without interruption:\n${billing}`,
+    html: wrap(
+      `<p>${hi}</p><p>Your rootmail free trial ends${when}.</p>` +
+        `<p>${button(billing, "Manage billing")}</p>` +
+        `<p style="color:#666;font-size:13px">Add a payment method to keep your plan without interruption.</p>`,
     ),
   };
 }

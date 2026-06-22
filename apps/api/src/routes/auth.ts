@@ -27,7 +27,7 @@ import {
   workspaceForUser,
 } from "../lib/auth";
 import { consumeAuthToken, createAuthToken } from "../lib/auth-tokens";
-import { passwordResetEmail, verificationEmail } from "../lib/emails";
+import { passwordResetEmail, verificationEmail, welcomeEmail } from "../lib/emails";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { signupAllowed } from "../lib/signup-limit";
 import { serializeApiKey, serializeUser, serializeWorkspace } from "../lib/serialize";
@@ -356,6 +356,21 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       .update(users)
       .set({ emailVerifiedAt: new Date(), updatedAt: new Date() })
       .where(eq(users.id, userId));
+
+    // Welcome aboard — dogfood our own pipeline (best-effort).
+    try {
+      const [u] = await db
+        .select({ email: users.email, name: users.name })
+        .from(users)
+        .where(eq(users.id, userId))
+        .limit(1);
+      if (u) {
+        const mail = welcomeEmail(u.name);
+        await sendSystemEmail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text });
+      }
+    } catch (err) {
+      req.log.warn({ err }, "welcome email enqueue failed");
+    }
     return { verified: true };
   });
 

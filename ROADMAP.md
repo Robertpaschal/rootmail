@@ -245,7 +245,19 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
         gated to monthly billing (Stripe = one interval per sub). `test:embedded-checkout`
         now 9 checks (config line items + reconcile) + browser-verified (live $28 total ==
         Stripe's "$28.00 due today").
-- [ ] **Comms** — dogfood rootmail to send customer lifecycle / announcement emails.
+- [~] **Comms** — dogfood rootmail for its own email.
+  - [x] **Lifecycle emails** — all through the existing `sendSystemEmail` → system-mail
+        queue → worker → provider pipeline (mock writes `.eml` in dev, SES in prod).
+        Added content builders (`welcomeEmail`, `invitationEmail`, `paymentFailedEmail`,
+        `trialEndingEmail`; user input HTML-escaped) and wired the moments: **team invite**
+        now actually emails the invitee the accept link (was only returned in the API
+        response), **welcome** on email verification, and Stripe-driven **payment-failed
+        (dunning)** + **trial-ending** via `invoice.payment_failed` /
+        `customer.subscription.trial_will_end` (owner looked up by `ownerContactForCustomer`).
+        `test:comms` (10 checks) + dogfood-verified end-to-end (signup → verification `.eml`,
+        invite → invitation `.eml`).
+  - [ ] Remaining: welcome for OAuth signups (skip the verify step today); admin
+        **announcement / broadcast** email to customers.
 - [ ] **UI / dark-mode pass** — dark mode + visual refinements across marketing,
       dashboard, and admin (customer- and staff-facing).
 
