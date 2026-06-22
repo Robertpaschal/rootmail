@@ -2,6 +2,7 @@ import { and, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  auditEmailAuth,
   buildDnsRecords,
   env,
   Errors,
@@ -122,6 +123,19 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/sub-tenants/:id", async (req) => {
     const { id } = req.params as { id: string };
     return serializeSubTenant(await getScopedSubTenant(req, id), { includeDns: true });
+  });
+
+  // --- Email-authentication posture (SPF / DKIM / DMARC / BIMI) -----------
+  app.get("/v1/sub-tenants/:id/auth", async (req) => {
+    const { id } = req.params as { id: string };
+    const st = await getScopedSubTenant(req, id);
+    const report = await auditEmailAuth({
+      domain: st.sendingDomain,
+      verificationToken: st.verificationToken,
+      dkimSelector: st.dkimSelector,
+      dkimValue: st.dkimPublicKey,
+    });
+    return { object: "email_auth", sub_tenant_id: st.id, ...report };
   });
 
   // --- Verify domain ------------------------------------------------------

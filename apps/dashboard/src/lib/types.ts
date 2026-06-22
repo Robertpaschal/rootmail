@@ -509,6 +509,26 @@ export interface DeliverabilityFactor {
   detail: string;
 }
 
+export interface EmailAuthItem {
+  mechanism: "spf" | "dkim" | "dmarc" | "bimi";
+  status: "pass" | "weak" | "missing" | "blocked";
+  label: string;
+  detail: string;
+  recommendation: string | null;
+  record: { type: "TXT"; host: string; value: string } | null;
+  found: string[];
+}
+
+export interface EmailAuthReport {
+  object: "email_auth";
+  sub_tenant_id: string;
+  domain: string;
+  mode: "mock" | "live";
+  dmarc_policy: "none" | "quarantine" | "reject" | null;
+  items: EmailAuthItem[];
+  summary: { passing: number; total: number; enforced: boolean };
+}
+
 export interface Deliverability {
   object: "deliverability";
   scope: { sub_tenant_id: string | null };

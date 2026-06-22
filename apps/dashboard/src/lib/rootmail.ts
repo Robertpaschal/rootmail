@@ -10,6 +10,7 @@ import type {
   Billing,
   Campaign,
   Deliverability,
+  EmailAuthReport,
   CheckoutResponse,
   EmbeddedCheckoutResponse,
   Contact,
@@ -167,6 +168,7 @@ export const api = {
 
   listSubTenants: () => rmFetch<ListResponse<SubTenant>>("/v1/sub-tenants"),
   getSubTenant: (id: string) => rmFetch<SubTenant>(`/v1/sub-tenants/${id}`),
+  getSubTenantAuth: (id: string) => rmFetch<EmailAuthReport>(`/v1/sub-tenants/${id}/auth`),
   createSubTenant: (body: { name: string; sending_domain: string; external_id?: string }) =>
     rmFetch<SubTenant>("/v1/sub-tenants", { method: "POST", body }),
   verifySubTenant: (id: string) =>
