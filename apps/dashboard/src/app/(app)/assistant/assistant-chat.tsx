@@ -16,9 +16,9 @@ interface Turn {
 }
 
 const SUGGESTIONS = [
-  "Create a 3-step welcome sequence",
-  "Build a re-engagement campaign",
-  "Draft a product-launch email template",
+  "Set up a 3-step welcome sequence",
+  "Why did my last email bounce?",
+  "Draft & schedule a launch announcement",
 ];
 
 export function AssistantChat() {
@@ -51,8 +51,8 @@ export function AssistantChat() {
                 <Sparkles className="size-6" />
               </div>
               <p className="text-sm text-muted-foreground">
-                Ask me to build sequences, campaigns, lists, or templates. I work within your plan —
-                I&apos;ll flag anything that needs an upgrade.
+                Ask me to build sequences and campaigns, populate lists, schedule sends, or diagnose why
+                a message bounced. I work within your plan — I&apos;ll flag anything that needs an upgrade.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {SUGGESTIONS.map((s) => (

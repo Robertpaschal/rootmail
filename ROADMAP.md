@@ -376,12 +376,20 @@ The positioning holds: **"email infrastructure that scales with who's asking"** 
 core that's dead-simple for a solo dev and grows into per-tenant sub-tenancy and
 legal-grade proof. Three bets compound on that, in rough priority:
 
-1. **The AI assistant becomes the operating layer** *(the next big build — see the
-   AI-assistant vision note).* Today it drafts; the vision is an agent that *builds and
-   operates* email — "set up a 3-step onboarding sequence", "why did this bounce?",
-   "draft + schedule a launch announcement" — executing through the **gated API** so it
-   inherits the caller's plan/role/AI-credit limits and surfaces an upgrade at the
-   boundary. It's the headline differentiator and the natural home for AI credits.
+1. **The AI assistant is the operating layer** *(shipped — the first vision delivered).*
+   It no longer just drafts. It **builds** (templates, lists, sequences, campaigns),
+   **operates** (adds contacts to lists, sends or schedules campaigns and one-off
+   messages), and **diagnoses** — "why did this bounce?" now reads the message status,
+   the delivery audit trail, and the suppression list, surfaces the actual SMTP bounce
+   reason, and explains the fix. Every action executes through the **gated API** under
+   the caller's own auth, so it inherits their plan/role/AI-credit limits and surfaces an
+   upgrade at the boundary; a model call that fails before completing isn't billed, and a
+   keyless install degrades to a deterministic fallback that still runs through the gated
+   API. It's the headline differentiator and the natural home for AI credits.
+   *Requires the owner's Anthropic account to hold credits — when it's empty the live
+   model 400s and the assistant falls back to the keyless path (charging nothing).*
+   Next frontier: proactive nudges (notice a deliverability dip or a stalled sequence and
+   offer to act) and richer multi-step planning.
 
 2. **Deliverability as a product, not a footnote.** Email infra is won on inbox
    placement. A per-domain / per-sub-tenant deliverability score, automated IP/domain

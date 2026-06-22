@@ -37,9 +37,9 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       }
 
       // Charge 1 credit per model call the assistant actually made (1 for a quick
-      // reply, up to 6 for a multi-step run) — credits track real, token-bounded
-      // model calls, so heavier requests cost proportionally more. A keyless mock
-      // run makes none and is free.
+      // reply, up to 8 for a multi-step build/operate/diagnose run) — credits track
+      // real, token-bounded model calls, so heavier requests cost proportionally
+      // more. A keyless mock run makes none and is free.
       const result = await runAssistant(app, req, prompt);
       if (allowance !== -1 && result.calls > 0) await recordAiUse(org.id, result.calls);
 
