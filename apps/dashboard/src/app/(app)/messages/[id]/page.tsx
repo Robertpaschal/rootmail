@@ -12,6 +12,7 @@ import {
   RotateCw,
   Send,
   ShieldOff,
+  Sparkles,
   UserX,
   XCircle,
 } from "lucide-react";
@@ -24,8 +25,10 @@ import { SubmitButton } from "@/components/app/submit-button";
 import { MessageContent } from "./message-content";
 import { DownloadProof } from "./download-proof";
 import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime, titleCase } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { AuditEntry, Message } from "@/lib/types";
 
@@ -109,6 +112,17 @@ export default async function MessageDetailPage({
         backLabel="Messages"
         actions={
           <div className="flex items-center gap-2">
+            {["bounced", "complained", "failed"].includes(message.status) ? (
+              <Link
+                href={`/assistant?prompt=${encodeURIComponent(
+                  `Why did the message to ${message.to} ${message.status}? (message id ${message.id}) Explain the cause and how to fix it.`,
+                )}`}
+                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+              >
+                <Sparkles className="mr-1.5 size-4" />
+                Diagnose with assistant
+              </Link>
+            ) : null}
             <DownloadProof messageId={message.id} />
             <MessageStatusBadge status={message.status} />
           </div>
