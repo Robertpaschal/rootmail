@@ -11,6 +11,7 @@ const destinations: { label: string; href: string }[] = [
   { label: "Overview", href: "/" },
   { label: "Assistant", href: "/assistant" },
   { label: "Messages", href: "/messages" },
+  { label: "Deliverability", href: "/deliverability" },
   { label: "Inbox", href: "/inbox" },
   { label: "Templates", href: "/templates" },
   { label: "Sequences", href: "/sequences" },

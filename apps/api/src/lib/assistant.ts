@@ -110,6 +110,17 @@ const TOOLS: ToolDef[] = [
     method: "GET",
     path: (i) => `/v1/suppressions/check${qs({ email: i.email })}`,
   },
+  {
+    name: "get_deliverability",
+    description:
+      "Get the workspace's deliverability score (0–100, with a grade and status) plus delivery/bounce/complaint/failure rates over a window, the factors hurting it, and recommendations. Optional sub_tenant_id scopes to one sending domain; window_days defaults to 30. Use for 'how's my deliverability / sender reputation?'.",
+    input_schema: {
+      type: "object",
+      properties: { window_days: { type: "number" }, sub_tenant_id: { type: "string" } },
+    },
+    method: "GET",
+    path: (i) => `/v1/deliverability${qs({ window_days: i.window_days, sub_tenant_id: i.sub_tenant_id })}`,
+  },
   // ---- Build ------------------------------------------------------------
   {
     name: "create_template",
@@ -217,8 +228,9 @@ const TOOLS: ToolDef[] = [
 const SYSTEM = `You are rootmail's in-app assistant — the operating layer for the user's email. You can:
 - BUILD: templates, contact lists, drip sequences, and campaigns.
 - OPERATE: add contacts to lists, and send or schedule campaigns and one-off messages.
-- DIAGNOSE: inspect a message's status and error, read its delivery audit trail, and check suppression
-  to explain why a send bounced/failed and exactly how to fix it.
+- DIAGNOSE: inspect a message's status and error, read its delivery audit trail, check suppression, and
+  pull the deliverability score (delivery/bounce/complaint rates + reputation factors) to explain why a
+  send bounced/failed — or how the whole account's sender reputation is doing — and exactly how to fix it.
 
 Tools execute against the user's own account with their plan and role, so a tool may return an error such
 as 402 "feature_locked" (the capability isn't in their plan), "quota_exceeded" (out of AI credits / send
@@ -366,6 +378,28 @@ async function mockAssistant(
   const p = prompt.toLowerCase();
   const tool = (name: string) => TOOLS.find((t) => t.name === name)!;
   const actions: Array<{ tool: string; status: number }> = [];
+
+  // Diagnose: "how's my deliverability / sender reputation?"
+  if (p.includes("deliverab") || p.includes("reputation") || p.includes("sender score")) {
+    const out = await runTool(app, req, tool("get_deliverability"), {});
+    actions.push({ tool: "get_deliverability", status: out.status });
+    if (out.status >= 400) return { reply: describeOutcome("checked deliverability", out), actions, source: "mock" };
+    const b = out.body as {
+      score: number | null;
+      status: string;
+      rates: { delivery: number; bounce: number; complaint: number };
+      recommendations: string[];
+    } | null;
+    if (!b || b.score === null) {
+      return { reply: "No delivery data yet — send some email and I can score your sender reputation.", actions, source: "mock" };
+    }
+    const tip = b.recommendations[0] ? ` Top tip: ${b.recommendations[0]}` : "";
+    return {
+      reply: `Deliverability: ${b.score}/100 (${b.status}). Delivery ${b.rates.delivery}%, bounce ${b.rates.bounce}%, complaint ${b.rates.complaint}%.${tip} (Set ANTHROPIC_API_KEY for a full analysis.)`,
+      actions,
+      source: "mock",
+    };
+  }
 
   // Diagnose: "why did this bounce / fail / not deliver?"
   if (p.includes("bounce") || p.includes("deliver") || p.includes("fail") || p.includes("why")) {

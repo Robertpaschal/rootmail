@@ -9,6 +9,7 @@ import type {
   AuthSession,
   Billing,
   Campaign,
+  Deliverability,
   CheckoutResponse,
   EmbeddedCheckoutResponse,
   Contact,
@@ -252,6 +253,10 @@ export const api = {
     rmFetch<Thread>(`/v1/threads/${id}/simulate-reply`, { method: "POST", body }),
 
   getBilling: () => rmFetch<Billing>("/v1/billing"),
+
+  getDeliverability: (q: { window_days?: number; sub_tenant_id?: string } = {}) =>
+    rmFetch<Deliverability>("/v1/deliverability", { query: q }),
+
   // Starts a plan change. In Stripe mode returns a hosted Checkout URL; in local
   // mode applies the switch and returns the updated billing.
   checkout: (plan: string, interval: "month" | "year" = "month") =>

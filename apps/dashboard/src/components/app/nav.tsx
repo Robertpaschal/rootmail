@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   CreditCard,
   FileText,
+  Gauge,
   Images,
   Inbox,
   KeyRound,
@@ -30,6 +31,7 @@ const items = [
   { href: "/", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/assistant", label: "Assistant", icon: Sparkles },
   { href: "/messages", label: "Messages", icon: Mail },
+  { href: "/deliverability", label: "Deliverability", icon: Gauge },
   { href: "/inbox", label: "Inbox", icon: Inbox },
   { href: "/templates", label: "Templates", icon: FileText },
   { href: "/assets", label: "Assets", icon: Images },
