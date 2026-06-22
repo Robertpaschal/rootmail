@@ -421,11 +421,13 @@ legal-grade proof. Three bets compound on that, in rough priority:
    (already plan features) into a real enterprise tier + a SOC 2 path — the Sales CRM +
    custom plans already shipped are the GTM rails for it.
 
-**Supporting bets:** a customer-facing **analytics layer** (delivery funnels, per-
-template/sequence performance — mirror the admin analytics we built); **migration
-on-ramps** (import templates / suppression / domains from SendGrid/Postmark/Mailgun —
-the lead form already asks "current provider"); and **developer love** (Python/Go SDKs,
-a CLI, a hosted "test inbox" — the dev `.maildir` is the seed of that).
+**Supporting bets:** a customer-facing **analytics layer** — *shipped:* the sent →
+delivered → opened → clicked **engagement funnel** with rates, a daily send series, and
+top templates (`GET /v1/analytics`, dashboard `/analytics`, assistant `get_analytics`);
+*still ahead* — per-sequence/campaign breakdowns. Plus **migration on-ramps** (import
+templates / suppression / domains from SendGrid/Postmark/Mailgun — the lead form already
+asks "current provider"); and **developer love** (Python/Go SDKs, a CLI, a hosted "test
+inbox" — the dev `.maildir` is the seed of that).
 
 **Queued near-term:** an **unsubscribe flow** for admin announcements if they ever shift
 from service notices to promotional; continuous visual refinement.

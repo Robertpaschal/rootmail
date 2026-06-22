@@ -6,6 +6,7 @@ import type {
   CreatedWebhookEndpoint,
   AssistantResponse,
   AuditTrail,
+  Analytics,
   AuthSession,
   Billing,
   Campaign,
@@ -260,6 +261,9 @@ export const api = {
 
   getDeliverability: (q: { window_days?: number; sub_tenant_id?: string } = {}) =>
     rmFetch<Deliverability>("/v1/deliverability", { query: q }),
+
+  getAnalytics: (q: { window_days?: number; sub_tenant_id?: string } = {}) =>
+    rmFetch<Analytics>("/v1/analytics", { query: q }),
 
   getComplianceExport: (q: { from: string; to?: string; sub_tenant_id?: string }) =>
     rmFetch<ComplianceExport>("/v1/exports/compliance", { query: q }),
