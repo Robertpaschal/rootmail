@@ -529,6 +529,21 @@ export interface EmailAuthReport {
   summary: { passing: number; total: number; enforced: boolean };
 }
 
+export interface ComplianceExport {
+  object: "compliance_export";
+  bundle: {
+    workspace_id: string;
+    sub_tenant_id: string | null;
+    range: { from: string; to: string };
+    generated_at: string;
+    message_count: number;
+    messages: unknown[];
+  };
+  signature: string;
+  public_key: string;
+  algorithm: "ed25519";
+}
+
 export interface Deliverability {
   object: "deliverability";
   scope: { sub_tenant_id: string | null };

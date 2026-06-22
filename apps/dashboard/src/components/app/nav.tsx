@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   CreditCard,
+  FileCheck2,
   FileText,
   Gauge,
   Images,
@@ -42,6 +43,7 @@ const items = [
   { href: "/lists", label: "Lists", icon: ListChecks },
   { href: "/api-keys", label: "API keys", icon: KeyRound },
   { href: "/webhooks", label: "Webhooks", icon: Webhook },
+  { href: "/compliance", label: "Compliance", icon: FileCheck2 },
   { href: "/billing", label: "Plan & usage", icon: CreditCard },
   { href: "/members", label: "Team", icon: UserCog },
   { href: "/roles", label: "Roles", icon: ShieldCheck },

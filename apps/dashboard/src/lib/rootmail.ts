@@ -9,6 +9,7 @@ import type {
   AuthSession,
   Billing,
   Campaign,
+  ComplianceExport,
   Deliverability,
   EmailAuthReport,
   CheckoutResponse,
@@ -258,6 +259,9 @@ export const api = {
 
   getDeliverability: (q: { window_days?: number; sub_tenant_id?: string } = {}) =>
     rmFetch<Deliverability>("/v1/deliverability", { query: q }),
+
+  getComplianceExport: (q: { from: string; to?: string; sub_tenant_id?: string }) =>
+    rmFetch<ComplianceExport>("/v1/exports/compliance", { query: q }),
 
   // Starts a plan change. In Stripe mode returns a hosted Checkout URL; in local
   // mode applies the switch and returns the updated billing.
