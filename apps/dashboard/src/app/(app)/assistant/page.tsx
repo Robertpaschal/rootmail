@@ -6,7 +6,7 @@ export default function AssistantPage() {
     <>
       <PageHeader
         title="Assistant"
-        description="Describe what you want — the AI builds it for you, within your plan and role, and points you to an upgrade if something's out of reach."
+        description="Describe what you want — the assistant builds and operates your email (sequences, campaigns, scheduled sends) and diagnoses delivery issues, within your plan and role, and points you to an upgrade if something's out of reach."
       />
       <AssistantChat />
     </>

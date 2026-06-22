@@ -21,6 +21,11 @@ import { appendInbound } from "./threads";
 
 interface SesRecipient {
   emailAddress: string;
+  // SES includes the SMTP diagnostic on bounced recipients, e.g.
+  // "smtp; 550 5.1.1 <x>: Recipient address rejected: User unknown".
+  diagnosticCode?: string;
+  action?: string;
+  status?: string;
 }
 
 export interface SesNotification {
@@ -29,8 +34,8 @@ export interface SesNotification {
   notificationType?: string;
   eventType?: string;
   mail?: { messageId?: string; destination?: string[]; source?: string };
-  bounce?: { bounceType?: string; bouncedRecipients?: SesRecipient[] };
-  complaint?: { complainedRecipients?: SesRecipient[] };
+  bounce?: { bounceType?: string; bounceSubType?: string; bouncedRecipients?: SesRecipient[] };
+  complaint?: { complainedRecipients?: SesRecipient[]; complaintFeedbackType?: string };
   delivery?: { recipients?: string[] };
   // Inbound ("Received") via an SES receipt rule's SNS action.
   receipt?: { recipients?: string[] };
@@ -125,8 +130,11 @@ async function audit(message: Message, event: AuditEvent, metadata: Record<strin
   }
 }
 
-async function setStatus(message: Message, status: Message["status"]): Promise<void> {
-  await db.update(messages).set({ status, updatedAt: new Date() }).where(eq(messages.id, message.id));
+async function setStatus(message: Message, status: Message["status"], error?: string | null): Promise<void> {
+  await db
+    .update(messages)
+    .set({ status, ...(error !== undefined ? { error } : {}), updatedAt: new Date() })
+    .where(eq(messages.id, message.id));
 }
 
 /**
@@ -153,26 +161,36 @@ export async function applySesNotification(n: SesNotification): Promise<SesKind>
 
   if (kind === "complaint") {
     const recipients = n.complaint?.complainedRecipients?.map((r) => r.emailAddress) ?? [message.toEmail];
-    await setStatus(message, "complained");
+    const reason = n.complaint?.complaintFeedbackType
+      ? `Spam complaint (${n.complaint.complaintFeedbackType})`
+      : "Spam complaint";
+    await setStatus(message, "complained", reason);
     for (const email of recipients) {
       await addSuppression(message.workspaceId, message.subTenantId, email, "complaint", message.id, "ses");
     }
-    await audit(message, "complained", { recipients });
+    await audit(message, "complained", { recipients, reason });
     return "complaint";
   }
 
   // bounce — only a Permanent bounce is final; transient bounces may still
-  // deliver on SES's own retries, so we don't suppress on those.
+  // deliver on SES's own retries, so we don't suppress on those. Capture the
+  // SMTP diagnostic so the message carries *why* it bounced (powers diagnosis).
+  const diagnostic = n.bounce?.bouncedRecipients?.find((r) => r.diagnosticCode)?.diagnosticCode;
   if (n.bounce?.bounceType === "Permanent") {
     const recipients = n.bounce?.bouncedRecipients?.map((r) => r.emailAddress) ?? [message.toEmail];
-    await setStatus(message, "bounced");
+    const reason = diagnostic ?? `Permanent bounce${n.bounce?.bounceSubType ? ` (${n.bounce.bounceSubType})` : ""}`;
+    await setStatus(message, "bounced", reason);
     for (const email of recipients) {
       await addSuppression(message.workspaceId, message.subTenantId, email, "bounce", message.id, "ses");
     }
-    await audit(message, "bounced", { recipients, bounceType: "Permanent" });
+    await audit(message, "bounced", { recipients, bounceType: "Permanent", reason });
     return "bounce";
   }
 
-  await audit(message, "bounced", { bounceType: n.bounce?.bounceType ?? "Transient", suppressed: false });
+  await audit(message, "bounced", {
+    bounceType: n.bounce?.bounceType ?? "Transient",
+    suppressed: false,
+    ...(diagnostic ? { reason: diagnostic } : {}),
+  });
   return "bounce";
 }

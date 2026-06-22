@@ -431,9 +431,16 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     };
     const nextStatus = statusForEvent[body.event];
     if (nextStatus) {
+      // Persist the reason onto the message so get_message surfaces *why* it
+      // bounced/complained (mirrors the real SES feedback path).
+      const carriesReason = body.event === "bounced" || body.event === "complained";
       await db
         .update(messages)
-        .set({ status: nextStatus, updatedAt: new Date() })
+        .set({
+          status: nextStatus,
+          ...(carriesReason && body.reason ? { error: body.reason } : {}),
+          updatedAt: new Date(),
+        })
         .where(eq(messages.id, message.id));
     }
 
