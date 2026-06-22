@@ -204,6 +204,26 @@ export async function ensureCustomer(org: Organization): Promise<string> {
   return customer.id;
 }
 
+/** The org owner's contact (email + name) for a Stripe customer, or null — used to
+ * address billing lifecycle emails (payment failed, trial ending). */
+export async function ownerContactForCustomer(
+  customerId: string,
+): Promise<{ email: string; name: string | null } | null> {
+  const [org] = await db
+    .select({ id: organizations.id })
+    .from(organizations)
+    .where(eq(organizations.stripeCustomerId, customerId))
+    .limit(1);
+  if (!org) return null;
+  const [row] = await db
+    .select({ email: users.email, name: users.name })
+    .from(memberships)
+    .innerJoin(users, eq(users.id, memberships.userId))
+    .where(and(eq(memberships.organizationId, org.id), eq(memberships.role, "owner")))
+    .limit(1);
+  return row ?? null;
+}
+
 export interface CheckoutResult {
   /** "stripe" → redirect the user to `url`; "local" → apply the change directly. */
   mode: "stripe" | "local";

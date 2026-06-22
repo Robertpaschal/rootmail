@@ -1,8 +1,17 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { env, Errors, MEMBERSHIP_ROLES, newId, randomToken, sha256Hex } from "@rootmail/core";
+import {
+  env,
+  Errors,
+  MEMBERSHIP_ROLES,
+  newId,
+  randomToken,
+  sendSystemEmail,
+  sha256Hex,
+} from "@rootmail/core";
 import { db, invitations, memberships, organizations, orgAddons, roles, users } from "@rootmail/db";
+import { invitationEmail } from "../lib/emails";
 import { loadOrg, requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { getPlan } from "../lib/plans";
@@ -153,14 +162,35 @@ export async function memberRoutes(app: FastifyInstance): Promise<void> {
       return inv;
     });
 
+    const acceptUrl = `${env.DASHBOARD_URL.replace(/\/$/, "")}/accept-invite?token=${token}`;
+
+    // Dogfood: deliver the invitation to the invitee through our own pipeline
+    // (best-effort — never fail the invite on a mail hiccup).
+    try {
+      const mail = invitationEmail({
+        orgName: org.name,
+        inviterName: req.auth.user?.name ?? null,
+        acceptUrl,
+        role: body.role,
+      });
+      await sendSystemEmail({
+        to: invitation.email,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+      });
+    } catch (err) {
+      req.log.warn({ err }, "invitation email enqueue failed");
+    }
+
     return reply.status(201).send({
       object: "invitation",
       id: invitation.id,
       email: invitation.email,
       role: invitation.role,
-      // Token shown once — the invitee accepts with it.
+      // Token shown once — the invitee accepts with it (also emailed to them).
       token,
-      accept_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/accept-invite?token=${token}`,
+      accept_url: acceptUrl,
       expires_at: invitation.expiresAt.toISOString(),
     });
   });

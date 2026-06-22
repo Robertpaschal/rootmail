@@ -1,9 +1,15 @@
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type Stripe from "stripe";
-import { env, newId } from "@rootmail/core";
+import { env, newId, sendSystemEmail } from "@rootmail/core";
 import { billingEvents, db } from "@rootmail/db";
-import { getStripe, syncSubscription } from "../lib/stripe";
+import { paymentFailedEmail, trialEndingEmail } from "../lib/emails";
+import { getStripe, ownerContactForCustomer, syncSubscription } from "../lib/stripe";
+
+function customerIdOf(c: string | { id: string } | null | undefined): string | null {
+  if (!c) return null;
+  return typeof c === "string" ? c : c.id;
+}
 
 /**
  * Stripe webhook receiver. Public (no API key) but authenticated by Stripe's
@@ -67,6 +73,37 @@ export async function stripeWebhookRoutes(app: FastifyInstance): Promise<void> {
         case "customer.subscription.updated":
         case "customer.subscription.deleted": {
           await syncSubscription(event.data.object as Stripe.Subscription);
+          break;
+        }
+        // --- Lifecycle email (dogfooded through our own send pipeline) -------
+        case "invoice.payment_failed": {
+          const invoice = event.data.object as Stripe.Invoice;
+          const cust = customerIdOf(invoice.customer);
+          const owner = cust ? await ownerContactForCustomer(cust) : null;
+          if (owner) {
+            const mail = paymentFailedEmail(owner.name);
+            await sendSystemEmail({
+              to: owner.email,
+              subject: mail.subject,
+              html: mail.html,
+              text: mail.text,
+            });
+          }
+          break;
+        }
+        case "customer.subscription.trial_will_end": {
+          const sub = event.data.object as Stripe.Subscription;
+          const owner = await ownerContactForCustomer(customerIdOf(sub.customer) ?? "");
+          if (owner) {
+            const endsAt = sub.trial_end ? new Date(sub.trial_end * 1000) : null;
+            const mail = trialEndingEmail(owner.name, endsAt);
+            await sendSystemEmail({
+              to: owner.email,
+              subject: mail.subject,
+              html: mail.html,
+              text: mail.text,
+            });
+          }
           break;
         }
         default:
