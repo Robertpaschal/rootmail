@@ -72,6 +72,13 @@ const TOOLS: ToolDef[] = [
     path: () => "/v1/campaigns",
   },
   {
+    name: "list_sub_tenants",
+    description: "List the workspace's sub-tenants / sending domains (id, name, sending_domain, status). Use to find a sub_tenant_id before auditing domain authentication.",
+    input_schema: { type: "object", properties: {} },
+    method: "GET",
+    path: () => "/v1/sub-tenants",
+  },
+  {
     name: "list_messages",
     description:
       "List recent sent messages, newest first. Filter by status to triage deliverability: 'bounced' (hard/soft bounce), 'complained' (spam report), 'failed' (send error), 'delivered', 'sent', 'queued'. Returns each message's id, to, subject, status and error.",
@@ -120,6 +127,14 @@ const TOOLS: ToolDef[] = [
     },
     method: "GET",
     path: (i) => `/v1/deliverability${qs({ window_days: i.window_days, sub_tenant_id: i.sub_tenant_id })}`,
+  },
+  {
+    name: "check_domain_auth",
+    description:
+      "Audit a sub-tenant sending domain's email authentication — SPF, DKIM, DMARC (with its policy), and BIMI — returning each mechanism's status, the exact DNS record to publish, and how to strengthen a weak setup. Use for 'is my domain set up right?', SPF/DKIM/DMARC questions, or 'why is my mail going to spam?'. Find the sub_tenant_id with list_sub_tenants first.",
+    input_schema: { type: "object", properties: { sub_tenant_id: { type: "string" } }, required: ["sub_tenant_id"] },
+    method: "GET",
+    path: (i) => `/v1/sub-tenants/${i.sub_tenant_id}/auth`,
   },
   // ---- Build ------------------------------------------------------------
   {
@@ -228,9 +243,10 @@ const TOOLS: ToolDef[] = [
 const SYSTEM = `You are rootmail's in-app assistant — the operating layer for the user's email. You can:
 - BUILD: templates, contact lists, drip sequences, and campaigns.
 - OPERATE: add contacts to lists, and send or schedule campaigns and one-off messages.
-- DIAGNOSE: inspect a message's status and error, read its delivery audit trail, check suppression, and
-  pull the deliverability score (delivery/bounce/complaint rates + reputation factors) to explain why a
-  send bounced/failed — or how the whole account's sender reputation is doing — and exactly how to fix it.
+- DIAGNOSE: inspect a message's status and error, read its delivery audit trail, check suppression, pull
+  the deliverability score (delivery/bounce/complaint rates + reputation factors), and audit a sending
+  domain's authentication (SPF/DKIM/DMARC/BIMI) — to explain why a send bounced/failed, how the account's
+  sender reputation is doing, or why mail is landing in spam, and exactly how to fix it.
 
 Tools execute against the user's own account with their plan and role, so a tool may return an error such
 as 402 "feature_locked" (the capability isn't in their plan), "quota_exceeded" (out of AI credits / send
@@ -378,6 +394,44 @@ async function mockAssistant(
   const p = prompt.toLowerCase();
   const tool = (name: string) => TOOLS.find((t) => t.name === name)!;
   const actions: Array<{ tool: string; status: number }> = [];
+
+  // Diagnose: domain authentication — "is SPF/DKIM/DMARC set up?", "why spam?"
+  if (
+    p.includes("dmarc") ||
+    p.includes("spf") ||
+    p.includes("dkim") ||
+    p.includes("bimi") ||
+    p.includes("authenticat") ||
+    p.includes("spam") ||
+    (p.includes("domain") && (p.includes("set up") || p.includes("setup") || p.includes("dns")))
+  ) {
+    const list = await runTool(app, req, tool("list_sub_tenants"), {});
+    actions.push({ tool: "list_sub_tenants", status: list.status });
+    if (list.status >= 400) return { reply: describeOutcome("listed sub-tenants", list), actions, source: "mock" };
+    const sts = (list.body as { data?: Array<{ id: string; sending_domain: string }> } | null)?.data ?? [];
+    if (sts.length === 0) {
+      return {
+        reply: "No sub-tenant sending domains yet — add one under Sub-tenants and I'll guide SPF/DKIM/DMARC setup.",
+        actions,
+        source: "mock",
+      };
+    }
+    const out = await runTool(app, req, tool("check_domain_auth"), { sub_tenant_id: sts[0].id });
+    actions.push({ tool: "check_domain_auth", status: out.status });
+    if (out.status >= 400) return { reply: describeOutcome("checked domain authentication", out), actions, source: "mock" };
+    const r = out.body as {
+      domain: string;
+      summary: { passing: number; total: number };
+      items: Array<{ label: string; status: string; recommendation: string | null }>;
+    } | null;
+    if (!r) return { reply: "Couldn't read the authentication report.", actions, source: "mock" };
+    const lines = r.items.map((i) => `• ${i.label}: ${i.status}${i.recommendation ? ` — ${i.recommendation}` : ""}`).join("\n");
+    return {
+      reply: `Email authentication for ${r.domain} (${r.summary.passing}/${r.summary.total} passing):\n${lines}\n(Set ANTHROPIC_API_KEY for full step-by-step guidance.)`,
+      actions,
+      source: "mock",
+    };
+  }
 
   // Diagnose: "how's my deliverability / sender reputation?"
   if (p.includes("deliverab") || p.includes("reputation") || p.includes("sender score")) {

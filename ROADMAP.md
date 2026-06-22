@@ -397,10 +397,14 @@ legal-grade proof. Three bets compound on that, in rough priority:
    rates against industry thresholds, low-volume confidence, the factors hurting the
    score, and concrete recommendations — scoped per workspace or per sub-tenant
    (`GET /v1/deliverability`), surfaced on a dashboard page and as an assistant tool
-   (`get_deliverability`, so "how's my reputation?" works). *Still ahead:* DMARC/BIMI/SPF
-   setup guidance (on top of existing DKIM verification), automated IP/domain **warmup**,
-   and seed-list inbox testing — turning our suppression/bounce plumbing into a concrete
-   reason to switch.
+   (`get_deliverability`, so "how's my reputation?" works). *Phase 2 shipped:* **email-auth
+   guidance** — `auditEmailAuth` reports SPF / DKIM / DMARC (with policy interpretation:
+   missing → weak `p=none` → enforced) / BIMI for each sending domain, with the exact DNS
+   record to publish and how to strengthen a weak setup (`GET /v1/sub-tenants/:id/auth`),
+   surfaced on the sub-tenant page and as an assistant tool (`check_domain_auth`); a DMARC
+   starter record now ships in the standard DNS instructions. *Still ahead (Phase 3):*
+   automated IP/domain **warmup** and seed-list inbox testing — both need external
+   infra/inboxes, so they're not buildable solo.
 
 3. **Proof & compliance as the wedge no competitor has.** Layer-3 signed proof bundles
    are unique. Lean into regulated buyers (fintech / health / legal): retention

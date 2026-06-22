@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { CheckCircle2, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Info, ShieldCheck, XCircle } from "lucide-react";
 import { verifySubTenant } from "../actions";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { CopyButton } from "@/components/app/copy-button";
@@ -11,7 +11,15 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatDateTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { SubTenant } from "@/lib/types";
+import type { EmailAuthReport, SubTenant } from "@/lib/types";
+import { cn } from "@/lib/utils";
+
+const authVisual = {
+  pass: { badge: "success", icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400" },
+  weak: { badge: "warning", icon: AlertTriangle, color: "text-amber-600 dark:text-amber-400" },
+  missing: { badge: "destructive", icon: XCircle, color: "text-red-600 dark:text-red-400" },
+  blocked: { badge: "secondary", icon: Info, color: "text-muted-foreground" },
+} as const;
 
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -30,8 +38,10 @@ export default async function SubTenantDetailPage({
   const { id } = await params;
 
   let st: SubTenant;
+  let auth: EmailAuthReport | null = null;
   try {
-    st = await api.getSubTenant(id);
+    // The auth audit is advisory — never let it break the page.
+    [st, auth] = await Promise.all([api.getSubTenant(id), api.getSubTenantAuth(id).catch(() => null)]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     return (
@@ -99,13 +109,58 @@ export default async function SubTenantDetailPage({
                 </div>
               ))}
               {st.status === "verified" ? (
-                <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700">
+                <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                   <CheckCircle2 className="size-4" /> Domain verified — sending from this domain is
                   live.
                 </div>
               ) : null}
             </CardContent>
           </Card>
+
+          {auth ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Email authentication</CardTitle>
+                <CardDescription>
+                  SPF, DKIM, DMARC &amp; BIMI for {auth.domain} — {auth.summary.passing}/{auth.summary.total} passing
+                  {auth.mode === "mock" ? " (mock mode)" : ""}.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {auth.items.map((it) => {
+                  const v = authVisual[it.status];
+                  const Icon = v.icon;
+                  return (
+                    <div key={it.mechanism} className="rounded-lg border p-3">
+                      <div className="flex items-center gap-2">
+                        <Icon className={cn("size-4 shrink-0", v.color)} />
+                        <span className="text-sm font-medium">{it.label}</span>
+                        <Badge variant={v.badge} className="text-[10px] uppercase">
+                          {it.status}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-sm text-muted-foreground">{it.detail}</p>
+                      {it.recommendation ? <p className="mt-1 text-sm">{it.recommendation}</p> : null}
+                      {it.record ? (
+                        <div className="mt-2 space-y-1 rounded-md bg-muted/50 p-2">
+                          <div className="flex items-center gap-1">
+                            <code className="min-w-0 flex-1 truncate font-mono text-xs">{it.record.host}</code>
+                            <CopyButton value={it.record.host} />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <code className="min-w-0 flex-1 truncate font-mono text-xs text-muted-foreground">
+                              {it.record.value}
+                            </code>
+                            <CopyButton value={it.record.value} />
+                          </div>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          ) : null}
         </div>
 
         <Card className="h-fit">
