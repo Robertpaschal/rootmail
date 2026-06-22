@@ -39,3 +39,31 @@ export function unsubscribeUrl(p: UnsubscribePayload): string {
   const base = env.PUBLIC_API_URL.replace(/\/$/, "");
   return `${base}/v1/unsubscribe?token=${encodeURIComponent(unsubscribeToken(p))}`;
 }
+
+// --- Admin announcement opt-out -------------------------------------------
+// Announcements broadcast to account owners. A distinct token shape (`k`
+// discriminator) so an announcement link can't double as a contact-unsubscribe
+// link or vice-versa.
+
+export function announcementUnsubToken(email: string): string {
+  const body = Buffer.from(JSON.stringify({ e: email, k: "announcement" })).toString("base64url");
+  return `${body}.${hmacSign(body, SECRET)}`;
+}
+
+export function verifyAnnouncementUnsubToken(token: string): string | null {
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  if (!safeEqual(sig, hmacSign(body, SECRET))) return null;
+  try {
+    const p = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as { e?: string; k?: string };
+    return p && p.k === "announcement" && typeof p.e === "string" ? p.e : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Absolute opt-out URL for the announcement email footer. */
+export function announcementUnsubscribeUrl(email: string): string {
+  const base = env.PUBLIC_API_URL.replace(/\/$/, "");
+  return `${base}/v1/announcements/unsubscribe?token=${encodeURIComponent(announcementUnsubToken(email))}`;
+}

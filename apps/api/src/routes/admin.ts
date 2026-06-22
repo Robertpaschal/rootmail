@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type Stripe from "stripe";
 import { z } from "zod";
@@ -11,6 +11,7 @@ import {
   newId,
   PLAN_IDS,
   type PlanId,
+  announcementUnsubscribeUrl,
   sendSystemEmail,
   verifyPassword,
 } from "@rootmail/core";
@@ -1415,7 +1416,13 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       .selectDistinct({ email: users.email, name: users.name })
       .from(memberships)
       .innerJoin(users, eq(users.id, memberships.userId))
-      .where(and(eq(memberships.role, "owner"), isNotNull(users.emailVerifiedAt)));
+      .where(
+        and(
+          eq(memberships.role, "owner"),
+          isNotNull(users.emailVerifiedAt),
+          isNull(users.announcementOptOutAt),
+        ),
+      );
   }
 
   app.get("/v1/admin/announcements/recipients", async (req) => {
@@ -1437,7 +1444,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 
     const recipients = await announcementRecipients();
     for (const r of recipients) {
-      const mail = announcementEmail({ subject: b.subject, body: b.body, recipientName: r.name });
+      const mail = announcementEmail({
+        subject: b.subject,
+        body: b.body,
+        recipientName: r.name,
+        unsubscribeUrl: announcementUnsubscribeUrl(r.email),
+      });
       await sendSystemEmail({ to: r.email, subject: mail.subject, html: mail.html, text: mail.text });
     }
 

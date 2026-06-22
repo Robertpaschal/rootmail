@@ -435,8 +435,12 @@ analytics, compliance export, retention, imports, domain-auth, assistant) and a 
 assistant`, reads `ROOTMAIL_API_KEY`) for terminal/CI use; *still ahead* — Python/Go SDKs
 and a hosted "test inbox" (the dev `.maildir` is the seed of that).
 
-**Queued near-term:** an **unsubscribe flow** for admin announcements if they ever shift
-from service notices to promotional; continuous visual refinement.
+**Shipped:** a one-click **unsubscribe flow** for admin announcements — every broadcast
+carries a signed opt-out link (`GET /v1/announcements/unsubscribe`, confirm-step page),
+the opt-out is stored per-user (`users.announcement_opt_out_at`) and excluded from future
+broadcasts; essential account/security mail is unaffected.
+**Queued near-term:** an in-app announcement-preference toggle (the opt-out is currently
+link-only); continuous visual refinement.
 
 ---
 
