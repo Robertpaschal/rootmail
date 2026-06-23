@@ -1,6 +1,6 @@
 {
   "name": "@rootmail/node",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Official Node.js SDK for rootmail — unified email infrastructure for transactional, marketing, and sales mail with sub-tenancy and full audit trails.",
   "license": "MIT",
   "type": "module",
