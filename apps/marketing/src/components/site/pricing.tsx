@@ -59,7 +59,7 @@ const tiers = [
     features: [
       "Everything in Pro",
       "Sub-tenants — their own domains",
-      "Per-tenant DKIM & reputation",
+      "Per-tenant DKIM & SPF/DMARC/BIMI guidance",
       "250 AI assistant credits / month",
       "Team roles (RBAC) · unlimited seats",
     ],
@@ -77,7 +77,8 @@ const tiers = [
     overage: "Volume discounts",
     features: [
       "Everything in Scale",
-      "Proof bundles (Layer 3)",
+      "Signed proof bundles & audit-grade exports",
+      "Data-retention (redact/delete) policies",
       "Unlimited AI assistant credits",
       "Dedicated IPs & warming",
       "SSO / SAML · EU residency · SLA",
@@ -91,9 +92,11 @@ const tiers = [
 // The floor every plan shares — so each tier is about volume and advanced layers,
 // not table stakes.
 const baseline = [
-  "The full REST API & Node SDK",
+  "The full REST API, Node SDK & CLI",
+  "Deliverability score & engagement analytics",
   "Append-only audit trail",
   "Automatic suppression handling",
+  "1-click migration from SendGrid / Postmark / Mailgun",
   "Webhooks & delivery events",
   "Sandbox (test-mode) keys",
   "Usage-based billing — pay only for what you send",

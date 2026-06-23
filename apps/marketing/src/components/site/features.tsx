@@ -1,5 +1,8 @@
 import {
+  ArrowLeftRight,
+  BarChart3,
   Fingerprint,
+  Gauge,
   MessagesSquare,
   Network,
   ScrollText,
@@ -29,14 +32,14 @@ const features = [
     desc: "Give every customer a verified sending domain — DKIM, SPF, and reputation isolated — without rebuilding your stack.",
   },
   {
-    icon: MessagesSquare,
-    title: "Threads & shared inbox",
-    desc: "Inbound replies are parsed, threaded, and routed back via webhook or a shared inbox — and sequences exit automatically on reply.",
+    icon: Gauge,
+    title: "Deliverability tools",
+    desc: "A 0–100 reputation score from real outcomes, plus SPF, DKIM, DMARC and BIMI setup guidance for every sending domain.",
   },
   {
-    icon: ShieldCheck,
-    title: "Signed proof bundles",
-    desc: "Export an Ed25519-signed record of any message's full lifecycle — content hash included — for compliance and disputes.",
+    icon: BarChart3,
+    title: "Engagement analytics",
+    desc: "A sent → delivered → opened → clicked funnel with open and click rates, a daily send trend, and your top templates.",
   },
   {
     icon: Workflow,
@@ -44,9 +47,19 @@ const features = [
     desc: "Drip sequences with delays and exit-on-reply, plus list-based campaigns — all metered against your plan, with stats.",
   },
   {
+    icon: MessagesSquare,
+    title: "Threads & shared inbox",
+    desc: "Inbound replies are parsed, threaded, and routed back via webhook or a shared inbox — and sequences exit automatically on reply.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Proof & compliance",
+    desc: "Ed25519-signed proof bundles and audit-grade exports anyone can verify, plus configurable redact/delete data-retention policies.",
+  },
+  {
     icon: ScrollText,
     title: "Append-only audit trail",
-    desc: "Every lifecycle event — queued, sent, delivered, opened, clicked — is logged immutably and queryable per message.",
+    desc: "Every lifecycle event — queued, sent, delivered, opened, clicked, bounced — is logged immutably and queryable per message.",
   },
   {
     icon: ShieldOff,
@@ -54,9 +67,14 @@ const features = [
     desc: "Bounces, complaints, and unsubscribes are checked before every send and scoped per workspace or sub-tenant.",
   },
   {
+    icon: ArrowLeftRight,
+    title: "Migrate in minutes",
+    desc: "Import your suppression list and contacts straight from a SendGrid, Postmark, or Mailgun export — no reputation lost.",
+  },
+  {
     icon: Sparkles,
-    title: "AI drafting & no-code studio",
-    desc: "Draft templates with AI and refine them in a no-code editor — or let the assistant build and operate features for you.",
+    title: "AI assistant",
+    desc: "An in-app agent that builds, operates, and diagnoses your email — “why did this bounce?” — within your plan, with an AI no-code studio.",
   },
 ];
 
@@ -71,7 +89,7 @@ export function Features() {
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
             All three layers — identity &amp; sending, conversation, and proof — are built and
-            verified end-to-end, behind one API, one SDK, and a full operator dashboard.
+            verified end-to-end, behind one API, a Node SDK and CLI, and a full operator dashboard.
           </p>
         </div>
 

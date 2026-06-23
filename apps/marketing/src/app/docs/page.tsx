@@ -4,7 +4,7 @@ import { DocPage } from "@/components/site/doc-page";
 
 export const metadata: Metadata = {
   title: "Quickstart",
-  description: "Send your first email with the rootmail Node SDK in minutes.",
+  description: "Send your first email with the rootmail Node SDK or CLI in minutes.",
 };
 
 const install = `pnpm add @rootmail/node`;
@@ -34,11 +34,23 @@ await customer.send({
   html: "<h1>See you soon!</h1>",
 });`;
 
+const cli = `npm i -g @rootmail/cli
+export ROOTMAIL_API_KEY=rm_live_…
+
+rootmail send --to ada@example.com --template welcome
+rootmail deliverability                 # reputation score + rates
+rootmail import:suppressions export.csv # migrate from another provider
+rootmail assistant "why did my last email bounce?"`;
+
 export default function DocsPage() {
   return (
     <DocPage title="Quickstart" subtitle="From zero to your first send in three steps.">
       <h2>1. Install the SDK</h2>
-      <p>The Node SDK wraps the REST API with full TypeScript types. (Any HTTP client works too.)</p>
+      <p>
+        The Node SDK wraps the REST API with full TypeScript types — covering sending, sub-tenancy,
+        sequences, deliverability, analytics, compliance exports, and the AI assistant. (Any HTTP
+        client works too.)
+      </p>
       <CodeBlock code={install} filename="terminal" />
 
       <h2>2. Get an API key</h2>
@@ -61,11 +73,26 @@ export default function DocsPage() {
       </p>
       <CodeBlock code={subtenant} filename="subtenant.ts" />
 
+      <h2>Prefer the terminal?</h2>
+      <p>
+        The <strong>@rootmail/cli</strong> drives the same API from your shell or CI — send, inspect
+        deliverability, migrate a suppression list, or ask the assistant.
+      </p>
+      <CodeBlock code={cli} filename="terminal" />
+
       <h2>Next steps</h2>
       <ul>
         <li>Subscribe to delivery events (delivered, bounced, opened…) with webhooks.</li>
         <li>Automate drips with sequences and bulk sends with campaigns.</li>
-        <li>Export Ed25519-signed <strong>proof bundles</strong> of any message&apos;s lifecycle.</li>
+        <li>
+          Track a <strong>deliverability score</strong> and an open/click <strong>analytics</strong> funnel —
+          via <code>mail.deliverability.get()</code> and <code>mail.analytics.get()</code>.
+        </li>
+        <li>Migrate in minutes — import suppressions &amp; contacts with <code>mail.imports</code>.</li>
+        <li>
+          Export Ed25519-signed <strong>proof bundles</strong> and set data-retention policies for
+          compliance.
+        </li>
         <li>See the full plan comparison on the <a href="/pricing">pricing page</a>.</li>
       </ul>
     </DocPage>

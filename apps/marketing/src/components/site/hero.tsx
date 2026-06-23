@@ -64,7 +64,7 @@ export function Hero() {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Typed SDK · snake_case JSON · idempotent by default · no credit card to start
+            Typed SDK &amp; CLI · snake_case JSON · idempotent by default · no credit card to start
           </p>
         </div>
 
