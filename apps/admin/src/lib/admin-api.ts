@@ -16,6 +16,7 @@ import type {
   LeadStatus,
   ListResponse,
   LoginResult,
+  MeResult,
   MessageDetail,
   MessageSummary,
   CreatePromotion,
@@ -23,6 +24,8 @@ import type {
   OrgSummary,
   PlanPatch,
   Promotion,
+  StaffAuditEntry,
+  StaffRole,
   StaffUser,
   Suppression,
 } from "./types";
@@ -102,7 +105,28 @@ export const adminApi = {
   login: (body: { email: string; password: string }) =>
     adminFetch<LoginResult>("/v1/admin/auth/login", { method: "POST", body, noAuth: true }),
   logout: () => adminFetch<{ ok: boolean }>("/v1/admin/auth/logout", { method: "POST", body: {} }),
-  me: () => adminFetch<{ staff: StaffUser }>("/v1/admin/auth/me"),
+  me: () => adminFetch<MeResult>("/v1/admin/auth/me"),
+
+  // First-run bootstrap (no auth — gated by INTERNAL_API_SECRET + zero staff).
+  bootstrap: (body: { email: string; name?: string; password: string; secret: string }) =>
+    adminFetch<{ staff: StaffUser }>("/v1/admin/auth/bootstrap", { method: "POST", body, noAuth: true }),
+
+  // Staff administration.
+  listStaff: () => adminFetch<ListResponse<StaffUser>>("/v1/admin/staff"),
+  createStaff: (body: { email: string; name?: string; role: StaffRole; password?: string }) =>
+    adminFetch<{ staff: StaffUser; generated_password?: string }>("/v1/admin/staff", { method: "POST", body }),
+  updateStaff: (id: string, body: { name?: string; role?: StaffRole }) =>
+    adminFetch<StaffUser>(`/v1/admin/staff/${id}`, { method: "PATCH", body }),
+  deactivateStaff: (id: string) =>
+    adminFetch<StaffUser>(`/v1/admin/staff/${id}/deactivate`, { method: "POST", body: {} }),
+  reactivateStaff: (id: string) =>
+    adminFetch<StaffUser>(`/v1/admin/staff/${id}/reactivate`, { method: "POST", body: {} }),
+  resetStaffPassword: (id: string) =>
+    adminFetch<{ staff: StaffUser; generated_password: string }>(`/v1/admin/staff/${id}/reset-password`, {
+      method: "POST",
+      body: {},
+    }),
+  listStaffAudit: () => adminFetch<ListResponse<StaffAuditEntry>>("/v1/admin/staff-audit"),
 
   listOrgs: () => adminFetch<ListResponse<OrgSummary>>("/v1/admin/orgs"),
   getOrg: (id: string) => adminFetch<OrgDetail>(`/v1/admin/orgs/${id}`),

@@ -76,11 +76,35 @@ export type RetentionMode = (typeof RETENTION_MODES)[number];
 export const MEMBERSHIP_ROLES = ["owner", "admin", "member"] as const;
 export type MembershipRole = (typeof MEMBERSHIP_ROLES)[number];
 
-// Internal staff (apps/admin) — separate from customer membership roles.
-// superadmin: everything (incl. impersonate, deletes); support: read + support
-// tooling; readonly: view-only.
-export const STAFF_ROLES = ["superadmin", "support", "readonly"] as const;
+// Internal staff (apps/admin) — separate from customer membership roles, and
+// enforced by capability (STAFF_PERMISSIONS) not hardcoded role checks, so roles
+// are just named permission bundles and new ones are cheap to add.
+//   superadmin: everything (money, broadcasts, staff admin, impersonation)
+//   billing:    view + commerce/credit — delegate money without the keys
+//   support:    view + customer tooling (suppressions, impersonate, leads)
+//   readonly:   view-only (auditor/analyst)
+export const STAFF_ROLES = ["superadmin", "billing", "support", "readonly"] as const;
 export type StaffRole = (typeof STAFF_ROLES)[number];
+
+export const STAFF_PERMISSIONS = [
+  "staff.read", // view orgs, messages, billing, analytics, leads, suppressions, audit
+  "support.manage", // unblock suppressions, impersonate a customer, work leads
+  "commerce.manage", // plans, add-ons, promotions, discounts, custom plans, account credit
+  "announce.send", // broadcast announcement email to all customers
+  "staff.manage", // create staff, assign roles, deactivate ("fire")
+] as const;
+export type StaffPermission = (typeof STAFF_PERMISSIONS)[number];
+
+export const STAFF_ROLE_PERMISSIONS: Record<StaffRole, StaffPermission[]> = {
+  superadmin: [...STAFF_PERMISSIONS],
+  billing: ["staff.read", "commerce.manage"],
+  support: ["staff.read", "support.manage"],
+  readonly: ["staff.read"],
+};
+
+export function staffCan(role: StaffRole, permission: StaffPermission): boolean {
+  return STAFF_ROLE_PERMISSIONS[role]?.includes(permission) ?? false;
+}
 
 // ---------------------------------------------------------------------------
 // Sales / CRM — enterprise "Contact sales" leads and their lifecycle.

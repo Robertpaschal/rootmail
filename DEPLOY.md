@@ -70,14 +70,23 @@ Wire this as a release/pre-deploy step. Migrations are the **only** required set
 customers self-provision (org + workspaces + first API key) on signup, so do **not**
 auto-`db:seed` in production (seed is for local/dev).
 
-## Bootstrap an admin (apps/admin)
-Create the first internal-staff login without seeding demo data:
+## Bootstrap the first staff (apps/admin)
+No staff are seeded. The first staff account is created via a one-time, gated
+bootstrap — allowed only while **zero** staff exist **and** the caller proves they
+hold `INTERNAL_API_SECRET`; it closes permanently after. The first account is a
+`superadmin`, who then creates the rest of the team in the admin UI (assign roles,
+deactivate, reset passwords).
 
 ```bash
-pnpm create-staff --email=ops@yourco.com --role=superadmin
-# prints a generated password once; pass --password=… to set your own.
-# re-running for the same email resets that staff member's password.
+curl -X POST https://service.<domain>/v1/admin/auth/bootstrap \
+  -H "Content-Type: application/json" \
+  -d '{"email":"ops@yourco.com","name":"Ops","password":"<choose-a-strong-one>","secret":"<INTERNAL_API_SECRET>"}'
 ```
+
+After that, all staff management is in-app (superadmin → Staff): no CLI, no seed,
+no hardcoded login in any environment. Roles: `superadmin` (everything), `billing`
+(view + commerce/credit), `support` (view + suppressions/impersonate/leads),
+`readonly` (view only).
 
 
 ## Webhooks (post-deploy)

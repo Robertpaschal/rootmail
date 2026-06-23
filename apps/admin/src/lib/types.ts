@@ -1,4 +1,10 @@
-export type StaffRole = "superadmin" | "support" | "readonly";
+export type StaffRole = "superadmin" | "billing" | "support" | "readonly";
+export type StaffPermission =
+  | "staff.read"
+  | "support.manage"
+  | "commerce.manage"
+  | "announce.send"
+  | "staff.manage";
 
 export interface StaffUser {
   object: "staff_user";
@@ -6,6 +12,25 @@ export interface StaffUser {
   email: string;
   name: string | null;
   role: StaffRole;
+  active: boolean;
+  created_at: string;
+}
+
+export interface MeResult {
+  staff: StaffUser;
+  permissions: StaffPermission[];
+}
+
+export interface StaffAuditEntry {
+  object: "staff_audit";
+  id: string;
+  actor_email: string | null;
+  action: string;
+  target_type: string | null;
+  target_id: string | null;
+  metadata: Record<string, unknown>;
+  ip: string | null;
+  created_at: string;
 }
 
 export interface LoginResult {

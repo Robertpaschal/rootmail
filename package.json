@@ -21,7 +21,6 @@
     "db:push": "pnpm --filter @rootmail/db push",
     "db:studio": "pnpm --filter @rootmail/db studio",
     "db:seed": "pnpm --filter @rootmail/db seed",
-    "create-staff": "pnpm --filter @rootmail/db create-staff",
     "api": "pnpm --filter @rootmail/api dev",
     "worker": "pnpm --filter @rootmail/worker dev",
     "marketing": "pnpm --filter @rootmail/marketing dev",

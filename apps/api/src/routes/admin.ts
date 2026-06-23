@@ -4,15 +4,21 @@ import type Stripe from "stripe";
 import { z } from "zod";
 import {
   ADD_ON_IDS,
+  announcementUnsubscribeUrl,
   BILLING_INTERVALS,
+  env,
   Errors,
   generateSessionToken,
+  hashPassword,
   LEAD_STATUSES,
   newId,
   PLAN_IDS,
   type PlanId,
-  announcementUnsubscribeUrl,
+  randomToken,
+  safeEqual,
   sendSystemEmail,
+  STAFF_PERMISSIONS,
+  STAFF_ROLES,
   verifyPassword,
 } from "@rootmail/core";
 import {
@@ -31,6 +37,7 @@ import {
   messages,
   organizations,
   plans,
+  staffAudit,
   staffUsers,
   subTenants,
   suppressions,
@@ -43,8 +50,10 @@ import { serializeAudit } from "../lib/serialize";
 import {
   createStaffSession,
   deleteStaffSession,
+  deleteStaffSessionsFor,
+  hasStaffPermission,
   requireStaff,
-  requireStaffRole,
+  requireStaffPermission,
   serializeStaff,
   staffBearer,
   writeStaffAudit,
@@ -222,6 +231,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       await recordAuthFailure("staff", email);
       throw Errors.unauthorized("Invalid email or password.");
     }
+    if (staff.deactivatedAt) throw Errors.forbidden("This staff account has been deactivated.");
     await clearAuthFailures("staff", email);
     const { token, session } = await createStaffSession(staff.id);
     return { staff: serializeStaff(staff), session_token: token, session_expires_at: session.expiresAt };
@@ -233,7 +243,231 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { ok: true };
   });
 
-  app.get("/v1/admin/auth/me", async (req) => ({ staff: serializeStaff(await requireStaff(req)) }));
+  app.get("/v1/admin/auth/me", async (req) => {
+    const staff = await requireStaff(req);
+    // The admin UI uses this to render only what this role can do.
+    return { staff: serializeStaff(staff), permissions: STAFF_PERMISSIONS.filter((p) => hasStaffPermission(staff, p)) };
+  });
+
+  // --- First-run bootstrap (replaces seeding) ----------------------------
+  // Create the very first staff account (superadmin). Allowed ONLY while no
+  // staff exist AND the caller proves they hold INTERNAL_API_SECRET — then it
+  // closes forever. So a stranger who finds the deployed console can't seize it,
+  // and there's nothing to seed.
+  const bootstrapBody = z.object({
+    email: z.string().email(),
+    name: z.string().trim().min(1).max(120).optional(),
+    password: z.string().min(10).max(200),
+    secret: z.string().min(1),
+  });
+  app.post("/v1/admin/auth/bootstrap", async (req) => {
+    const body = parse(bootstrapBody, req.body);
+    if (!env.INTERNAL_API_SECRET || !safeEqual(body.secret, env.INTERNAL_API_SECRET)) {
+      throw Errors.unauthorized("Invalid bootstrap secret.");
+    }
+    const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(staffUsers);
+    if (n > 0) {
+      throw Errors.conflict("Staff already exist — bootstrap is closed. Ask a superadmin to add you.");
+    }
+    const [staff] = await db
+      .insert(staffUsers)
+      .values({
+        id: newId("staffUser"),
+        email: body.email.toLowerCase(),
+        name: body.name ?? null,
+        passwordHash: hashPassword(body.password),
+        role: "superadmin",
+      })
+      .returning();
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "staff.bootstrap",
+      targetType: "staff_user",
+      targetId: staff.id,
+      metadata: { email: staff.email },
+      ip: req.ip,
+    });
+    return { staff: serializeStaff(staff) };
+  });
+
+  // --- Staff administration ----------------------------------------------
+  async function activeSuperadmins(): Promise<number> {
+    const [r] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(staffUsers)
+      .where(and(eq(staffUsers.role, "superadmin"), isNull(staffUsers.deactivatedAt)));
+    return r?.n ?? 0;
+  }
+
+  // The roster + audit are visible to any staff (accountability); changes need staff.manage.
+  app.get("/v1/admin/staff", async (req) => {
+    requireStaffPermission(await requireStaff(req), "staff.read");
+    const rows = await db.select().from(staffUsers).orderBy(asc(staffUsers.createdAt));
+    return { object: "list", data: rows.map(serializeStaff) };
+  });
+
+  const createStaffBody = z.object({
+    email: z.string().email(),
+    name: z.string().trim().min(1).max(120).optional(),
+    role: z.enum(STAFF_ROLES),
+    password: z.string().min(10).max(200).optional(),
+  });
+  app.post("/v1/admin/staff", async (req) => {
+    const actor = await requireStaff(req);
+    requireStaffPermission(actor, "staff.manage");
+    const body = parse(createStaffBody, req.body);
+    const email = body.email.toLowerCase();
+    const [existing] = await db.select().from(staffUsers).where(eq(staffUsers.email, email)).limit(1);
+    if (existing) throw Errors.conflict("A staff member with that email already exists.");
+    const password = body.password ?? randomToken(); // generated when not supplied
+    const [staff] = await db
+      .insert(staffUsers)
+      .values({
+        id: newId("staffUser"),
+        email,
+        name: body.name ?? null,
+        passwordHash: hashPassword(password),
+        role: body.role,
+      })
+      .returning();
+    await writeStaffAudit({
+      staffUserId: actor.id,
+      action: "staff.create",
+      targetType: "staff_user",
+      targetId: staff.id,
+      metadata: { email, role: body.role },
+      ip: req.ip,
+    });
+    // Surface the generated password ONCE (only when we generated it).
+    return { staff: serializeStaff(staff), ...(body.password ? {} : { generated_password: password }) };
+  });
+
+  const updateStaffBody = z.object({
+    name: z.string().trim().min(1).max(120).optional(),
+    role: z.enum(STAFF_ROLES).optional(),
+  });
+  app.patch("/v1/admin/staff/:id", async (req) => {
+    const actor = await requireStaff(req);
+    requireStaffPermission(actor, "staff.manage");
+    const { id } = req.params as { id: string };
+    const body = parse(updateStaffBody, req.body);
+    const [target] = await db.select().from(staffUsers).where(eq(staffUsers.id, id)).limit(1);
+    if (!target) throw Errors.notFound("Staff member not found.");
+    if (body.role && body.role !== target.role) {
+      if (target.id === actor.id) throw Errors.badRequest("You can't change your own role.");
+      if (target.role === "superadmin" && (await activeSuperadmins()) <= 1) {
+        throw Errors.badRequest("Can't demote the last superadmin.");
+      }
+    }
+    const [updated] = await db
+      .update(staffUsers)
+      .set({ name: body.name ?? target.name, role: body.role ?? target.role, updatedAt: new Date() })
+      .where(eq(staffUsers.id, id))
+      .returning();
+    await writeStaffAudit({
+      staffUserId: actor.id,
+      action: "staff.update",
+      targetType: "staff_user",
+      targetId: id,
+      metadata: { name: body.name, role: body.role },
+      ip: req.ip,
+    });
+    return serializeStaff(updated);
+  });
+
+  app.post("/v1/admin/staff/:id/deactivate", async (req) => {
+    const actor = await requireStaff(req);
+    requireStaffPermission(actor, "staff.manage");
+    const { id } = req.params as { id: string };
+    if (id === actor.id) throw Errors.badRequest("You can't deactivate yourself.");
+    const [target] = await db.select().from(staffUsers).where(eq(staffUsers.id, id)).limit(1);
+    if (!target) throw Errors.notFound("Staff member not found.");
+    if (target.deactivatedAt) return serializeStaff(target);
+    if (target.role === "superadmin" && (await activeSuperadmins()) <= 1) {
+      throw Errors.badRequest("Can't deactivate the last superadmin.");
+    }
+    const [updated] = await db
+      .update(staffUsers)
+      .set({ deactivatedAt: new Date(), updatedAt: new Date() })
+      .where(eq(staffUsers.id, id))
+      .returning();
+    await deleteStaffSessionsFor(id); // cut their access immediately
+    await writeStaffAudit({
+      staffUserId: actor.id,
+      action: "staff.deactivate",
+      targetType: "staff_user",
+      targetId: id,
+      metadata: { email: target.email },
+      ip: req.ip,
+    });
+    return serializeStaff(updated);
+  });
+
+  app.post("/v1/admin/staff/:id/reactivate", async (req) => {
+    const actor = await requireStaff(req);
+    requireStaffPermission(actor, "staff.manage");
+    const { id } = req.params as { id: string };
+    const [updated] = await db
+      .update(staffUsers)
+      .set({ deactivatedAt: null, updatedAt: new Date() })
+      .where(eq(staffUsers.id, id))
+      .returning();
+    if (!updated) throw Errors.notFound("Staff member not found.");
+    await writeStaffAudit({
+      staffUserId: actor.id,
+      action: "staff.reactivate",
+      targetType: "staff_user",
+      targetId: id,
+      metadata: { email: updated.email },
+      ip: req.ip,
+    });
+    return serializeStaff(updated);
+  });
+
+  app.post("/v1/admin/staff/:id/reset-password", async (req) => {
+    const actor = await requireStaff(req);
+    requireStaffPermission(actor, "staff.manage");
+    const { id } = req.params as { id: string };
+    const [target] = await db.select().from(staffUsers).where(eq(staffUsers.id, id)).limit(1);
+    if (!target) throw Errors.notFound("Staff member not found.");
+    const password = randomToken();
+    await db.update(staffUsers).set({ passwordHash: hashPassword(password), updatedAt: new Date() }).where(eq(staffUsers.id, id));
+    await deleteStaffSessionsFor(id); // force re-login with the new password
+    await writeStaffAudit({
+      staffUserId: actor.id,
+      action: "staff.reset_password",
+      targetType: "staff_user",
+      targetId: id,
+      metadata: { email: target.email },
+      ip: req.ip,
+    });
+    return { staff: serializeStaff(target), generated_password: password };
+  });
+
+  // Append-only staff action log — accountability across the team.
+  app.get("/v1/admin/staff-audit", async (req) => {
+    requireStaffPermission(await requireStaff(req), "staff.read");
+    const rows = await db
+      .select({ a: staffAudit, email: staffUsers.email })
+      .from(staffAudit)
+      .leftJoin(staffUsers, eq(staffUsers.id, staffAudit.staffUserId))
+      .orderBy(desc(staffAudit.createdAt))
+      .limit(100);
+    return {
+      object: "list",
+      data: rows.map((r) => ({
+        object: "staff_audit",
+        id: r.a.id,
+        actor_email: r.email,
+        action: r.a.action,
+        target_type: r.a.targetType,
+        target_id: r.a.targetId,
+        metadata: r.a.metadata,
+        ip: r.a.ip,
+        created_at: r.a.createdAt,
+      })),
+    };
+  });
 
   // --- Cross-org directory (CRM) ------------------------------------------
   app.get("/v1/admin/orgs", async (req) => {
@@ -435,7 +669,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // Clear a suppression (e.g. a wrongly-bounced contact). Audited; role-gated.
   app.delete("/v1/admin/suppressions/:id", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff, "support"); // superadmin auto-passes; readonly rejected
+    requireStaffPermission(staff, "support.manage"); // superadmin auto-passes; readonly rejected
     const { id } = req.params as { id: string };
     const [row] = await db.select().from(suppressions).where(eq(suppressions.id, id)).limit(1);
     if (!row) throw Errors.notFound("Suppression not found");
@@ -457,7 +691,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // never travels in a URL. Every grant is written to the staff audit log.
   app.post("/v1/admin/users/:userId/impersonate", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff, "support"); // superadmin auto-passes; readonly is rejected
+    requireStaffPermission(staff, "support.manage"); // superadmin auto-passes; readonly is rejected
     const { userId } = req.params as { userId: string };
     const [user] = await db.select().from(users).where(eq(users.id, userId)).limit(1);
     if (!user) throw Errors.notFound("User not found");
@@ -661,7 +895,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   });
   app.post("/v1/admin/orgs/:id/credit", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff); // superadmin only (no other role passes)
+    requireStaffPermission(staff, "commerce.manage"); // superadmin only (no other role passes)
     const { id } = req.params as { id: string };
     const { amount_cents, reason } = parse(creditBody, req.body);
     const [org] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
@@ -712,7 +946,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // the billed Stripe price is synced separately (Phase B).
   app.patch("/v1/admin/plans/:id", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff); // superadmin only
+    requireStaffPermission(staff, "commerce.manage"); // superadmin only
     const { id } = req.params as { id: string };
     if (!(PLAN_IDS as readonly string[]).includes(id)) throw Errors.notFound("Plan not found");
     const body = parse(planPatch, req.body);
@@ -782,7 +1016,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // coupon so the marketed sale price is what's charged; takes effect immediately.
   app.post("/v1/admin/plans/:id/sale", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "commerce.manage");
     const { id } = req.params as { id: string };
     if (!(PLAN_IDS as readonly string[]).includes(id)) throw Errors.notFound("Plan not found");
     const b = parse(saleBody, req.body);
@@ -835,7 +1069,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // End a plan's sale: delete the coupon + clear the fields. Superadmin, audited.
   app.delete("/v1/admin/plans/:id/sale", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "commerce.manage");
     const { id } = req.params as { id: string };
     if (!(PLAN_IDS as readonly string[]).includes(id)) throw Errors.notFound("Plan not found");
     const [plan] = await db.select().from(plans).where(eq(plans.id, id as PlanId)).limit(1);
@@ -885,7 +1119,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // audited. Redeemable immediately at checkout (allow_promotion_codes is on).
   app.post("/v1/admin/promotions", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "commerce.manage");
     const b = parse(promoBody, req.body);
     const stripe = getStripe();
     if (!stripe) throw Errors.badRequest("Stripe isn't configured.");
@@ -922,7 +1156,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/v1/admin/promotions/:id/deactivate", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "commerce.manage");
     const { id } = req.params as { id: string };
     const stripe = getStripe();
     if (!stripe) throw Errors.badRequest("Stripe isn't configured.");
@@ -957,7 +1191,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // grant/unit changes take effect immediately via the cache.
   app.patch("/v1/admin/addons/:id", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "commerce.manage");
     const { id } = req.params as { id: string };
     if (!(ADD_ON_IDS as readonly string[]).includes(id)) throw Errors.notFound("Add-on not found");
     const body = parse(addonPatch, req.body);
@@ -1010,7 +1244,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // --- Add-on sales (a visible % off, charged via a discounted sale price) -
   app.post("/v1/admin/addons/:id/sale", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "commerce.manage");
     const { id } = req.params as { id: string };
     if (!(ADD_ON_IDS as readonly string[]).includes(id)) throw Errors.notFound("Add-on not found");
     const b = parse(saleBody, req.body);
@@ -1062,7 +1296,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 
   app.delete("/v1/admin/addons/:id/sale", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "commerce.manage");
     const { id } = req.params as { id: string };
     if (!(ADD_ON_IDS as readonly string[]).includes(id)) throw Errors.notFound("Add-on not found");
     const [addon] = await db.select().from(addons).where(eq(addons.id, id)).limit(1);
@@ -1161,7 +1395,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // changes are auto-logged to the lead's activity timeline and the staff audit.
   app.patch("/v1/admin/leads/:id", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff, "support");
+    requireStaffPermission(staff, "support.manage");
     const { id } = req.params as { id: string };
     const body = parse(leadPatch, req.body);
 
@@ -1227,7 +1461,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   const noteBody = z.object({ body: z.string().trim().min(1).max(4000) });
   app.post("/v1/admin/leads/:id/notes", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff, "support");
+    requireStaffPermission(staff, "support.manage");
     const { id } = req.params as { id: string };
     const { body } = parse(noteBody, req.body);
 
@@ -1267,7 +1501,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // converts that lead to a won customer. Economics take effect immediately.
   app.post("/v1/admin/orgs/:id/custom-plan", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "commerce.manage");
     const { id } = req.params as { id: string };
     const b = parse(customPlanBody, req.body);
 
@@ -1345,7 +1579,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // Provision billing for the custom plan (send-invoice subscription). Superadmin.
   app.post("/v1/admin/orgs/:id/custom-plan/bill", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "commerce.manage");
     const { id } = req.params as { id: string };
     const [org] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
     if (!org) throw Errors.notFound("Organization not found");
@@ -1371,7 +1605,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // matches what's now enforced (no more invoicing the custom price). Superadmin, audited.
   app.post("/v1/admin/orgs/:id/custom-plan/deactivate", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "commerce.manage");
     const { id } = req.params as { id: string };
     const [org] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
     if (!org) throw Errors.notFound("Organization not found");
@@ -1439,7 +1673,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // pipeline. Superadmin only (it emails the whole customer base), audited.
   app.post("/v1/admin/announcements", async (req) => {
     const staff = await requireStaff(req);
-    requireStaffRole(staff);
+    requireStaffPermission(staff, "announce.send");
     const b = parse(announcementBody, req.body);
 
     const recipients = await announcementRecipients();
