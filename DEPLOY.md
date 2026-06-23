@@ -8,17 +8,28 @@ What ships and how to run it in production. (CI gates every change — see
 |---|---|---|
 | `apps/api` | Fastify REST gateway | Docker (`apps/api/Dockerfile`), port 4000, health `GET /health` |
 | `apps/worker` | BullMQ send/webhook/sequence/campaign processor | Docker (`apps/worker/Dockerfile`), no port |
-| `apps/dashboard` | Next.js operator console | Next host (Vercel or Node); calls the API server-side only |
-| `apps/marketing` | Next.js marketing site | Static-friendly Next host |
+| `apps/dashboard` | Next.js operator console | Docker (`apps/dashboard/Dockerfile`), port 3000; calls the API server-side only |
+| `apps/marketing` | Next.js marketing site | Docker (`apps/marketing/Dockerfile`), port 3000 |
+| `apps/admin` | Next.js internal staff console | Docker (`apps/admin/Dockerfile`), port 3000; separate staff session |
 | Postgres | primary store | managed (e.g. RDS) |
 | Redis | queue + idempotency + rate limits | managed (e.g. ElastiCache) |
 
-The api/worker images are built from the **repo root** (they need the whole
-workspace):
+All five images build from the **repo root** (they need the whole workspace).
+`docker-compose.prod.yml` defines the lot — bring up everything, or just the one
+service a given host runs:
 
 ```bash
-docker build -f apps/api/Dockerfile    -t rootmail-api .
-docker build -f apps/worker/Dockerfile -t rootmail-worker .
+# whole stack on one host
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+
+# or one service per host (our beta topology — one app per EC2 box)
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build api
+```
+
+Individual images still build directly if you prefer:
+
+```bash
+docker build -f apps/api/Dockerfile -t rootmail-api .   # …worker, marketing, dashboard, admin
 ```
 
 ## Infrastructure
@@ -28,7 +39,11 @@ docker build -f apps/worker/Dockerfile -t rootmail-worker .
 - Scale the worker horizontally (BullMQ concurrency); the api is stateless.
 
 ## Environment & secrets
-Set real values via your platform's secret manager — never commit them
+The compose reads one gitignored **`.env.prod`** at the repo root as the single
+source of truth (`--env-file .env.prod`). Backend secrets (DB, Redis, SES, Stripe,
+signing keys) are loaded only into **api**/**worker**; the public-facing Next apps
+(marketing/dashboard/admin) receive **only** the env they need — see the per-service
+`environment:` lists in `docker-compose.prod.yml`. Never commit secrets
 (`.env.example` is placeholders only). The essentials:
 
 - `DATABASE_URL`, `REDIS_URL`
@@ -69,6 +84,10 @@ pnpm create-staff --email=ops@yourco.com --role=superadmin
 - Stripe: point a webhook at `…/v1/webhooks/stripe`, set `STRIPE_WEBHOOK_SECRET`.
 - SES feedback + inbound: SNS subscriptions → `…/v1/webhooks/ses` (raw delivery off).
   MX of `INBOUND_DOMAIN` → `inbound-smtp.<region>.amazonaws.com` + a receipt rule.
+  **Order matters:** the API must be deployed and reachable at that public URL
+  *first* — SNS delivers its subscription-confirmation POST to the endpoint, so if
+  the app isn't serving yet there's nowhere to confirm. Deploy api → then create/
+  confirm the SNS subscription (the endpoint auto-confirms on the confirmation POST).
 
 ## Still to wire (Phase 8 infra)
 Observability (logs/metrics/alerts) + queue monitoring, automated backups, a
