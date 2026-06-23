@@ -1,0 +1,86 @@
+# Production stack — build + run all five rootmail services from one file.
+#
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+#
+# Each EC2 host can run just its service, e.g.:
+#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build api
+#
+# Postgres + Redis are intentionally NOT here — production uses managed instances
+# (RDS / ElastiCache, VPC-only). Point DATABASE_URL / REDIS_URL at them in
+# .env.prod. The central .env.prod is the single source of secrets; backend
+# secrets stay on api/worker, and the public-facing Next apps receive ONLY the
+# env they need (with .env.prod's names bridged to what each app reads).
+name: rootmail
+
+services:
+  api:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    image: rootmail-api
+    restart: unless-stopped
+    env_file: [.env.prod] # backend: the full env surface (DB, Redis, SES, Stripe, signing…)
+    environment:
+      NODE_ENV: production
+      API_HOST: 0.0.0.0
+      TRUST_PROXY: "1" # behind nginx/ALB
+    ports: ["4000:4000"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:4000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+
+  worker:
+    build: { context: ., dockerfile: apps/worker/Dockerfile }
+    image: rootmail-worker
+    restart: unless-stopped
+    env_file: [.env.prod] # backend: same store/queue/provider/signing env as the API
+    environment:
+      NODE_ENV: production
+
+  marketing:
+    build:
+      context: .
+      dockerfile: apps/marketing/Dockerfile
+      args:
+        NEXT_PUBLIC_DASHBOARD_URL: ${NEXT_PUBLIC_DASHBOARD_URL}
+    image: rootmail-marketing
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      ROOTMAIL_API_URL: ${PUBLIC_API_URL} # contact form → public /v1/leads
+      ROOTMAIL_API_KEY: ${ROOTMAIL_API_KEY:-}
+    ports: ["3000:3000"]
+
+  dashboard:
+    build: { context: ., dockerfile: apps/dashboard/Dockerfile }
+    image: rootmail-dashboard
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      ROOTMAIL_API_URL: ${PUBLIC_API_URL} # server-side API calls only
+      DASHBOARD_URL: ${DASHBOARD_URL}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      # Apple OAuth is optional (paid developer account pending) — empty = disabled.
+      APPLE_CLIENT_ID: ${APPLE_CLIENT_ID:-}
+      APPLE_TEAM_ID: ${APPLE_TEAM_ID:-}
+      APPLE_KEY_ID: ${APPLE_KEY_ID:-}
+      APPLE_PRIVATE_KEY: ${APPLE_PRIVATE_KEY:-}
+    ports: ["3001:3000"]
+
+  admin:
+    build: { context: ., dockerfile: apps/admin/Dockerfile }
+    image: rootmail-admin
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      ROOTMAIL_API_URL: ${PUBLIC_API_URL} # cross-org /v1/admin/* calls, server-side
+      ROOTMAIL_DASHBOARD_URL: ${DASHBOARD_URL}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
+    ports: ["3002:3000"]
