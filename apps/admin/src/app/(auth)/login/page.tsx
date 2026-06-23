@@ -4,6 +4,7 @@ import { Logo } from "@/components/app/logo";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminApi } from "@/lib/admin-api";
 import { getStaffToken } from "@/lib/session";
+import { BootstrapForm } from "../bootstrap/bootstrap-form";
 import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
@@ -20,6 +21,14 @@ export default async function LoginPage() {
     if (ok) redirect("/");
   }
 
+  // Before any staff exists, the login page IS the first-run setup: create the
+  // first superadmin right here (gated by the bootstrap secret). Once one exists,
+  // it's the normal sign-in.
+  const needsBootstrap = await adminApi
+    .status()
+    .then((s) => s.needs_bootstrap)
+    .catch(() => false);
+
   return (
     <main className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-sm space-y-6">
@@ -28,12 +37,14 @@ export default async function LoginPage() {
         </div>
         <Card>
           <CardHeader>
-            <CardTitle>Staff sign in</CardTitle>
-            <CardDescription>Internal access only. Activity is audited.</CardDescription>
+            <CardTitle>{needsBootstrap ? "Create the first superadmin" : "Staff sign in"}</CardTitle>
+            <CardDescription>
+              {needsBootstrap
+                ? "No staff exist yet. Set up the first account using your deployment's bootstrap secret."
+                : "Internal access only. Activity is audited."}
+            </CardDescription>
           </CardHeader>
-          <CardContent>
-            <LoginForm />
-          </CardContent>
+          <CardContent>{needsBootstrap ? <BootstrapForm /> : <LoginForm />}</CardContent>
         </Card>
       </div>
     </main>

@@ -9,6 +9,12 @@ export function bullConnection(): ConnectionOptions {
   return getRedis() as unknown as ConnectionOptions;
 }
 
+// Redis Cluster (e.g. ElastiCache Serverless) shards keys by slot, but BullMQ's
+// Lua scripts touch several keys per queue at once — they must hash to ONE slot.
+// A `{…}` hash-tag prefix forces that. MUST be identical on every Queue AND Worker
+// (producers + consumers) or they won't see each other's jobs.
+export const BULL_PREFIX = "{rootmail}";
+
 // Note: BullMQ disallows ":" in queue names (it's the internal Redis key separator).
 export const SEND_QUEUE = "rootmail-send";
 
@@ -28,7 +34,7 @@ let sendQueue: Queue<SendJobData> | undefined;
 
 export function getSendQueue(): Queue<SendJobData> {
   if (sendQueue) return sendQueue;
-  sendQueue = new Queue<SendJobData>(SEND_QUEUE, { connection: bullConnection() });
+  sendQueue = new Queue<SendJobData>(SEND_QUEUE, { connection: bullConnection(), prefix: BULL_PREFIX });
   return sendQueue;
 }
 
@@ -81,7 +87,7 @@ let webhookQueue: Queue<WebhookJob> | undefined;
 
 export function getWebhookQueue(): Queue<WebhookJob> {
   if (webhookQueue) return webhookQueue;
-  webhookQueue = new Queue<WebhookJob>(WEBHOOK_QUEUE, { connection: bullConnection() });
+  webhookQueue = new Queue<WebhookJob>(WEBHOOK_QUEUE, { connection: bullConnection(), prefix: BULL_PREFIX });
   return webhookQueue;
 }
 
@@ -108,7 +114,7 @@ export const CAMPAIGN_QUEUE = "rootmail-campaigns";
 
 let sequenceQueue: Queue | undefined;
 export function getSequenceQueue(): Queue {
-  if (!sequenceQueue) sequenceQueue = new Queue(SEQUENCE_QUEUE, { connection: bullConnection() });
+  if (!sequenceQueue) sequenceQueue = new Queue(SEQUENCE_QUEUE, { connection: bullConnection(), prefix: BULL_PREFIX });
   return sequenceQueue;
 }
 
@@ -128,7 +134,7 @@ export interface CampaignJob {
 
 let campaignQueue: Queue<CampaignJob> | undefined;
 export function getCampaignQueue(): Queue<CampaignJob> {
-  if (!campaignQueue) campaignQueue = new Queue<CampaignJob>(CAMPAIGN_QUEUE, { connection: bullConnection() });
+  if (!campaignQueue) campaignQueue = new Queue<CampaignJob>(CAMPAIGN_QUEUE, { connection: bullConnection(), prefix: BULL_PREFIX });
   return campaignQueue;
 }
 
@@ -162,7 +168,7 @@ export interface SystemMailJob {
 let systemMailQueue: Queue<SystemMailJob> | undefined;
 export function getSystemMailQueue(): Queue<SystemMailJob> {
   if (!systemMailQueue) {
-    systemMailQueue = new Queue<SystemMailJob>(SYSTEM_MAIL_QUEUE, { connection: bullConnection() });
+    systemMailQueue = new Queue<SystemMailJob>(SYSTEM_MAIL_QUEUE, { connection: bullConnection(), prefix: BULL_PREFIX });
   }
   return systemMailQueue;
 }
@@ -187,7 +193,7 @@ export const RETENTION_QUEUE = "rootmail-retention";
 
 let retentionQueue: Queue | undefined;
 export function getRetentionQueue(): Queue {
-  if (!retentionQueue) retentionQueue = new Queue(RETENTION_QUEUE, { connection: bullConnection() });
+  if (!retentionQueue) retentionQueue = new Queue(RETENTION_QUEUE, { connection: bullConnection(), prefix: BULL_PREFIX });
   return retentionQueue;
 }
 

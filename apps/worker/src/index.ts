@@ -1,5 +1,6 @@
 import { type ConnectionOptions, Worker } from "bullmq";
 import {
+  BULL_PREFIX,
   CAMPAIGN_QUEUE,
   type CampaignJob,
   createRedis,
@@ -29,7 +30,7 @@ const worker = new Worker<SendJobData>(
   async (job) => {
     await processSend(job.data);
   },
-  { connection, concurrency: 10 },
+  { connection, prefix: BULL_PREFIX, concurrency: 10 },
 );
 
 worker.on("ready", () =>
@@ -47,7 +48,7 @@ const webhookWorker = new Worker(
   async (job) => {
     await processWebhookJob(job);
   },
-  { connection: createRedis() as unknown as ConnectionOptions, concurrency: 5 },
+  { connection: createRedis() as unknown as ConnectionOptions, prefix: BULL_PREFIX, concurrency: 5 },
 );
 webhookWorker.on("ready", () => console.log(`rootmail webhook worker ready — queue "${WEBHOOK_QUEUE}"`));
 webhookWorker.on("error", (err) => console.error("webhook worker error:", err.message));
@@ -59,7 +60,7 @@ const sequenceWorker = new Worker(
   async (job) => {
     if (job.name === "tick") await processSequenceTick();
   },
-  { connection: createRedis() as unknown as ConnectionOptions, concurrency: 1 },
+  { connection: createRedis() as unknown as ConnectionOptions, prefix: BULL_PREFIX, concurrency: 1 },
 );
 sequenceWorker.on("ready", () => {
   console.log(`rootmail sequence worker ready — queue "${SEQUENCE_QUEUE}"`);
@@ -73,7 +74,7 @@ const campaignWorker = new Worker<CampaignJob>(
   async (job) => {
     await processCampaignSend(job.data);
   },
-  { connection: createRedis() as unknown as ConnectionOptions, concurrency: 3 },
+  { connection: createRedis() as unknown as ConnectionOptions, prefix: BULL_PREFIX, concurrency: 3 },
 );
 campaignWorker.on("ready", () => console.log(`rootmail campaign worker ready — queue "${CAMPAIGN_QUEUE}"`));
 campaignWorker.on("error", (err) => console.error("campaign worker error:", err.message));
@@ -84,7 +85,7 @@ const systemMailWorker = new Worker<SystemMailJob>(
   async (job) => {
     await processSystemMail(job.data);
   },
-  { connection: createRedis() as unknown as ConnectionOptions, concurrency: 5 },
+  { connection: createRedis() as unknown as ConnectionOptions, prefix: BULL_PREFIX, concurrency: 5 },
 );
 systemMailWorker.on("ready", () =>
   console.log(`rootmail system-mail worker ready — queue "${SYSTEM_MAIL_QUEUE}"`),
@@ -98,7 +99,7 @@ const retentionWorker = new Worker(
   async (job) => {
     if (job.name === "sweep") await processRetentionSweep();
   },
-  { connection: createRedis() as unknown as ConnectionOptions, concurrency: 1 },
+  { connection: createRedis() as unknown as ConnectionOptions, prefix: BULL_PREFIX, concurrency: 1 },
 );
 retentionWorker.on("ready", () => {
   console.log(`rootmail retention worker ready — queue "${RETENTION_QUEUE}"`);

@@ -249,6 +249,14 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { staff: serializeStaff(staff), permissions: STAFF_PERMISSIONS.filter((p) => hasStaffPermission(staff, p)) };
   });
 
+  // Public: does the console still need its first staff account? The login page
+  // uses this to show the create-superadmin form before anyone exists. Reveals
+  // only a boolean (and bootstrap still requires INTERNAL_API_SECRET).
+  app.get("/v1/admin/auth/status", async () => {
+    const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(staffUsers);
+    return { object: "admin_status", needs_bootstrap: n === 0 };
+  });
+
   // --- First-run bootstrap (replaces seeding) ----------------------------
   // Create the very first staff account (superadmin). Allowed ONLY while no
   // staff exist AND the caller proves they hold INTERNAL_API_SECRET — then it

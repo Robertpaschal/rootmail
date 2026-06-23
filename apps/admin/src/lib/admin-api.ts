@@ -106,6 +106,7 @@ export const adminApi = {
     adminFetch<LoginResult>("/v1/admin/auth/login", { method: "POST", body, noAuth: true }),
   logout: () => adminFetch<{ ok: boolean }>("/v1/admin/auth/logout", { method: "POST", body: {} }),
   me: () => adminFetch<MeResult>("/v1/admin/auth/me"),
+  status: () => adminFetch<{ needs_bootstrap: boolean }>("/v1/admin/auth/status", { noAuth: true }),
 
   // First-run bootstrap (no auth — gated by INTERNAL_API_SECRET + zero staff).
   bootstrap: (body: { email: string; name?: string; password: string; secret: string }) =>

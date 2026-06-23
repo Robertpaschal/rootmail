@@ -10,3 +10,6 @@
 .env
 **/.env
 **/.env.local
+# Prod secrets are injected at runtime via compose env_file — NEVER bake them in.
+.env.prod
+**/.env.prod
