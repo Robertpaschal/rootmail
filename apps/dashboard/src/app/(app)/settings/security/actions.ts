@@ -80,3 +80,13 @@ export async function saveSenderAddress(
     return { error: err instanceof ApiError ? err.message : "Couldn't save the address." };
   }
 }
+
+export async function setAnnouncementOptOut(optOut: boolean): Promise<{ ok?: boolean; error?: string }> {
+  try {
+    await api.setAnnouncementPref(optOut);
+    revalidatePath("/settings/security");
+    return { ok: true };
+  } catch (err) {
+    return { error: err instanceof ApiError ? err.message : "Couldn't update your preference." };
+  }
+}
