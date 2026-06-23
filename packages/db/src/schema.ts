@@ -768,6 +768,8 @@ export const staffUsers = pgTable("staff_users", {
   name: text("name"),
   passwordHash: text("password_hash").notNull(),
   role: staffRoleEnum("role").notNull().default("support"),
+  // Set when a staffer is deactivated ("fired") — their sessions stop resolving.
+  deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

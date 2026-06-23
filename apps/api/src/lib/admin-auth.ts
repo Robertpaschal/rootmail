@@ -1,6 +1,13 @@
 import { eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
-import { Errors, generateSessionToken, newId, sha256Hex, type StaffRole } from "@rootmail/core";
+import {
+  Errors,
+  generateSessionToken,
+  newId,
+  sha256Hex,
+  staffCan,
+  type StaffPermission,
+} from "@rootmail/core";
 import { db, staffAudit, type StaffUser, staffSessions, staffUsers } from "@rootmail/db";
 
 // Staff sessions are deliberately separate from customer sessions, and shorter
@@ -33,11 +40,17 @@ export async function resolveStaffSession(token: string): Promise<StaffUser | nu
     .limit(1);
   if (!s || s.expiresAt.getTime() <= Date.now()) return null;
   const [u] = await db.select().from(staffUsers).where(eq(staffUsers.id, s.staffUserId)).limit(1);
-  return u ?? null;
+  // A deactivated ("fired") staffer's sessions stop resolving immediately.
+  return u && !u.deactivatedAt ? u : null;
 }
 
 export async function deleteStaffSession(token: string): Promise<void> {
   await db.delete(staffSessions).where(eq(staffSessions.tokenHash, sha256Hex(token)));
+}
+
+/** Revoke every session for a staffer — used when they're deactivated or reset. */
+export async function deleteStaffSessionsFor(staffUserId: string): Promise<void> {
+  await db.delete(staffSessions).where(eq(staffSessions.staffUserId, staffUserId));
 }
 
 export function staffBearer(req: FastifyRequest): string | undefined {
@@ -53,14 +66,26 @@ export async function requireStaff(req: FastifyRequest): Promise<StaffUser> {
   return staff;
 }
 
-/** Require the staff member to hold one of `roles` (superadmin always passes). */
-export function requireStaffRole(staff: StaffUser, ...roles: StaffRole[]): void {
-  if (staff.role === "superadmin" || roles.includes(staff.role)) return;
-  throw Errors.forbidden("Your staff role doesn't allow this.");
+export function hasStaffPermission(staff: StaffUser, permission: StaffPermission): boolean {
+  return staffCan(staff.role, permission);
+}
+
+/** Require the staff member's role to grant `permission`. Throws 403 otherwise. */
+export function requireStaffPermission(staff: StaffUser, permission: StaffPermission): void {
+  if (staffCan(staff.role, permission)) return;
+  throw Errors.forbidden(`Your staff role (${staff.role}) doesn't allow this.`);
 }
 
 export function serializeStaff(s: StaffUser) {
-  return { object: "staff_user", id: s.id, email: s.email, name: s.name, role: s.role };
+  return {
+    object: "staff_user",
+    id: s.id,
+    email: s.email,
+    name: s.name,
+    role: s.role,
+    active: s.deactivatedAt == null,
+    created_at: s.createdAt,
+  };
 }
 
 /** Append-only record of a privileged staff action. Never blocks the action. */

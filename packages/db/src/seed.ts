@@ -5,7 +5,6 @@ import {
   AI_CREDITS,
   env,
   generateApiKey,
-  hashPassword,
   newId,
   PLAN_IDS,
   PLANS,
@@ -19,7 +18,6 @@ import {
   type Organization,
   orgAddons,
   plans,
-  staffUsers,
   templates,
   type Workspace,
   workspaces,
@@ -73,26 +71,9 @@ async function ensurePlans(): Promise<void> {
   }
 }
 
-// Dev staff login for apps/admin. Idempotent: re-seeding resets the password so
-// the printed credential is always valid locally. Change this in production.
-const STAFF_EMAIL = "admin@rootmail.io";
-const STAFF_PASSWORD = "rootmail-admin";
-
-async function ensureStaffUser(): Promise<void> {
-  await db
-    .insert(staffUsers)
-    .values({
-      id: newId("staffUser"),
-      email: STAFF_EMAIL,
-      name: "Rootmail Admin",
-      passwordHash: hashPassword(STAFF_PASSWORD),
-      role: "superadmin",
-    })
-    .onConflictDoUpdate({
-      target: staffUsers.email,
-      set: { passwordHash: hashPassword(STAFF_PASSWORD), role: "superadmin", updatedAt: new Date() },
-    });
-}
+// No staff are seeded — the first staff account is created via the gated
+// first-run bootstrap (POST /v1/admin/auth/bootstrap), so there's never a
+// hardcoded admin login in any environment.
 
 async function ensureOrganization(): Promise<Organization> {
   const [existing] = await db
@@ -204,8 +185,6 @@ async function main() {
   const liveKey = await createApiKey(production.id, "Seed key", "live");
   const testKey = await createApiKey(sandbox.id, "Seed test key", "test");
 
-  await ensureStaffUser();
-
   const line = "─".repeat(64);
   console.log(`\n${line}`);
   console.log("  rootmail — seed complete");
@@ -220,8 +199,8 @@ async function main() {
   console.log("  TEST API key:\n");
   console.log(`      ${testKey}`);
   console.log(line);
-  console.log("  Admin console (apps/admin) staff login:\n");
-  console.log(`      ${STAFF_EMAIL}  /  ${STAFF_PASSWORD}`);
+  console.log("  Admin console (apps/admin): bootstrap the first staff with\n");
+  console.log("      POST /v1/admin/auth/bootstrap  { email, password, secret: INTERNAL_API_SECRET }");
   console.log(line);
   console.log("  Send your first email:\n");
   console.log(`    curl -s ${env.PUBLIC_API_URL}/v1/messages \\`);
