@@ -1,6 +1,6 @@
 # Build from the repo root (needs the whole workspace):
 #   docker build -f apps/worker/Dockerfile -t rootmail-worker .
-FROM node:20-alpine
+FROM node:22-alpine
 RUN corepack enable && corepack prepare pnpm@11.1.2 --activate
 WORKDIR /app
 

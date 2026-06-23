@@ -1,7 +1,7 @@
 # Build from the repo root (needs the whole workspace):
 #   docker build -f apps/marketing/Dockerfile -t rootmail-marketing .
 # NEXT_PUBLIC_* are baked into the client bundle at build time, so they're build args.
-FROM node:20-alpine
+FROM node:22-alpine
 RUN corepack enable && corepack prepare pnpm@11.1.2 --activate
 WORKDIR /app
 

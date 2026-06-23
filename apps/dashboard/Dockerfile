@@ -2,7 +2,7 @@
 #   docker build -f apps/dashboard/Dockerfile -t rootmail-dashboard .
 # The dashboard calls the API server-side only; all its env is read at runtime
 # (no NEXT_PUBLIC_* baked in), so no build args are needed.
-FROM node:20-alpine
+FROM node:22-alpine
 RUN corepack enable && corepack prepare pnpm@11.1.2 --activate
 WORKDIR /app
 
