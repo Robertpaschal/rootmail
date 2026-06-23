@@ -88,6 +88,8 @@ Usage: rootmail <command> [options]   (auth via ROOTMAIL_API_KEY)
   domains:auth <id>                              SPF/DKIM/DMARC/BIMI audit for a domain
   deliverability                                 Reputation score + rates
   analytics                                      Engagement funnel + rates
+  usage                                          Plan, included quota + usage this period
+  suppressions:check <email>                     Is an address suppressed?
   import:suppressions <file.csv> [--source <s>]  Bulk-import a suppression list
   import:contacts <file.csv> [--list <id>]       Bulk-import contacts
   assistant <prompt…>                            Ask the in-app agent
@@ -172,6 +174,22 @@ async function main() {
           `Sent ${r.funnel.sent} · delivered ${r.funnel.delivered} (${r.rates.delivery}%) · opened ${r.funnel.opened} (${r.rates.open}%) · clicked ${r.funnel.clicked} (${r.rates.click}%)`,
         ),
       );
+      break;
+    }
+    case "usage": {
+      const b = await c.billing.get();
+      show(b, () =>
+        console.log(
+          `${b.plan.name} (${b.plan_status}) · ${b.usage.used}/${b.usage.quota === -1 ? "∞" : b.usage.quota} emails this period · ${b.usage.remaining === -1 ? "∞" : b.usage.remaining} left`,
+        ),
+      );
+      break;
+    }
+    case "suppressions:check": {
+      const email = positional[0];
+      if (!email) throw new Error("suppressions:check: an email is required");
+      const r = await c.suppressions.check(email);
+      show(r, () => console.log(`${r.email}: ${r.suppressed ? "suppressed" : "not suppressed"}`));
       break;
     }
     case "import:suppressions": {

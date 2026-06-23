@@ -1,11 +1,13 @@
 import { RootMailError } from "./errors";
 import { Assistant } from "./resources/assistant";
+import { Billing } from "./resources/billing";
 import { Campaigns } from "./resources/campaigns";
 import { Exports, Retention } from "./resources/compliance";
 import { Contacts } from "./resources/contacts";
 import { Imports } from "./resources/imports";
 import { AnalyticsResource, DeliverabilityResource } from "./resources/insights";
 import { Lists } from "./resources/lists";
+import { Suppressions } from "./resources/suppressions";
 import { Messages } from "./resources/messages";
 import { Sequences } from "./resources/sequences";
 import { SubTenants } from "./resources/sub-tenants";
@@ -56,6 +58,8 @@ export class RootMail {
   readonly retention: Retention;
   readonly imports: Imports;
   readonly assistant: Assistant;
+  readonly suppressions: Suppressions;
+  readonly billing: Billing;
 
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -89,6 +93,8 @@ export class RootMail {
     this.retention = new Retention(this);
     this.imports = new Imports(this);
     this.assistant = new Assistant(this);
+    this.suppressions = new Suppressions(this);
+    this.billing = new Billing(this);
   }
 
   /** Returns a client scoped to a sub-tenant. */

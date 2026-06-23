@@ -48,6 +48,7 @@ export function serializeUser(u: User) {
     name: u.name,
     email_verified: u.emailVerifiedAt != null,
     mfa_enabled: u.mfaEnabledAt != null,
+    announcement_opt_out: u.announcementOptOutAt != null,
     created_at: u.createdAt,
   };
 }

@@ -299,3 +299,22 @@ export interface AssistantResponse {
   source: "claude" | "mock";
   credits: { used: number; allowance: number };
 }
+
+export interface SuppressionCheck {
+  email: string;
+  suppressed: boolean;
+}
+
+export interface Billing {
+  object: "billing";
+  plan_status: string;
+  plan: {
+    id: string;
+    name: string;
+    price: number | null;
+    monthly_quota: number;
+    ai_credits: number;
+    features: string[];
+  };
+  usage: { period: string; used: number; quota: number; remaining: number; overage: number };
+}

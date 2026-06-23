@@ -240,6 +240,22 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  // --- Email preferences (the signed-in user) -----------------------------
+  // In-app counterpart to the announcement unsubscribe link. Toggles whether the
+  // user receives staff broadcast announcements; essential account/security mail
+  // is always sent.
+  const prefsBody = z.object({ announcement_opt_out: z.boolean() });
+  app.post("/v1/auth/preferences", async (req) => {
+    const { user } = await requireSession(req);
+    const body = parse(prefsBody, req.body);
+    const [updated] = await db
+      .update(users)
+      .set({ announcementOptOutAt: body.announcement_opt_out ? new Date() : null, updatedAt: new Date() })
+      .where(eq(users.id, user.id))
+      .returning();
+    return serializeUser(updated);
+  });
+
   // --- Log out ------------------------------------------------------------
   app.post("/v1/auth/logout", async (req) => {
     const token = bearerToken(req);

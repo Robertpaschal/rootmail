@@ -61,13 +61,41 @@ for (const event of trail) {
 // 2026-06-13T10:00:05Z  delivered
 // 2026-06-13T10:01:30Z  opened`,
   },
+  {
+    id: "operate",
+    label: "Deliverability & AI",
+    filename: "operate.ts",
+    code: `// Reputation, engagement, and the in-app agent — all in the SDK.
+const rep = await mail.deliverability.get();
+console.log(rep.score, rep.grade, rep.rates.bounce); // 96 "A" 0.4
+
+const stats = await mail.analytics.get();
+console.log(stats.rates.open, stats.rates.click);    // 51.2 8.7
+
+// Let the agent operate or diagnose — within your plan & role.
+const res = await mail.assistant.ask("why did my last campaign bounce?");
+console.log(res.reply);`,
+  },
+  {
+    id: "cli",
+    label: "CLI",
+    filename: "terminal",
+    code: `# Script rootmail from your terminal or CI.
+npm i -g @rootmail/cli
+export ROOTMAIL_API_KEY=rm_live_…
+
+rootmail send --to user@acme.com --template welcome
+rootmail deliverability                 # 96/100 (excellent)
+rootmail import:suppressions sendgrid-export.csv
+rootmail assistant "set up a 3-step onboarding sequence"`,
+  },
 ];
 
 const highlights = [
-  "Fully typed @rootmail/node SDK",
+  "Fully typed @rootmail/node SDK + @rootmail/cli",
   "Idempotency keys on every send",
   "Sub-tenant scoping with withSubTenant()",
-  "Append-only, queryable audit trail",
+  "Deliverability, analytics & the AI agent, in-SDK",
 ];
 
 export function CodeShowcase() {
@@ -82,8 +110,9 @@ export function CodeShowcase() {
             An API you can hold in your head
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
-            snake_case JSON over HTTPS, a typed Node SDK, idempotency on every send, and sub-tenant
-            scoping with a single call. Read the trail back whenever you need to prove what happened.
+            snake_case JSON over HTTPS, a typed Node SDK and a terminal/CI-ready CLI, idempotency on
+            every send, and sub-tenant scoping with a single call. Read the trail back whenever you
+            need to prove what happened.
           </p>
           <ul className="mt-6 space-y-3">
             {highlights.map((h) => (

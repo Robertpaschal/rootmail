@@ -130,6 +130,7 @@ export interface User {
   name: string | null;
   email_verified: boolean;
   mfa_enabled: boolean;
+  announcement_opt_out: boolean;
   created_at: string;
 }
 

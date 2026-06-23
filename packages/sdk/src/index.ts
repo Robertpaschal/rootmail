@@ -14,4 +14,6 @@ export { DeliverabilityResource, AnalyticsResource } from "./resources/insights"
 export { Exports, Retention } from "./resources/compliance";
 export { Imports } from "./resources/imports";
 export { Assistant } from "./resources/assistant";
+export { Suppressions } from "./resources/suppressions";
+export { Billing } from "./resources/billing";
 export * from "./types";

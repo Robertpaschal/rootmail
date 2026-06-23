@@ -42,6 +42,7 @@ import type {
   SubTenant,
   Template,
   TemplateType,
+  User,
   Thread,
   ThreadStatus,
   VerifyResult,
@@ -387,6 +388,8 @@ export const api = {
   resetPassword: (body: { token: string; password: string }) =>
     rmFetch<{ reset: boolean }>("/v1/auth/reset-password", { method: "POST", body, noAuth: true }),
   me: () => rmFetch<MeResult>("/v1/auth/me"),
+  setAnnouncementPref: (optOut: boolean) =>
+    rmFetch<User>("/v1/auth/preferences", { method: "POST", body: { announcement_opt_out: optOut } }),
   logout: () => rmFetch<{ ok: boolean }>("/v1/auth/logout", { method: "POST" }),
   // Exchange a one-time staff handoff code for an impersonated session.
   acceptImpersonation: (code: string) =>
