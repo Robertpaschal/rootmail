@@ -1,0 +1,65 @@
+name: Build & push images
+
+# Builds all five service images on GitHub's amd64 runners (no more ENOSPC on the
+# tiny EC2 boxes) and pushes them to Docker Hub. Hosts then just `docker compose pull`.
+#
+# Required repo secrets:
+#   DOCKERHUB_USERNAME  e.g. pachal
+#   DOCKERHUB_TOKEN     a Docker Hub access token (hub.docker.com → Account Settings
+#                       → Security → New Access Token; NOT your password)
+# Optional repo variable:
+#   NEXT_PUBLIC_DASHBOARD_URL  baked into the marketing site (default below)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/**"
+      - "packages/**"
+      - "pnpm-lock.yaml"
+      - "**/Dockerfile"
+      - ".github/workflows/images.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        app: [api, worker, marketing, dashboard, admin]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/rootmail-${{ matrix.app }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/${{ matrix.app }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Only the marketing Dockerfile declares this ARG; the others ignore it.
+          build-args: |
+            NEXT_PUBLIC_DASHBOARD_URL=${{ vars.NEXT_PUBLIC_DASHBOARD_URL || 'https://dashboard.gateml.io' }}
+          cache-from: type=gha,scope=${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.app }}

@@ -1,9 +1,14 @@
-# Production stack — build + run all five rootmail services from one file.
+# Production stack — all five rootmail services from one file.
 #
-#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+# Two ways to run a service:
+#   • Pull prebuilt images from a registry (preferred — built by CI on amd64):
+#       docker compose --env-file .env.prod -f docker-compose.prod.yml pull api
+#       docker compose --env-file .env.prod -f docker-compose.prod.yml up -d api
+#   • Build locally on the host (fallback, slow on tiny boxes):
+#       docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build api
 #
-# Each EC2 host can run just its service, e.g.:
-#   docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build api
+# Images resolve to ${REGISTRY:-pachal}/rootmail-<svc>:${TAG:-latest}. CI
+# (.github/workflows/images.yml) builds + pushes these on every push to main.
 #
 # Postgres + Redis are intentionally NOT here — production uses managed instances
 # (RDS / ElastiCache, VPC-only). Point DATABASE_URL / REDIS_URL at them in
@@ -14,8 +19,8 @@ name: rootmail
 
 services:
   api:
+    image: ${REGISTRY:-pachal}/rootmail-api:${TAG:-latest}
     build: { context: ., dockerfile: apps/api/Dockerfile }
-    image: rootmail-api
     restart: unless-stopped
     env_file: [.env.prod] # backend: the full env surface (DB, Redis, SES, Stripe, signing…)
     environment:
@@ -30,20 +35,20 @@ services:
       retries: 5
 
   worker:
+    image: ${REGISTRY:-pachal}/rootmail-worker:${TAG:-latest}
     build: { context: ., dockerfile: apps/worker/Dockerfile }
-    image: rootmail-worker
     restart: unless-stopped
     env_file: [.env.prod] # backend: same store/queue/provider/signing env as the API
     environment:
       NODE_ENV: production
 
   marketing:
+    image: ${REGISTRY:-pachal}/rootmail-marketing:${TAG:-latest}
     build:
       context: .
       dockerfile: apps/marketing/Dockerfile
       args:
         NEXT_PUBLIC_DASHBOARD_URL: ${NEXT_PUBLIC_DASHBOARD_URL}
-    image: rootmail-marketing
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -53,8 +58,8 @@ services:
     ports: ["3000:3000"]
 
   dashboard:
+    image: ${REGISTRY:-pachal}/rootmail-dashboard:${TAG:-latest}
     build: { context: ., dockerfile: apps/dashboard/Dockerfile }
-    image: rootmail-dashboard
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -74,8 +79,8 @@ services:
     ports: ["3001:3000"]
 
   admin:
+    image: ${REGISTRY:-pachal}/rootmail-admin:${TAG:-latest}
     build: { context: ., dockerfile: apps/admin/Dockerfile }
-    image: rootmail-admin
     restart: unless-stopped
     environment:
       NODE_ENV: production

@@ -7,7 +7,7 @@ the old phased roadmap and the separate product-audit POA (both folded in here).
 > Each item is **independent, complete, and verified** before it's checked off —
 > no TODOs left behind, no placeholders, real copy/links/values, tests where
 > behaviour can regress. **Truthful by default:** if we say it, the code does it.
-> Status: `[ ]` todo · `[~]` in progress · `[x]` done. Updated 2026-06-17.
+> Status: `[ ]` todo · `[~]` in progress · `[x]` done. Updated 2026-06-24.
 
 ---
 
@@ -282,91 +282,84 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
       respects system preference). Browser-verified light↔dark. Ongoing visual polish is
       continuous, not a discrete item.
 
-## Production launch — the only thing left (owner-actionable)
+## Production — LIVE (deployed + tested 2026-06-24)
 
-The codebase is done. Everything below is **wired in code with a safe dev fallback**,
-so it's all incremental: until you set a switch, the app runs in its dev/mock mode.
-Each section is the concrete steps for *you*. `DEPLOY.md` has the deploy mechanics;
-this is the ordered checklist + how to get each credential.
+rootmail is **deployed and running in production** on AWS. A safe end-to-end prod probe
+passed: signup → workspace + `rm_live_` key, the **AI assistant returning real Claude
+responses** (`source: "claude"`, AI credits metered), live-send gating, and the SES worker.
+Only **Stripe live** remains owner-blocked (still in test).
 
-Already done (autonomous): CI (typecheck + build + e2e smoke on PG/Redis), `api`/`worker`
-Dockerfiles, `DEPLOY.md`, and — verified in this codebase — Stripe **test** mode incl.
-embedded checkout, the SES outbound send path, and Ed25519 proof signing.
+**Live over HTTPS** (gateml.io — alpha/beta; switches to rootmail.io when stable):
+- `service.gateml.io` — API (nginx + certbot) · healthy: Postgres (RDS) + Redis
+- `marketing.gateml.io` — marketing site
+- `dashboard.gateml.io` — operator console (email/password + **GitHub OAuth** live)
+- `internal.gateml.io` — staff console (first-run superadmin bootstrap on the login page)
+- worker — all 6 BullMQ queues "ready" on `provider "ses"`
 
-### A. Generate production secrets — ~5 min
-Generate once, store in your platform's secret manager (never commit; never in
-`.env.example`). Each has a dev-insecure fallback that must NOT ship.
-- `LINK_SIGNING_SECRET` = `openssl rand -hex 32` — signs unsubscribe links.
-- `INTERNAL_API_SECRET` = `openssl rand -hex 32` — dashboard→API internal calls; also
-  what enables social login (the OAuth user-upsert endpoint is off until this is set).
-- `PROOF_SIGNING_KEY` = `openssl genpkey -algorithm ed25519` (paste the PKCS8 PEM) —
-  Layer-3 proof signatures.
+**Topology:** one app per EC2 host; managed **RDS** (Postgres) + **ElastiCache Redis,
+cluster-mode-disabled single node** (migrated off Serverless 2026-06-24 — cheaper, no
+CROSSSLOT). Per-host gitignored `.env.prod` (never committed, never baked into images).
+Host IPs / SGs / the rebuild disk-dance are in the `prod-deployment` agent memory + below.
 
-### B. Stripe — flip to live — ~30 min  *(test mode fully verified)*
-1. From the Stripe dashboard (live mode): set `STRIPE_SECRET_KEY` (`sk_live_…`),
-   `STRIPE_PUBLISHABLE_KEY` (`pk_live_…`), `STRIPE_WEBHOOK_SECRET`.
-2. Recreate the products/prices in live mode (or set the plan price from the admin
-   `/pricing` page once the live key is in — it syncs to Stripe). Set
-   `STRIPE_PRICE_PRO/_SCALE` (+ `_YEAR`) and the add-on prices (`STRIPE_PRICE_SEAT`,
-   `…_DEDICATED_IP`, `…_SUBTENANT_PACK`, `…_AI_CREDITS`).
-3. **Overage (the one still-pending wiring):** create **metered, usage-based** prices
-   for Pro/Scale overage ($0.85 / $0.70 per unit = 1,000 emails), each backed by a
-   **Billing Meter**; set `STRIPE_PRICE_OVERAGE_PRO/_SCALE` + the meters' `event_name`
-   in `STRIPE_METER_OVERAGE_PRO/_SCALE`. Code is wired + verified; it activates per-plan
-   once both are set.
-4. Add a webhook endpoint → `https://<api>/v1/webhooks/stripe`, subscribing:
-   `checkout.session.completed`, `customer.subscription.{created,updated,deleted,trial_will_end}`,
-   `invoice.payment_failed`.
+### Confirmed live
+- **Data** — RDS Postgres (`rootmail` DB) + ElastiCache Redis (new node).
+- **AI assistant** — Anthropic credits funded; real `claude` replies + AI-credit metering.
+- **Email** — `MAIL_PROVIDER=ses`; signup fires a real verification email; customer sends
+  are gated behind org-email + sending-domain verification (by design).
+- **OAuth** — **GitHub sign-in works end-to-end.** Google needs one console entry (below).
+- **CI** — GitHub Actions builds + pushes all 5 images to Docker Hub (below).
+- **Stripe** — test mode (embedded checkout verified). Live mode pending (owner-blocked).
 
-### C. Email — AWS SES — ~1 day (mostly approval wait)
-1. **Verify the domain** `rootmail.io` in SES; publish the **DKIM CNAMEs + SPF** it
-   gives you, and a **DMARC** TXT record (`v=DMARC1; p=quarantine; rua=…`).
-2. **Request production access** (exit the sandbox) — short form in the SES console;
-   approval is usually < 24h. Confirm the **region**.
-3. Set `MAIL_PROVIDER=ses`, `AWS_REGION`, and AWS creds (an IAM user with
-   `ses:SendEmail`/`SendRawEmail`, or an instance role). Set `DNS_VERIFY_MODE=live`
-   so sub-tenant domain verification does real TXT lookups.
-4. **Bounces/complaints/deliveries:** create an SNS topic, point SES notifications at
-   it, and subscribe `https://<api>/v1/webhooks/ses` (feeds auto-suppression).
-5. *(Optional)* **Inbound replies/shared inbox:** set `INBOUND_DOMAIN`, MX → SES
-   inbound, an SES receipt rule → SNS → the inbound webhook.
+### Remaining owner actions (the only things left)
+1. **Google OAuth** — add redirect URI `https://dashboard.gateml.io/oauth/google/callback`
+   in Google Cloud Console → Credentials → your OAuth client. (GitHub is already done; the
+   app sends the correct URI — verified. The middleware bug that blocked `/oauth/*` is fixed.)
+2. **Delete the old ElastiCache Serverless cache** (`gateml-redis-ytrhu7`) — prod now runs on
+   the new cluster-mode-disabled node; deleting it captures the cost saving.
+3. **Enable CI image push** — add repo secrets `DOCKERHUB_USERNAME` (=`pachal`) +
+   `DOCKERHUB_TOKEN` (a Docker Hub *access token*, not your password: hub.docker.com →
+   Account Settings → Security → New Access Token). Then every push to `main` builds + pushes
+   all 5 images (`.github/workflows/images.yml`).
+4. **Stripe live** — set `STRIPE_SECRET_KEY` (`sk_live_…`), `STRIPE_PUBLISHABLE_KEY`
+   (`pk_live_…`), `STRIPE_WEBHOOK_SECRET`; recreate prices (or set them from admin `/pricing`,
+   which syncs to Stripe); webhook → `https://service.gateml.io/v1/webhooks/stripe`
+   (`checkout.session.completed`, `customer.subscription.*`, `invoice.payment_failed`). Then
+   the **metered overage** prices + Billing Meters (`STRIPE_PRICE_OVERAGE_PRO/_SCALE` +
+   `STRIPE_METER_OVERAGE_PRO/_SCALE`) — code wired + verified, activates once both are set.
+5. **SES notifications** — create an SNS topic, point SES bounce/complaint/delivery at it,
+   subscribe `https://service.gateml.io/v1/webhooks/ses` (auto-suppression). The API is up, so
+   `SubscriptionConfirmation` auto-confirms. Set `DNS_VERIFY_MODE=live` for real sub-tenant TXT
+   checks. *(Optional inbound:* `INBOUND_DOMAIN` + MX → SES inbound → SNS → inbound webhook.)
+6. **Verify a real sending domain** (in SES + the dashboard) so customer `/v1/messages` sends
+   leave the gate — publish DKIM CNAMEs + SPF + a DMARC TXT.
+7. **Postal address** — dashboard Settings → sender address (CAN-SPAM footer on marketing/sales).
+8. **Domain switch (later)** — gateml.io → rootmail.io once stable (DNS + `ROOTMAIL_DOMAIN`,
+   `PUBLIC_API_URL`, `DASHBOARD_URL`, `NEXT_PUBLIC_DASHBOARD_URL`, `ROOTMAIL_API_URL`).
 
-### D. Social login — OAuth apps — ~20 min each (optional)
-For Google / GitHub / Apple: register an OAuth app, set the redirect URI to
-`<dashboard>/oauth/<provider>/callback`, and put the client id/secret in the
-**dashboard's** env. Needs `INTERNAL_API_SECRET` (A). Until set, the buttons stay
-inert — email/password works regardless. *Where to get them:* Google Cloud Console
-→ Credentials; GitHub → Settings → Developer settings → OAuth Apps; Apple Developer →
-Sign in with Apple.
+### How we deploy now (keep going)
+- **CI builds the images** (`.github/workflows/images.yml`) on GitHub's amd64 runners and
+  pushes `pachal/rootmail-<svc>:latest` (+ `:sha-…`) to Docker Hub — this sidesteps the tiny
+  hosts' ENOSPC during local builds. `docker-compose.prod.yml` references those images.
+- **Deploy to a host = pull + recreate (no build):**
+  ```
+  docker compose --env-file .env.prod -f docker-compose.prod.yml pull <svc>
+  docker compose --env-file .env.prod -f docker-compose.prod.yml up -d <svc>
+  ```
+  (Private repos: `docker login` once per host first.)
+- **Fallback (build on the host):** `up -d --build <svc>` + the disk-dance — stop the svc →
+  `docker rmi -f` the old image → `docker builder prune -af` → bump swap to 1G — or the
+  ~1.4GB rebuild ENOSPCs on the 4.4GB boxes.
+- **Changed `.env.prod`?** you MUST `up -d --force-recreate <svc>` — plain `restart` does not
+  re-read `env_file`. (ioredis/pg auto-reconnect, so a Redis/DB endpoint swap needs no rebuild.)
 
-### E. Infrastructure & deploy — the real work
-- **Managed Postgres** (e.g. RDS) + **Redis** (e.g. ElastiCache), reachable in-VPC.
-  Set `DATABASE_URL` (`?sslmode=require`) + `REDIS_URL`. Run `pnpm db:migrate`
-  (no seed in prod — bootstrap staff with `pnpm create-staff --email=…`).
-- **Deploy the 5 apps:** `api` + `worker` (Dockerfiles provided), and `marketing` /
-  `dashboard` / `admin` (Next). See `DEPLOY.md`.
-- Set `TRUST_PROXY` to your real proxy-hop count (default `1`), `NODE_ENV=production`,
-  and all secrets via the platform's secret manager.
-- *(Optional)* S3 for uploads: `ASSET_S3_BUCKET` + `AWS_REGION` + `ASSET_PUBLIC_URL`.
-- **Ops:** centralized logs/metrics + alerts, BullMQ queue monitoring, automated DB
-  backups, a status page, and a load test before announcing.
-
-### F. DNS & URLs
-- `rootmail.io` → marketing; `app.rootmail.io` → dashboard; admin on an internal host.
-- Set `ROOTMAIL_DOMAIN`, `PUBLIC_API_URL`, `DASHBOARD_URL` (API/Stripe return URLs),
-  `NEXT_PUBLIC_DASHBOARD_URL` (marketing CTAs), and `ROOTMAIL_API_URL` (dashboard/admin/
-  marketing → API) to the real hosts. Plus the SES sending DNS from (C).
-
-### G. In-app, post-deploy
-- In dashboard **Settings → sender address**, set the org **postal address** — it's the
-  CAN-SPAM footer on marketing/sales sends.
-
-### Post-deploy verification (do these before announcing)
-1. `ROOTMAIL_API_KEY=rm_live_… pnpm exec tsx scripts/smoke.ts` against the live API.
-2. Send yourself a real email; confirm SES delivery + a bounce/complaint round-trip
-   lands in suppression.
-3. One small **live** checkout end-to-end; confirm the webhook flips the plan + a
-   `payment_failed` test triggers the dunning email.
+### Post-deploy verification (before a public announce)
+- **Do NOT run `scripts/smoke.ts` against prod** — it sends to synthetic addresses
+  (`ada@example.com`, `guest@gmail.com`, …) which would hit **real SES**. Use a probe that
+  only ever sends to your own inbox (as done 2026-06-24: signup + assistant + send-gating).
+- After verifying a real domain, send yourself a real email; confirm SES delivery + a
+  bounce/complaint round-trip lands in suppression.
+- One small **live** Stripe checkout once live keys are in; confirm the webhook flips the plan
+  + a `payment_failed` test triggers the dunning email.
 
 ---
 

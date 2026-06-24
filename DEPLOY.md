@@ -32,6 +32,31 @@ Individual images still build directly if you prefer:
 docker build -f apps/api/Dockerfile -t rootmail-api .   # …worker, marketing, dashboard, admin
 ```
 
+## Images & CI (preferred deploy path)
+
+`.github/workflows/images.yml` builds all five images on GitHub's **amd64** runners and
+pushes them to Docker Hub as `pachal/rootmail-<svc>:latest` (+ a `:sha-…` tag) on every
+push to `main` (and on demand). This is the preferred path — it avoids building on the
+small EC2 hosts, which `ENOSPC` on the ~1.4GB images. `docker-compose.prod.yml` resolves
+each service to `${REGISTRY:-pachal}/rootmail-<svc>:${TAG:-latest}`, so a host deploy is a
+**pull**, not a build:
+
+```bash
+docker compose --env-file .env.prod -f docker-compose.prod.yml pull api
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d api
+```
+
+One-time setup:
+- Repo secrets: `DOCKERHUB_USERNAME` (=`pachal`) + `DOCKERHUB_TOKEN` (a Docker Hub *access
+  token*, not your password). `gh secret set DOCKERHUB_USERNAME -b pachal` then
+  `gh secret set DOCKERHUB_TOKEN` (paste the token).
+- If the Docker Hub repos are **private**, run `docker login` once on each host so it can pull.
+- Trigger a build manually any time: `gh workflow run images.yml`.
+
+> Changing `.env.prod` needs `up -d --force-recreate <svc>` — `restart` won't re-read it.
+> The build-on-host fallback (`up -d --build`) still works; pair it with the disk-dance
+> (stop → `docker rmi -f` old image → `docker builder prune -af` → bump swap) on tiny boxes.
+
 ## Infrastructure
 - Postgres + Redis must be reachable from the api/worker. Managed instances are
   typically **VPC-only** (ElastiCache always; RDS unless made public) — run the
