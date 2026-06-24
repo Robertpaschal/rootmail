@@ -324,7 +324,16 @@ export async function runAssistant(
   if (!env.ANTHROPIC_API_KEY) return { ...(await mockAssistant(app, req, prompt)), calls: 0 };
 
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-  const tools = TOOLS.map((t) => ({ name: t.name, description: t.description, input_schema: t.input_schema }));
+  // Prompt caching: the system prompt + these 17 tool defs are static and re-sent
+  // on every loop step (and every request). A cache_control breakpoint on the last
+  // tool caches the whole tools block; the repeated reads then bill at ~10% of the
+  // input cost. The cache is ephemeral (~5min TTL) — perfect for a burst loop.
+  const tools = TOOLS.map((t, i) => ({
+    name: t.name,
+    description: t.description,
+    input_schema: t.input_schema,
+    ...(i === TOOLS.length - 1 ? { cache_control: { type: "ephemeral" as const } } : {}),
+  }));
   const messages: Anthropic.MessageParam[] = [{ role: "user", content: prompt }];
   const actions: Array<{ tool: string; status: number }> = [];
   let calls = 0;
@@ -334,7 +343,7 @@ export async function runAssistant(
       const resp = await client.messages.create({
         model: env.AI_MODEL,
         max_tokens: 1024,
-        system: SYSTEM,
+        system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
         tools,
         messages,
       });

@@ -4,6 +4,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { OAuthButtons } from "../oauth-buttons";
 import { SignupForm } from "./signup-form";
 
+// Render per-request so OAuth provider buttons reflect runtime env (the OAuth
+// creds are injected at runtime, not baked at build) — otherwise they'd be
+// statically empty.
+export const dynamic = "force-dynamic";
+
 export default function SignupPage() {
   return (
     <div className="flex min-h-screen items-center justify-center p-6">

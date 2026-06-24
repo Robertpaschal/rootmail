@@ -4,6 +4,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { OAuthButtons } from "../oauth-buttons";
 import { LoginForm } from "./login-form";
 
+// Render per-request so OAuth buttons reflect runtime env (creds injected at
+// runtime, not baked at build).
+export const dynamic = "force-dynamic";
+
 export default async function LoginPage({
   searchParams,
 }: {
