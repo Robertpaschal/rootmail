@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { authorizeUrl, getProvider, isConfigured } from "@/lib/oauth";
+import { appUrl, authorizeUrl, getProvider, isConfigured } from "@/lib/oauth";
 
 // Kick off the OAuth dance: stash a CSRF state cookie, then bounce to the provider.
 export async function GET(
@@ -9,7 +9,7 @@ export async function GET(
   const { provider } = await params;
   const p = getProvider(provider);
   if (!p || !isConfigured(p)) {
-    return NextResponse.redirect(new URL("/login?error=provider", req.url));
+    return NextResponse.redirect(appUrl("/login?error=provider"));
   }
 
   const state = crypto.randomUUID();

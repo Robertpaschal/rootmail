@@ -77,6 +77,16 @@ function baseUrl(): string {
   return process.env.DASHBOARD_URL ?? "http://localhost:3001";
 }
 
+/**
+ * Absolute URL on the dashboard's own public origin (DASHBOARD_URL). Use this for
+ * post-OAuth redirects instead of `new URL(path, req.url)`: behind a reverse proxy
+ * Next resolves `req.url` to the container's internal origin (localhost:PORT), so a
+ * relative redirect would bounce the user to localhost after a successful sign-in.
+ */
+export function appUrl(path: string): string {
+  return new URL(path, baseUrl()).toString();
+}
+
 export function redirectUri(id: OAuthProviderId): string {
   return `${baseUrl()}/oauth/${id}/callback`;
 }

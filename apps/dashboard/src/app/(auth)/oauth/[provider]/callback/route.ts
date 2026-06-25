@@ -1,5 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { exchangeCode, fetchProfile, getProvider, isConfigured } from "@/lib/oauth";
+import { appUrl, exchangeCode, fetchProfile, getProvider, isConfigured } from "@/lib/oauth";
 import { oauthUpsert } from "@/lib/rootmail";
 import { SESSION_COOKIE } from "@/lib/session";
 
@@ -12,7 +12,7 @@ export async function GET(
   const { provider } = await params;
   const p = getProvider(provider);
   if (!p || !isConfigured(p)) {
-    return NextResponse.redirect(new URL("/login?error=provider", req.url));
+    return NextResponse.redirect(appUrl("/login?error=provider"));
   }
 
   const url = new URL(req.url);
@@ -20,7 +20,7 @@ export async function GET(
   const state = url.searchParams.get("state");
   const cookieState = req.cookies.get("rm_oauth_state")?.value;
   if (!code || !state || !cookieState || state !== cookieState) {
-    return NextResponse.redirect(new URL("/login?error=oauth", req.url));
+    return NextResponse.redirect(appUrl("/login?error=oauth"));
   }
 
   try {
@@ -35,7 +35,7 @@ export async function GET(
       email_verified: profile.emailVerified,
     });
 
-    const res = NextResponse.redirect(new URL("/", req.url));
+    const res = NextResponse.redirect(appUrl("/"));
     res.cookies.set(SESSION_COOKIE, session.session_token, {
       httpOnly: true,
       sameSite: "lax",
@@ -46,7 +46,7 @@ export async function GET(
     res.cookies.delete("rm_oauth_state");
     return res;
   } catch {
-    return NextResponse.redirect(new URL("/login?error=oauth", req.url));
+    return NextResponse.redirect(appUrl("/login?error=oauth"));
   }
 }
 
@@ -61,7 +61,7 @@ export async function POST(
   const { provider } = await params;
   const p = getProvider(provider);
   if (!p || !isConfigured(p)) {
-    return NextResponse.redirect(new URL("/login?error=provider", req.url), 303);
+    return NextResponse.redirect(appUrl("/login?error=provider"), 303);
   }
 
   const form = await req.formData();
@@ -69,7 +69,7 @@ export async function POST(
   const state = form.get("state")?.toString();
   const cookieState = req.cookies.get("rm_oauth_state")?.value;
   if (!code || !state || !cookieState || state !== cookieState) {
-    return NextResponse.redirect(new URL("/login?error=oauth", req.url), 303);
+    return NextResponse.redirect(appUrl("/login?error=oauth"), 303);
   }
 
   // Apple sends the user's name only on the first authorization.
@@ -96,7 +96,7 @@ export async function POST(
       email_verified: profile.emailVerified,
     });
 
-    const res = NextResponse.redirect(new URL("/", req.url), 303);
+    const res = NextResponse.redirect(appUrl("/"), 303);
     res.cookies.set(SESSION_COOKIE, session.session_token, {
       httpOnly: true,
       sameSite: "lax",
@@ -107,6 +107,6 @@ export async function POST(
     res.cookies.delete("rm_oauth_state");
     return res;
   } catch {
-    return NextResponse.redirect(new URL("/login?error=oauth", req.url), 303);
+    return NextResponse.redirect(appUrl("/login?error=oauth"), 303);
   }
 }
