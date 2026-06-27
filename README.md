@@ -7,11 +7,10 @@ sub-tenancy, conversation threading, full audit trails, and legal-grade proof as
 the buyer's needs grow. Not "Resend + Mailchimp + Salesloft" — one data model
 that happens to satisfy all three.
 
-> **Status:** feature-complete and verified end-to-end locally — all three layers,
-> first-party auth, billing, automation, an operator dashboard, and an internal
-> staff console. What's left is production deployment and a few owner-supplied
-> credentials. See [`ROADMAP.md`](ROADMAP.md) — the single source of truth for
-> what's built and what's next.
+> **Status:** live in production and feature-complete — all three layers, first-party
+> auth, billing, automation, an operator dashboard, and an internal staff console.
+> What remains is a short list of owner-supplied credentials (live Stripe, etc.). See
+> [`ROADMAP.md`](ROADMAP.md) — the single source of truth for what's built and what's next.
 
 ---
 
@@ -108,14 +107,16 @@ pnpm dashboard    # the operator console
 ```
 
 Then **sign up in the dashboard** — that provisions your organization, a live +
-sandbox workspace, a starter template, and your first API key (no seed needed).
+sandbox workspace, and a starter template (no seed needed). Everyday sending works
+straight from the dashboard with no key; when you want the API or SDK, create a key
+under **Developers → API keys**.
 
 > Prefer a ready-made demo org + keys for poking at the API? `pnpm db:seed` prints
 > a LIVE and a TEST key (and a local admin-console login). It's a convenience for
 > local dev only — the hosted product is fully self-serve.
 
 ```bash
-# Send your first email (use a key from the dashboard or the seed)
+# Send your first email (create a key under Developers → API keys, or use the seed)
 curl -s http://localhost:4000/v1/messages \
   -H "Authorization: Bearer rm_live_xxx" \
   -H "Content-Type: application/json" \

@@ -7,7 +7,7 @@ captures the non-obvious things an agent needs to work here productively.
 - `apps/api` — Fastify REST gateway (auth, idempotency, rate-limit, routes)
 - `apps/worker` — BullMQ send pipeline (suppression → render → provider → audit)
 - `apps/marketing` — Next.js (App Router) marketing site; standalone, **no backend deps** (keeps the modular boundary clean). Tailwind v3 + hand-written shadcn/ui (new-york).
-- `apps/dashboard` — Next.js (App Router) operator console. Talks to the API **server-side only** (Server Components/Actions); the API key lives in an httpOnly cookie, never the browser. `ROOTMAIL_API_URL` (default `http://localhost:4000`).
+- `apps/dashboard` — Next.js (App Router) operator console. Talks to the API **server-side only** (Server Components/Actions), authenticating as the **user**: the session token (`rm_session` httpOnly cookie) is sent as the Bearer, and the API accepts **both** session tokens and API keys (`apps/api/src/plugins/auth.ts`). So everyday use needs **no API key** — keys are an opt-in developer feature. Nav is grouped (Messaging/Audience/Content/Insights/Developers/Workspace) with a `/settings` hub. `ROOTMAIL_API_URL` (default `http://localhost:4000`).
 - `apps/admin` — Next.js (App Router) **internal staff** console (Phase 7). Same server-side pattern as the dashboard but a **separate staff session** (`rm_staff_session` httpOnly cookie) over the cross-org `/v1/admin/*` API. Distinct near-black theme so staff can't confuse it with the customer dashboard. `pnpm admin` (dev). No staff are seeded — bootstrap the first one (a superadmin) via the gated, one-time `POST /v1/admin/auth/bootstrap` (`{email,password,secret:INTERNAL_API_SECRET}`; allowed only while zero staff exist, then closed). The superadmin manages the rest in-app (roles superadmin/billing/support/readonly, enforced by capability via `STAFF_ROLE_PERMISSIONS`).
 - `packages/core` — ids, env, crypto, DKIM, DNS verify, queue, render, errors, shared `constants`
 - `packages/db` — Drizzle schema (single `src/schema.ts`), client, migrations, seed
@@ -54,7 +54,10 @@ ROOTMAIL_API_KEY=rm_live_... pnpm exec tsx scripts/smoke.ts
 
 ## Conventions
 - Public ids are prefixed: `newId("message")` → `msg_…` (`packages/core/src/ids.ts`).
-- API keys: `rm_live_…` / `rm_test_…`; only the SHA-256 hash is stored.
+- API keys: `rm_live_…` / `rm_test_…`; only the SHA-256 hash is stored. **Signup mints no
+  key** — `provisionAccount` creates the Production + Sandbox workspaces but no API key;
+  the dashboard runs on the user's session, and developers create keys on demand from
+  Developers → API keys (test/live = the key's workspace). `db:seed` still mints its own key.
 - API JSON is snake_case; TypeScript is camelCase. The SDK maps between them.
 - Audit log is append-only — write new entries, never update.
 - Validate request input with Zod via the `parse()` helper (returns the output type).
