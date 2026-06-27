@@ -46,6 +46,16 @@ docker compose --env-file .env.prod -f docker-compose.prod.yml pull api
 docker compose --env-file .env.prod -f docker-compose.prod.yml up -d api
 ```
 
+…or, because the 4.4 GB hosts ENOSPC if the new image can't land beside the old one,
+use the helper that frees disk first (stop → remove old container+image → prune → pull →
+recreate) in one step:
+
+```bash
+./scripts/deploy-host.sh api      # api | worker | marketing | dashboard | admin
+# from your laptop:
+ssh -i key.pem ubuntu@<host> 'cd ~/rootmail && ./scripts/deploy-host.sh dashboard'
+```
+
 One-time setup:
 - Repo secrets: `DOCKERHUB_USERNAME` (=`pachal`) + `DOCKERHUB_TOKEN` (a Docker Hub *access
   token*, not your password). `gh secret set DOCKERHUB_USERNAME -b pachal` then
