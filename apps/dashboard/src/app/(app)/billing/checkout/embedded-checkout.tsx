@@ -18,8 +18,12 @@ export function EmbeddedCheckoutPanel({
 }) {
   const stripePromise = useMemo(() => loadStripe(publishableKey), [publishableKey]);
 
+  // Stripe's embedded checkout is a light-themed iframe whose appearance is set by
+  // Stripe Dashboard branding, not our `dark` class — so we frame it on an explicit
+  // white surface. In dark mode it then reads as an intentional payment card rather
+  // than a light form clashing with a dark `bg-card`.
   return (
-    <div className="overflow-hidden rounded-lg border bg-card">
+    <div className="overflow-hidden rounded-lg border bg-white p-3 shadow-sm">
       <EmbeddedCheckoutProvider stripe={stripePromise} options={{ clientSecret }}>
         <EmbeddedCheckout />
       </EmbeddedCheckoutProvider>

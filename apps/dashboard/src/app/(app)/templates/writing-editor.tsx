@@ -180,8 +180,11 @@ export function WritingEditor({
     content: initialDoc,
     editorProps: {
       attributes: {
+        // The canvas is the email itself — always white "paper" with dark text, so
+        // it stays readable (and truthful to the final render) in dark mode, where
+        // the inherited foreground would otherwise be light-on-white = invisible.
         class:
-          "prose-email min-h-[360px] rounded-md border bg-white px-4 py-3 text-sm leading-relaxed focus:outline-none",
+          "prose-email min-h-[360px] rounded-md border bg-white px-4 py-3 text-sm leading-relaxed text-zinc-900 focus:outline-none",
       },
     },
     onUpdate: ({ editor }) => onChange(editor.getJSON() as DocNode),
