@@ -27,13 +27,14 @@ export default function ContactPage() {
       <main className="container py-16 md:py-24">
         <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-16">
           <div className="lg:pt-4">
-            <Badge className="mb-4">Contact sales</Badge>
+            <Badge className="mb-4">Get in touch</Badge>
             <h1 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-              Let&apos;s build a plan that fits.
+              Let&apos;s talk.
             </h1>
             <p className="mt-4 text-balance text-lg text-muted-foreground">
-              Tell us about your volume and requirements and we&apos;ll put together a custom package —
-              usually within one business day. No pressure, no spam.
+              A custom plan, a question about the product, or just want to say hello — tell us
+              what&apos;s on your mind and we&apos;ll get back to you, usually within one business
+              day. No pressure, no spam.
             </p>
 
             <div className="mt-8 rounded-2xl border bg-secondary/30 p-6">

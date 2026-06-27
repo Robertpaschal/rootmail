@@ -56,7 +56,7 @@ const layers: Layer[] = [
 
 export function LayerModel() {
   return (
-    <section id="layers" className="border-t border-border/60 bg-secondary/30 py-20 md:py-28">
+    <section id="platform" className="border-t border-border/60 bg-secondary/30 py-20 md:py-28">
       <div className="container">
         <div className="mx-auto mb-14 max-w-2xl text-center">
           <Badge className="mb-4">The platform</Badge>
@@ -64,8 +64,9 @@ export function LayerModel() {
             Three layers. One data model.
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
-            A solo dev only ever touches Layer 1. A platform builder turns on sub-tenants. A fintech
-            turns on proof bundles. Same API the whole way up — nothing to migrate as you grow.
+            Send a single welcome email, give every customer their own sending domain, or prove
+            exactly what you sent — it&apos;s the same product, the same data model, the whole way up.
+            Switch on what you need; nothing to migrate as you grow.
           </p>
         </div>
 

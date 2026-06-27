@@ -1,24 +1,32 @@
 import Link from "next/link";
+import { Github, Twitter } from "lucide-react";
 import { Logo } from "./logo";
-
-const CONTACT_EMAIL = "support@rootmail.io";
 
 const columns = [
   {
     title: "Product",
     links: [
-      { label: "Platform", href: "/#layers" },
+      { label: "Platform", href: "/#platform" },
       { label: "Features", href: "/#features" },
       { label: "Pricing", href: "/pricing" },
-      { label: "Contact sales", href: "/contact" },
+      { label: "Changelog", href: "/changelog" },
     ],
   },
   {
     title: "Developers",
     links: [
       { label: "Documentation", href: "/docs" },
-      { label: "API reference", href: "/docs" },
-      { label: "Node SDK", href: "/docs" },
+      { label: "API reference", href: "/docs#api" },
+      { label: "Node SDK", href: "/docs#sdk" },
+    ],
+  },
+  {
+    title: "Company",
+    links: [
+      { label: "About", href: "/about" },
+      { label: "Blog", href: "/blog" },
+      { label: "Careers", href: "/careers" },
+      { label: "Contact", href: "/contact" },
     ],
   },
   {
@@ -32,17 +40,36 @@ const columns = [
   },
 ];
 
+const socials = [
+  { label: "rootmail on X", href: "https://x.com/rootmail", icon: Twitter },
+  { label: "rootmail on GitHub", href: "https://github.com/rootmail", icon: Github },
+];
+
 export function Footer() {
   return (
     <footer className="border-t border-border/60">
       <div className="container py-14">
-        <div className="grid gap-10 lg:grid-cols-[1.5fr_repeat(3,1fr)]">
+        <div className="grid gap-10 lg:grid-cols-[1.5fr_repeat(4,1fr)]">
           <div className="max-w-xs">
             <Logo />
             <p className="mt-4 text-sm text-muted-foreground">
-              Email infrastructure that scales with who&apos;s asking. One API, one data model — from
-              your first transactional send to legal-grade proof.
+              Email infrastructure that scales with who&apos;s asking. One platform, one data model —
+              from your first welcome email to legal-grade proof.
             </p>
+            <div className="mt-5 flex items-center gap-2">
+              {socials.map((s) => (
+                <a
+                  key={s.label}
+                  href={s.href}
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label={s.label}
+                  className="grid size-9 place-items-center rounded-md border border-border/60 text-muted-foreground transition-colors hover:border-border hover:text-foreground"
+                >
+                  <s.icon className="size-4" />
+                </a>
+              ))}
+            </div>
           </div>
 
           {columns.map((col) => (
@@ -68,12 +95,13 @@ export function Footer() {
           <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} rootmail. All rights reserved.
           </p>
-          <Link
-            href={`mailto:${CONTACT_EMAIL}`}
-            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            {CONTACT_EMAIL}
-          </Link>
+          <p className="text-sm text-muted-foreground">
+            Need a hand?{" "}
+            <Link href="/contact" className="font-medium text-foreground transition-colors hover:underline">
+              Get in touch
+            </Link>
+            .
+          </p>
         </div>
       </div>
     </footer>

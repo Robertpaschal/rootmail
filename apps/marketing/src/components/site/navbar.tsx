@@ -10,10 +10,12 @@ import { loginUrl, signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
 const links = [
-  { href: "/#layers", label: "Platform" },
+  { href: "/#platform", label: "Platform" },
   { href: "/#features", label: "Features" },
   { href: "/docs", label: "Developers" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
 ];
 
 export function Navbar() {

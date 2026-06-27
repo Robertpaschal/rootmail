@@ -31,12 +31,9 @@ export function Hero() {
 
       <div className="container flex flex-col items-center gap-10 py-20 text-center md:py-28">
         <div className="flex max-w-3xl flex-col items-center gap-6">
-          <Link href="#layers">
-            <Badge variant="muted" className="py-1 pl-1.5 pr-2.5">
-              <span className="rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary-foreground">
-                New
-              </span>
-              All three layers are live
+          <Link href="#platform">
+            <Badge variant="muted" className="py-1 pl-2.5 pr-2.5">
+              Send, reply, and prove — from one place
               <ArrowRight className="size-3" />
             </Badge>
           </Link>
@@ -49,9 +46,9 @@ export function Hero() {
           </h1>
 
           <p className="max-w-2xl text-balance text-lg text-muted-foreground">
-            One sending core that stays dead-simple for a solo developer — and exposes sub-tenancy,
-            full audit trails, and legal-grade proof the moment you need them. One API. One data
-            model.
+            Reach your customers from a no-code dashboard or a typed API — both on the same core that
+            stays dead-simple for a single welcome email and grows into sub-tenancy, full audit
+            trails, and legal-grade proof the moment you need them. One platform. One data model.
           </p>
 
           <div className="flex flex-col items-center gap-3 sm:flex-row">
@@ -64,7 +61,8 @@ export function Hero() {
           </div>
 
           <p className="text-sm text-muted-foreground">
-            Typed SDK &amp; CLI · snake_case JSON · idempotent by default · no credit card to start
+            No-code dashboard · typed SDK &amp; CLI · works without writing code · no credit card to
+            start
           </p>
         </div>
 

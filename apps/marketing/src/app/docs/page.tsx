@@ -42,6 +42,31 @@ rootmail deliverability                 # reputation score + rates
 rootmail import:suppressions export.csv # migrate from another provider
 rootmail assistant "why did my last email bounce?"`;
 
+const curl = `curl https://api.rootmail.io/v1/messages \\
+  -H "Authorization: Bearer rm_live_…" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "ada@example.com",
+    "template": "welcome",
+    "variables": { "name": "Ada", "action_url": "https://acme.com/start" }
+  }'`;
+
+const sdkExample = `// Inspect a message's audit trail and export signed proof
+const { trail } = await mail.messages.audit(message.id);
+const proof = await mail.messages.proof(message.id);
+
+// Give a customer their own verified sending domain, then send as them
+const tenant = await mail.subTenants.create({
+  name: "Sunset Villas",
+  sendingDomain: "sunsetvillas.com",
+});
+await mail.subTenants.verify(tenant.id);
+await mail.withSubTenant(tenant.id).send({
+  to: "guest@example.com",
+  subject: "Your booking is confirmed",
+  html: "<h1>See you soon!</h1>",
+});`;
+
 export default function DocsPage() {
   return (
     <DocPage title="Quickstart" subtitle="From zero to your first send in three steps.">
@@ -79,6 +104,45 @@ export default function DocsPage() {
         deliverability, migrate a suppression list, or ask the assistant.
       </p>
       <CodeBlock code={cli} filename="terminal" />
+
+      <h2 id="api">REST API reference</h2>
+      <p>
+        Every feature is a REST endpoint under <code>/v1</code>. Authenticate with{" "}
+        <code>Authorization: Bearer &lt;api_key&gt;</code> — keys are prefixed <code>rm_live_…</code>{" "}
+        and <code>rm_test_…</code> — and scope a request to a sub-tenant with the{" "}
+        <code>X-Rootmail-Subtenant</code> header. Request and response bodies are JSON in snake_case.
+      </p>
+      <CodeBlock code={curl} filename="terminal" />
+      <ul>
+        <li>
+          <strong>Messages</strong> — <code>POST /v1/messages</code>, plus <code>…/:id</code>,{" "}
+          <code>…/:id/audit</code>, <code>…/:id/events</code>, and <code>…/:id/proof</code>.
+        </li>
+        <li>
+          <strong>Sub-tenants</strong> — <code>POST/GET /v1/sub-tenants</code> and{" "}
+          <code>…/:id/verify</code> for per-customer sending domains.
+        </li>
+        <li>
+          <strong>Contacts &amp; suppression</strong>, <strong>templates</strong>,{" "}
+          <strong>sequences</strong>, <strong>lists</strong>, <strong>campaigns</strong>,{" "}
+          <strong>threads</strong>, and <strong>webhook endpoints</strong> (with delivery logs).
+        </li>
+        <li>
+          <strong>Deliverability</strong> (<code>GET /v1/deliverability</code>),{" "}
+          <strong>analytics</strong>, <strong>compliance exports</strong>, and the{" "}
+          <strong>assistant</strong> (<code>POST /v1/assistant</code>).
+        </li>
+      </ul>
+
+      <h2 id="sdk">Node SDK — @rootmail/node</h2>
+      <p>
+        The official Node.js client wraps the whole API with end-to-end TypeScript types, maps
+        snake_case JSON to camelCase for you, normalizes errors into a single{" "}
+        <code>RootMailError</code>, and adds <code>withSubTenant()</code> scoping. It covers messages,
+        sub-tenants, templates, sequences, lists, campaigns, threads, webhooks, deliverability,
+        analytics, compliance exports, and the assistant.
+      </p>
+      <CodeBlock code={sdkExample} filename="audit.ts" />
 
       <h2>Next steps</h2>
       <ul>
