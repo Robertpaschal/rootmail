@@ -11,29 +11,29 @@ import { cn } from "@/lib/utils";
  */
 export async function OnboardingChecklist() {
   let emailVerified = false;
+  let lists = 0;
   let templates = 0;
   let messages = 0;
-  let keys = 0;
   try {
-    const [me, t, m, k] = await Promise.all([
+    const [me, l, t, m] = await Promise.all([
       api.me(),
+      api.listLists(),
       api.listTemplates(),
       api.listMessages({ limit: 1 }),
-      api.listApiKeys(),
     ]);
     emailVerified = me.user.email_verified;
+    lists = l.data.length;
     templates = t.data.length;
     messages = m.data.length;
-    keys = k.data.length;
   } catch {
     return null;
   }
 
   const steps = [
-    { done: emailVerified, label: "Verify your email", desc: "Unlock live sending.", href: null as string | null },
-    { done: keys > 0, label: "Get your API key", desc: "Send via the API or SDK.", href: "/api-keys" },
-    { done: templates > 0, label: "Create a template", desc: "Design a reusable email.", href: "/templates/new" },
-    { done: messages > 0, label: "Send your first email", desc: "Try it from the composer.", href: "/messages/new" },
+    { done: emailVerified, label: "Verify your email", desc: "So we know it's you and can start sending.", href: null as string | null },
+    { done: lists > 0, label: "Build your audience", desc: "Import or add the people you want to reach.", href: "/import" },
+    { done: templates > 0, label: "Design an email", desc: "Create a reusable template — no code needed.", href: "/templates/new" },
+    { done: messages > 0, label: "Send your first email", desc: "Reach your audience from the composer.", href: "/messages/new" },
   ];
   const doneCount = steps.filter((s) => s.done).length;
   if (doneCount === steps.length) return null; // fully onboarded → hide

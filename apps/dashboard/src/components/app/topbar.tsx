@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { LogOut, User as UserIcon } from "lucide-react";
 import { signOut } from "@/app/actions";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { api } from "@/lib/rootmail";
 import { CommandTrigger } from "./command-menu";
@@ -11,13 +10,11 @@ import { ThemeToggle } from "./theme-toggle";
 export async function Topbar() {
   let email: string | null = null;
   let workspaceName: string | null = null;
-  let mode: "live" | "test" | "unknown" = "unknown";
   try {
     const me = await api.me();
     email = me.user.email;
     const ws = me.active_workspace ?? me.workspaces[0] ?? null;
     workspaceName = ws?.name ?? null;
-    mode = ws?.environment ?? "unknown";
   } catch {
     // Render a minimal bar; the layout guard handles real auth failures.
   }
@@ -36,16 +33,17 @@ export async function Topbar() {
         {workspaceName ? (
           <span className="hidden text-sm text-muted-foreground sm:inline">{workspaceName}</span>
         ) : null}
-        <Badge variant={mode === "live" ? "success" : mode === "test" ? "warning" : "muted"}>
-          {mode === "live" ? "Live" : mode === "test" ? "Test" : "—"}
-        </Badge>
+        <ThemeToggle />
         {email ? (
-          <span className="hidden items-center gap-1.5 rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground sm:inline-flex">
+          <Link
+            href="/settings"
+            title="Account & settings"
+            className="hidden items-center gap-1.5 rounded-full border bg-background px-3 py-1 text-xs text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
+          >
             <UserIcon className="size-3.5" />
             {email}
-          </span>
+          </Link>
         ) : null}
-        <ThemeToggle />
         <form action={signOut}>
           <Button variant="ghost" size="sm" type="submit">
             <LogOut className="size-4" /> Sign out
