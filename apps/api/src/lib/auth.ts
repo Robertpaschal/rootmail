@@ -1,8 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { generateApiKey, generateSessionToken, newId, sha256Hex } from "@rootmail/core";
+import { generateSessionToken, newId, sha256Hex } from "@rootmail/core";
 import {
-  type ApiKey,
-  apiKeys,
   db,
   memberships,
   organizations,
@@ -109,14 +107,14 @@ export interface ProvisionedAccount {
   organizationId: string;
   production: Workspace;
   sandbox: Workspace;
-  apiKeyRow: ApiKey;
-  apiKeySecret: string;
 }
 
 /**
- * Sign-up provisioning, mirroring the seed: a user, their organization, a live
- * Production + test Sandbox workspace, an owner membership, and a first live API
- * key. Atomic — a failure rolls the whole thing back.
+ * Sign-up provisioning: a user, their organization, a live Production + test
+ * Sandbox workspace, an owner membership, and a starter template. No API key is
+ * minted — everyday users work entirely through the dashboard (which authenticates
+ * with the user's session); developers create a key on demand from the Developers
+ * section. Atomic — a failure rolls the whole thing back.
  */
 export async function provisionAccount(params: {
   email: string;
@@ -126,7 +124,6 @@ export async function provisionAccount(params: {
 }): Promise<ProvisionedAccount> {
   const orgName =
     params.organizationName?.trim() || params.name?.trim() || params.email.split("@")[0];
-  const generated = generateApiKey("live");
 
   return db.transaction(async (tx) => {
     const [user] = await tx
@@ -183,26 +180,11 @@ export async function provisionAccount(params: {
       ...STARTER_TEMPLATE,
     });
 
-    const [apiKeyRow] = await tx
-      .insert(apiKeys)
-      .values({
-        id: newId("apiKey"),
-        workspaceId: production.id,
-        name: "Default key",
-        prefix: generated.prefix,
-        last4: generated.last4,
-        keyHash: generated.hash,
-        mode: "live",
-      })
-      .returning();
-
     return {
       user,
       organizationId: orgId,
       production,
       sandbox,
-      apiKeyRow,
-      apiKeySecret: generated.key,
     };
   });
 }

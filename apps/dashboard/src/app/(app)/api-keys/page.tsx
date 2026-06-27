@@ -23,7 +23,7 @@ export default async function ApiKeysPage() {
     <>
       <PageHeader
         title="API keys"
-        description="Authenticate the REST API and the @rootmail/node SDK. Treat these like passwords — the secret is shown only once."
+        description="For developers: authenticate the REST API, the @rootmail/node SDK, and the CLI. Everyday sending from the dashboard needs no key. Create one when you're ready to integrate — treat it like a password; the secret is shown only once."
       />
 
       {failed ? (

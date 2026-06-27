@@ -415,7 +415,6 @@ export interface AuthSession extends MeResult {
 
 export interface SignupResult extends AuthSession {
   workspace: Workspace;
-  api_key: CreatedApiKey;
 }
 
 /** Login either returns a session, or — when MFA is on — a short-lived challenge

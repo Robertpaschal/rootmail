@@ -30,7 +30,7 @@ import { consumeAuthToken, createAuthToken } from "../lib/auth-tokens";
 import { passwordResetEmail, verificationEmail, welcomeEmail } from "../lib/emails";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { signupAllowed } from "../lib/signup-limit";
-import { serializeApiKey, serializeUser, serializeWorkspace } from "../lib/serialize";
+import { serializeUser, serializeWorkspace } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
 const signupBody = z.object({
@@ -150,8 +150,6 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       workspace: serializeWorkspace(account.production),
       active_workspace: serializeWorkspace(account.production),
       workspaces: [account.production, account.sandbox].map(serializeWorkspace),
-      // The first key's secret, shown once — same contract as POST /v1/api-keys.
-      api_key: { ...serializeApiKey(account.apiKeyRow), key: account.apiKeySecret },
       session_token: token,
       session_expires_at: session.expiresAt,
     });
