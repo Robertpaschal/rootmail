@@ -1,6 +1,16 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { ArrowRight, CheckCircle2, Clock, Mail, TriangleAlert } from "lucide-react";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  FileText,
+  Mail,
+  Send,
+  Sparkles,
+  TriangleAlert,
+  Upload,
+} from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { OnboardingChecklist } from "@/components/app/onboarding-checklist";
 import { PageHeader } from "@/components/app/page-header";
@@ -52,9 +62,37 @@ export default async function OverviewPage() {
 
   const recent = messages.slice(0, 8);
 
+  const quickActions = [
+    { href: "/messages/new", label: "Compose", desc: "Write & send an email", icon: Send },
+    { href: "/import", label: "Import contacts", desc: "Bring in your audience", icon: Upload },
+    { href: "/templates/new", label: "Design a template", desc: "No code needed", icon: FileText },
+    { href: "/assistant", label: "Ask the assistant", desc: "Build, send, diagnose", icon: Sparkles },
+  ];
+
   return (
     <>
-      <PageHeader title="Overview" description="A snapshot of your most recent sending activity." />
+      <PageHeader
+        title="Overview"
+        description="What's happening across your workspace — and quick ways to act on it."
+      />
+
+      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {quickActions.map((a) => (
+          <Link
+            key={a.href}
+            href={a.href}
+            className="group flex items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:border-primary/40"
+          >
+            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+              <a.icon className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium">{a.label}</p>
+              <p className="truncate text-xs text-muted-foreground">{a.desc}</p>
+            </div>
+          </Link>
+        ))}
+      </div>
 
       <Suspense fallback={null}>
         <OnboardingChecklist />
