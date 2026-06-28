@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  BookOpen,
   CreditCard,
   FileCheck2,
   FileText,
@@ -44,12 +45,26 @@ const groups: NavGroup[] = [
     ],
   },
   {
+    label: "Insights",
+    items: [
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
+      { href: "/deliverability", label: "Deliverability", icon: Gauge },
+    ],
+  },
+  {
     label: "Messaging",
     items: [
       { href: "/messages", label: "Messages", icon: Mail },
       { href: "/campaigns", label: "Campaigns", icon: Megaphone },
       { href: "/sequences", label: "Sequences", icon: Workflow },
       { href: "/inbox", label: "Inbox", icon: Inbox },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { href: "/templates", label: "Templates", icon: FileText },
+      { href: "/assets", label: "Assets", icon: Images },
     ],
   },
   {
@@ -61,17 +76,13 @@ const groups: NavGroup[] = [
     ],
   },
   {
-    label: "Content",
+    label: "Workspace",
     items: [
-      { href: "/templates", label: "Templates", icon: FileText },
-      { href: "/assets", label: "Assets", icon: Images },
-    ],
-  },
-  {
-    label: "Insights",
-    items: [
-      { href: "/analytics", label: "Analytics", icon: BarChart3 },
-      { href: "/deliverability", label: "Deliverability", icon: Gauge },
+      { href: "/billing", label: "Plan & usage", icon: CreditCard },
+      { href: "/members", label: "Team", icon: UserCog },
+      { href: "/roles", label: "Roles", icon: ShieldCheck },
+      { href: "/compliance", label: "Compliance", icon: FileCheck2 },
+      { href: "/settings", label: "Settings", icon: Settings },
     ],
   },
   {
@@ -80,16 +91,7 @@ const groups: NavGroup[] = [
       { href: "/api-keys", label: "API keys", icon: KeyRound },
       { href: "/webhooks", label: "Webhooks", icon: Webhook },
       { href: "/sub-tenants", label: "Sub-tenants", icon: Network },
-    ],
-  },
-  {
-    label: "Workspace",
-    items: [
-      { href: "/billing", label: "Plan & usage", icon: CreditCard },
-      { href: "/members", label: "Team", icon: UserCog },
-      { href: "/roles", label: "Roles", icon: ShieldCheck },
-      { href: "/compliance", label: "Compliance", icon: FileCheck2 },
-      { href: "/settings", label: "Settings", icon: Settings },
+      { href: "/docs", label: "Docs", icon: BookOpen },
     ],
   },
 ];

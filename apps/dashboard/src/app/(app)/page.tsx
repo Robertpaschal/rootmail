@@ -3,133 +3,238 @@ import Link from "next/link";
 import {
   ArrowRight,
   CheckCircle2,
-  Clock,
   FileText,
   Mail,
+  MousePointerClick,
   Send,
   Sparkles,
   TriangleAlert,
   Upload,
+  Users,
 } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { OnboardingChecklist } from "@/components/app/onboarding-checklist";
-import { PageHeader } from "@/components/app/page-header";
-import { MessageStatusBadge, SubTenantStatusBadge } from "@/components/app/status-badge";
+import { MessageStatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
-import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { Message, SubTenant } from "@/lib/types";
+import { api } from "@/lib/rootmail";
 import { cn } from "@/lib/utils";
 
-export default async function OverviewPage() {
-  let messages: Message[];
-  let tenants: SubTenant[];
+const fmt = (n: number) => n.toLocaleString();
+const pct = (n: number) => `${Math.round(n)}%`;
 
-  try {
-    const [m, s] = await Promise.all([api.listMessages({ limit: 100 }), api.listSubTenants()]);
-    messages = m.data;
-    tenants = s.data;
-  } catch (err) {
-    return (
-      <>
-        <PageHeader title="Overview" description="A snapshot of your most recent sending activity." />
-        <ConnectionErrorCard
-          message={
-            err instanceof ConnectionError || err instanceof ApiError
-              ? err.message
-              : "An unexpected error occurred."
-          }
-          showReconnect={err instanceof ApiError}
-        />
-      </>
-    );
+function gradeTone(grade: string | null): string {
+  switch (grade) {
+    case "A":
+      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400";
+    case "B":
+      return "bg-lime-100 text-lime-700 dark:bg-lime-500/15 dark:text-lime-400";
+    case "C":
+      return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400";
+    case "D":
+      return "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400";
+    case "F":
+      return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400";
+    default:
+      return "bg-secondary text-muted-foreground";
+  }
+}
+
+export default async function OverviewPage() {
+  // Pull the whole snapshot in parallel; tolerate partial failure so one slow/erroring
+  // endpoint doesn't blank the home page.
+  const [meR, billR, anaR, delR, msgR, listR, tplR] = await Promise.allSettled([
+    api.me(),
+    api.getBilling(),
+    api.getAnalytics({ window_days: 30 }),
+    api.getDeliverability({ window_days: 30 }),
+    api.listMessages({ limit: 100 }),
+    api.listLists(),
+    api.listTemplates(),
+  ]);
+  const ok = <T,>(r: PromiseSettledResult<T>) => (r.status === "fulfilled" ? r.value : null);
+
+  const me = ok(meR);
+  if (!me) {
+    return <ConnectionErrorCard message="Couldn't reach the rootmail API." showReconnect />;
   }
 
-  const delivered = messages.filter((m) => m.status === "delivered").length;
-  const inFlight = messages.filter((m) => ["queued", "sending", "sent"].includes(m.status)).length;
-  const problems = messages.filter((m) =>
-    ["bounced", "complained", "failed"].includes(m.status),
-  ).length;
-  const verifiedTenants = tenants.filter((t) => t.status === "verified").length;
+  const billing = ok(billR);
+  const analytics = ok(anaR);
+  const deliver = ok(delR);
+  const messages = ok(msgR)?.data ?? [];
+  const lists = ok(listR)?.data ?? [];
+  const templates = ok(tplR)?.data ?? [];
+
+  const firstName = me.user.name?.trim().split(" ")[0] || me.user.email.split("@")[0];
+  const workspace = me.active_workspace ?? me.workspaces[0] ?? null;
+  const usage = billing?.usage;
+  const usedPct = usage && usage.quota > 0 ? Math.min(100, Math.round((usage.used / usage.quota) * 100)) : 0;
+  const recent = messages.slice(0, 6);
+  const problems = messages.filter((m) => ["bounced", "complained", "failed"].includes(m.status)).length;
 
   const stats = [
-    { label: "Recent messages", value: messages.length, hint: "last 100", icon: Mail, tone: "bg-primary/10 text-primary" },
-    { label: "Delivered", value: delivered, hint: "", icon: CheckCircle2, tone: "bg-emerald-100 text-emerald-600" },
-    { label: "In flight", value: inFlight, hint: "queued · sending", icon: Clock, tone: "bg-amber-100 text-amber-600" },
-    { label: "Problems", value: problems, hint: "bounced · failed", icon: TriangleAlert, tone: "bg-red-100 text-red-600" },
+    { label: "Sent (30d)", value: analytics ? fmt(analytics.funnel.sent) : "—", icon: Send },
+    { label: "Delivery rate", value: analytics ? pct(analytics.rates.delivery) : "—", icon: CheckCircle2 },
+    { label: "Open rate", value: analytics ? pct(analytics.rates.open) : "—", icon: Mail },
+    { label: "Click rate", value: analytics ? pct(analytics.rates.click) : "—", icon: MousePointerClick },
   ];
 
-  const recent = messages.slice(0, 8);
-
   const quickActions = [
-    { href: "/messages/new", label: "Compose", desc: "Write & send an email", icon: Send },
-    { href: "/import", label: "Import contacts", desc: "Bring in your audience", icon: Upload },
-    { href: "/templates/new", label: "Design a template", desc: "No code needed", icon: FileText },
-    { href: "/assistant", label: "Ask the assistant", desc: "Build, send, diagnose", icon: Sparkles },
+    { href: "/messages/new", label: "Compose", icon: Send },
+    { href: "/import", label: "Import contacts", icon: Upload },
+    { href: "/templates/new", label: "Design a template", icon: FileText },
+    { href: "/assistant", label: "Ask the assistant", icon: Sparkles },
   ];
 
   return (
-    <>
-      <PageHeader
-        title="Overview"
-        description="What's happening across your workspace — and quick ways to act on it."
-      />
-
-      <div className="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {quickActions.map((a) => (
-          <Link
-            key={a.href}
-            href={a.href}
-            className="group flex items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:border-primary/40"
-          >
-            <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-              <a.icon className="size-4" />
-            </span>
-            <div className="min-w-0">
-              <p className="text-sm font-medium">{a.label}</p>
-              <p className="truncate text-xs text-muted-foreground">{a.desc}</p>
-            </div>
-          </Link>
-        ))}
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Welcome back, {firstName}</h1>
+          <p className="text-sm text-muted-foreground">
+            Here&apos;s how {workspace?.name ?? "your workspace"} is doing
+            {billing ? (
+              <>
+                {" "}
+                on the <span className="font-medium text-foreground">{billing.plan.name}</span> plan
+              </>
+            ) : null}
+            .
+          </p>
+        </div>
+        <Link href="/messages/new" className={cn(buttonVariants({ size: "sm" }))}>
+          <Send className="size-4" /> Compose
+        </Link>
       </div>
 
       <Suspense fallback={null}>
         <OnboardingChecklist />
       </Suspense>
 
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">This month&apos;s sending</CardTitle>
+            <Link href="/billing" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+              Plan &amp; usage <ArrowRight className="size-3.5" />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {usage ? (
+              <>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-3xl font-bold tracking-tight">{fmt(usage.used)}</span>
+                  <span className="text-sm text-muted-foreground">of {fmt(usage.quota)} included</span>
+                </div>
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      usage.over_limit ? "bg-red-500" : usedPct > 80 ? "bg-amber-500" : "bg-primary",
+                    )}
+                    style={{ width: `${usedPct}%` }}
+                  />
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  {usage.over_limit
+                    ? `Over your included limit — ${fmt(usage.overage)} extra this period.`
+                    : `${fmt(usage.remaining)} remaining this period.`}
+                </p>
+              </>
+            ) : (
+              <p className="text-sm text-muted-foreground">Usage appears here once you start sending.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Deliverability</CardTitle>
+            <Link
+              href="/deliverability"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+            >
+              Details <ArrowRight className="size-3.5" />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {deliver && deliver.score != null ? (
+              <div className="flex items-center gap-4">
+                <span
+                  className={cn(
+                    "grid size-14 shrink-0 place-items-center rounded-full text-xl font-bold",
+                    gradeTone(deliver.grade),
+                  )}
+                >
+                  {deliver.grade ?? "—"}
+                </span>
+                <div>
+                  <p className="text-2xl font-bold tracking-tight">
+                    {deliver.score}
+                    <span className="text-sm font-normal text-muted-foreground">/100</span>
+                  </p>
+                  <p className="text-xs capitalize text-muted-foreground">
+                    {deliver.status.replace("_", " ")}
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">Send a few emails to earn a reputation score.</p>
+            )}
+            {deliver?.recommendations?.length ? (
+              <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">{deliver.recommendations[0]}</p>
+            ) : null}
+          </CardContent>
+        </Card>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
-          <Card key={s.label} className="p-5">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted-foreground">{s.label}</span>
-              <span className={cn("grid size-8 place-items-center rounded-lg", s.tone)}>
-                <s.icon className="size-4" />
-              </span>
-            </div>
-            <div className="mt-3 flex items-baseline gap-2">
-              <span className="text-3xl font-bold tracking-tight">{s.value}</span>
-              {s.hint ? <span className="text-xs text-muted-foreground">{s.hint}</span> : null}
-            </div>
-          </Card>
+          <Link key={s.label} href="/analytics" className="group">
+            <Card className="p-5 transition-colors group-hover:border-primary/40">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-muted-foreground">{s.label}</span>
+                <s.icon className="size-4 text-muted-foreground" />
+              </div>
+              <div className="mt-2 text-2xl font-bold tracking-tight">{s.value}</div>
+            </Card>
+          </Link>
         ))}
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div>
+        <p className="mb-2 text-sm font-medium text-muted-foreground">Quick actions</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {quickActions.map((a) => (
+            <Link
+              key={a.href}
+              href={a.href}
+              className="group flex items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:border-primary/40"
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                <a.icon className="size-4" />
+              </span>
+              <span className="text-sm font-medium">{a.label}</span>
+            </Link>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Recent messages</CardTitle>
-            <Link
-              href="/messages"
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-            >
+            <Link href="/messages" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
               View all <ArrowRight className="size-3.5" />
             </Link>
           </CardHeader>
           <CardContent className="p-0">
             {recent.length === 0 ? (
               <p className="px-6 pb-6 text-sm text-muted-foreground">
-                No messages yet — send your first one.
+                No messages yet — compose your first one.
               </p>
             ) : (
               <Table>
@@ -152,9 +257,7 @@ export default async function OverviewPage() {
                           {m.to}
                         </Link>
                       </TableCell>
-                      <TableCell className="max-w-[220px] truncate text-muted-foreground">
-                        {m.subject}
-                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate text-muted-foreground">{m.subject}</TableCell>
                       <TableCell className="whitespace-nowrap text-right text-muted-foreground">
                         {relativeTime(m.created_at)}
                       </TableCell>
@@ -167,40 +270,48 @@ export default async function OverviewPage() {
         </Card>
 
         <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Sub-tenants</CardTitle>
-            <Link
-              href="/sub-tenants"
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              Manage <ArrowRight className="size-3.5" />
-            </Link>
+          <CardHeader>
+            <CardTitle className="text-base">Your workspace</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="mb-4 flex items-baseline gap-2">
-              <span className="text-3xl font-bold tracking-tight">{tenants.length}</span>
-              <span className="text-xs text-muted-foreground">{verifiedTenants} verified</span>
-            </div>
-            <div className="space-y-2.5">
-              {tenants.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No sub-tenants yet.</p>
-              ) : (
-                tenants.slice(0, 6).map((t) => (
-                  <div key={t.id} className="flex items-center justify-between gap-2">
-                    <Link
-                      href={`/sub-tenants/${t.id}`}
-                      className="truncate font-mono text-sm hover:underline"
-                    >
-                      {t.sending_domain}
-                    </Link>
-                    <SubTenantStatusBadge status={t.status} />
-                  </div>
-                ))
-              )}
-            </div>
+          <CardContent className="space-y-1">
+            <SnapshotRow icon={Users} label="Lists" value={lists.length} href="/lists" />
+            <SnapshotRow icon={FileText} label="Templates" value={templates.length} href="/templates" />
+            <SnapshotRow
+              icon={TriangleAlert}
+              label="Problems (last 100)"
+              value={problems}
+              href="/messages"
+              tone={problems > 0 ? "text-amber-600 dark:text-amber-400" : undefined}
+            />
           </CardContent>
         </Card>
       </div>
-    </>
+    </div>
+  );
+}
+
+function SnapshotRow({
+  icon: Icon,
+  label,
+  value,
+  href,
+  tone,
+}: {
+  icon: typeof Users;
+  label: string;
+  value: number;
+  href: string;
+  tone?: string;
+}) {
+  return (
+    <Link
+      href={href}
+      className="-mx-2 flex items-center justify-between rounded-md px-2 py-2 transition-colors hover:bg-secondary/60"
+    >
+      <span className="flex items-center gap-2 text-sm text-muted-foreground">
+        <Icon className="size-4" /> {label}
+      </span>
+      <span className={cn("text-sm font-semibold", tone)}>{fmt(value)}</span>
+    </Link>
   );
 }
