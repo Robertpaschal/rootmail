@@ -12,6 +12,7 @@ const ADDON_LABELS: Record<string, string> = {
   extra_seat: "Extra seats",
   ai_credit_pack: "AI credit packs",
   subtenant_pack: "Sub-tenant packs",
+  workspace_pack: "Workspace packs",
   dedicated_ip: "Dedicated IPs",
 };
 

@@ -198,7 +198,12 @@ export interface Plan {
   sale_price_yearly: number | null;
 }
 
-export type AddonId = "extra_seat" | "dedicated_ip" | "subtenant_pack" | "ai_credit_pack";
+export type AddonId =
+  | "extra_seat"
+  | "dedicated_ip"
+  | "subtenant_pack"
+  | "workspace_pack"
+  | "ai_credit_pack";
 
 export interface BillingAddonLine {
   id: string;
