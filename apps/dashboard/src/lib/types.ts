@@ -152,6 +152,22 @@ export interface MeResult {
   impersonating?: boolean;
 }
 
+/** Plan-included + purchased live-workspace capacity (unlimited shown as -1). */
+export interface WorkspaceLimit {
+  included: number;
+  purchased: number;
+  used: number;
+  capacity: number;
+  remaining: number;
+  can_create: boolean;
+}
+
+export interface WorkspacesResult {
+  object: "list";
+  data: Workspace[];
+  workspaces_limit: WorkspaceLimit;
+}
+
 export type PlanId = "free" | "pro" | "scale" | "enterprise";
 
 export interface Organization {

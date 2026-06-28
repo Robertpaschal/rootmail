@@ -187,6 +187,9 @@ export const plans = pgTable("plans", {
   overagePer1000Cents: integer("overage_per_1000_cents").notNull().default(0),
   includedSubTenants: integer("included_sub_tenants").notNull().default(0),
   seats: integer("seats").notNull().default(1),
+  // Included live workspaces (products/brands); -1 = unlimited. The Sandbox
+  // (test) workspace never counts.
+  workspaceLimit: integer("workspace_limit").notNull().default(1),
   aiCredits: integer("ai_credits").notNull().default(0),
   features: jsonb("features").$type<string[]>().notNull().default([]),
   rank: integer("rank").notNull().default(0),

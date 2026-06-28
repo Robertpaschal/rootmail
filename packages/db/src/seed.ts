@@ -62,6 +62,7 @@ async function ensurePlans(): Promise<void> {
         overagePer1000Cents: Math.round(p.overagePer1000 * 100),
         includedSubTenants: p.includedSubTenants,
         seats: p.seats,
+        workspaceLimit: p.workspaceLimit,
         aiCredits: AI_CREDITS[id],
         features: [...p.features],
         rank: i,

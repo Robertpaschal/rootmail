@@ -68,6 +68,12 @@ export function PlanEditor({ plan }: { plan: AdminPlan }) {
           defaultValue={plan.included_sub_tenants}
           hint="-1 = ∞"
         />
+        <Field
+          name="workspace_limit"
+          label="Workspaces"
+          defaultValue={plan.workspace_limit}
+          hint="-1 = ∞"
+        />
         <Field name="ai_credits" label="AI credits" defaultValue={plan.ai_credits} hint="-1 = ∞" />
         <Field name="trial_days" label="Trial days" defaultValue={plan.trial_days} hint="0 = none" />
       </div>

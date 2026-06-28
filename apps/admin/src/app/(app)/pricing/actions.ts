@@ -27,6 +27,7 @@ export async function updatePlan(_prev: PlanState, formData: FormData): Promise<
     overage_per_1000_cents: intField(formData, "overage_per_1000_cents"),
     included_sub_tenants: intField(formData, "included_sub_tenants"),
     seats: intField(formData, "seats"),
+    workspace_limit: intField(formData, "workspace_limit"),
     ai_credits: intField(formData, "ai_credits"),
     trial_days: intField(formData, "trial_days"),
     active: formData.get("active") === "on",

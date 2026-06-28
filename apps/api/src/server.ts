@@ -36,6 +36,7 @@ import { threadRoutes } from "./routes/threads";
 import { webhookRoutes } from "./routes/webhooks";
 import { sesWebhookRoutes } from "./routes/webhooks-ses";
 import { stripeWebhookRoutes } from "./routes/webhooks-stripe";
+import { workspaceRoutes } from "./routes/workspaces";
 
 /** Fastify's trustProxy accepts a boolean, a hop count, or an IP/CIDR allowlist. */
 function parseTrustProxy(v: string): boolean | number | string {
@@ -89,6 +90,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(threadRoutes);
   await app.register(billingRoutes);
   await app.register(organizationRoutes);
+  await app.register(workspaceRoutes);
   await app.register(memberRoutes);
   await app.register(roleRoutes);
   await app.register(webhookRoutes);

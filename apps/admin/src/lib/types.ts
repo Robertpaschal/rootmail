@@ -159,6 +159,7 @@ export interface AdminPlan {
   overage_per_1000_cents: number;
   included_sub_tenants: number;
   seats: number;
+  workspace_limit: number;
   ai_credits: number;
   trial_days: number;
   features: string[];
@@ -178,6 +179,7 @@ export type PlanPatch = Partial<{
   overage_per_1000_cents: number;
   included_sub_tenants: number;
   seats: number;
+  workspace_limit: number;
   ai_credits: number;
   trial_days: number;
   active: boolean;

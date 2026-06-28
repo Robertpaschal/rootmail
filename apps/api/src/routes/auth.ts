@@ -223,8 +223,8 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // --- Current user -------------------------------------------------------
-  app.get("/v1/auth/me", async (req) => {
-    const { user, session } = await requireSession(req);
+  // Build the /me payload from a resolved session — reused by the switcher.
+  async function mePayload(user: User, session: { activeWorkspaceId: string | null; impersonatedByStaffId: string | null }) {
     const workspaces = await userWorkspaces(user.id);
     const active =
       (session.activeWorkspaceId
@@ -236,6 +236,31 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       active_workspace: active ? serializeWorkspace(active) : null,
       impersonating: session.impersonatedByStaffId != null,
     };
+  }
+
+  app.get("/v1/auth/me", async (req) => {
+    const { user, session } = await requireSession(req);
+    return mePayload(user, session);
+  });
+
+  // --- Switch the session's active workspace ------------------------------
+  // The dashboard's workspace switcher posts here. Validates that the target
+  // belongs to the user's org, persists it on the session, and returns the
+  // fresh /me payload so the caller can revalidate.
+  const activeWorkspaceBody = z.object({ workspace_id: z.string().min(1) });
+  app.post("/v1/auth/active-workspace", async (req) => {
+    const { user, session } = await requireSession(req);
+    const { workspace_id } = parse(activeWorkspaceBody, req.body);
+
+    const target = await workspaceForUser(user.id, workspace_id);
+    if (!target) throw Errors.notFound("Workspace not found");
+
+    await db
+      .update(sessions)
+      .set({ activeWorkspaceId: target.id })
+      .where(eq(sessions.id, session.id));
+
+    return mePayload(user, { ...session, activeWorkspaceId: target.id });
   });
 
   // --- Email preferences (the signed-in user) -----------------------------

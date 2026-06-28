@@ -48,6 +48,8 @@ import type {
   VerifyResult,
   WebhookDelivery,
   WebhookEndpoint,
+  Workspace,
+  WorkspacesResult,
 } from "./types";
 
 /** Where the rootmail REST API lives. The dashboard only ever calls it server-side. */
@@ -388,6 +390,16 @@ export const api = {
   resetPassword: (body: { token: string; password: string }) =>
     rmFetch<{ reset: boolean }>("/v1/auth/reset-password", { method: "POST", body, noAuth: true }),
   me: () => rmFetch<MeResult>("/v1/auth/me"),
+  // Workspaces (products/brands). The org always has a Production + Sandbox;
+  // additional live ones are plan-gated + buyable via the workspace_pack add-on.
+  listWorkspaces: () => rmFetch<WorkspacesResult>("/v1/workspaces"),
+  createWorkspace: (name: string) =>
+    rmFetch<Workspace>("/v1/workspaces", { method: "POST", body: { name } }),
+  setActiveWorkspace: (workspaceId: string) =>
+    rmFetch<MeResult>("/v1/auth/active-workspace", {
+      method: "POST",
+      body: { workspace_id: workspaceId },
+    }),
   setAnnouncementPref: (optOut: boolean) =>
     rmFetch<User>("/v1/auth/preferences", { method: "POST", body: { announcement_opt_out: optOut } }),
   logout: () => rmFetch<{ ok: boolean }>("/v1/auth/logout", { method: "POST" }),

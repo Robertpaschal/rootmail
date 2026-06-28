@@ -92,6 +92,9 @@ function toCustomDef(cp: CustomPlan): { def: PlanDef; aiCredits: number } {
       overagePer1000: cp.overagePer1000Cents / 100,
       includedSubTenants: cp.includedSubTenants,
       seats: cp.seats,
+      // Custom plans are bespoke enterprise deals → unlimited workspaces, like
+      // the enterprise tier they inherit features from.
+      workspaceLimit: -1,
       features: PLANS.enterprise.features,
     },
     aiCredits: cp.aiCredits,
@@ -124,6 +127,7 @@ function toDef(r: Plan): PlanDef {
     overagePer1000: r.overagePer1000Cents / 100,
     includedSubTenants: r.includedSubTenants,
     seats: r.seats,
+    workspaceLimit: r.workspaceLimit,
     features: r.features as PlanFeature[],
   };
 }
@@ -208,6 +212,11 @@ export function aiCreditsForOrg(org: { id: string; plan: PlanId }): number {
   maybeRefresh();
   const custom = customPlanCache.get(org.id);
   return custom ? custom.aiCredits : getAiCredits(org.plan);
+}
+
+/** Effective included live workspaces for an org (custom plan wins; -1 = unlimited). */
+export function workspaceLimitForOrg(org: { id: string; plan: PlanId }): number {
+  return planForOrg(org).workspaceLimit;
 }
 
 /** Admin-synced Stripe price ids for a plan, if any (else null → use env). */

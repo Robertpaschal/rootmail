@@ -182,6 +182,9 @@ export interface PlanDef {
   includedSubTenants: number;
   /** Team seats; -1 = unlimited. */
   seats: number;
+  /** Live workspaces (products/brands) included; -1 = unlimited. The test
+   * Sandbox never counts against this. */
+  workspaceLimit: number;
   features: PlanFeature[];
 }
 
@@ -195,6 +198,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     overagePer1000: 0,
     includedSubTenants: 0,
     seats: 1,
+    workspaceLimit: 1,
     features: ["audit", "suppression"],
   },
   pro: {
@@ -206,6 +210,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     overagePer1000: 0.85,
     includedSubTenants: 0,
     seats: 3,
+    workspaceLimit: 3,
     features: ["audit", "suppression", "threads", "sequences", "campaigns"],
   },
   scale: {
@@ -217,6 +222,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     overagePer1000: 0.7,
     includedSubTenants: 10,
     seats: -1,
+    workspaceLimit: 10,
     features: ["audit", "suppression", "threads", "sequences", "campaigns", "subtenants", "rbac"],
   },
   enterprise: {
@@ -228,6 +234,7 @@ export const PLANS: Record<PlanId, PlanDef> = {
     overagePer1000: 0.5,
     includedSubTenants: -1,
     seats: -1,
+    workspaceLimit: -1,
     features: [
       "audit",
       "suppression",
@@ -280,7 +287,7 @@ export type PlanStatus = (typeof PLAN_STATUSES)[number];
 export const ADD_ON_KINDS = ["recurring", "metered", "one_time"] as const;
 export type AddOnKind = (typeof ADD_ON_KINDS)[number];
 
-export const ADD_ON_IDS = ["extra_seat", "dedicated_ip", "subtenant_pack", "ai_credit_pack"] as const;
+export const ADD_ON_IDS = ["extra_seat", "dedicated_ip", "subtenant_pack", "workspace_pack", "ai_credit_pack"] as const;
 export type AddOnId = (typeof ADD_ON_IDS)[number];
 
 export interface AddOnDef {
@@ -324,6 +331,16 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_ADDON_SUBTENANT_PACK",
     grant: 10,
+  },
+  workspace_pack: {
+    id: "workspace_pack",
+    name: "Workspace pack",
+    description: "Raises your included workspace ceiling by 5 per pack — one per product or brand.",
+    unit: "pack of 5",
+    defaultUnitAmount: 10,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_WORKSPACE_PACK",
+    grant: 5,
   },
   ai_credit_pack: {
     id: "ai_credit_pack",

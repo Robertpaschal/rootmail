@@ -104,6 +104,7 @@ function serializePlanRow(p: typeof plans.$inferSelect) {
     overage_per_1000_cents: p.overagePer1000Cents,
     included_sub_tenants: p.includedSubTenants,
     seats: p.seats,
+    workspace_limit: p.workspaceLimit,
     ai_credits: p.aiCredits,
     trial_days: p.trialDays,
     features: p.features,
@@ -944,6 +945,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     overage_per_1000_cents: z.coerce.number().int().min(0).max(100_000).optional(),
     included_sub_tenants: z.coerce.number().int().min(-1).optional(),
     seats: z.coerce.number().int().min(-1).optional(),
+    workspace_limit: z.coerce.number().int().min(-1).optional(),
     ai_credits: z.coerce.number().int().min(-1).optional(),
     trial_days: z.coerce.number().int().min(0).max(365).optional(),
     features: z.array(z.string()).optional(),
@@ -967,6 +969,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     if (body.overage_per_1000_cents !== undefined) set.overagePer1000Cents = body.overage_per_1000_cents;
     if (body.included_sub_tenants !== undefined) set.includedSubTenants = body.included_sub_tenants;
     if (body.seats !== undefined) set.seats = body.seats;
+    if (body.workspace_limit !== undefined) set.workspaceLimit = body.workspace_limit;
     if (body.ai_credits !== undefined) set.aiCredits = body.ai_credits;
     if (body.trial_days !== undefined) set.trialDays = body.trial_days;
     if (body.features !== undefined) set.features = body.features;
