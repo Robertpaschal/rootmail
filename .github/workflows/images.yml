@@ -61,5 +61,8 @@ jobs:
           # Only the marketing Dockerfile declares this ARG; the others ignore it.
           build-args: |
             NEXT_PUBLIC_DASHBOARD_URL=${{ vars.NEXT_PUBLIC_DASHBOARD_URL || 'https://dashboard.gateml.io' }}
-          cache-from: type=gha,scope=${{ matrix.app }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.app }}
+          # Layer cache only for api/worker. The Next apps (marketing/dashboard/admin)
+          # build clean every time — a cached .next can yield a corrupt React client
+          # manifest ("Could not find module … in the React Client Manifest") at runtime.
+          cache-from: ${{ (matrix.app == 'api' || matrix.app == 'worker') && format('type=gha,scope={0}', matrix.app) || '' }}
+          cache-to: ${{ (matrix.app == 'api' || matrix.app == 'worker') && format('type=gha,mode=max,scope={0}', matrix.app) || '' }}
