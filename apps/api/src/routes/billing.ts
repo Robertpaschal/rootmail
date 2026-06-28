@@ -38,6 +38,7 @@ function serializePlan(p: PlanDef) {
     overage_per_1000: p.overagePer1000,
     included_sub_tenants: p.includedSubTenants,
     seats: p.seats,
+    workspace_limit: p.workspaceLimit,
     trial_days: getTrialDays(p.id),
     ai_credits: getAiCredits(p.id),
     features: p.features,

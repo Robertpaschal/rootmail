@@ -64,6 +64,10 @@ export type ThreadStatus = (typeof THREAD_STATUSES)[number];
 export const MESSAGE_DIRECTIONS = ["outbound", "inbound"] as const;
 export type MessageDirection = (typeof MESSAGE_DIRECTIONS)[number];
 
+// In-app AI assistant chat turns.
+export const ASSISTANT_MESSAGE_ROLES = ["user", "assistant"] as const;
+export type AssistantMessageRole = (typeof ASSISTANT_MESSAGE_ROLES)[number];
+
 export const WORKSPACE_ENVIRONMENTS = ["live", "test"] as const;
 export type WorkspaceEnvironment = (typeof WORKSPACE_ENVIRONMENTS)[number];
 

@@ -40,6 +40,8 @@ export const ID_PREFIXES = {
   lead: "led",
   leadNote: "lnt",
   customPlan: "cpl",
+  assistantChat: "chat",
+  assistantMessage: "chatmsg",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

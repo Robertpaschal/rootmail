@@ -129,4 +129,26 @@ export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
 
     return reply.status(201).send(serializeWorkspace(workspace));
   });
+
+  // --- Rename a workspace (display name only; slug + environment immutable) ----
+  app.patch("/v1/workspaces/:id", async (req, reply) => {
+    const org = await loadOrg(req);
+    await requirePermission(req, "billing.manage");
+    const { id } = req.params as { id: string };
+    const { name } = parse(z.object({ name: z.string().min(1).max(120) }), req.body);
+
+    const [ws] = await db
+      .select()
+      .from(workspaces)
+      .where(and(eq(workspaces.id, id), eq(workspaces.organizationId, org.id)))
+      .limit(1);
+    if (!ws) throw Errors.notFound("Workspace not found");
+
+    const [updated] = await db
+      .update(workspaces)
+      .set({ name })
+      .where(eq(workspaces.id, id))
+      .returning();
+    return reply.send(serializeWorkspace(updated));
+  });
 }

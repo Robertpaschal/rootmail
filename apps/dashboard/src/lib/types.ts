@@ -345,6 +345,27 @@ export interface AssistantResponse {
   credits: { used: number; allowance: number };
 }
 
+export interface AssistantChat {
+  object: "assistant_chat";
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AssistantChatMessage {
+  object: "assistant_message";
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  actions: { tool: string; status: number }[];
+  created_at: string;
+}
+
+export interface AssistantChatDetail extends AssistantChat {
+  messages: AssistantChatMessage[];
+}
+
 export interface ProofResponse {
   object: "proof";
   bundle: Record<string, unknown>;

@@ -10,6 +10,7 @@ import {
   uniqueIndex,
 } from "drizzle-orm/pg-core";
 import {
+  ASSISTANT_MESSAGE_ROLES,
   AUDIT_EVENTS,
   BILLING_INTERVALS,
   CAMPAIGN_STATUSES,
@@ -61,6 +62,7 @@ export const threadStatusEnum = pgEnum("thread_status", THREAD_STATUSES);
 export const messageDirectionEnum = pgEnum("message_direction", MESSAGE_DIRECTIONS);
 export const retentionModeEnum = pgEnum("retention_mode", RETENTION_MODES);
 export const leadStatusEnum = pgEnum("lead_status", LEAD_STATUSES);
+export const assistantMessageRoleEnum = pgEnum("assistant_message_role", ASSISTANT_MESSAGE_ROLES);
 
 // Fresh builders each call so no column instance is shared across tables.
 const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -763,6 +765,46 @@ export const threadMessages = pgTable(
 );
 
 // ---------------------------------------------------------------------------
+// In-app AI assistant — persistent, conversational chat (history + multi-turn).
+// Scoped to an org AND the user who owns the conversation. The assistant's tool
+// loop still runs per-message; we persist only the user/assistant TEXT turns
+// (plus the tool actions taken) so a chat can be reloaded and continued.
+// ---------------------------------------------------------------------------
+export const assistantChats = pgTable(
+  "assistant_chats",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull().default("New chat"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("assistant_chats_org_user_idx").on(t.organizationId, t.userId, t.updatedAt)],
+);
+
+export const assistantMessages = pgTable(
+  "assistant_messages",
+  {
+    id: text("id").primaryKey(),
+    chatId: text("chat_id")
+      .notNull()
+      .references(() => assistantChats.id, { onDelete: "cascade" }),
+    role: assistantMessageRoleEnum("role").notNull(),
+    content: text("content").notNull(),
+    // The tool actions the assistant took for this turn ({tool,status}[]); null
+    // for user turns.
+    actions: jsonb("actions").$type<{ tool: string; status: number }[]>(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("assistant_messages_chat_idx").on(t.chatId, t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
 // Internal staff (apps/admin) — separate identity from customer users/sessions.
 // ---------------------------------------------------------------------------
 export const staffUsers = pgTable("staff_users", {
@@ -986,3 +1028,7 @@ export type Thread = typeof threads.$inferSelect;
 export type NewThread = typeof threads.$inferInsert;
 export type ThreadMessage = typeof threadMessages.$inferSelect;
 export type NewThreadMessage = typeof threadMessages.$inferInsert;
+export type AssistantChat = typeof assistantChats.$inferSelect;
+export type NewAssistantChat = typeof assistantChats.$inferInsert;
+export type AssistantMessage = typeof assistantMessages.$inferSelect;
+export type NewAssistantMessage = typeof assistantMessages.$inferInsert;

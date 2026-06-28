@@ -316,10 +316,17 @@ export interface AssistantResult {
 // than this many AI credits.
 const MAX_STEPS = 8;
 
+/** A prior conversation turn replayed for context — text only, no tool calls. */
+export interface PriorTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export async function runAssistant(
   app: FastifyInstance,
   req: FastifyRequest,
   prompt: string,
+  history: PriorTurn[] = [],
 ): Promise<AssistantResult> {
   if (!env.ANTHROPIC_API_KEY) return { ...(await mockAssistant(app, req, prompt)), calls: 0 };
 
@@ -334,7 +341,16 @@ export async function runAssistant(
     input_schema: t.input_schema,
     ...(i === TOOLS.length - 1 ? { cache_control: { type: "ephemeral" as const } } : {}),
   }));
-  const messages: Anthropic.MessageParam[] = [{ role: "user", content: prompt }];
+  // Seed the conversation with prior text turns so the model has context, then
+  // append the new prompt. We replay only user/assistant TEXT (not old tool_use /
+  // tool_result blocks) — those are transient to each message's loop and would
+  // need their paired results to be valid; the prose carries enough context.
+  const messages: Anthropic.MessageParam[] = [
+    ...history
+      .filter((h) => h.content.trim().length > 0)
+      .map((h) => ({ role: h.role, content: h.content }) satisfies Anthropic.MessageParam),
+    { role: "user", content: prompt },
+  ];
   const actions: Array<{ tool: string; status: number }> = [];
   let calls = 0;
 

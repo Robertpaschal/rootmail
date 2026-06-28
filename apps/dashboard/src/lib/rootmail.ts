@@ -5,6 +5,8 @@ import type {
   Asset,
   CreatedWebhookEndpoint,
   AssistantResponse,
+  AssistantChat,
+  AssistantChatDetail,
   AuditTrail,
   Analytics,
   AuthSession,
@@ -228,6 +230,22 @@ export const api = {
     rmFetch<AiDraftResponse>("/v1/templates/ai-draft", { method: "POST", body: { prompt } }),
   assistant: (prompt: string) =>
     rmFetch<AssistantResponse>("/v1/assistant", { method: "POST", body: { prompt } }),
+  // Persistent assistant chats (per user). The dashboard's chat UI runs on these;
+  // `assistant` above stays as the single-shot path for the SDK / back-compat.
+  listAssistantChats: () => rmFetch<ListResponse<AssistantChat>>("/v1/assistant/chats"),
+  getAssistantChat: (id: string) => rmFetch<AssistantChatDetail>(`/v1/assistant/chats/${id}`),
+  createAssistantChat: (title?: string) =>
+    rmFetch<AssistantChat>("/v1/assistant/chats", { method: "POST", body: title ? { title } : {} }),
+  sendAssistantMessage: (id: string, prompt: string) =>
+    rmFetch<AssistantResponse>(`/v1/assistant/chats/${id}/messages`, {
+      method: "POST",
+      body: { prompt },
+    }),
+  deleteAssistantChat: (id: string) =>
+    rmFetch<{ object: "assistant_chat"; id: string; deleted: boolean }>(
+      `/v1/assistant/chats/${id}`,
+      { method: "DELETE" },
+    ),
   listAssets: () => rmFetch<ListResponse<Asset>>("/v1/assets"),
   // Multipart upload — bypasses rmFetch (which is JSON-only). Server-side only.
   uploadAsset: async (file: File): Promise<UploadedAsset> => {
