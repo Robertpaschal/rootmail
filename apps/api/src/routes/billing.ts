@@ -13,6 +13,7 @@ import {
   saleActive,
   salePrice,
   yearlyPrice,
+  YEARLY_MONTHS_FREE,
 } from "@rootmail/core";
 import { db, type Organization, organizations, type OrgAddon, orgAddons } from "@rootmail/db";
 import { currentPeriod, type QuotaState, quotaState } from "../lib/billing";
@@ -108,11 +109,20 @@ function billingSummary(org: Organization, usage: QuotaState, seats: SeatState, 
     yearly_option:
       yp === null
         ? null
-        : {
-            plan_amount: yp,
-            equivalent_monthly: Math.round((yp / 12) * 100) / 100,
-            savings_vs_monthly: (plan.price ?? 0) * 12 - yp,
-          },
+        : (() => {
+            // Add-ons bill at the same interval as the plan, with the same months-free
+            // discount — so the yearly option reflects plan + add-ons, not just the plan.
+            const addonsMonthly = addonLines.reduce((s, a) => s + a.amount, 0);
+            const addonsYearly = addonsMonthly * (12 - YEARLY_MONTHS_FREE);
+            const total = yp + addonsYearly;
+            return {
+              plan_amount: yp,
+              addons_amount: addonsYearly,
+              total,
+              equivalent_monthly: Math.round((total / 12) * 100) / 100,
+              savings_vs_monthly: ((plan.price ?? 0) + addonsMonthly) * YEARLY_MONTHS_FREE,
+            };
+          })(),
     total: monthlyTotal,
   };
 }
@@ -149,8 +159,12 @@ async function billingPayload(org: Organization, usage: QuotaState) {
           unit: a.unit,
           description: a.description,
           unit_amount: a.unitAmount,
+          unit_amount_yearly: a.unitAmount * (12 - YEARLY_MONTHS_FREE),
           sale_percent_off: onSale ? a.salePercentOff : null,
           sale_price: onSale ? salePrice(a.unitAmount, a.salePercentOff as number) : null,
+          sale_price_yearly: onSale
+            ? salePrice(a.unitAmount, a.salePercentOff as number) * (12 - YEARLY_MONTHS_FREE)
+            : null,
           sale_ends_at: onSale ? a.saleEndsAt : null,
         };
       }),

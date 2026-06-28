@@ -45,13 +45,13 @@ export function CheckoutConfigurator({
 
   const planMonthly = plan.sale_price ?? plan.price ?? 0;
   const planYearly = plan.sale_price_yearly ?? plan.price_yearly ?? 0;
-  const addonsActive = interval === "month";
-  const addonsMonthly = catalog.reduce(
-    (sum, a) => sum + (qtys[a.id] ?? 0) * (a.sale_price ?? a.unit_amount),
-    0,
-  );
+  // Add-ons bill at the chosen interval now (a yearly sub uses yearly add-on prices).
+  const addonsActive = true;
+  const addonUnitPrice = (a: { unit_amount: number; unit_amount_yearly: number; sale_price: number | null; sale_price_yearly: number | null }) =>
+    interval === "year" ? (a.sale_price_yearly ?? a.unit_amount_yearly) : (a.sale_price ?? a.unit_amount);
+  const addonsTotal = catalog.reduce((sum, a) => sum + (qtys[a.id] ?? 0) * addonUnitPrice(a), 0);
   const unit = interval === "year" ? "yr" : "mo";
-  const total = interval === "year" ? planYearly : planMonthly + addonsMonthly;
+  const total = (interval === "year" ? planYearly : planMonthly) + addonsTotal;
 
   if (session) {
     return (
@@ -129,13 +129,17 @@ export function CheckoutConfigurator({
                 <p className="text-xs text-muted-foreground">
                   {onSale ? (
                     <>
-                      <span className="font-medium text-foreground">${a.sale_price}</span>{" "}
-                      <span className="line-through">${a.unit_amount}</span>
+                      <span className="font-medium text-foreground">
+                        ${interval === "year" ? (a.sale_price_yearly ?? a.unit_amount_yearly) : a.sale_price}
+                      </span>{" "}
+                      <span className="line-through">
+                        ${interval === "year" ? a.unit_amount_yearly : a.unit_amount}
+                      </span>
                     </>
                   ) : (
-                    <>${a.unit_amount}</>
+                    <>${interval === "year" ? a.unit_amount_yearly : a.unit_amount}</>
                   )}
-                  /mo per {a.unit}
+                  /{unit} per {a.unit}
                 </p>
               </div>
               <div className="flex items-center gap-1.5">
@@ -181,7 +185,7 @@ export function CheckoutConfigurator({
           disabled={pending}
           onClick={() => {
             setError(null);
-            const addons = interval === "month" ? qtys : {};
+            const addons = qtys;
             start(async () => {
               const res = await createEmbeddedSession(plan.id, interval, addons);
               if ("clientSecret" in res) {

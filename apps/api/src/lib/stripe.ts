@@ -70,29 +70,37 @@ export function priceForPlan(planId: PlanId, interval: BillingInterval = "month"
   return syncedId ?? envPriceForPlan(planId, interval);
 }
 
-/** Env-configured Stripe price id for an add-on, or null. */
-function envAddOnPriceId(id: AddOnId): string | null {
-  const val = env[ADD_ONS[id].priceEnvKey as keyof typeof env];
+/** Env-configured Stripe price id for an add-on at the given interval, or null. The
+ * yearly key is the monthly key + "_YEAR" (e.g. STRIPE_PRICE_ADDON_WORKSPACE_PACK_YEAR). */
+function envAddOnPriceId(id: AddOnId, interval: BillingInterval = "month"): string | null {
+  const base = ADD_ONS[id].priceEnvKey;
+  const val = env[(interval === "year" ? `${base}_YEAR` : base) as keyof typeof env];
   return typeof val === "string" && val ? val : null;
 }
 
-/** The NON-sale (regular) Stripe price id for an add-on (synced → env). */
-function regularAddOnPriceId(id: AddOnId): string | null {
-  return getAddon(id).stripePriceId ?? envAddOnPriceId(id);
+/** The NON-sale (regular) Stripe price id for an add-on. Monthly prefers the admin-synced
+ * DB price (synced → env); yearly uses the env _YEAR price (admin sync is monthly-only). */
+function regularAddOnPriceId(id: AddOnId, interval: BillingInterval = "month"): string | null {
+  if (interval === "year") return envAddOnPriceId(id, "year");
+  return getAddon(id).stripePriceId ?? envAddOnPriceId(id, "month");
 }
 
 /**
- * Effective Stripe price id for an add-on — the discounted sale price while a sale
- * is active, otherwise the regular price. Both checkout and add-on sync bill through
- * this, so an add-on on sale is charged at its sale price everywhere (no coupon
- * stacking with a plan sale).
+ * Effective Stripe price id for an add-on at the given interval — the discounted sale
+ * price while a sale is active (monthly only), otherwise the regular price. Both checkout
+ * and add-on sync bill through this, so an add-on on sale is charged at its sale price
+ * everywhere (no coupon stacking with a plan sale).
  */
-export function priceForAddOn(id: AddOnId): string | null {
+export function priceForAddOn(id: AddOnId, interval: BillingInterval = "month"): string | null {
   const a = getAddon(id);
-  if (a.saleStripePriceId && saleActive({ percentOff: a.salePercentOff ?? 0, endsAt: a.saleEndsAt })) {
+  if (
+    interval === "month" &&
+    a.saleStripePriceId &&
+    saleActive({ percentOff: a.salePercentOff ?? 0, endsAt: a.saleEndsAt })
+  ) {
     return a.saleStripePriceId;
   }
-  return regularAddOnPriceId(id);
+  return regularAddOnPriceId(id, interval);
 }
 
 /**
@@ -118,8 +126,10 @@ export function overageMeterEvent(planId: PlanId): string | null {
 function addOnPriceIds(): Set<string> {
   const ids = new Set<string>();
   for (const id of ADD_ON_IDS) {
-    const reg = regularAddOnPriceId(id);
-    if (reg) ids.add(reg);
+    for (const itv of ["month", "year"] as const) {
+      const reg = regularAddOnPriceId(id, itv);
+      if (reg) ids.add(reg);
+    }
     const sale = getAddon(id).saleStripePriceId;
     if (sale) ids.add(sale);
   }
@@ -141,7 +151,8 @@ async function loadAddonQuantities(orgId: string): Promise<{ id: AddOnId; quanti
  * the regular OR the sale price id, so add-on items are recognized on either. */
 function addOnForPrice(priceId: string): AddOnId | null {
   for (const id of ADD_ON_IDS) {
-    if (regularAddOnPriceId(id) === priceId) return id;
+    if (regularAddOnPriceId(id, "month") === priceId) return id;
+    if (regularAddOnPriceId(id, "year") === priceId) return id;
     if (getAddon(id).saleStripePriceId === priceId) return id;
   }
   return null;
@@ -238,6 +249,7 @@ async function buildCheckoutLineItems(
   org: Organization,
   planId: PlanId,
   price: string,
+  interval: BillingInterval,
   addonQtys?: Record<string, number>,
 ): Promise<Stripe.Checkout.SessionCreateParams.LineItem[]> {
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price, quantity: 1 }];
@@ -245,7 +257,8 @@ async function buildCheckoutLineItems(
     ? ADD_ON_IDS.filter((id) => (addonQtys[id] ?? 0) > 0).map((id) => ({ id, quantity: addonQtys[id] }))
     : await loadAddonQuantities(org.id);
   for (const a of selected) {
-    const addonPrice = priceForAddOn(a.id);
+    // Add-ons bill at the same interval as the plan (yearly sub → yearly add-on price).
+    const addonPrice = priceForAddOn(a.id, interval);
     if (addonPrice) lineItems.push({ price: addonPrice, quantity: a.quantity });
   }
   // Only attach overage once it's FULLY configured (price + meter), so a half-set-up
@@ -284,7 +297,7 @@ export async function createCheckout(
   try {
     const customer = await ensureCustomer(org);
     const base = env.DASHBOARD_URL.replace(/\/$/, "");
-    const lineItems = await buildCheckoutLineItems(org, planId, price);
+    const lineItems = await buildCheckoutLineItems(org, planId, price, interval);
     const trialDays = getTrialDays(planId);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -335,7 +348,7 @@ export async function createEmbeddedCheckout(
   try {
     const customer = await ensureCustomer(org);
     const base = env.DASHBOARD_URL.replace(/\/$/, "");
-    const lineItems = await buildCheckoutLineItems(org, planId, price, addonQtys);
+    const lineItems = await buildCheckoutLineItems(org, planId, price, interval, addonQtys);
     const trialDays = getTrialDays(planId);
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -433,7 +446,7 @@ export async function syncAddonItems(org: Organization): Promise<void> {
   const addonPrices = addOnPriceIds();
   const want = new Map<string, number>();
   for (const a of await loadAddonQuantities(org.id)) {
-    const price = priceForAddOn(a.id);
+    const price = priceForAddOn(a.id, org.billingInterval);
     if (price) want.set(price, a.quantity);
   }
 

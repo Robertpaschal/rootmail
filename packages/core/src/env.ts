@@ -105,6 +105,12 @@ const EnvSchema = z.object({
   STRIPE_PRICE_ADDON_SUBTENANT_PACK: z.string().optional(),
   STRIPE_PRICE_ADDON_WORKSPACE_PACK: z.string().optional(),
   STRIPE_PRICE_ADDON_AI_CREDITS: z.string().optional(),
+  // Yearly add-on prices (same key + _YEAR). Add-ons can be bought on a yearly sub.
+  STRIPE_PRICE_SEAT_YEAR: z.string().optional(),
+  STRIPE_PRICE_ADDON_DEDICATED_IP_YEAR: z.string().optional(),
+  STRIPE_PRICE_ADDON_SUBTENANT_PACK_YEAR: z.string().optional(),
+  STRIPE_PRICE_ADDON_WORKSPACE_PACK_YEAR: z.string().optional(),
+  STRIPE_PRICE_ADDON_AI_CREDITS_YEAR: z.string().optional(),
   // Where Checkout sends the user back (success/cancel). The dashboard's URL.
   DASHBOARD_URL: z.string().url().default("http://localhost:3001"),
 

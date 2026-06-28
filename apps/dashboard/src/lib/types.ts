@@ -222,8 +222,10 @@ export interface AddonCatalogItem {
   unit: string;
   description: string;
   unit_amount: number;
+  unit_amount_yearly: number;
   sale_percent_off: number | null;
   sale_price: number | null;
+  sale_price_yearly: number | null;
   sale_ends_at: string | null;
 }
 
@@ -241,7 +243,13 @@ export interface BillingSummary {
   seats: { included: number; purchased: number; used: number; capacity: number; unit_price: number };
   add_ons: BillingAddonLine[];
   monthly_total: number;
-  yearly_option: { plan_amount: number; equivalent_monthly: number; savings_vs_monthly: number } | null;
+  yearly_option: {
+    plan_amount: number;
+    addons_amount: number;
+    total: number;
+    equivalent_monthly: number;
+    savings_vs_monthly: number;
+  } | null;
   total: number;
 }
 
