@@ -130,6 +130,12 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
                     ? "Unlimited team seats"
                     : `${p.seats} team seat${p.seats === 1 ? "" : "s"}`}
                 </li>
+                <li className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+                  {p.workspace_limit === -1
+                    ? "Unlimited workspaces"
+                    : `${p.workspace_limit} workspace${p.workspace_limit === 1 ? "" : "s"}`}
+                </li>
                 {p.features.map((f) => (
                   <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
                     <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />

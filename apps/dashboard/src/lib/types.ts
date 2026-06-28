@@ -188,6 +188,7 @@ export interface Plan {
   overage_per_1000: number;
   included_sub_tenants: number;
   seats: number;
+  workspace_limit: number;
   trial_days: number;
   ai_credits: number;
   features: string[];

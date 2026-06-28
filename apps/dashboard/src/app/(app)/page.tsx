@@ -13,6 +13,7 @@ import {
   Users,
 } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
+import { Greeting } from "@/components/app/greeting";
 import { OnboardingChecklist } from "@/components/app/onboarding-checklist";
 import { MessageStatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,7 +94,9 @@ export default async function OverviewPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Welcome back, {firstName}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">
+            <Greeting name={firstName} />
+          </h1>
           <p className="text-sm text-muted-foreground">
             Here&apos;s how {workspace?.name ?? "your workspace"} is doing
             {billing ? (
