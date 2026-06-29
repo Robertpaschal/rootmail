@@ -2,10 +2,10 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, ChevronsUpDown, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Workspace, WorkspaceLimit } from "@/lib/types";
-import { createWorkspace, switchWorkspace } from "./workspace-actions";
+import { createWorkspace, deleteWorkspace, renameWorkspace, switchWorkspace } from "./workspace-actions";
 
 export function WorkspaceSwitcher({
   workspaces,
@@ -79,6 +79,37 @@ export function WorkspaceSwitcher({
     });
   }
 
+  function onRename(w: Workspace) {
+    const next = window.prompt("Rename workspace", w.name);
+    if (next == null || !next.trim() || next.trim() === w.name) return;
+    setError(null);
+    startTransition(async () => {
+      const res = await renameWorkspace(w.id, next);
+      if (res.error) setError(res.error);
+      else reset();
+    });
+  }
+
+  function onDelete(w: Workspace) {
+    if (
+      !window.confirm(
+        `Delete "${w.name}" and ALL its data (messages, contacts, templates…)? This can't be undone.`,
+      )
+    ) {
+      return;
+    }
+    setError(null);
+    startTransition(async () => {
+      const res = await deleteWorkspace(w.id);
+      if (res.error) setError(res.error);
+      else reset();
+    });
+  }
+
+  // The sandbox and your only live workspace can't be deleted (the API enforces this too).
+  const liveCount = workspaces.filter((w) => w.environment === "live").length;
+  const canDelete = (w: Workspace) => w.environment !== "test" && liveCount > 1;
+
   if (!active) return null;
 
   return (
@@ -110,14 +141,14 @@ export function WorkspaceSwitcher({
           </div>
           <ul className="max-h-64 overflow-y-auto px-1 pb-1">
             {workspaces.map((w) => (
-              <li key={w.id}>
+              <li key={w.id} className="group flex items-center gap-0.5">
                 <button
                   type="button"
                   role="menuitem"
                   disabled={pending}
                   onClick={() => onSwitch(w.id)}
                   className={cn(
-                    "flex w-full items-center justify-between gap-2 rounded-md px-2 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-60",
+                    "flex min-w-0 flex-1 items-center justify-between gap-2 rounded-md px-2 py-2 text-sm text-foreground transition-colors hover:bg-accent disabled:opacity-60",
                     w.id === active.id && "bg-accent/60",
                   )}
                 >
@@ -131,6 +162,28 @@ export function WorkspaceSwitcher({
                   </span>
                   {w.id === active.id ? <Check className="size-4 shrink-0 text-primary" /> : null}
                 </button>
+                <button
+                  type="button"
+                  disabled={pending}
+                  onClick={() => onRename(w)}
+                  title="Rename"
+                  aria-label={`Rename ${w.name}`}
+                  className="shrink-0 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-accent hover:text-foreground focus:opacity-100 group-hover:opacity-100"
+                >
+                  <Pencil className="size-3.5" />
+                </button>
+                {canDelete(w) ? (
+                  <button
+                    type="button"
+                    disabled={pending}
+                    onClick={() => onDelete(w)}
+                    title="Delete"
+                    aria-label={`Delete ${w.name}`}
+                    className="shrink-0 rounded p-1.5 text-muted-foreground opacity-0 transition hover:bg-destructive/10 hover:text-destructive focus:opacity-100 group-hover:opacity-100"
+                  >
+                    <Trash2 className="size-3.5" />
+                  </button>
+                ) : null}
               </li>
             ))}
           </ul>

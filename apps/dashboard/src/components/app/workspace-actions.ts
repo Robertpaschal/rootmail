@@ -37,3 +37,31 @@ export async function createWorkspace(name: string): Promise<WorkspaceActionStat
   revalidatePath("/", "layout");
   return {};
 }
+
+/** Rename a workspace (display name only). */
+export async function renameWorkspace(id: string, name: string): Promise<WorkspaceActionState> {
+  const trimmed = name.trim();
+  if (!id || !trimmed) return { error: "A name is required." };
+  try {
+    await api.renameWorkspace(id, trimmed);
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't rename workspace." };
+  }
+  revalidatePath("/", "layout");
+  return {};
+}
+
+/** Delete a workspace and all its data (cascades). Guarded server-side (can't delete
+ * the sandbox or your only live workspace). */
+export async function deleteWorkspace(id: string): Promise<WorkspaceActionState> {
+  if (!id) return { error: "Missing workspace." };
+  try {
+    await api.deleteWorkspace(id);
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't delete workspace." };
+  }
+  revalidatePath("/", "layout");
+  return {};
+}

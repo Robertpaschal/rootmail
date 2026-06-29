@@ -413,6 +413,10 @@ export const api = {
   listWorkspaces: () => rmFetch<WorkspacesResult>("/v1/workspaces"),
   createWorkspace: (name: string) =>
     rmFetch<Workspace>("/v1/workspaces", { method: "POST", body: { name } }),
+  renameWorkspace: (id: string, name: string) =>
+    rmFetch<Workspace>(`/v1/workspaces/${id}`, { method: "PATCH", body: { name } }),
+  deleteWorkspace: (id: string) =>
+    rmFetch<void>(`/v1/workspaces/${id}`, { method: "DELETE" }),
   setActiveWorkspace: (workspaceId: string) =>
     rmFetch<MeResult>("/v1/auth/active-workspace", {
       method: "POST",

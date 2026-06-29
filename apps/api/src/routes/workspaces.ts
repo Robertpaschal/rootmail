@@ -151,4 +151,44 @@ export async function workspaceRoutes(app: FastifyInstance): Promise<void> {
       .returning();
     return reply.send(serializeWorkspace(updated));
   });
+
+  // --- Delete a workspace (cascades its data) — guarded ----------------------
+  // FK cascades remove the workspace's messages/contacts/templates/keys/etc.; sessions
+  // whose active workspace was this one are set null and fall back to the default.
+  app.delete("/v1/workspaces/:id", async (req, reply) => {
+    const org = await loadOrg(req);
+    await requirePermission(req, "billing.manage");
+    const { id } = req.params as { id: string };
+
+    await db.transaction(async (tx) => {
+      // Lock the org so a concurrent delete can't race past the "keep one live" guard.
+      await tx
+        .select({ id: organizations.id })
+        .from(organizations)
+        .where(eq(organizations.id, org.id))
+        .for("update");
+
+      const [ws] = await tx
+        .select()
+        .from(workspaces)
+        .where(and(eq(workspaces.id, id), eq(workspaces.organizationId, org.id)))
+        .limit(1);
+      if (!ws) throw Errors.notFound("Workspace not found");
+      if (ws.environment === "test") {
+        throw Errors.badRequest("The sandbox workspace can't be deleted — it's your test environment.");
+      }
+
+      const live = await tx
+        .select({ id: workspaces.id })
+        .from(workspaces)
+        .where(and(eq(workspaces.organizationId, org.id), eq(workspaces.environment, "live")));
+      if (live.length <= 1) {
+        throw Errors.badRequest("You can't delete your only workspace — create another first.");
+      }
+
+      await tx.delete(workspaces).where(eq(workspaces.id, id));
+    });
+
+    return reply.status(204).send();
+  });
 }
