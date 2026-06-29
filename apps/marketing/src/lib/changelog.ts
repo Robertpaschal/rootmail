@@ -20,6 +20,28 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    date: "2026-06-29",
+    title: "Workspaces, and annual billing end to end",
+    changes: [
+      {
+        kind: "New",
+        text: "Multiple workspaces — keep each product or brand fully separate, with its own domains, contacts, and keys, and switch between them from the top bar. Plans include from 1 on Free up to unlimited on Enterprise, and a +5 workspace add-on tops up any plan.",
+      },
+      {
+        kind: "New",
+        text: "Rename or remove a workspace in place. Your sandbox and your last remaining live workspace are protected, so you can't lock yourself out.",
+      },
+      {
+        kind: "Improved",
+        text: "Annual billing now covers add-ons too — pay yearly on seats, dedicated IPs, sub-tenant and workspace packs, and AI credits, with the same two months free as the plan.",
+      },
+      {
+        kind: "Improved",
+        text: "On an annual plan, sending over your monthly volume is still billed monthly as usage — so you keep the yearly discount without giving up pay-as-you-grow.",
+      },
+    ],
+  },
+  {
     date: "2026-06-24",
     title: "Deliverability you can act on",
     changes: [
