@@ -261,10 +261,13 @@ async function buildCheckoutLineItems(
     const addonPrice = priceForAddOn(a.id, interval);
     if (addonPrice) lineItems.push({ price: addonPrice, quantity: a.quantity });
   }
-  // Only attach overage once it's FULLY configured (price + meter), so a half-set-up
-  // (e.g. one-time) overage price can't break subscription checkout.
+  // Metered overage is a MONTHLY price; Stripe forbids mixing billing intervals in one
+  // subscription, so it only attaches to monthly checkout (a yearly plan would need a
+  // yearly metered overage price). Only attach once fully configured (price + meter).
   const overagePrice = overagePriceForPlan(planId);
-  if (overagePrice && overageMeterEvent(planId)) lineItems.push({ price: overagePrice });
+  if (interval === "month" && overagePrice && overageMeterEvent(planId)) {
+    lineItems.push({ price: overagePrice });
+  }
   return lineItems;
 }
 
