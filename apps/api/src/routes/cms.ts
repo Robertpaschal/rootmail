@@ -31,6 +31,8 @@ function serializeBlogPost(p: BlogPost, opts: { admin?: boolean } = {}) {
     author: p.author,
     body: p.body,
     cover_image_url: p.coverImageUrl,
+    external_url: p.externalUrl,
+    source: p.source,
     reading_minutes: readingMinutes(p.body),
     // The displayed date — when it went live (falls back to creation for drafts).
     date: (p.publishedAt ?? p.createdAt).toISOString(),
@@ -88,6 +90,8 @@ const blogCreate = z.object({
   author: z.string().trim().min(1).max(120).default("rootmail"),
   body: z.string().max(100_000).default(""),
   cover_image_url: z.string().url().max(500).nullish(),
+  external_url: z.string().url().max(500).nullish(),
+  source: z.string().trim().max(120).nullish(),
   status: z.enum(CMS_STATUSES).default("draft"),
 });
 const blogUpdate = z.object({
@@ -98,6 +102,8 @@ const blogUpdate = z.object({
   author: z.string().trim().min(1).max(120).optional(),
   body: z.string().max(100_000).optional(),
   cover_image_url: z.string().url().max(500).nullish(),
+  external_url: z.string().url().max(500).nullish(),
+  source: z.string().trim().max(120).nullish(),
   status: z.enum(CMS_STATUSES).optional(),
 });
 
@@ -174,6 +180,8 @@ export async function cmsRoutes(app: FastifyInstance): Promise<void> {
         author: body.author,
         body: body.body,
         coverImageUrl: body.cover_image_url ?? null,
+        externalUrl: body.external_url ?? null,
+        source: body.source ?? null,
         status: body.status,
         publishedAt: body.status === "published" ? new Date() : null,
         createdBy: actor.id,
@@ -219,6 +227,8 @@ export async function cmsRoutes(app: FastifyInstance): Promise<void> {
         ...(body.author !== undefined ? { author: body.author } : {}),
         ...(body.body !== undefined ? { body: body.body } : {}),
         ...(body.cover_image_url !== undefined ? { coverImageUrl: body.cover_image_url ?? null } : {}),
+        ...(body.external_url !== undefined ? { externalUrl: body.external_url ?? null } : {}),
+        ...(body.source !== undefined ? { source: body.source ?? null } : {}),
         status: nextStatus,
         publishedAt,
         updatedAt: new Date(),

@@ -3,5 +3,8 @@
   "compilerOptions": {
     "noEmit": true
   },
-  "include": ["src", "*.ts"]
+  "include": ["src", "*.ts"],
+  // seed-cms.ts imports the marketing baseline (Next-augmented fetch types it can't
+  // see here); it's a tsx runtime script, typechecked in the marketing package.
+  "exclude": ["src/seed-cms.ts"]
 }

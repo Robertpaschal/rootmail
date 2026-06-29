@@ -166,10 +166,10 @@ export async function getPublicChangelog(): Promise<ChangelogEntry[]> {
       }));
     }
   } catch {
-    // API unreachable → static baseline only.
+    // API unreachable → static baseline below.
   }
-  // Live entries win on an exact (date,title) clash; otherwise both show.
-  const seen = new Set(live.map((e) => `${e.date}|${e.title}`));
-  const merged = [...live, ...changelog.filter((e) => !seen.has(`${e.date}|${e.title}`))];
-  return merged.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  // The admin-managed entries are the source of truth once seeded; the static
+  // baseline is the resilient fallback ONLY when the API returns nothing.
+  const list = live.length > 0 ? live : changelog;
+  return [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }

@@ -237,6 +237,8 @@ export const adminApi = {
     author?: string;
     body?: string;
     cover_image_url?: string | null;
+    external_url?: string | null;
+    source?: string | null;
     status?: CmsStatus;
   }) => adminFetch<AdminBlogPost>("/v1/admin/cms/blog", { method: "POST", body: input }),
   updateBlogPost: (
@@ -249,6 +251,8 @@ export const adminApi = {
       author: string;
       body: string;
       cover_image_url: string | null;
+      external_url: string | null;
+      source: string | null;
       status: CmsStatus;
     }>,
   ) => adminFetch<AdminBlogPost>(`/v1/admin/cms/blog/${id}`, { method: "PATCH", body: input }),

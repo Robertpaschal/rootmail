@@ -130,6 +130,23 @@ export function BlogManager({ posts }: { posts: AdminBlogPost[] }) {
               className={`${field} font-mono`}
             />
           </Field>
+          <p className="text-xs text-muted-foreground">
+            Or make it a curated link (no article page) — fill the external URL and its source:
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="External URL (optional)">
+              <input
+                name="external_url"
+                type="url"
+                defaultValue={editing?.external_url ?? ""}
+                placeholder="https://…"
+                className={field}
+              />
+            </Field>
+            <Field label="Link source">
+              <input name="source" defaultValue={editing?.source ?? ""} placeholder="example.com" className={field} />
+            </Field>
+          </div>
 
           {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
           {state.ok ? <p className="text-sm text-green-600">Saved.</p> : null}

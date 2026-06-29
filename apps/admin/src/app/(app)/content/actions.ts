@@ -24,6 +24,8 @@ export async function saveBlogPost(_prev: CmsState, formData: FormData): Promise
     category: String(formData.get("category") ?? "Company") as PostCategory,
     author: String(formData.get("author") ?? "").trim() || "rootmail",
     body: String(formData.get("body") ?? ""),
+    external_url: String(formData.get("external_url") ?? "").trim() || null,
+    source: String(formData.get("source") ?? "").trim() || null,
     status: String(formData.get("status") ?? "draft") as CmsStatus,
   };
   if (!input.slug || !input.title) return { error: "Slug and title are required." };

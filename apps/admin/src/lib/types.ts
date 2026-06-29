@@ -26,6 +26,8 @@ export interface AdminBlogPost {
   author: string;
   body: string;
   cover_image_url: string | null;
+  external_url: string | null;
+  source: string | null;
   reading_minutes: number;
   date: string;
   status: CmsStatus;

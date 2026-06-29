@@ -233,6 +233,8 @@ interface ApiPost {
   date: string;
   reading_minutes: number;
   body: string; // Markdown
+  external_url?: string | null;
+  source?: string | null;
 }
 
 /** A post resolved for the article page: DB posts carry markdown, static ones blocks. */
@@ -248,24 +250,27 @@ export interface ResolvedArticle {
   blocks?: Block[];
 }
 
-// In the LIST a DB post is an article whose body isn't rendered there.
-function dbToListPost(p: ApiPost): ArticlePost {
-  return {
+// Map a DB post to the list shape: a curated link post (external_url) or an
+// article (whose body isn't rendered in the list).
+function dbToListPost(p: ApiPost): Post {
+  const base = {
     slug: p.slug,
     title: p.title,
     description: p.description,
     date: p.date.slice(0, 10),
     author: p.author,
     category: p.category,
-    readingMinutes: p.reading_minutes,
-    body: [],
   };
+  if (p.external_url) {
+    return { ...base, externalUrl: p.external_url, source: p.source ?? "link" };
+  }
+  return { ...base, readingMinutes: p.reading_minutes, body: [] };
 }
 
 /**
- * Posts for the /blog index: admin-managed posts (API) merged with the static
- * baseline, newest first (a DB post wins on a slug clash). On-demand ISR via the
- * `blog` tag; static-only fallback when the API is unreachable.
+ * Posts for the /blog index. The admin-managed posts (API) are the source of
+ * truth once seeded; the static `posts` baseline is the resilient fallback used
+ * ONLY when the API returns nothing (down/empty). On-demand ISR via the `blog` tag.
  */
 export async function getPublicBlog(): Promise<Post[]> {
   let live: Post[] = [];
@@ -276,11 +281,10 @@ export async function getPublicBlog(): Promise<Post[]> {
       live = (json.data ?? []).map(dbToListPost);
     }
   } catch {
-    // API unreachable → static baseline only.
+    // API unreachable → static baseline below.
   }
-  const bySlug = new Map<string, Post>();
-  for (const p of [...live, ...posts]) if (!bySlug.has(p.slug)) bySlug.set(p.slug, p);
-  return [...bySlug.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+  const list = live.length > 0 ? live : posts;
+  return [...list].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
 }
 
 /** Resolve a single article — API first (markdown), else the static baseline (blocks). */
@@ -291,6 +295,7 @@ export async function getPublicArticle(slug: string): Promise<ResolvedArticle | 
     });
     if (res.ok) {
       const p = (await res.json()) as ApiPost;
+      if (p.external_url) return null; // curated link posts have no detail page
       return {
         slug: p.slug,
         title: p.title,

@@ -1061,6 +1061,9 @@ export const blogPosts = pgTable(
     author: text("author").notNull().default("rootmail"),
     body: text("body").notNull().default(""), // Markdown, rendered on the article page
     coverImageUrl: text("cover_image_url"),
+    // Curated "things we like" posts link off-site (no detail page) instead of a body.
+    externalUrl: text("external_url"),
+    source: text("source"),
     status: cmsStatusEnum("status").notNull().default("draft"),
     publishedAt: timestamp("published_at", { withTimezone: true }),
     createdBy: text("created_by"), // staff id of record

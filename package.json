@@ -21,6 +21,7 @@
     "db:push": "pnpm --filter @rootmail/db push",
     "db:studio": "pnpm --filter @rootmail/db studio",
     "db:seed": "pnpm --filter @rootmail/db seed",
+    "db:seed:cms": "pnpm --filter @rootmail/db exec tsx src/seed-cms.ts",
     "api": "pnpm --filter @rootmail/api dev",
     "worker": "pnpm --filter @rootmail/worker dev",
     "marketing": "pnpm --filter @rootmail/marketing dev",
