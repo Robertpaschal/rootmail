@@ -352,6 +352,8 @@ export interface AssistantResponse {
   reply: string;
   actions: { tool: string; status: number }[];
   source: "claude" | "mock";
+  /** Present on chat-message replies: the chat's (possibly newly auto-set) title. */
+  chat?: { id: string; title: string };
   credits: { used: number; allowance: number };
 }
 

@@ -9,7 +9,7 @@ import {
   assistantMessages,
   db,
 } from "@rootmail/db";
-import { type PriorTurn, runAssistant } from "../lib/assistant";
+import { generateChatTitle, type PriorTurn, runAssistant } from "../lib/assistant";
 import { getAiUsage, recordAiUse } from "../lib/billing";
 import { aiCreditsForOrg, getAddon } from "../lib/plans";
 import { loadOrg } from "../lib/features";
@@ -89,12 +89,6 @@ function serializeMessage(m: AssistantMessage) {
     actions: m.actions ?? [],
     created_at: m.createdAt.toISOString(),
   };
-}
-
-/** First ~60 chars of the opening prompt, used to auto-name a fresh chat. */
-function deriveTitle(prompt: string): string {
-  const t = prompt.trim().replace(/\s+/g, " ");
-  return t.length > 60 ? `${t.slice(0, 57)}…` : t || DEFAULT_TITLE;
 }
 
 export async function assistantRoutes(app: FastifyInstance): Promise<void> {
@@ -227,13 +221,12 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
         },
       ]);
 
-      // Bump activity; name the chat from its first prompt if still untitled.
+      // Bump activity; name a still-default chat from the conversation's content.
+      const title =
+        chat.title === DEFAULT_TITLE ? await generateChatTitle(prompt, result.reply) : chat.title;
       await db
         .update(assistantChats)
-        .set({
-          updatedAt: now,
-          ...(chat.title === DEFAULT_TITLE ? { title: deriveTitle(prompt) } : {}),
-        })
+        .set({ updatedAt: now, title })
         .where(eq(assistantChats.id, chat.id));
 
       return {
@@ -241,10 +234,26 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
         reply: result.reply,
         actions: result.actions,
         source: result.source,
+        chat: { id: chat.id, title },
         credits: { used: allowance === -1 ? used : used + result.calls, allowance },
       };
     },
   );
+
+  // Rename a chat — the auto-title is only a starting point.
+  app.patch("/v1/assistant/chats/:id", async (req) => {
+    await requirePermission(req, "content.manage");
+    const org = await loadOrg(req);
+    const { id } = req.params as { id: string };
+    const chat = await getOwnedChat(req, org.id, id);
+    const { title } = parse(z.object({ title: z.string().trim().min(1).max(120) }), req.body);
+    const [updated] = await db
+      .update(assistantChats)
+      .set({ title }) // a rename isn't "activity" — don't bump updated_at / reorder the rail
+      .where(eq(assistantChats.id, chat.id))
+      .returning();
+    return serializeChat(updated);
+  });
 
   app.delete("/v1/assistant/chats/:id", async (req) => {
     await requirePermission(req, "content.manage");

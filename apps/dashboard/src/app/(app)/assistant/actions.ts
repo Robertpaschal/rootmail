@@ -8,6 +8,8 @@ export interface AssistantReply {
   reply?: string;
   actions?: { tool: string; status: number }[];
   credits?: { used: number; allowance: number };
+  /** The chat's current title (auto-set from content on the first message). */
+  title?: string;
   error?: string;
 }
 
@@ -85,7 +87,23 @@ export async function sendChatMessage(id: string, prompt: string): Promise<Assis
     const r = await api.sendAssistantMessage(id, p);
     revalidateAssistantSideEffects();
     revalidatePath("/assistant");
-    return { reply: r.reply, actions: r.actions, credits: r.credits };
+    return { reply: r.reply, actions: r.actions, credits: r.credits, title: r.chat?.title };
+  } catch (err) {
+    return { error: toError(err) };
+  }
+}
+
+/** Rename a chat. Returns the updated chat so the rail can reflect it. */
+export async function renameChat(
+  id: string,
+  title: string,
+): Promise<{ chat?: AssistantChat; error?: string }> {
+  const t = title.trim();
+  if (!t) return { error: "Enter a title." };
+  try {
+    const chat = await api.renameAssistantChat(id, t);
+    revalidatePath("/assistant");
+    return { chat };
   } catch (err) {
     return { error: toError(err) };
   }

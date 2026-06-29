@@ -241,6 +241,8 @@ export const api = {
       method: "POST",
       body: { prompt },
     }),
+  renameAssistantChat: (id: string, title: string) =>
+    rmFetch<AssistantChat>(`/v1/assistant/chats/${id}`, { method: "PATCH", body: { title } }),
   deleteAssistantChat: (id: string) =>
     rmFetch<{ object: "assistant_chat"; id: string; deleted: boolean }>(
       `/v1/assistant/chats/${id}`,

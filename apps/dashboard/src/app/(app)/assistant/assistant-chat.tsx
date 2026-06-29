@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { Loader2, Plus, Send, Sparkles, Trash2 } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
 import {
   createChat,
   deleteChat,
   loadChat,
+  renameChat,
   sendChatMessage,
   type AssistantChat,
   type AssistantChatMessage,
@@ -30,13 +31,19 @@ const SUGGESTION_GROUPS: { label: string; items: string[] }[] = [
 let tempCounter = 0;
 const tempId = () => `tmp_${Date.now()}_${tempCounter++}`;
 
+const MAX_COMPOSER_PX = 160; // grow the composer to ~6 rows, then let it scroll
+
 export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] }) {
   const [chats, setChats] = useState<AssistantChat[]>(initialChats);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
   const [credits, setCredits] = useState<{ used: number; allowance: number } | null>(null);
+  const [input, setInput] = useState("");
   const [pending, startSend] = useTransition();
   const [loadingChat, setLoadingChat] = useState(false);
+  // Rail inline-rename.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   const ref = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -54,6 +61,14 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
     scrollToEnd();
   }, [messages, pending, scrollToEnd]);
 
+  // Grow the composer to fit its content (and shrink back when it's cleared).
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, MAX_COMPOSER_PX)}px`;
+  }, [input]);
+
   const openChat = useCallback(async (id: string) => {
     setActiveChatId(id);
     setLoadingChat(true);
@@ -66,8 +81,8 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
   const newChat = useCallback(() => {
     setActiveChatId(null);
     setMessages([]);
-    if (ref.current) ref.current.value = "";
-    ref.current?.focus();
+    setInput("");
+    requestAnimationFrame(() => ref.current?.focus());
   }, []);
 
   const removeChat = useCallback(
@@ -83,13 +98,36 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
     [activeChatId],
   );
 
+  // Inline rename in the rail. Optimistic, reverting if the API rejects it.
+  const startRename = useCallback((c: AssistantChat) => {
+    setEditingId(c.id);
+    setEditValue(c.title);
+  }, []);
+  const cancelRename = useCallback(() => {
+    setEditingId(null);
+    setEditValue("");
+  }, []);
+  const commitRename = useCallback(
+    (id: string) => {
+      const next = editValue.trim();
+      setEditingId(null);
+      const current = chats.find((c) => c.id === id);
+      if (!next || !current || next === current.title) return;
+      setChats((cs) => cs.map((c) => (c.id === id ? { ...c, title: next } : c)));
+      void renameChat(id, next).then((res) => {
+        if (res.error) setChats((cs) => cs.map((c) => (c.id === id ? { ...c, title: current.title } : c)));
+      });
+    },
+    [editValue, chats],
+  );
+
   // Send a prompt into the active chat — lazily creating a chat on the first
   // message so empty chats never pile up. Optimistically renders the user turn.
   const submit = useCallback(
     (prompt: string) => {
       const text = prompt.trim();
       if (!text || pending) return;
-      if (ref.current) ref.current.value = "";
+      setInput("");
 
       const userTurn: AssistantChatMessage = {
         object: "assistant_message",
@@ -131,14 +169,15 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
             created_at: new Date().toISOString(),
           },
         ]);
-        // Refresh the rail so the title (derived from the first prompt) and order update.
+        // Reflect the backend's content-based title (it auto-names on the first
+        // message) and move the chat to the top of the rail.
         const id = chatId;
         setChats((cs) => {
           const moved = cs.find((c) => c.id === id);
           const rest = cs.filter((c) => c.id !== id);
-          const now = new Date().toISOString();
-          const title = moved && moved.title !== "New chat" ? moved.title : text.length > 60 ? `${text.slice(0, 57)}…` : text;
-          return [{ object: "assistant_chat", id, title, created_at: moved?.created_at ?? now, updated_at: now }, ...rest];
+          const nowIso = new Date().toISOString();
+          const title = res.title ?? moved?.title ?? text;
+          return [{ object: "assistant_chat", id, title, created_at: moved?.created_at ?? nowIso, updated_at: nowIso }, ...rest];
         });
       });
     },
@@ -183,23 +222,70 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
                     activeChatId === c.id ? "bg-secondary text-foreground" : "hover:bg-secondary/60",
                   )}
                 >
-                  <button
-                    type="button"
-                    onClick={() => openChat(c.id)}
-                    className="min-w-0 flex-1 text-left"
-                    title={c.title}
-                  >
-                    <span className="block truncate">{c.title}</span>
-                    <span className="block text-[11px] text-muted-foreground">{relativeTime(c.updated_at)}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeChat(c.id)}
-                    aria-label={`Delete ${c.title}`}
-                    className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-destructive group-hover:opacity-100"
-                  >
-                    <Trash2 className="size-3.5" />
-                  </button>
+                  {editingId === c.id ? (
+                    <div className="flex min-w-0 flex-1 items-center gap-1">
+                      <input
+                        autoFocus
+                        value={editValue}
+                        maxLength={120}
+                        onChange={(e) => setEditValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            commitRename(c.id);
+                          } else if (e.key === "Escape") {
+                            e.preventDefault();
+                            cancelRename();
+                          }
+                        }}
+                        className="min-w-0 flex-1 rounded border bg-background px-1.5 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => commitRename(c.id)}
+                        aria-label="Save title"
+                        className="shrink-0 rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
+                      >
+                        <Check className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={cancelRename}
+                        aria-label="Cancel rename"
+                        className="shrink-0 rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
+                      >
+                        <X className="size-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => openChat(c.id)}
+                        className="min-w-0 flex-1 text-left"
+                        title={c.title}
+                      >
+                        <span className="block truncate">{c.title}</span>
+                        <span className="block text-[11px] text-muted-foreground">{relativeTime(c.updated_at)}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => startRename(c)}
+                        aria-label={`Rename ${c.title}`}
+                        className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-foreground group-hover:opacity-100"
+                      >
+                        <Pencil className="size-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => removeChat(c.id)}
+                        aria-label={`Delete ${c.title}`}
+                        className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-destructive group-hover:opacity-100"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
+                    </>
+                  )}
                 </div>
               ))
             )}
@@ -294,31 +380,48 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              submit(ref.current?.value ?? "");
+              submit(input);
             }}
-            className="flex items-end gap-2 border-t pt-3"
+            className="border-t pt-3"
           >
-            <Textarea
-              ref={ref}
-              rows={2}
-              placeholder="Ask the assistant to do something…"
-              className="resize-none"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !e.shiftKey) {
-                  e.preventDefault();
-                  submit(ref.current?.value ?? "");
-                }
-              }}
-            />
-            <Button type="submit" size="icon" disabled={pending} aria-label="Send">
-              {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-            </Button>
+            <div className="flex items-end gap-2 rounded-xl border bg-background p-1.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
+              <Textarea
+                ref={ref}
+                rows={1}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask the assistant to do something…"
+                className="max-h-40 min-h-0 resize-none border-0 bg-transparent px-2 py-1.5 shadow-none focus-visible:ring-0"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    submit(input);
+                  }
+                }}
+              />
+              <Button
+                type="submit"
+                size="icon"
+                disabled={pending || !input.trim()}
+                aria-label="Send"
+                className="shrink-0"
+              >
+                {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+              </Button>
+            </div>
+            <div className="mt-1.5 flex items-center justify-between gap-3 px-1">
+              <p className="text-[11px] text-muted-foreground">
+                <kbd className="rounded border bg-muted px-1 py-px font-sans text-[10px]">Enter</kbd> to send ·{" "}
+                <kbd className="rounded border bg-muted px-1 py-px font-sans text-[10px]">Shift</kbd>
+                <kbd className="ml-0.5 rounded border bg-muted px-1 py-px font-sans text-[10px]">Enter</kbd> for a new line
+              </p>
+              {credits ? (
+                <p className="shrink-0 text-[11px] text-muted-foreground">
+                  AI credits: {credits.allowance === -1 ? "unlimited" : `${credits.used} / ${credits.allowance} used`}
+                </p>
+              ) : null}
+            </div>
           </form>
-          {credits ? (
-            <p className="text-right text-xs text-muted-foreground">
-              AI credits: {credits.allowance === -1 ? "unlimited" : `${credits.used} / ${credits.allowance} used`}
-            </p>
-          ) : null}
         </CardContent>
       </Card>
     </div>

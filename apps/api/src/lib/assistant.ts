@@ -322,6 +322,70 @@ export interface PriorTurn {
   content: string;
 }
 
+/**
+ * Name a chat from its content. Prefers a short model-written title (3–6 words);
+ * falls back to a cleaned-up version of the first prompt when the model is
+ * unavailable (no key / no credits / error), so the title is always content-based
+ * and never a raw truncation. Not billed — it's a tiny convenience call, separate
+ * from the user's actual request.
+ */
+export async function generateChatTitle(prompt: string, reply: string): Promise<string> {
+  const fallback = heuristicTitle(prompt);
+  if (!env.ANTHROPIC_API_KEY) return fallback;
+  try {
+    const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
+    const resp = await client.messages.create({
+      model: env.AI_MODEL,
+      max_tokens: 32, // enough for a 6-word title without clipping the last word
+      system:
+        "You write a short, specific title for a support chat. Reply with ONLY the title: 3–6 words, Title Case, no surrounding quotes, no trailing punctuation.",
+      messages: [
+        { role: "user", content: `First message: ${prompt}\n\nAssistant: ${reply}`.slice(0, 1500) },
+      ],
+    });
+    const text = resp.content
+      .filter((b): b is Anthropic.TextBlock => b.type === "text")
+      .map((b) => b.text)
+      .join(" ");
+    return cleanTitle(text) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/** Strip surrounding quotes / trailing punctuation and clamp a model title. */
+function cleanTitle(raw: string): string {
+  const t = raw
+    .trim()
+    .replace(/\s+/g, " ")
+    .replace(/^["'“”]+|["'“”.]+$/g, "")
+    .trim();
+  if (!t) return "";
+  return t.length > 60 ? `${t.slice(0, 57)}…` : t;
+}
+
+/**
+ * Deterministic, model-free title from the opening prompt: first sentence, common
+ * politeness/filler stripped so the intent leads, sentence-cased, clamped on a word
+ * boundary. The live fallback whenever the model can't be reached.
+ */
+export function heuristicTitle(prompt: string): string {
+  let t = prompt.trim().replace(/\s+/g, " ");
+  t = t.split(/(?<=[.?!])\s|\n/)[0] ?? t; // first sentence/line
+  t = t
+    .replace(
+      /^(hi|hey|hello|please|pls|can you|could you|would you|i want to|i'd like to|i need to|help me|how do i|how can i|how to|can i|let's)\s+/i,
+      "",
+    )
+    .replace(/[?.!,\s]+$/, "")
+    .trim();
+  if (!t) return "New chat";
+  const words = t.split(" ");
+  if (words.length > 8) t = `${words.slice(0, 8).join(" ")}…`;
+  if (t.length > 60) t = `${t.slice(0, 57).trimEnd()}…`;
+  return t.charAt(0).toUpperCase() + t.slice(1);
+}
+
 export async function runAssistant(
   app: FastifyInstance,
   req: FastifyRequest,
