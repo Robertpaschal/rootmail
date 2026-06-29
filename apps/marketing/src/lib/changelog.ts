@@ -21,6 +21,24 @@ export interface ChangelogEntry {
 export const changelog: ChangelogEntry[] = [
   {
     date: "2026-06-29",
+    title: "A sharper assistant, profiles, and support on tap",
+    changes: [
+      {
+        kind: "Improved",
+        text: "The AI assistant now names each conversation from what you actually asked, lets you rename any chat inline, and has a roomier composer that grows as you type — with clear send and keyboard hints.",
+      },
+      {
+        kind: "New",
+        text: "Make the account yours — set a display name and upload a profile picture in Settings → Profile, shown across the app.",
+      },
+      {
+        kind: "New",
+        text: "Reach a human without leaving the dashboard: “Contact support” sits right next to the assistant, so you can escalate whenever you want to.",
+      },
+    ],
+  },
+  {
+    date: "2026-06-29",
     title: "Workspaces, and annual billing end to end",
     changes: [
       {

@@ -289,6 +289,24 @@ passed: signup → workspace + `rm_live_` key, the **AI assistant returning real
 responses** (`source: "claude"`, AI credits metered), live-send gating, and the SES worker.
 Only **Stripe live** remains owner-blocked (still in test).
 
+### Continuing ships (post-launch — 2026-06-29)
+Built, deployed, and verified after the 2026-06-24 launch (all 5 images via CI):
+- **Yearly overage, billed monthly.** Stripe forbids mixing intervals in one subscription, so
+  a yearly plan can't carry the monthly metered overage item — yearly orgs now get a dedicated
+  monthly metered overage sub (reconciled on plan change + lazily on first use). Also fixed a
+  latent bug where `billingInterval` was never set to `"year"` in Stripe mode.
+- **Multiple workspaces** (tier-gated 1→unlimited + a `+5` add-on), **native inline rename**
+  (Production + Sandbox), and a guarded delete.
+- **Settings → Profile** — editable display name + avatar (stored via the asset store).
+- **Assistant** — content-based chat titles, inline rename, and a reworked auto-growing composer.
+- **Admin CMS** — staff-managed blog + changelog (`content.publish` permission); the marketing
+  site fetches published content (static fallback) and rebuilds on publish via **triggered**
+  on-demand ISR (no polling). New `GET /v1/blog`, `/v1/changelog`, staff `/v1/admin/cms/*`.
+- **In-app contact** — dashboard "Contact support" + a fixed Enterprise "Contact sales" path
+  (it was calling the self-serve upgrade the API rejects); both file org-tagged leads into the
+  admin Leads inbox, where staff provision a custom plan via the existing flow.
+- **Stripe webhook** confirmed live + correct (`service.gateml.io/v1/webhooks/stripe`).
+
 **Live over HTTPS** (gateml.io — alpha/beta; switches to rootmail.io when stable):
 - `service.gateml.io` — API (nginx + certbot) · healthy: Postgres (RDS) + Redis
 - `marketing.gateml.io` — marketing site
@@ -316,10 +334,9 @@ Host IPs / SGs / the rebuild disk-dance are in the `prod-deployment` agent memor
    app sends the correct URI — verified. The middleware bug that blocked `/oauth/*` is fixed.)
 2. **Delete the old ElastiCache Serverless cache** (`gateml-redis-ytrhu7`) — prod now runs on
    the new cluster-mode-disabled node; deleting it captures the cost saving.
-3. **Enable CI image push** — add repo secrets `DOCKERHUB_USERNAME` (=`pachal`) +
-   `DOCKERHUB_TOKEN` (a Docker Hub *access token*, not your password: hub.docker.com →
-   Account Settings → Security → New Access Token). Then every push to `main` builds + pushes
-   all 5 images (`.github/workflows/images.yml`).
+3. **Enable CI image push** — ✅ DONE. Repo secrets are set; every push to `main` builds +
+   pushes all 5 images (`.github/workflows/images.yml`). This is the live deploy path now —
+   the entire post-launch batch above shipped through it.
 4. **Stripe live** — set `STRIPE_SECRET_KEY` (`sk_live_…`), `STRIPE_PUBLISHABLE_KEY`
    (`pk_live_…`), `STRIPE_WEBHOOK_SECRET`; recreate prices (or set them from admin `/pricing`,
    which syncs to Stripe); webhook → `https://service.gateml.io/v1/webhooks/stripe`
