@@ -14,6 +14,7 @@ import {
   Inbox,
   KeyRound,
   LayoutDashboard,
+  LifeBuoy,
   ListChecks,
   Mail,
   Megaphone,
@@ -143,12 +144,18 @@ export function Sidebar() {
           </div>
         ))}
       </nav>
-      <div className="border-t px-5 py-3">
+      <div className="space-y-2 border-t px-5 py-3">
         <Link
           href="/assistant"
           className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
         >
           <Sparkles className="size-3.5" /> Ask the assistant for help
+        </Link>
+        <Link
+          href="/contact?topic=support"
+          className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
+        >
+          <LifeBuoy className="size-3.5" /> Contact support
         </Link>
       </div>
     </aside>

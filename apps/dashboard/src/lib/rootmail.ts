@@ -464,6 +464,17 @@ export const api = {
   getOrganization: () => rmFetch<Organization>("/v1/organization"),
   updateOrganization: (body: { name?: string; postal_address?: string | null }) =>
     rmFetch<Organization>("/v1/organization", { method: "PATCH", body }),
+
+  // In-app "talk to a human": sales (Enterprise/custom) + support. Lands in the
+  // admin Leads inbox. The public leads endpoint (noAuth) — the action attaches org context.
+  createLead: (body: {
+    name: string;
+    email: string;
+    company?: string;
+    message?: string;
+    source: string;
+    expected_volume?: string;
+  }) => rmFetch<{ object?: string; id?: string }>("/v1/leads", { method: "POST", body, noAuth: true }),
 };
 
 /**

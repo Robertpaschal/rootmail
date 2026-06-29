@@ -197,6 +197,13 @@ function PlanButton({
       className="mt-5 w-full"
       disabled={pending}
       onClick={() => {
+        if (custom) {
+          // Enterprise/custom is sales-assisted — open the in-app sales contact
+          // (creates a lead with org context for staff to provision a custom plan)
+          // rather than attempting a self-serve switch the API rejects.
+          start(() => router.push("/contact?topic=sales"));
+          return;
+        }
         if (toCheckout) {
           start(() => router.push(`/billing/checkout?plan=${planId}&interval=${interval}`));
           return;
