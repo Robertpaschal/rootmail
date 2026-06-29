@@ -18,7 +18,16 @@ const VOLUMES = [
   "10M+ / month",
 ];
 
-export function ContactForm() {
+export interface ContactTopic {
+  /** Lead `source` so admin can triage by intent (contact_general/sales/enterprise/support). */
+  source: string;
+  /** Submit button label. */
+  cta: string;
+  /** Show the sales/enterprise qualifying fields (company, volume, provider…). */
+  full: boolean;
+}
+
+export function ContactForm({ topic }: { topic: ContactTopic }) {
   const [state, action, pending] = useActionState<ContactState, FormData>(submitLead, {});
 
   if (state.ok) {
@@ -36,7 +45,7 @@ export function ContactForm() {
 
   return (
     <form action={action} className="space-y-5 rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
-      <input type="hidden" name="source" value="contact_form" />
+      <input type="hidden" name="source" value={topic.source} />
       {/* Honeypot — hidden from humans; bots that fill it are dropped server-side. */}
       <div aria-hidden="true" className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden">
         <label htmlFor="company_fax">Company fax</label>
@@ -59,49 +68,53 @@ export function ContactForm() {
             placeholder="ada@company.com"
           />
         </div>
-        <div className="space-y-2">
-          <Label htmlFor="company">Company</Label>
-          <Input id="company" name="company" maxLength={160} placeholder="Acme Inc" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="website">Website</Label>
-          <Input id="website" name="website" maxLength={200} placeholder="acme.com" />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="company_size">Company size</Label>
-          <Select id="company_size" name="company_size" defaultValue="">
-            <option value="" disabled>
-              Select…
-            </option>
-            {COMPANY_SIZES.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="expected_volume">Expected email volume</Label>
-          <Select id="expected_volume" name="expected_volume" defaultValue="">
-            <option value="" disabled>
-              Select…
-            </option>
-            {VOLUMES.map((v) => (
-              <option key={v} value={v}>
-                {v}
-              </option>
-            ))}
-          </Select>
-        </div>
-        <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="current_provider">Current email provider (if any)</Label>
-          <Input
-            id="current_provider"
-            name="current_provider"
-            maxLength={120}
-            placeholder="SendGrid, Postmark, in-house…"
-          />
-        </div>
+        {topic.full ? (
+          <>
+            <div className="space-y-2">
+              <Label htmlFor="company">Company</Label>
+              <Input id="company" name="company" maxLength={160} placeholder="Acme Inc" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="website">Website</Label>
+              <Input id="website" name="website" maxLength={200} placeholder="acme.com" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="company_size">Company size</Label>
+              <Select id="company_size" name="company_size" defaultValue="">
+                <option value="" disabled>
+                  Select…
+                </option>
+                {COMPANY_SIZES.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="expected_volume">Expected email volume</Label>
+              <Select id="expected_volume" name="expected_volume" defaultValue="">
+                <option value="" disabled>
+                  Select…
+                </option>
+                {VOLUMES.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </Select>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="current_provider">Current email provider (if any)</Label>
+              <Input
+                id="current_provider"
+                name="current_provider"
+                maxLength={120}
+                placeholder="SendGrid, Postmark, in-house…"
+              />
+            </div>
+          </>
+        ) : null}
         <div className="space-y-2 sm:col-span-2">
           <Label htmlFor="message">What are you looking to do?</Label>
           <Textarea
@@ -125,7 +138,7 @@ export function ContactForm() {
         </p>
         <Button type="submit" size="lg" disabled={pending}>
           {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-          {pending ? "Sending…" : "Talk to sales"}
+          {pending ? "Sending…" : topic.cta}
           {!pending ? <ArrowRight className="size-4" /> : null}
         </Button>
       </div>

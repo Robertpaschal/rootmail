@@ -88,7 +88,7 @@ const tiers = [
       "SSO / SAML · EU residency · SLA",
     ],
     cta: "Contact sales",
-    href: "/contact",
+    href: "/contact?topic=enterprise",
     featured: false,
   },
 ];
