@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "stripe_overage_subscription_id" text;

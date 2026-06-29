@@ -118,6 +118,10 @@ export const organizations = pgTable("organizations", {
   // subscription exists in Stripe mode. planStatus mirrors the subscription.
   stripeCustomerId: text("stripe_customer_id"),
   stripeSubscriptionId: text("stripe_subscription_id"),
+  // A separate MONTHLY metered subscription that carries the overage price for
+  // YEARLY plans (Stripe forbids mixing intervals in one subscription, so overage —
+  // an inherently monthly charge — bills here instead of on the annual base sub).
+  stripeOverageSubscriptionId: text("stripe_overage_subscription_id"),
   planStatus: planStatusEnum("plan_status").notNull().default("active"),
   billingInterval: billingIntervalEnum("billing_interval").notNull().default("month"),
   // Physical postal address shown in the CAN-SPAM footer on marketing/sales mail.

@@ -391,6 +391,9 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
   // self-serve resolver — in particular, canceling one (via deactivate or in the Stripe
   // dashboard) must not silently downgrade the org to Free or re-attach the dead sub.
   if (sub.metadata?.custom === "true") return;
+  // The dedicated monthly overage sub (for yearly plans) is bookkeeping, not the plan
+  // subscription — its events must not overwrite the org's plan/subscription id or add-ons.
+  if (sub.metadata?.kind === "overage") return;
 
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
 
@@ -409,10 +412,15 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
   if (!org) return;
 
   let planId: PlanId | null = null;
+  let interval: BillingInterval = org.billingInterval;
   for (const item of sub.items.data) {
     const match = item.price?.id ? planForPrice(item.price.id) : null;
     if (match) {
       planId = match;
+      // Track the billed interval from the plan price so the dashboard, add-on
+      // reconciliation, and overage billing all agree with what Stripe is charging.
+      if (item.price.recurring?.interval === "year") interval = "year";
+      else if (item.price.recurring?.interval === "month") interval = "month";
       break;
     }
   }
@@ -426,6 +434,7 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
     .set({
       plan: nextPlan,
       planStatus: status,
+      billingInterval: interval,
       stripeSubscriptionId: sub.id,
       updatedAt: new Date(),
     })
@@ -434,6 +443,15 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
   // Keep entitlements honest: match org_addons to what the subscription actually
   // bills (covers add-ons chosen on the checkout page).
   await reconcileAddonsFromSubscription(org.id, sub);
+
+  // A Stripe-side cancel or downgrade can strip a yearly org's overage eligibility —
+  // bring the dedicated overage sub in line. Re-fetch so we see the writes just above.
+  const [fresh] = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, org.id))
+    .limit(1);
+  if (fresh) await reconcileOverageSubscription(fresh);
 }
 
 /**
@@ -484,6 +502,10 @@ export async function reportOverage(org: Organization): Promise<void> {
   const eventName = overageMeterEvent(org.plan);
   if (!eventName) return; // meter not configured yet → nothing to report
 
+  // Yearly plans bill overage on a separate monthly sub; make sure it exists before
+  // we report usage (no-op for monthly, or once the sub already exists).
+  await reconcileOverageSubscription(org);
+
   const used = await getUsage(org.id);
   const quota = planForOrg(org).monthlyQuota;
   const units = Math.max(0, Math.ceil((used - quota) / 1000));
@@ -496,6 +518,62 @@ export async function reportOverage(org: Organization): Promise<void> {
     payload: { value: String(delta), stripe_customer_id: org.stripeCustomerId },
   });
   await setReportedOverage(org.id, units);
+}
+
+/**
+ * Keep an org's overage billing in sync with its plan interval.
+ *
+ * Overage is an inherently MONTHLY charge, but Stripe forbids mixing billing
+ * intervals in one subscription — so a YEARLY plan can't carry the metered overage
+ * item on its annual base subscription. Instead we bill overage on a SEPARATE
+ * monthly metered subscription. The per-customer meter events (`reportOverage`) then
+ * bill on whichever subscription holds the metered price: the plan sub for monthly
+ * orgs, this dedicated sub for yearly orgs.
+ *
+ * This reconciles reality to the org's state — a yearly org on a metered plan gets
+ * the dedicated overage sub (created once, $0 until usage accrues); anything else
+ * (monthly, free, enterprise, Stripe off) has it cancelled. Idempotent and safe to
+ * call from both the webhook (plan changes) and `reportOverage` (lazy first use).
+ */
+export async function reconcileOverageSubscription(org: Organization): Promise<void> {
+  const stripe = getStripe();
+  if (!stripe || !org.stripeCustomerId) return;
+
+  const overagePrice = overagePriceForPlan(org.plan);
+  const shouldHave =
+    org.billingInterval === "year" && overagePrice != null && overageMeterEvent(org.plan) != null;
+
+  if (shouldHave && !org.stripeOverageSubscriptionId) {
+    try {
+      // Metered price, no quantity. The idempotency key collapses the races from
+      // concurrent sends (each fires reportOverage → reconcile) into one sub.
+      const sub = await stripe.subscriptions.create(
+        {
+          customer: org.stripeCustomerId,
+          items: [{ price: overagePrice! }],
+          metadata: { organization_id: org.id, kind: "overage", plan: org.plan },
+        },
+        { idempotencyKey: `overage-sub-${org.id}` },
+      );
+      await db
+        .update(organizations)
+        .set({ stripeOverageSubscriptionId: sub.id })
+        .where(eq(organizations.id, org.id));
+    } catch (err) {
+      console.warn(`[stripe] overage subscription create failed for ${org.id}: ${String(err)}`);
+    }
+  } else if (!shouldHave && org.stripeOverageSubscriptionId) {
+    // Left yearly / lost overage → stop the dedicated sub (overage moves back onto the
+    // monthly plan sub, or away entirely). Clearing the id is safe even if the cancel
+    // 404s (already gone).
+    await stripe.subscriptions
+      .cancel(org.stripeOverageSubscriptionId)
+      .catch((err) => console.warn(`[stripe] overage sub cancel failed for ${org.id}: ${String(err)}`));
+    await db
+      .update(organizations)
+      .set({ stripeOverageSubscriptionId: null })
+      .where(eq(organizations.id, org.id));
+  }
 }
 
 /**
