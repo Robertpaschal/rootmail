@@ -46,6 +46,7 @@ export function serializeUser(u: User) {
     object: "user",
     email: u.email,
     name: u.name,
+    avatar_url: u.avatarUrl,
     email_verified: u.emailVerifiedAt != null,
     mfa_enabled: u.mfaEnabledAt != null,
     announcement_opt_out: u.announcementOptOutAt != null,

@@ -128,6 +128,7 @@ export interface User {
   object: "user";
   email: string;
   name: string | null;
+  avatar_url: string | null;
   email_verified: boolean;
   mfa_enabled: boolean;
   announcement_opt_out: boolean;

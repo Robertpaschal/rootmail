@@ -408,6 +408,32 @@ export const api = {
   resetPassword: (body: { token: string; password: string }) =>
     rmFetch<{ reset: boolean }>("/v1/auth/reset-password", { method: "POST", body, noAuth: true }),
   me: () => rmFetch<MeResult>("/v1/auth/me"),
+  // Profile: display name + avatar. Personal (session-scoped), not workspace-gated.
+  updateProfile: (body: { name?: string | null; remove_avatar?: boolean }) =>
+    rmFetch<User>("/v1/auth/profile", { method: "POST", body }),
+  // Multipart avatar upload — bypasses rmFetch (JSON-only). Server-side only.
+  uploadAvatar: async (file: File): Promise<User> => {
+    const token = await getSessionToken();
+    if (!token) throw new ApiError(401, "Not signed in.");
+    const fd = new FormData();
+    fd.set("file", file);
+    let res: Response;
+    try {
+      res = await fetch(new URL("/v1/auth/avatar", API_URL), {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: fd,
+        cache: "no-store",
+      });
+    } catch {
+      throw new ConnectionError(`Cannot reach the rootmail API at ${API_URL}.`);
+    }
+    const json = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new ApiError(res.status, json?.error?.message ?? "Upload failed", json?.error?.type);
+    }
+    return json as User;
+  },
   // Workspaces (products/brands). The org always has a Production + Sandbox;
   // additional live ones are plan-gated + buyable via the workspace_pack add-on.
   listWorkspaces: () => rmFetch<WorkspacesResult>("/v1/workspaces"),

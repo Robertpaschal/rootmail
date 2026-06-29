@@ -7,6 +7,7 @@ import {
   generateRecoveryCode,
   generateTotpSecret,
   hashPassword,
+  newId,
   sendSystemEmail,
   sha256Hex,
   signMfaChallenge,
@@ -31,7 +32,21 @@ import { passwordResetEmail, verificationEmail, welcomeEmail } from "../lib/emai
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { signupAllowed } from "../lib/signup-limit";
 import { serializeUser, serializeWorkspace } from "../lib/serialize";
+import { storage } from "../lib/storage";
 import { parse } from "../lib/validate";
+
+// Avatar image sniffing (magic bytes). Mirrors the image subset of assets.ts's
+// allowlist — no PDF; avatars are images only.
+const AVATAR_TYPES: Array<{ ext: string; sniff: (b: Buffer) => boolean }> = [
+  { ext: "png", sniff: (b) => b.length > 8 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 },
+  { ext: "jpg", sniff: (b) => b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff },
+  { ext: "gif", sniff: (b) => b.subarray(0, 4).toString("ascii") === "GIF8" },
+  {
+    ext: "webp",
+    sniff: (b) =>
+      b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP",
+  },
+];
 
 const signupBody = z.object({
   email: z.string().email(),
@@ -274,6 +289,42 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const [updated] = await db
       .update(users)
       .set({ announcementOptOutAt: body.announcement_opt_out ? new Date() : null, updatedAt: new Date() })
+      .where(eq(users.id, user.id))
+      .returning();
+    return serializeUser(updated);
+  });
+
+  // --- Profile (display name + avatar) ------------------------------------
+  // Personal, so it needs only a session (not a workspace permission) — even a
+  // read-only member can set their own name and picture.
+  const profileBody = z.object({
+    name: z.string().trim().max(120).nullish(),
+    remove_avatar: z.boolean().optional(),
+  });
+  app.post("/v1/auth/profile", async (req) => {
+    const { user } = await requireSession(req);
+    const body = parse(profileBody, req.body);
+    const patch: Partial<typeof users.$inferInsert> = { updatedAt: new Date() };
+    if (body.name !== undefined) patch.name = body.name ? body.name : null;
+    if (body.remove_avatar) patch.avatarUrl = null;
+    const [updated] = await db.update(users).set(patch).where(eq(users.id, user.id)).returning();
+    return serializeUser(updated);
+  });
+
+  // Avatar upload — multipart image, stored via the same pluggable asset store
+  // (local dir or S3) as content assets; the resulting URL is saved on the user.
+  app.post("/v1/auth/avatar", async (req) => {
+    const { user } = await requireSession(req);
+    const data = await req.file();
+    if (!data) throw Errors.badRequest("No file uploaded — send a multipart 'file' field.");
+    const buf = await data.toBuffer();
+    if (data.file.truncated) throw Errors.badRequest("Image exceeds the upload size limit.");
+    const match = AVATAR_TYPES.find((a) => a.sniff(buf));
+    if (!match) throw Errors.validation("Unsupported image. Allowed: PNG, JPEG, GIF, WEBP.");
+    const stored = await storage.put(`${newId("asset")}.${match.ext}`, buf);
+    const [updated] = await db
+      .update(users)
+      .set({ avatarUrl: stored.url, updatedAt: new Date() })
       .where(eq(users.id, user.id))
       .returning();
     return serializeUser(updated);

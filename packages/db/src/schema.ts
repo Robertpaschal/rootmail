@@ -75,6 +75,9 @@ export const users = pgTable("users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
   name: text("name"),
+  // Profile picture URL (an uploaded asset served from ASSET_PUBLIC_URL, or a
+  // provider avatar from social login). Null → the UI falls back to initials.
+  avatarUrl: text("avatar_url"),
   // `scheme$salt$hash` (scrypt). Null for accounts that only use social login.
   passwordHash: text("password_hash"),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
