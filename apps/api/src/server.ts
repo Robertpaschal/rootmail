@@ -14,6 +14,7 @@ import { billingRoutes } from "./routes/billing";
 import { analyticsRoutes } from "./routes/analytics";
 import { announcementRoutes } from "./routes/announcements";
 import { campaignRoutes } from "./routes/campaigns";
+import { cmsRoutes } from "./routes/cms";
 import { contactRoutes } from "./routes/contacts";
 import { deliverabilityRoutes } from "./routes/deliverability";
 import { exportRoutes } from "./routes/exports";
@@ -85,6 +86,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(deliverabilityRoutes);
   await app.register(analyticsRoutes);
   await app.register(announcementRoutes);
+  await app.register(cmsRoutes);
   await app.register(exportRoutes);
   await app.register(importRoutes);
   await app.register(threadRoutes);

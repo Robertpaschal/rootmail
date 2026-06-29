@@ -95,6 +95,7 @@ export const STAFF_PERMISSIONS = [
   "support.manage", // unblock suppressions, impersonate a customer, work leads
   "commerce.manage", // plans, add-ons, promotions, discounts, custom plans, account credit
   "announce.send", // broadcast announcement email to all customers
+  "content.publish", // write & publish marketing content (blog posts + changelog)
   "staff.manage", // create staff, assign roles, deactivate ("fire")
 ] as const;
 export type StaffPermission = (typeof STAFF_PERMISSIONS)[number];
@@ -102,9 +103,28 @@ export type StaffPermission = (typeof STAFF_PERMISSIONS)[number];
 export const STAFF_ROLE_PERMISSIONS: Record<StaffRole, StaffPermission[]> = {
   superadmin: [...STAFF_PERMISSIONS],
   billing: ["staff.read", "commerce.manage"],
-  support: ["staff.read", "support.manage"],
+  support: ["staff.read", "support.manage", "content.publish"],
   readonly: ["staff.read"],
 };
+
+// ---------------------------------------------------------------------------
+// CMS — admin-managed marketing content (blog + changelog). The marketing site
+// fetches the published rows over HTTP (with a static fallback) and is revalidated
+// on publish; staff author it in apps/admin behind `content.publish`.
+// ---------------------------------------------------------------------------
+export const CMS_STATUSES = ["draft", "published"] as const;
+export type CmsStatus = (typeof CMS_STATUSES)[number];
+
+export const POST_CATEGORIES = ["Company", "Guide", "Things we like"] as const;
+export type PostCategory = (typeof POST_CATEGORIES)[number];
+
+// A changelog entry bundles one or more tagged changes.
+export const CHANGE_KINDS = ["New", "Improved", "Fixed"] as const;
+export type ChangeKind = (typeof CHANGE_KINDS)[number];
+export interface ChangeItem {
+  kind: ChangeKind;
+  text: string;
+}
 
 export function staffCan(role: StaffRole, permission: StaffPermission): boolean {
   return STAFF_ROLE_PERMISSIONS[role]?.includes(permission) ?? false;

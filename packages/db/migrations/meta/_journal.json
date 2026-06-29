@@ -225,6 +225,13 @@
       "when": 1782722820409,
       "tag": "0031_cloudy_squirrel_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1782740441167,
+      "tag": "0032_large_jack_murdock",
+      "breakpoints": true
     }
   ]
 }

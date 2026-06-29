@@ -113,6 +113,9 @@ const EnvSchema = z.object({
   STRIPE_PRICE_ADDON_AI_CREDITS_YEAR: z.string().optional(),
   // Where Checkout sends the user back (success/cancel). The dashboard's URL.
   DASHBOARD_URL: z.string().url().default("http://localhost:3001"),
+  // The marketing site's base URL — used to trigger on-publish ISR revalidation
+  // when staff edit CMS content. The shared secret is INTERNAL_API_SECRET.
+  MARKETING_URL: z.string().url().default("http://localhost:3000"),
 
   // --- AI template drafting ------------------------------------------------
   // Unset => a deterministic mock generator answers, so "Ask AI" is fully

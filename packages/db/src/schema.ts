@@ -14,7 +14,10 @@ import {
   AUDIT_EVENTS,
   BILLING_INTERVALS,
   CAMPAIGN_STATUSES,
+  type ChangeItem,
+  CMS_STATUSES,
   CONTACT_STATUSES,
+  POST_CATEGORIES,
   ENROLLMENT_STATUSES,
   LEAD_STATUSES,
   MEMBERSHIP_ROLES,
@@ -63,6 +66,8 @@ export const messageDirectionEnum = pgEnum("message_direction", MESSAGE_DIRECTIO
 export const retentionModeEnum = pgEnum("retention_mode", RETENTION_MODES);
 export const leadStatusEnum = pgEnum("lead_status", LEAD_STATUSES);
 export const assistantMessageRoleEnum = pgEnum("assistant_message_role", ASSISTANT_MESSAGE_ROLES);
+export const cmsStatusEnum = pgEnum("cms_status", CMS_STATUSES);
+export const postCategoryEnum = pgEnum("post_category", POST_CATEGORIES);
 
 // Fresh builders each call so no column instance is shared across tables.
 const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -1039,3 +1044,54 @@ export type AssistantChat = typeof assistantChats.$inferSelect;
 export type NewAssistantChat = typeof assistantChats.$inferInsert;
 export type AssistantMessage = typeof assistantMessages.$inferSelect;
 export type NewAssistantMessage = typeof assistantMessages.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// CMS — marketing content (blog + changelog) authored by staff in apps/admin.
+// The marketing site fetches the PUBLISHED rows over HTTP (with a static
+// fallback) and is revalidated on publish. See routes/cms.ts + apps/marketing.
+// ---------------------------------------------------------------------------
+export const blogPosts = pgTable(
+  "blog_posts",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    category: postCategoryEnum("category").notNull().default("Company"),
+    author: text("author").notNull().default("rootmail"),
+    body: text("body").notNull().default(""), // Markdown, rendered on the article page
+    coverImageUrl: text("cover_image_url"),
+    status: cmsStatusEnum("status").notNull().default("draft"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdBy: text("created_by"), // staff id of record
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => ({
+    statusPublishedIdx: index("blog_posts_status_published_idx").on(t.status, t.publishedAt),
+  }),
+);
+
+export const changelogEntries = pgTable(
+  "changelog_entries",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    // The release date shown on the marketing changelog — distinct from created_at.
+    entryDate: timestamp("entry_date", { withTimezone: true }).defaultNow().notNull(),
+    changes: jsonb("changes").$type<ChangeItem[]>().notNull(),
+    status: cmsStatusEnum("status").notNull().default("draft"),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    createdBy: text("created_by"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => ({
+    statusDateIdx: index("changelog_status_date_idx").on(t.status, t.entryDate),
+  }),
+);
+
+export type BlogPost = typeof blogPosts.$inferSelect;
+export type NewBlogPost = typeof blogPosts.$inferInsert;
+export type ChangelogEntry = typeof changelogEntries.$inferSelect;
+export type NewChangelogEntry = typeof changelogEntries.$inferInsert;

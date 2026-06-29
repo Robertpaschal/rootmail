@@ -42,6 +42,8 @@ export const ID_PREFIXES = {
   customPlan: "cpl",
   assistantChat: "chat",
   assistantMessage: "chatmsg",
+  blogPost: "post",
+  changelogEntry: "log",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;
