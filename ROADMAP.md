@@ -448,9 +448,10 @@ and a hosted "test inbox" (the dev `.maildir` is the seed of that).
 **Shipped:** a one-click **unsubscribe flow** for admin announcements — every broadcast
 carries a signed opt-out link (`GET /v1/announcements/unsubscribe`, confirm-step page),
 the opt-out is stored per-user (`users.announcement_opt_out_at`) and excluded from future
-broadcasts; essential account/security mail is unaffected.
-**Queued near-term:** an in-app announcement-preference toggle (the opt-out is currently
-link-only); continuous visual refinement.
+broadcasts; essential account/security mail is unaffected. The **in-app preference toggle**
+also shipped (dashboard Settings → Security → email preferences → `POST /v1/auth/preferences`),
+so opting out no longer needs the email link.
+**Queued near-term:** continuous visual refinement.
 
 ---
 
