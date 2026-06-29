@@ -53,8 +53,9 @@ services:
     environment:
       NODE_ENV: production
       PORT: "3000"
-      ROOTMAIL_API_URL: ${PUBLIC_API_URL} # contact form → public /v1/leads
+      ROOTMAIL_API_URL: ${PUBLIC_API_URL} # contact form → public /v1/leads; blog/changelog fetch
       ROOTMAIL_API_KEY: ${ROOTMAIL_API_KEY:-}
+      INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-} # validates the CMS on-publish /api/revalidate
     ports: ["3000:3000"]
 
   dashboard:

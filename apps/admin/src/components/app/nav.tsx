@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, Contact, LayoutDashboard, Megaphone, Tag, Ticket, UserCog } from "lucide-react";
+import { BarChart3, Building2, Contact, LayoutDashboard, Megaphone, Newspaper, Tag, Ticket, UserCog } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const items = [
@@ -13,6 +13,7 @@ const items = [
   { href: "/pricing", label: "Pricing", icon: Tag },
   { href: "/promotions", label: "Promotions", icon: Ticket },
   { href: "/announcements", label: "Announcements", icon: Megaphone },
+  { href: "/content", label: "Content", icon: Newspaper },
   { href: "/staff", label: "Staff", icon: UserCog },
 ];
 

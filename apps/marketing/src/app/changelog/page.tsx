@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Navbar } from "@/components/site/navbar";
 import { Footer } from "@/components/site/footer";
 import { Badge } from "@/components/ui/badge";
-import { changelog, type ChangeKind } from "@/lib/changelog";
+import { getPublicChangelog, type ChangeKind } from "@/lib/changelog";
 
 export const metadata: Metadata = {
   title: "Changelog",
@@ -24,7 +24,8 @@ function formatDate(iso: string) {
   });
 }
 
-export default function ChangelogPage() {
+export default async function ChangelogPage() {
+  const entries = await getPublicChangelog();
   return (
     <>
       <Navbar />
@@ -41,9 +42,9 @@ export default function ChangelogPage() {
         </div>
 
         <div className="mt-14 space-y-12">
-          {changelog.map((entry) => (
+          {entries.map((entry, i) => (
             <article
-              key={entry.date}
+              key={`${entry.date}-${i}`}
               className="grid gap-6 md:grid-cols-[10rem_1fr] md:gap-10"
             >
               <div className="md:pt-1">

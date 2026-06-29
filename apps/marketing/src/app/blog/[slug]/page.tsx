@@ -6,19 +6,18 @@ import { Navbar } from "@/components/site/navbar";
 import { Footer } from "@/components/site/footer";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { posts, isArticle, type ArticlePost, type Block } from "@/lib/blog";
+import { getPublicArticle, staticArticleSlugs, type Block } from "@/lib/blog";
+import { Markdown } from "@/components/site/markdown";
 import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
 type Params = { slug: string };
 
-function getArticle(slug: string): ArticlePost | undefined {
-  const post = posts.find((p) => p.slug === slug);
-  return post && isArticle(post) ? post : undefined;
-}
+// Static (baseline) slugs are prerendered; admin-published slugs render on-demand.
+export const dynamicParams = true;
 
 export function generateStaticParams(): Params[] {
-  return posts.filter(isArticle).map((p) => ({ slug: p.slug }));
+  return staticArticleSlugs().map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({
@@ -27,7 +26,7 @@ export async function generateMetadata({
   params: Promise<Params>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const article = getArticle(slug);
+  const article = await getPublicArticle(slug);
   if (!article) return { title: "Not found" };
   return { title: article.title, description: article.description };
 }
@@ -67,7 +66,7 @@ function BlockView({ block }: { block: Block }) {
 
 export default async function BlogArticlePage({ params }: { params: Promise<Params> }) {
   const { slug } = await params;
-  const article = getArticle(slug);
+  const article = await getPublicArticle(slug);
   if (!article) notFound();
 
   return (
@@ -93,10 +92,16 @@ export default async function BlogArticlePage({ params }: { params: Promise<Para
         <p className="mt-4 text-balance text-lg text-muted-foreground">{article.description}</p>
         <p className="mt-4 text-sm text-muted-foreground">By {article.author}</p>
 
-        <div className="mt-10 space-y-5 text-sm leading-relaxed text-muted-foreground">
-          {article.body.map((block, i) => (
-            <BlockView key={i} block={block} />
-          ))}
+        <div className="mt-10">
+          {article.markdown !== undefined ? (
+            <Markdown>{article.markdown}</Markdown>
+          ) : (
+            <div className="space-y-5 text-sm leading-relaxed text-muted-foreground">
+              {(article.blocks ?? []).map((block, i) => (
+                <BlockView key={i} block={block} />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mt-14 rounded-2xl border bg-secondary/30 p-8 text-center">

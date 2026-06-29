@@ -221,3 +221,107 @@ export const posts: Post[] = [
     source: "rfc-editor.org",
   },
 ];
+
+const API_URL = process.env.ROOTMAIL_API_URL ?? "http://localhost:4000";
+
+interface ApiPost {
+  slug: string;
+  title: string;
+  description: string;
+  category: PostCategory;
+  author: string;
+  date: string;
+  reading_minutes: number;
+  body: string; // Markdown
+}
+
+/** A post resolved for the article page: DB posts carry markdown, static ones blocks. */
+export interface ResolvedArticle {
+  slug: string;
+  title: string;
+  description: string;
+  date: string;
+  author: string;
+  category: PostCategory;
+  readingMinutes: number;
+  markdown?: string;
+  blocks?: Block[];
+}
+
+// In the LIST a DB post is an article whose body isn't rendered there.
+function dbToListPost(p: ApiPost): ArticlePost {
+  return {
+    slug: p.slug,
+    title: p.title,
+    description: p.description,
+    date: p.date.slice(0, 10),
+    author: p.author,
+    category: p.category,
+    readingMinutes: p.reading_minutes,
+    body: [],
+  };
+}
+
+/**
+ * Posts for the /blog index: admin-managed posts (API) merged with the static
+ * baseline, newest first (a DB post wins on a slug clash). On-demand ISR via the
+ * `blog` tag; static-only fallback when the API is unreachable.
+ */
+export async function getPublicBlog(): Promise<Post[]> {
+  let live: Post[] = [];
+  try {
+    const res = await fetch(new URL("/v1/blog", API_URL), { next: { revalidate: 3600, tags: ["blog"] } });
+    if (res.ok) {
+      const json = (await res.json()) as { data?: ApiPost[] };
+      live = (json.data ?? []).map(dbToListPost);
+    }
+  } catch {
+    // API unreachable → static baseline only.
+  }
+  const bySlug = new Map<string, Post>();
+  for (const p of [...live, ...posts]) if (!bySlug.has(p.slug)) bySlug.set(p.slug, p);
+  return [...bySlug.values()].sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+}
+
+/** Resolve a single article — API first (markdown), else the static baseline (blocks). */
+export async function getPublicArticle(slug: string): Promise<ResolvedArticle | null> {
+  try {
+    const res = await fetch(new URL(`/v1/blog/${encodeURIComponent(slug)}`, API_URL), {
+      next: { revalidate: 3600, tags: ["blog"] },
+    });
+    if (res.ok) {
+      const p = (await res.json()) as ApiPost;
+      return {
+        slug: p.slug,
+        title: p.title,
+        description: p.description,
+        date: p.date.slice(0, 10),
+        author: p.author,
+        category: p.category,
+        readingMinutes: p.reading_minutes,
+        markdown: p.body,
+      };
+    }
+  } catch {
+    // fall through to the static baseline
+  }
+  const post = posts.find((p) => p.slug === slug);
+  if (post && isArticle(post)) {
+    return {
+      slug: post.slug,
+      title: post.title,
+      description: post.description,
+      date: post.date,
+      author: post.author,
+      category: post.category,
+      readingMinutes: post.readingMinutes,
+      blocks: post.body,
+    };
+  }
+  return null;
+}
+
+/** Static article slugs for SSG; DB slugs render on-demand (dynamicParams). */
+export function staticArticleSlugs(): string[] {
+  return posts.filter(isArticle).map((p) => p.slug);
+}

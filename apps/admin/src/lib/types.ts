@@ -4,7 +4,47 @@ export type StaffPermission =
   | "support.manage"
   | "commerce.manage"
   | "announce.send"
+  | "content.publish"
   | "staff.manage";
+
+// --- CMS (admin-managed blog + changelog) ---------------------------------
+export type CmsStatus = "draft" | "published";
+export type PostCategory = "Company" | "Guide" | "Things we like";
+export type ChangeKind = "New" | "Improved" | "Fixed";
+export interface ChangeItem {
+  kind: ChangeKind;
+  text: string;
+}
+
+export interface AdminBlogPost {
+  object: "blog_post";
+  id: string;
+  slug: string;
+  title: string;
+  description: string;
+  category: PostCategory;
+  author: string;
+  body: string;
+  cover_image_url: string | null;
+  reading_minutes: number;
+  date: string;
+  status: CmsStatus;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AdminChangelogEntry {
+  object: "changelog_entry";
+  id: string;
+  title: string;
+  date: string;
+  changes: ChangeItem[];
+  status: CmsStatus;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface StaffUser {
   object: "staff_user";

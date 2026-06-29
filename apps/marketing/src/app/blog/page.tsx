@@ -4,7 +4,7 @@ import { ArrowRight, ArrowUpRight, Twitter } from "lucide-react";
 import { Navbar } from "@/components/site/navbar";
 import { Footer } from "@/components/site/footer";
 import { Badge } from "@/components/ui/badge";
-import { posts, isArticle, type Post } from "@/lib/blog";
+import { getPublicBlog, isArticle, type Post } from "@/lib/blog";
 
 export const metadata: Metadata = {
   title: "Blog",
@@ -66,8 +66,9 @@ function PostCard({ post }: { post: Post }) {
   );
 }
 
-export default function BlogPage() {
-  const [lead, ...rest] = posts;
+export default async function BlogPage() {
+  const allPosts = await getPublicBlog();
+  const [lead, ...rest] = allPosts;
   const leadHref = isArticle(lead) ? `/blog/${lead.slug}` : lead.externalUrl;
 
   return (

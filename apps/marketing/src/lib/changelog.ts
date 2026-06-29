@@ -1,7 +1,7 @@
-// The product changelog. To add an entry, prepend a new object to `changelog`
-// (newest first) with an ISO `date`, a short `title`, and one or more `changes`,
-// each tagged "New" | "Improved" | "Fixed". Keep it user-facing: describe what
-// someone can now do, not how it was built. No internal/lifecycle jargon.
+// The product changelog. The /changelog page shows admin-managed entries from the
+// API merged with this static baseline — newest first, deduped, with the static
+// array as the resilient fallback when the API is unreachable. To add a baseline
+// entry, prepend an object here; staff publish live entries in apps/admin.
 
 export type ChangeKind = "New" | "Improved" | "Fixed";
 
@@ -124,3 +124,34 @@ export const changelog: ChangelogEntry[] = [
     ],
   },
 ];
+
+const API_URL = process.env.ROOTMAIL_API_URL ?? "http://localhost:4000";
+
+/**
+ * The changelog for the marketing page: admin-managed entries (from the API)
+ * merged with the static baseline above, newest first. On-demand ISR — revalidated
+ * by the `changelog` tag when staff publish (the API POSTs /api/revalidate), with a
+ * long backstop. Falls back to the static baseline if the API is unreachable.
+ */
+export async function getPublicChangelog(): Promise<ChangelogEntry[]> {
+  let live: ChangelogEntry[] = [];
+  try {
+    const res = await fetch(new URL("/v1/changelog", API_URL), {
+      next: { revalidate: 3600, tags: ["changelog"] },
+    });
+    if (res.ok) {
+      const json = (await res.json()) as { data?: { title: string; date: string; changes: ChangeItem[] }[] };
+      live = (json.data ?? []).map((e) => ({
+        title: e.title,
+        date: e.date.slice(0, 10), // normalize ISO datetime → YYYY-MM-DD
+        changes: e.changes,
+      }));
+    }
+  } catch {
+    // API unreachable → static baseline only.
+  }
+  // Live entries win on an exact (date,title) clash; otherwise both show.
+  const seen = new Set(live.map((e) => `${e.date}|${e.title}`));
+  const merged = [...live, ...changelog.filter((e) => !seen.has(`${e.date}|${e.title}`))];
+  return merged.sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : 0));
+}

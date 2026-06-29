@@ -3,9 +3,14 @@ import type {
   AdminAddon,
   AdminAnalytics,
   AdminBilling,
+  AdminBlogPost,
+  AdminChangelogEntry,
   AdminPlan,
   AddonPatch,
   AnnouncementRecipients,
+  ChangeItem,
+  CmsStatus,
+  PostCategory,
   CustomPlan,
   CustomPlanInput,
   Lead,
@@ -221,5 +226,44 @@ export const adminApi = {
       method: "POST",
       body: {},
     }),
+
+  // --- CMS: blog (content.publish) ---
+  listBlogPosts: () => adminFetch<ListResponse<AdminBlogPost>>("/v1/admin/cms/blog"),
+  createBlogPost: (input: {
+    slug: string;
+    title: string;
+    description?: string;
+    category?: PostCategory;
+    author?: string;
+    body?: string;
+    cover_image_url?: string | null;
+    status?: CmsStatus;
+  }) => adminFetch<AdminBlogPost>("/v1/admin/cms/blog", { method: "POST", body: input }),
+  updateBlogPost: (
+    id: string,
+    input: Partial<{
+      slug: string;
+      title: string;
+      description: string;
+      category: PostCategory;
+      author: string;
+      body: string;
+      cover_image_url: string | null;
+      status: CmsStatus;
+    }>,
+  ) => adminFetch<AdminBlogPost>(`/v1/admin/cms/blog/${id}`, { method: "PATCH", body: input }),
+  deleteBlogPost: (id: string) =>
+    adminFetch<{ deleted: boolean }>(`/v1/admin/cms/blog/${id}`, { method: "DELETE" }),
+
+  // --- CMS: changelog (content.publish) ---
+  listChangelog: () => adminFetch<ListResponse<AdminChangelogEntry>>("/v1/admin/cms/changelog"),
+  createChangelog: (input: { title: string; date?: string; changes: ChangeItem[]; status?: CmsStatus }) =>
+    adminFetch<AdminChangelogEntry>("/v1/admin/cms/changelog", { method: "POST", body: input }),
+  updateChangelog: (
+    id: string,
+    input: Partial<{ title: string; date: string; changes: ChangeItem[]; status: CmsStatus }>,
+  ) => adminFetch<AdminChangelogEntry>(`/v1/admin/cms/changelog/${id}`, { method: "PATCH", body: input }),
+  deleteChangelog: (id: string) =>
+    adminFetch<{ deleted: boolean }>(`/v1/admin/cms/changelog/${id}`, { method: "DELETE" }),
 };
 
