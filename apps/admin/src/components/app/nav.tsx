@@ -2,67 +2,114 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Building2, Contact, LayoutDashboard, LifeBuoy, Megaphone, Newspaper, Tag, Ticket, UserCog } from "lucide-react";
+import {
+  BarChart3,
+  Building2,
+  Contact,
+  LayoutDashboard,
+  LifeBuoy,
+  Megaphone,
+  Newspaper,
+  Tag,
+  Ticket,
+  UserCog,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const items = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/orgs", label: "Organizations", icon: Building2 },
-  { href: "/leads", label: "Leads", icon: Contact },
-  { href: "/support", label: "Support", icon: LifeBuoy },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/pricing", label: "Pricing", icon: Tag },
-  { href: "/promotions", label: "Promotions", icon: Ticket },
-  { href: "/announcements", label: "Announcements", icon: Megaphone },
-  { href: "/content", label: "Content", icon: Newspaper },
-  { href: "/staff", label: "Staff", icon: UserCog },
+type Item = { href: string; label: string; icon: typeof Building2; exact?: boolean };
+type Group = { label?: string; items: Item[] };
+
+// Grouped by what staff are actually doing — customers, revenue, comms, insights,
+// team — so the console reads as a product, not a flat list of ten links.
+const groups: Group[] = [
+  { items: [{ href: "/", label: "Overview", icon: LayoutDashboard, exact: true }] },
+  {
+    label: "Customers",
+    items: [
+      { href: "/orgs", label: "Organizations", icon: Building2 },
+      { href: "/leads", label: "Leads", icon: Contact },
+      { href: "/support", label: "Support", icon: LifeBuoy },
+    ],
+  },
+  {
+    label: "Revenue",
+    items: [
+      { href: "/pricing", label: "Pricing", icon: Tag },
+      { href: "/promotions", label: "Promotions", icon: Ticket },
+    ],
+  },
+  {
+    label: "Content",
+    items: [
+      { href: "/content", label: "Content", icon: Newspaper },
+      { href: "/announcements", label: "Announcements", icon: Megaphone },
+    ],
+  },
+  {
+    label: "Insights",
+    items: [{ href: "/analytics", label: "Analytics", icon: BarChart3 }],
+  },
+  {
+    label: "Team",
+    items: [{ href: "/staff", label: "Staff", icon: UserCog }],
+  },
 ];
 
-function isActive(pathname: string, href: string): boolean {
-  return href === "/" ? pathname === "/" : pathname.startsWith(href);
+const allItems = groups.flatMap((g) => g.items);
+
+function useIsActive() {
+  const pathname = usePathname();
+  return (href: string, exact?: boolean) =>
+    exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
 }
 
 export function Nav() {
-  const pathname = usePathname();
+  const isActive = useIsActive();
   return (
-    <nav className="space-y-1">
-      {items.map((it) => (
-        <Link
-          key={it.href}
-          href={it.href}
-          className={cn(
-            "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-            isActive(pathname, it.href)
-              ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-          )}
-        >
-          <it.icon className="size-4" />
-          {it.label}
-        </Link>
+    <nav className="space-y-5">
+      {groups.map((g, gi) => (
+        <div key={g.label ?? gi} className="space-y-1">
+          {g.label ? (
+            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+              {g.label}
+            </p>
+          ) : null}
+          {g.items.map((it) => (
+            <Link
+              key={it.href}
+              href={it.href}
+              className={cn(
+                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                isActive(it.href, it.exact)
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+              )}
+            >
+              <it.icon className="size-4 shrink-0" /> {it.label}
+            </Link>
+          ))}
+        </div>
       ))}
     </nav>
   );
 }
 
-/** Horizontal nav shown on small screens, where the sidebar is hidden. */
 export function MobileNav() {
-  const pathname = usePathname();
+  const isActive = useIsActive();
   return (
     <nav className="flex gap-1 overflow-x-auto border-b bg-card px-3 py-2 md:hidden">
-      {items.map((it) => (
+      {allItems.map((it) => (
         <Link
           key={it.href}
           href={it.href}
           className={cn(
             "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
-            isActive(pathname, it.href)
+            isActive(it.href, it.exact)
               ? "bg-primary text-primary-foreground"
-              : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+              : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <it.icon className="size-4" />
-          {it.label}
+          <it.icon className="size-4" /> {it.label}
         </Link>
       ))}
     </nav>

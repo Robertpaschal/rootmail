@@ -1,40 +1,164 @@
+import Link from "next/link";
+import { ArrowRight, Building2, Contact, CreditCard, LifeBuoy, Mail, Users } from "lucide-react";
+import { PageHeader } from "@/components/app/page-header";
+import { StatCard } from "@/components/app/stat-card";
+import { Badge } from "@/components/ui/badge";
 import { adminApi } from "@/lib/admin-api";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatNumber } from "@/lib/format";
+import { formatDate, formatMoney, formatNumber } from "@/lib/format";
+import type { AdminPlan, Lead, OrgSummary, SupportTicketListItem } from "@/lib/types";
+
+const PLAN_ORDER = ["free", "pro", "scale", "enterprise"];
 
 export default async function OverviewPage() {
-  const { data } = await adminApi.listOrgs();
-  const totalOrgs = data.length;
-  const paidOrgs = data.filter((o) => o.plan !== "free").length;
-  const totalMembers = data.reduce((a, o) => a + o.members, 0);
-  const totalUsage = data.reduce((a, o) => a + o.usage_this_period, 0);
+  const [orgsRes, plansRes, ticketsRes, leadsRes] = await Promise.all([
+    adminApi.listOrgs().catch(() => ({ data: [] as OrgSummary[] })),
+    adminApi.listPlans().catch(() => ({ data: [] as AdminPlan[] })),
+    adminApi.listSupportTickets("open").catch(() => ({ data: [] as SupportTicketListItem[] })),
+    adminApi.listLeads("new").catch(() => ({ data: [] as Lead[] })),
+  ]);
+  const orgs = orgsRes.data;
+  const priceById = new Map(plansRes.data.map((p) => [p.id, p.price ?? 0]));
+  const openTickets = ticketsRes.data;
+  const newLeads = leadsRes.data;
 
-  const stats = [
-    { label: "Organizations", value: totalOrgs },
-    { label: "Paid orgs", value: paidOrgs },
-    { label: "Members", value: totalMembers },
-    { label: "Emails this period", value: totalUsage },
-  ];
+  const paid = orgs.filter((o) => o.plan !== "free").length;
+  const mrr = orgs.reduce((sum, o) => sum + (priceById.get(o.plan) ?? 0), 0);
+  const members = orgs.reduce((a, o) => a + o.members, 0);
+  const usage = orgs.reduce((a, o) => a + o.usage_this_period, 0);
+  const planCounts = PLAN_ORDER.map((id) => ({ id, count: orgs.filter((o) => o.plan === id).length }));
+  const recentOrgs = [...orgs].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 6);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Overview</h1>
-        <p className="text-sm text-muted-foreground">
-          Platform-wide snapshot across all organizations.
-        </p>
+      <PageHeader
+        title="Overview"
+        description="Platform-wide snapshot across every organization."
+        actions={
+          <Link
+            href="/orgs"
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+          >
+            All organizations <ArrowRight className="size-4" />
+          </Link>
+        }
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatCard label="Organizations" value={formatNumber(orgs.length)} sub={`${paid} paid`} icon={Building2} href="/orgs" />
+        <StatCard label="Est. MRR" value={formatMoney(mrr * 100)} sub="listed plan prices" icon={CreditCard} href="/pricing" />
+        <StatCard label="Emails / period" value={formatNumber(usage)} icon={Mail} />
+        <StatCard label="Members" value={formatNumber(members)} icon={Users} />
+        <StatCard label="Open tickets" value={formatNumber(openTickets.length)} icon={LifeBuoy} href="/support" accent={openTickets.length > 0} />
+        <StatCard label="New leads" value={formatNumber(newLeads.length)} icon={Contact} href="/leads" accent={newLeads.length > 0} />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Card key={s.label}>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-3xl font-semibold tabular-nums">{formatNumber(s.value)}</div>
-            </CardContent>
-          </Card>
-        ))}
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-xl border bg-card p-4">
+          <h2 className="text-sm font-semibold">Plan mix</h2>
+          <div className="mt-3 space-y-2.5">
+            {planCounts.map(({ id, count }) => {
+              const pct = orgs.length ? Math.round((count / orgs.length) * 100) : 0;
+              return (
+                <div key={id} className="flex items-center gap-3 text-sm">
+                  <span className="w-20 shrink-0 capitalize text-muted-foreground">{id}</span>
+                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-8 shrink-0 text-right tabular-nums">{count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="rounded-xl border bg-card p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Recent organizations</h2>
+            <Link href="/orgs" className="text-xs text-muted-foreground hover:text-foreground">
+              View all →
+            </Link>
+          </div>
+          <ul className="mt-2 divide-y">
+            {recentOrgs.length === 0 ? (
+              <li className="py-3 text-sm text-muted-foreground">No organizations yet.</li>
+            ) : (
+              recentOrgs.map((o) => (
+                <li key={o.id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                  <Link href={`/orgs/${o.id}`} className="min-w-0 truncate font-medium hover:underline">
+                    {o.name}
+                  </Link>
+                  <span className="flex shrink-0 items-center gap-2">
+                    <Badge variant="muted" className="capitalize">
+                      {o.plan}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">{formatDate(o.created_at)}</span>
+                  </span>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+      </div>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section className="rounded-xl border bg-card p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">Open support</h2>
+            <Link href="/support" className="text-xs text-muted-foreground hover:text-foreground">
+              Inbox →
+            </Link>
+          </div>
+          <ul className="mt-2 divide-y">
+            {openTickets.length === 0 ? (
+              <li className="py-3 text-sm text-muted-foreground">No open tickets.</li>
+            ) : (
+              openTickets.slice(0, 5).map((t) => (
+                <li key={t.id} className="py-2 text-sm">
+                  <Link href={`/support/${t.id}`} className="flex items-center justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">{t.subject || t.email}</span>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {t.last_message?.body ?? t.email}
+                      </span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {formatDate(t.last_message_at)}
+                    </span>
+                  </Link>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
+
+        <section className="rounded-xl border bg-card p-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold">New leads</h2>
+            <Link href="/leads" className="text-xs text-muted-foreground hover:text-foreground">
+              Pipeline →
+            </Link>
+          </div>
+          <ul className="mt-2 divide-y">
+            {newLeads.length === 0 ? (
+              <li className="py-3 text-sm text-muted-foreground">No new leads.</li>
+            ) : (
+              newLeads.slice(0, 5).map((l) => (
+                <li key={l.id} className="py-2 text-sm">
+                  <Link href={`/leads/${l.id}`} className="flex items-center justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="block truncate font-medium">
+                        {l.name}
+                        {l.company ? ` · ${l.company}` : ""}
+                      </span>
+                      <span className="block truncate text-xs text-muted-foreground">{l.email}</span>
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatDate(l.created_at)}</span>
+                  </Link>
+                </li>
+              ))
+            )}
+          </ul>
+        </section>
       </div>
     </div>
   );
