@@ -20,6 +20,7 @@ next-env.d.ts
 .env.local
 .env.*.local
 *.env.prod
+.env*.bak*
 
 # local mail output (mock provider)
 .maildir/

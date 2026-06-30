@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
+import { History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { EmptyState } from "@/components/app/empty-state";
 import { adminApi } from "@/lib/admin-api";
 import type { StaffAuditEntry } from "@/lib/types";
 import { StaffManager } from "./staff-manager";
@@ -35,7 +37,11 @@ export default async function StaffPage() {
         </CardHeader>
         <CardContent className="px-0">
           {audit.data.length === 0 ? (
-            <p className="px-6 text-sm text-muted-foreground">No staff activity yet.</p>
+            <EmptyState
+              icon={History}
+              title="No staff activity yet"
+              description="Sign-ins, role changes, deactivations and password resets all land here for the audit trail."
+            />
           ) : (
             <Table>
               <TableHeader>

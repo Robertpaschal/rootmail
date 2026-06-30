@@ -4,19 +4,11 @@ import { Contact, Sparkles, TrendingUp, Trophy } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { adminApi } from "@/lib/admin-api";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { formatDate, formatNumber } from "@/lib/format";
-import { LEAD_STATUS_LABEL, leadStatusVariant } from "@/lib/leads";
+import { formatNumber } from "@/lib/format";
+import { LEAD_STATUS_LABEL } from "@/lib/leads";
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { LeadsTable } from "./leads-table";
 
 export const metadata: Metadata = { title: "Leads" };
 
@@ -95,43 +87,7 @@ export default async function LeadsPage({
         })}
       </div>
 
-      <div className="overflow-x-auto rounded-lg border">
-        {data.length === 0 ? (
-          <p className="p-6 text-sm text-muted-foreground">No leads here yet.</p>
-        ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Company / Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>Created</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {data.map((l) => (
-                <TableRow key={l.id}>
-                  <TableCell>
-                    <Link href={`/leads/${l.id}`} className="font-medium hover:underline">
-                      {l.company || l.name}
-                    </Link>
-                    {l.company ? <div className="text-xs text-muted-foreground">{l.name}</div> : null}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{l.email}</TableCell>
-                  <TableCell>
-                    <Badge variant={leadStatusVariant(l.status)}>{LEAD_STATUS_LABEL[l.status]}</Badge>
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {l.owner_email ?? <span className="text-muted-foreground/60">Unassigned</span>}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{formatDate(l.created_at)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        )}
-      </div>
+      <LeadsTable leads={data} />
     </div>
   );
 }

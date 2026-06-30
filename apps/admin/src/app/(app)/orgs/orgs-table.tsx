@@ -2,18 +2,18 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, Building2, ChevronsUpDown } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Table,
   TableBody,
   TableCell,
-  TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/app/empty-state";
+import { Pager, SortHead, type Sort } from "@/components/app/data-table";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OrgSummary } from "@/lib/types";
@@ -39,7 +39,7 @@ type SortKey = "name" | "plan" | "members" | "usage_this_period" | "created_at";
 export function OrgsTable({ orgs }: { orgs: OrgSummary[] }) {
   const [q, setQ] = useState("");
   const [plan, setPlan] = useState<(typeof PLANS)[number]>("all");
-  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
+  const [sort, setSort] = useState<Sort<SortKey>>({ key: "name", dir: "asc" });
   const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
@@ -155,74 +155,14 @@ export function OrgsTable({ orgs }: { orgs: OrgSummary[] }) {
         </Table>
       </div>
 
-      {filtered.length > PAGE_SIZE ? (
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-muted-foreground">
-            {start + 1}–{Math.min(start + PAGE_SIZE, filtered.length)} of {filtered.length}
-          </span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              disabled={current <= 1}
-              onClick={() => setPage(current - 1)}
-              className="rounded-md border px-2.5 py-1 font-medium transition-colors hover:bg-accent disabled:opacity-40"
-            >
-              Previous
-            </button>
-            <span className="text-muted-foreground">
-              Page {current} / {pageCount}
-            </span>
-            <button
-              type="button"
-              disabled={current >= pageCount}
-              onClick={() => setPage(current + 1)}
-              className="rounded-md border px-2.5 py-1 font-medium transition-colors hover:bg-accent disabled:opacity-40"
-            >
-              Next
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <Pager
+        start={start}
+        pageSize={PAGE_SIZE}
+        total={filtered.length}
+        page={current}
+        pageCount={pageCount}
+        onPage={setPage}
+      />
     </div>
-  );
-}
-
-function SortHead({
-  label,
-  k,
-  sort,
-  onSort,
-  align,
-}: {
-  label: string;
-  k: SortKey;
-  sort: { key: SortKey; dir: "asc" | "desc" };
-  onSort: (k: SortKey) => void;
-  align?: "right";
-}) {
-  const active = sort.key === k;
-  return (
-    <TableHead className={align === "right" ? "text-right" : undefined}>
-      <button
-        type="button"
-        onClick={() => onSort(k)}
-        className={cn(
-          "inline-flex items-center gap-1 transition-colors hover:text-foreground",
-          align === "right" && "flex-row-reverse",
-          active ? "text-foreground" : "text-muted-foreground",
-        )}
-      >
-        {label}
-        {active ? (
-          sort.dir === "asc" ? (
-            <ArrowUp className="size-3.5" />
-          ) : (
-            <ArrowDown className="size-3.5" />
-          )
-        ) : (
-          <ChevronsUpDown className="size-3.5 opacity-50" />
-        )}
-      </button>
-    </TableHead>
   );
 }

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { BadgePercent } from "lucide-react";
+import { EmptyState } from "@/components/app/empty-state";
 import { SubmitButton } from "@/components/app/submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,7 +45,11 @@ export default async function PromotionsPage() {
         </CardHeader>
         <CardContent className="px-0">
           {promos.length === 0 ? (
-            <p className="px-6 text-sm text-muted-foreground">No promotions yet.</p>
+            <EmptyState
+              icon={BadgePercent}
+              title="No promotions yet"
+              description="Create a coupon above and it shows up here — with live redemption counts and an off-switch."
+            />
           ) : (
             <Table>
               <TableHeader>
