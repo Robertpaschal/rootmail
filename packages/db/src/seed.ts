@@ -1,76 +1,17 @@
 import { and, eq } from "drizzle-orm";
+import { env, generateApiKey, newId } from "@rootmail/core";
 import {
-  ADD_ON_IDS,
-  ADD_ONS,
-  AI_CREDITS,
-  env,
-  generateApiKey,
-  newId,
-  PLAN_IDS,
-  PLANS,
-} from "@rootmail/core";
-import {
-  addons,
   apiKeys,
   closeDb,
   db,
   organizations,
   type Organization,
   orgAddons,
-  plans,
   templates,
   type Workspace,
   workspaces,
 } from "./index";
-
-// Seed the add-on catalog from the constants. onConflictDoNothing so re-seeding
-// never clobbers prices/grants an admin has since edited.
-async function ensureAddons(): Promise<void> {
-  for (let i = 0; i < ADD_ON_IDS.length; i++) {
-    const id = ADD_ON_IDS[i];
-    const a = ADD_ONS[id];
-    await db
-      .insert(addons)
-      .values({
-        id,
-        name: a.name,
-        description: a.description,
-        unit: a.unit,
-        unitAmount: a.defaultUnitAmount,
-        grant: a.grant,
-        rank: i,
-        active: true,
-      })
-      .onConflictDoNothing({ target: addons.id });
-  }
-}
-
-// Seed the plan catalog from the constants. onConflictDoNothing so re-seeding
-// never clobbers prices an admin has since edited in the DB.
-async function ensurePlans(): Promise<void> {
-  for (let i = 0; i < PLAN_IDS.length; i++) {
-    const id = PLAN_IDS[i];
-    const p = PLANS[id];
-    await db
-      .insert(plans)
-      .values({
-        id,
-        name: p.name,
-        price: p.price,
-        monthlyQuota: p.monthlyQuota,
-        allowOverage: p.allowOverage,
-        overagePer1000Cents: Math.round(p.overagePer1000 * 100),
-        includedSubTenants: p.includedSubTenants,
-        seats: p.seats,
-        workspaceLimit: p.workspaceLimit,
-        aiCredits: AI_CREDITS[id],
-        features: [...p.features],
-        rank: i,
-        active: true,
-      })
-      .onConflictDoNothing({ target: plans.id });
-  }
-}
+import { ensureAddons, ensurePlans } from "./seed-catalog";
 
 // No staff are seeded — the first staff account is created via the gated
 // first-run bootstrap (POST /v1/admin/auth/bootstrap), so there's never a

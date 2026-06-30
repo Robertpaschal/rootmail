@@ -58,6 +58,16 @@ export default async function PricingPage() {
 
       {/* Plans */}
       <div className="space-y-4">
+        {plans.length === 0 ? (
+          <Card>
+            <CardContent className="py-6 text-sm text-muted-foreground">
+              No plans in the database yet. Run{" "}
+              <code className="rounded bg-muted px-1 py-0.5">pnpm db:seed:pricing</code> to populate
+              the catalog from the defaults, then refresh. (Customer-facing pricing still works off
+              the built-in defaults.)
+            </CardContent>
+          </Card>
+        ) : null}
         {plans.map((p) => (
           <Card key={p.id}>
             <CardHeader>
