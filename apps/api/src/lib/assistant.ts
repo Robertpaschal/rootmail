@@ -25,6 +25,13 @@ interface ToolDef {
   path: (input: Record<string, unknown>) => string;
 }
 
+/** Encode a model-supplied value as a single URL path segment — prevents any path
+ * traversal / route injection via tool inputs (defense-in-depth on top of the
+ * per-request auth + org-scoping every tool call already runs through). */
+function seg(v: unknown): string {
+  return encodeURIComponent(String(v));
+}
+
 /** Build a `?a=1&b=2` query string, omitting null/undefined/empty values. */
 function qs(params: Record<string, unknown>): string {
   const pairs = Object.entries(params)
@@ -99,7 +106,7 @@ const TOOLS: ToolDef[] = [
       "Get one message by id: its status and the `error` field (the bounce/complaint/failure reason). Use to explain why a specific send did not land.",
     input_schema: { type: "object", properties: { message_id: { type: "string" } }, required: ["message_id"] },
     method: "GET",
-    path: (i) => `/v1/messages/${i.message_id}`,
+    path: (i) => `/v1/messages/${seg(i.message_id)}`,
   },
   {
     name: "get_message_audit",
@@ -107,7 +114,7 @@ const TOOLS: ToolDef[] = [
       "Get the full delivery audit trail for a message (queued → rendered → sent → delivered/bounced/complained, with timestamps and provider detail). Use for a deeper diagnosis than get_message alone.",
     input_schema: { type: "object", properties: { message_id: { type: "string" } }, required: ["message_id"] },
     method: "GET",
-    path: (i) => `/v1/messages/${i.message_id}/audit`,
+    path: (i) => `/v1/messages/${seg(i.message_id)}/audit`,
   },
   {
     name: "check_suppression",
@@ -145,7 +152,7 @@ const TOOLS: ToolDef[] = [
       "Audit a sub-tenant sending domain's email authentication — SPF, DKIM, DMARC (with its policy), and BIMI — returning each mechanism's status, the exact DNS record to publish, and how to strengthen a weak setup. Use for 'is my domain set up right?', SPF/DKIM/DMARC questions, or 'why is my mail going to spam?'. Find the sub_tenant_id with list_sub_tenants first.",
     input_schema: { type: "object", properties: { sub_tenant_id: { type: "string" } }, required: ["sub_tenant_id"] },
     method: "GET",
-    path: (i) => `/v1/sub-tenants/${i.sub_tenant_id}/auth`,
+    path: (i) => `/v1/sub-tenants/${seg(i.sub_tenant_id)}/auth`,
   },
   // ---- Build ------------------------------------------------------------
   {
@@ -217,7 +224,7 @@ const TOOLS: ToolDef[] = [
       required: ["list_id", "email"],
     },
     method: "POST",
-    path: (i) => `/v1/lists/${i.list_id}/contacts`,
+    path: (i) => `/v1/lists/${seg(i.list_id)}/contacts`,
   },
   {
     name: "send_campaign",
@@ -229,7 +236,7 @@ const TOOLS: ToolDef[] = [
       required: ["campaign_id"],
     },
     method: "POST",
-    path: (i) => `/v1/campaigns/${i.campaign_id}/send`,
+    path: (i) => `/v1/campaigns/${seg(i.campaign_id)}/send`,
   },
   {
     name: "send_test_message",
