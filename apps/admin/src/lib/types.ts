@@ -408,3 +408,47 @@ export interface MessageDetail extends MessageSummary {
   workspace_id: string | null;
   audit: AuditEvent[];
 }
+
+// --- Support (customer-care tickets — distinct from sales leads) -----------
+export type SupportTicketStatus = "open" | "closed";
+
+export interface SupportMessage {
+  object: "support_message";
+  id: string;
+  ticket_id: string;
+  author: "customer" | "staff";
+  staff_user_id: string | null;
+  body: string;
+  created_at: string;
+}
+
+export interface SupportTicketListItem {
+  object: "support_ticket";
+  id: string;
+  organization_id: string | null;
+  organization_name: string | null;
+  email: string;
+  name: string | null;
+  subject: string | null;
+  status: SupportTicketStatus;
+  handled_by_staff_id: string | null;
+  last_message_at: string;
+  created_at: string;
+  message_count: number;
+  last_message: { author: "customer" | "staff"; body: string; created_at: string } | null;
+}
+
+export interface SupportTicketDetail {
+  object: "support_ticket";
+  id: string;
+  organization_id: string | null;
+  organization_name: string | null;
+  email: string;
+  name: string | null;
+  subject: string | null;
+  status: SupportTicketStatus;
+  handled_by_staff_id: string | null;
+  last_message_at: string;
+  created_at: string;
+  messages: SupportMessage[];
+}

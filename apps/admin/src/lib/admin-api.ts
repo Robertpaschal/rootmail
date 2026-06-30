@@ -13,6 +13,9 @@ import type {
   CmsStatus,
   CustomPlanListItem,
   PostCategory,
+  SupportTicketDetail,
+  SupportTicketListItem,
+  SupportTicketStatus,
   CustomPlan,
   CustomPlanInput,
   Lead,
@@ -195,6 +198,21 @@ export const adminApi = {
   // Central pricing control center: every org on a bespoke plan + Stripe status.
   listCustomPlans: () => adminFetch<ListResponse<CustomPlanListItem>>("/v1/admin/custom-plans"),
   getBillingStatus: () => adminFetch<BillingStatus>("/v1/admin/billing-status"),
+
+  // Support inbox (customer care) — support.manage.
+  listSupportTickets: (status?: SupportTicketStatus) =>
+    adminFetch<ListResponse<SupportTicketListItem>>(
+      status ? `/v1/admin/support?status=${status}` : "/v1/admin/support",
+    ),
+  getSupportTicket: (id: string) =>
+    adminFetch<SupportTicketDetail>(`/v1/admin/support/${id}`),
+  replySupportTicket: (id: string, body: string) =>
+    adminFetch<{ ok: boolean }>(`/v1/admin/support/${id}/reply`, { method: "POST", body: { body } }),
+  setSupportStatus: (id: string, status: SupportTicketStatus) =>
+    adminFetch<{ status: SupportTicketStatus }>(`/v1/admin/support/${id}/status`, {
+      method: "POST",
+      body: { status },
+    }),
 
   getOrgBilling: (id: string) => adminFetch<AdminBilling>(`/v1/admin/orgs/${id}/billing`),
   grantCredit: (id: string, amountCents: number, reason?: string) =>

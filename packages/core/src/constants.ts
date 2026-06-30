@@ -131,6 +131,16 @@ export function staffCan(role: StaffRole, permission: StaffPermission): boolean 
 }
 
 // ---------------------------------------------------------------------------
+// Support — customer-care tickets, DISTINCT from sales leads. A signed-in
+// customer files a ticket; staff (support.manage) triage + reply (emailed to the
+// customer) + close. Threaded via support_messages.
+// ---------------------------------------------------------------------------
+export const SUPPORT_TICKET_STATUSES = ["open", "closed"] as const;
+export type SupportTicketStatus = (typeof SUPPORT_TICKET_STATUSES)[number];
+export const SUPPORT_MESSAGE_AUTHORS = ["customer", "staff"] as const;
+export type SupportMessageAuthor = (typeof SUPPORT_MESSAGE_AUTHORS)[number];
+
+// ---------------------------------------------------------------------------
 // Sales / CRM — enterprise "Contact sales" leads and their lifecycle.
 // ---------------------------------------------------------------------------
 // Pipeline stages a lead moves through. `new` is where the public form drops

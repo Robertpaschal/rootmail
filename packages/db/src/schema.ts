@@ -30,6 +30,8 @@ import {
   RETENTION_MODES,
   STAFF_ROLES,
   SUBTENANT_STATUSES,
+  SUPPORT_MESSAGE_AUTHORS,
+  SUPPORT_TICKET_STATUSES,
   SEQUENCE_STATUSES,
   type SequenceStep,
   type SequenceTrigger,
@@ -68,6 +70,8 @@ export const leadStatusEnum = pgEnum("lead_status", LEAD_STATUSES);
 export const assistantMessageRoleEnum = pgEnum("assistant_message_role", ASSISTANT_MESSAGE_ROLES);
 export const cmsStatusEnum = pgEnum("cms_status", CMS_STATUSES);
 export const postCategoryEnum = pgEnum("post_category", POST_CATEGORIES);
+export const supportTicketStatusEnum = pgEnum("support_ticket_status", SUPPORT_TICKET_STATUSES);
+export const supportMessageAuthorEnum = pgEnum("support_message_author", SUPPORT_MESSAGE_AUTHORS);
 
 // Fresh builders each call so no column instance is shared across tables.
 const createdAt = () => timestamp("created_at", { withTimezone: true }).defaultNow().notNull();
@@ -1098,3 +1102,51 @@ export type BlogPost = typeof blogPosts.$inferSelect;
 export type NewBlogPost = typeof blogPosts.$inferInsert;
 export type ChangelogEntry = typeof changelogEntries.$inferSelect;
 export type NewChangelogEntry = typeof changelogEntries.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Support — customer-care tickets (distinct from sales leads). A signed-in
+// customer files a ticket; staff reply (emailed) + close. Threaded by messages.
+// ---------------------------------------------------------------------------
+export const supportTickets = pgTable(
+  "support_tickets",
+  {
+    id: text("id").primaryKey(),
+    // Best-effort context (kept even if the org/user is later removed).
+    organizationId: text("organization_id"),
+    userId: text("user_id"),
+    email: text("email").notNull(),
+    name: text("name"),
+    subject: text("subject"),
+    status: supportTicketStatusEnum("status").notNull().default("open"),
+    handledByStaffId: text("handled_by_staff_id"),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true }).defaultNow().notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => ({
+    statusIdx: index("support_tickets_status_idx").on(t.status, t.lastMessageAt),
+    orgIdx: index("support_tickets_org_idx").on(t.organizationId),
+  }),
+);
+
+export const supportMessages = pgTable(
+  "support_messages",
+  {
+    id: text("id").primaryKey(),
+    ticketId: text("ticket_id")
+      .notNull()
+      .references(() => supportTickets.id, { onDelete: "cascade" }),
+    author: supportMessageAuthorEnum("author").notNull(),
+    staffUserId: text("staff_user_id"),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => ({
+    ticketIdx: index("support_messages_ticket_idx").on(t.ticketId, t.createdAt),
+  }),
+);
+
+export type SupportTicket = typeof supportTickets.$inferSelect;
+export type NewSupportTicket = typeof supportTickets.$inferInsert;
+export type SupportMessage = typeof supportMessages.$inferSelect;
+export type NewSupportMessage = typeof supportMessages.$inferInsert;

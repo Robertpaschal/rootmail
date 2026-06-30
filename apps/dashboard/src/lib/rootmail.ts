@@ -475,6 +475,11 @@ export const api = {
     source: string;
     expected_volume?: string;
   }) => rmFetch<{ object?: string; id?: string }>("/v1/leads", { method: "POST", body, noAuth: true }),
+
+  // Support is customer care, NOT a sales lead — it files a ticket under the
+  // signed-in user's org; staff reply (emailed) + close from the admin support inbox.
+  createSupportTicket: (body: { subject?: string; message: string }) =>
+    rmFetch<{ ticket_id: string }>("/v1/support", { method: "POST", body }),
 };
 
 /**

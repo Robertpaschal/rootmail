@@ -18,9 +18,23 @@ export async function submitDashboardLead(_prev: ContactState, fd: FormData): Pr
   const topic = String(fd.get("topic") ?? "support");
   const expectedVolume = String(fd.get("expected_volume") ?? "").trim();
 
+  if (!message) return { error: "Tell us how we can help." };
+
+  // Support is customer care, not a sales lead — file a ticket under the signed-in
+  // user's org (the support inbox in admin), and the team replies by email.
+  if (topic === "support") {
+    try {
+      await api.createSupportTicket({ message });
+    } catch (err) {
+      if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+      return { error: "Couldn't send your message. Please try again." };
+    }
+    return { ok: true };
+  }
+
+  // Sales / general → a sales lead (these need name + email).
   if (!name) return { error: "Please add your name." };
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Enter a valid email." };
-  if (!message) return { error: "Tell us how we can help." };
 
   // Attach authoritative org context server-side (never trust client fields), so
   // staff can act on the exact org — e.g. provision a custom plan for an Enterprise ask.
