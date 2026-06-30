@@ -54,16 +54,17 @@ export default async function LeadsPage({
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total" value={formatNumber(total)} icon={Contact} />
+        <StatCard label="Total" value={formatNumber(total)} icon={Contact} tone="blue" />
         <StatCard
           label="New"
           value={formatNumber(c("new"))}
           sub="need triage"
           icon={Sparkles}
+          tone="amber"
           accent={c("new") > 0}
         />
-        <StatCard label="In pipeline" value={formatNumber(pipeline)} icon={TrendingUp} />
-        <StatCard label="Won" value={formatNumber(c("won"))} icon={Trophy} />
+        <StatCard label="In pipeline" value={formatNumber(pipeline)} icon={TrendingUp} tone="violet" />
+        <StatCard label="Won" value={formatNumber(c("won"))} icon={Trophy} tone="green" />
       </div>
 
       <div className="flex flex-wrap gap-1.5">

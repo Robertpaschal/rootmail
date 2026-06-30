@@ -24,6 +24,13 @@ function planVariant(plan: string): "muted" | "default" | "secondary" {
   return "secondary";
 }
 
+const PLAN_DOT: Record<string, string> = {
+  free: "bg-slate-400",
+  pro: "bg-blue-500",
+  scale: "bg-violet-500",
+  enterprise: "bg-amber-500",
+};
+
 export function OrgsTable({ orgs }: { orgs: OrgSummary[] }) {
   const [q, setQ] = useState("");
   const [plan, setPlan] = useState<(typeof PLANS)[number]>("all");
@@ -96,7 +103,8 @@ export function OrgsTable({ orgs }: { orgs: OrgSummary[] }) {
                     <div className="font-mono text-xs text-muted-foreground">{o.slug}</div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={planVariant(o.plan)} className="capitalize">
+                    <Badge variant={planVariant(o.plan)} className="gap-1.5 capitalize">
+                      <span className={cn("size-1.5 rounded-full", PLAN_DOT[o.plan] ?? "bg-current")} />
                       {o.plan}
                     </Badge>
                   </TableCell>

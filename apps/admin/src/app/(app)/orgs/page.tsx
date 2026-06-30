@@ -19,15 +19,16 @@ export default async function OrgsPage() {
       <PageHeader title="Organizations" description="Every account on the platform." />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total" value={formatNumber(data.length)} icon={Building2} />
+        <StatCard label="Total" value={formatNumber(data.length)} icon={Building2} tone="blue" />
         <StatCard
           label="Paid"
           value={formatNumber(paid)}
           sub={data.length ? `${Math.round((paid / data.length) * 100)}% of all` : undefined}
           icon={CreditCard}
+          tone="green"
         />
-        <StatCard label="Members" value={formatNumber(members)} icon={Users} />
-        <StatCard label="Emails / period" value={formatNumber(usage)} icon={Mail} />
+        <StatCard label="Members" value={formatNumber(members)} icon={Users} tone="slate" />
+        <StatCard label="Emails / period" value={formatNumber(usage)} icon={Mail} tone="violet" />
       </div>
 
       <OrgsTable orgs={data} />

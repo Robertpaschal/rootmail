@@ -8,6 +8,12 @@ import { formatDate, formatMoney, formatNumber } from "@/lib/format";
 import type { AdminPlan, Lead, OrgSummary, SupportTicketListItem } from "@/lib/types";
 
 const PLAN_ORDER = ["free", "pro", "scale", "enterprise"];
+const PLAN_COLOR: Record<string, string> = {
+  free: "bg-slate-400",
+  pro: "bg-blue-500",
+  scale: "bg-violet-500",
+  enterprise: "bg-amber-500",
+};
 
 export default async function OverviewPage() {
   const [orgsRes, plansRes, ticketsRes, leadsRes] = await Promise.all([
@@ -44,12 +50,12 @@ export default async function OverviewPage() {
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Organizations" value={formatNumber(orgs.length)} sub={`${paid} paid`} icon={Building2} href="/orgs" />
-        <StatCard label="Est. MRR" value={formatMoney(mrr * 100)} sub="listed plan prices" icon={CreditCard} href="/pricing" />
-        <StatCard label="Emails / period" value={formatNumber(usage)} icon={Mail} />
-        <StatCard label="Members" value={formatNumber(members)} icon={Users} />
-        <StatCard label="Open tickets" value={formatNumber(openTickets.length)} icon={LifeBuoy} href="/support" accent={openTickets.length > 0} />
-        <StatCard label="New leads" value={formatNumber(newLeads.length)} icon={Contact} href="/leads" accent={newLeads.length > 0} />
+        <StatCard label="Organizations" value={formatNumber(orgs.length)} sub={`${paid} paid`} icon={Building2} href="/orgs" tone="blue" />
+        <StatCard label="Est. MRR" value={formatMoney(mrr * 100)} sub="listed plan prices" icon={CreditCard} href="/pricing" tone="green" />
+        <StatCard label="Emails / period" value={formatNumber(usage)} icon={Mail} tone="violet" />
+        <StatCard label="Members" value={formatNumber(members)} icon={Users} tone="slate" />
+        <StatCard label="Open tickets" value={formatNumber(openTickets.length)} icon={LifeBuoy} href="/support" tone="amber" accent={openTickets.length > 0} />
+        <StatCard label="New leads" value={formatNumber(newLeads.length)} icon={Contact} href="/leads" tone="rose" accent={newLeads.length > 0} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -62,7 +68,10 @@ export default async function OverviewPage() {
                 <div key={id} className="flex items-center gap-3 text-sm">
                   <span className="w-20 shrink-0 capitalize text-muted-foreground">{id}</span>
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full rounded-full bg-primary" style={{ width: `${pct}%` }} />
+                    <div
+                      className={`h-full rounded-full ${PLAN_COLOR[id] ?? "bg-primary"}`}
+                      style={{ width: `${pct}%` }}
+                    />
                   </div>
                   <span className="w-8 shrink-0 text-right tabular-nums">{count}</span>
                 </div>
