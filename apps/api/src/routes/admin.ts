@@ -6,6 +6,7 @@ import {
   ADD_ON_IDS,
   announcementUnsubscribeUrl,
   BILLING_INTERVALS,
+  BILLING_MODE,
   env,
   Errors,
   generateSessionToken,
@@ -1510,6 +1511,53 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // superadmin only, audited. Puts the org on enterprise (feature unlocks) with
   // these economics, makes the plan real in Stripe, and — if a lead is linked —
   // converts that lead to a won customer. Economics take effect immediately.
+  // Central view of every org on a bespoke (custom) plan — so custom subs are
+  // managed from one place instead of org-by-org.
+  app.get("/v1/admin/custom-plans", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "staff.read");
+    const rows = await db
+      .select({
+        cp: customPlans,
+        orgName: organizations.name,
+        orgPlan: organizations.plan,
+        orgStatus: organizations.planStatus,
+      })
+      .from(customPlans)
+      .innerJoin(organizations, eq(customPlans.organizationId, organizations.id))
+      .orderBy(desc(customPlans.updatedAt));
+    return {
+      object: "list",
+      data: rows.map((r) => ({
+        ...serializeCustomPlan(r.cp),
+        organization: {
+          id: r.cp.organizationId,
+          name: r.orgName,
+          plan: r.orgPlan,
+          plan_status: r.orgStatus,
+        },
+      })),
+    };
+  });
+
+  // Billing/Stripe status — surfaces what's configured so staff don't have to open
+  // the Stripe dashboard to know the mode / live state / whether overage is metered.
+  app.get("/v1/admin/billing-status", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "staff.read");
+    const secret = env.STRIPE_SECRET_KEY ?? "";
+    return {
+      mode: BILLING_MODE,
+      stripe_configured: BILLING_MODE === "stripe" && secret.length > 0,
+      live: secret.startsWith("sk_live"),
+      publishable_set: Boolean(env.STRIPE_PUBLISHABLE_KEY),
+      overage_meters: {
+        pro: Boolean(env.STRIPE_PRICE_OVERAGE_PRO && env.STRIPE_METER_OVERAGE_PRO),
+        scale: Boolean(env.STRIPE_PRICE_OVERAGE_SCALE && env.STRIPE_METER_OVERAGE_SCALE),
+      },
+    };
+  });
+
   app.post("/v1/admin/orgs/:id/custom-plan", async (req) => {
     const staff = await requireStaff(req);
     requireStaffPermission(staff, "commerce.manage");

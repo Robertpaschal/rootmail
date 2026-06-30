@@ -31,6 +31,7 @@ export async function updatePlan(_prev: PlanState, formData: FormData): Promise<
     ai_credits: intField(formData, "ai_credits"),
     trial_days: intField(formData, "trial_days"),
     active: formData.get("active") === "on",
+    features: formData.getAll("features").map(String),
   };
 
   let sync: string | undefined;
@@ -104,6 +105,14 @@ export async function clearAddonSale(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
   if (!id) return;
   await adminApi.clearAddonSale(id);
+  revalidatePath("/pricing");
+}
+
+/** End a custom plan from the central list (reverts the org to standard economics). */
+export async function deactivateCustomPlan(formData: FormData): Promise<void> {
+  const orgId = String(formData.get("org_id") ?? "");
+  if (!orgId) return;
+  await adminApi.deactivateCustomPlan(orgId).catch(() => undefined);
   revalidatePath("/pricing");
 }
 

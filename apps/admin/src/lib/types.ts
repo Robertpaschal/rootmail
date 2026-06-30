@@ -127,6 +127,19 @@ export interface CustomPlan {
   updated_at: string;
 }
 
+// A custom plan plus its org — for the central custom-subs list on /pricing.
+export interface CustomPlanListItem extends CustomPlan {
+  organization: { id: string; name: string; plan: string; plan_status: string };
+}
+
+export interface BillingStatus {
+  mode: "stripe" | "local";
+  stripe_configured: boolean;
+  live: boolean;
+  publishable_set: boolean;
+  overage_meters: { pro: boolean; scale: boolean };
+}
+
 export interface CustomPlanInput {
   name: string;
   price_cents: number;
@@ -225,6 +238,7 @@ export type PlanPatch = Partial<{
   ai_credits: number;
   trial_days: number;
   active: boolean;
+  features: string[];
 }>;
 
 export interface AdminAddon {

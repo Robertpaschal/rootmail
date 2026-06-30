@@ -8,8 +8,10 @@ import type {
   AdminPlan,
   AddonPatch,
   AnnouncementRecipients,
+  BillingStatus,
   ChangeItem,
   CmsStatus,
+  CustomPlanListItem,
   PostCategory,
   CustomPlan,
   CustomPlanInput,
@@ -190,6 +192,9 @@ export const adminApi = {
     }),
   clearAddonSale: (id: string) =>
     adminFetch<AdminAddon>(`/v1/admin/addons/${id}/sale`, { method: "DELETE" }),
+  // Central pricing control center: every org on a bespoke plan + Stripe status.
+  listCustomPlans: () => adminFetch<ListResponse<CustomPlanListItem>>("/v1/admin/custom-plans"),
+  getBillingStatus: () => adminFetch<BillingStatus>("/v1/admin/billing-status"),
 
   getOrgBilling: (id: string) => adminFetch<AdminBilling>(`/v1/admin/orgs/${id}/billing`),
   grantCredit: (id: string, amountCents: number, reason?: string) =>

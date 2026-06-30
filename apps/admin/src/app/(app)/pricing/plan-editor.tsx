@@ -8,6 +8,22 @@ import { Label } from "@/components/ui/label";
 import type { AdminPlan } from "@/lib/types";
 import { clearPlanSale, type PlanState, setPlanSale, updatePlan } from "./actions";
 
+// The gated capabilities a plan can include (value → label). Toggling these
+// changes what the plan unlocks for customers immediately.
+const FEATURE_CATALOG: [string, string][] = [
+  ["audit", "Audit trail"],
+  ["suppression", "Suppression & bounces"],
+  ["threads", "Reply threads & inbox"],
+  ["sequences", "Sequences & automation"],
+  ["campaigns", "Campaigns & lists"],
+  ["subtenants", "Sub-tenants (own domains)"],
+  ["rbac", "Team roles (RBAC)"],
+  ["proof", "Proof bundles"],
+  ["dedicated_ip", "Dedicated IPs"],
+  ["sso", "SSO / SAML"],
+  ["residency", "Data residency"],
+];
+
 function saleIsActive(plan: AdminPlan): boolean {
   if (!plan.sale_percent_off || plan.sale_percent_off <= 0) return false;
   if (!plan.sale_ends_at) return true;
@@ -78,16 +94,25 @@ export function PlanEditor({ plan }: { plan: AdminPlan }) {
         <Field name="trial_days" label="Trial days" defaultValue={plan.trial_days} hint="0 = none" />
       </div>
 
-      {plan.features.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Features:</span>
-          {plan.features.map((f) => (
-            <Badge key={f} variant="secondary">
-              {f}
-            </Badge>
+      <div className="space-y-1.5">
+        <span className="text-xs text-muted-foreground">
+          Features — gated capabilities this plan unlocks
+        </span>
+        <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+          {FEATURE_CATALOG.map(([value, label]) => (
+            <label key={value} className="flex items-center gap-1.5 text-sm">
+              <input
+                type="checkbox"
+                name="features"
+                value={value}
+                defaultChecked={plan.features.includes(value)}
+                className="size-4"
+              />
+              {label}
+            </label>
           ))}
         </div>
-      ) : null}
+      </div>
 
       <div className="flex items-center justify-between gap-3">
         <label className="flex items-center gap-2 text-sm">
