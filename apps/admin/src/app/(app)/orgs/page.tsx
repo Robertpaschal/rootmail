@@ -1,62 +1,36 @@
 import type { Metadata } from "next";
-import Link from "next/link";
+import { Building2, CreditCard, Mail, Users } from "lucide-react";
+import { PageHeader } from "@/components/app/page-header";
+import { StatCard } from "@/components/app/stat-card";
 import { adminApi } from "@/lib/admin-api";
-import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { formatDate, formatNumber } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
+import { OrgsTable } from "./orgs-table";
 
 export const metadata: Metadata = { title: "Organizations" };
 
 export default async function OrgsPage() {
   const { data } = await adminApi.listOrgs();
+  const paid = data.filter((o) => o.plan !== "free").length;
+  const members = data.reduce((a, o) => a + o.members, 0);
+  const usage = data.reduce((a, o) => a + o.usage_this_period, 0);
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Organizations</h1>
-        <p className="text-sm text-muted-foreground">{data.length} total · newest first.</p>
+      <PageHeader title="Organizations" description="Every account on the platform." />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total" value={formatNumber(data.length)} icon={Building2} />
+        <StatCard
+          label="Paid"
+          value={formatNumber(paid)}
+          sub={data.length ? `${Math.round((paid / data.length) * 100)}% of all` : undefined}
+          icon={CreditCard}
+        />
+        <StatCard label="Members" value={formatNumber(members)} icon={Users} />
+        <StatCard label="Emails / period" value={formatNumber(usage)} icon={Mail} />
       </div>
-      <Card>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Plan</TableHead>
-              <TableHead className="text-right">Members</TableHead>
-              <TableHead className="text-right">Emails (period)</TableHead>
-              <TableHead>Created</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {data.map((o) => (
-              <TableRow key={o.id}>
-                <TableCell>
-                  <Link href={`/orgs/${o.id}`} className="font-medium hover:underline">
-                    {o.name}
-                  </Link>
-                  <div className="font-mono text-xs text-muted-foreground">{o.slug}</div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={o.plan === "free" ? "muted" : "default"}>{o.plan}</Badge>
-                </TableCell>
-                <TableCell className="text-right tabular-nums">{o.members}</TableCell>
-                <TableCell className="text-right tabular-nums">
-                  {formatNumber(o.usage_this_period)}
-                </TableCell>
-                <TableCell className="text-muted-foreground">{formatDate(o.created_at)}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </Card>
+
+      <OrgsTable orgs={data} />
     </div>
   );
 }

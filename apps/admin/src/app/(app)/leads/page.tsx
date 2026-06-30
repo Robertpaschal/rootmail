@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Contact, Sparkles, TrendingUp, Trophy } from "lucide-react";
+import { PageHeader } from "@/components/app/page-header";
+import { StatCard } from "@/components/app/stat-card";
 import { adminApi } from "@/lib/admin-api";
 import { Badge } from "@/components/ui/badge";
-import { Card } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -11,7 +13,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatNumber } from "@/lib/format";
 import { LEAD_STATUS_LABEL, leadStatusVariant } from "@/lib/leads";
 import { LEAD_STATUSES, type LeadStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -30,7 +32,9 @@ export default async function LeadsPage({
   const { status: raw } = await searchParams;
   const active = isStatus(raw) ? raw : undefined;
   const { data, counts } = await adminApi.listLeads(active);
+  const c = (s: LeadStatus) => counts[s] ?? 0;
   const total = (Object.values(counts) as number[]).reduce((a, b) => a + b, 0);
+  const pipeline = c("contacted") + c("qualified") + c("proposal");
 
   const tabs: { key: LeadStatus | "all"; label: string; count: number; href: string }[] = [
     { key: "all", label: "All", count: total, href: "/leads" },
@@ -44,11 +48,22 @@ export default async function LeadsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Leads</h1>
-        <p className="text-sm text-muted-foreground">
-          Enterprise &amp; custom-plan enquiries from the contact form — newest first.
-        </p>
+      <PageHeader
+        title="Leads"
+        description="Enterprise & custom-plan enquiries from the contact form."
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total" value={formatNumber(total)} icon={Contact} />
+        <StatCard
+          label="New"
+          value={formatNumber(c("new"))}
+          sub="need triage"
+          icon={Sparkles}
+          accent={c("new") > 0}
+        />
+        <StatCard label="In pipeline" value={formatNumber(pipeline)} icon={TrendingUp} />
+        <StatCard label="Won" value={formatNumber(c("won"))} icon={Trophy} />
       </div>
 
       <div className="flex flex-wrap gap-1.5">
@@ -79,7 +94,7 @@ export default async function LeadsPage({
         })}
       </div>
 
-      <Card>
+      <div className="overflow-x-auto rounded-lg border">
         {data.length === 0 ? (
           <p className="p-6 text-sm text-muted-foreground">No leads here yet.</p>
         ) : (
@@ -100,15 +115,11 @@ export default async function LeadsPage({
                     <Link href={`/leads/${l.id}`} className="font-medium hover:underline">
                       {l.company || l.name}
                     </Link>
-                    {l.company ? (
-                      <div className="text-xs text-muted-foreground">{l.name}</div>
-                    ) : null}
+                    {l.company ? <div className="text-xs text-muted-foreground">{l.name}</div> : null}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{l.email}</TableCell>
                   <TableCell>
-                    <Badge variant={leadStatusVariant(l.status)}>
-                      {LEAD_STATUS_LABEL[l.status]}
-                    </Badge>
+                    <Badge variant={leadStatusVariant(l.status)}>{LEAD_STATUS_LABEL[l.status]}</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
                     {l.owner_email ?? <span className="text-muted-foreground/60">Unassigned</span>}
@@ -119,7 +130,7 @@ export default async function LeadsPage({
             </TableBody>
           </Table>
         )}
-      </Card>
+      </div>
     </div>
   );
 }
