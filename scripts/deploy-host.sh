@@ -36,8 +36,14 @@ sudo docker image prune -af >/dev/null 2>&1 || true   # safe: keeps images of ru
 sudo docker builder prune -af >/dev/null 2>&1 || true
 echo "  disk: $(df -h / | awk 'NR==2{print $4}') free"
 
+# Pull the EXACT image (not `compose pull`, which always takes :latest). Deploying
+# by an immutable :sha-<commit> tag — e.g. `TAG=sha-$(git rev-parse HEAD) deploy-host.sh api`
+# — avoids the registry race where a deploy reads a stale `:latest` before CI has
+# finished pushing the new one. Retag to :latest so the compose `:latest` ref
+# recreates onto exactly this image.
 echo "▸ ${SVC}: pulling ${IMG}"
-"${DC[@]}" pull "$SVC"
+sudo docker pull "$IMG"
+[ "$TAG" != "latest" ] && sudo docker tag "$IMG" "${NS}/rootmail-${SVC}:latest"
 
 echo "▸ ${SVC}: recreating (picks up image + any .env.prod change)"
 "${DC[@]}" up -d --force-recreate "$SVC"
