@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { ArrowDown, ArrowUp, Building2, ChevronsUpDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,11 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { EmptyState } from "@/components/app/empty-state";
 import { formatDate, formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { OrgSummary } from "@/lib/types";
 
 const PLANS = ["all", "free", "pro", "scale", "enterprise"] as const;
+const PAGE_SIZE = 25;
 
 function planVariant(plan: string): "muted" | "default" | "secondary" {
   if (plan === "free") return "muted";
@@ -31,27 +34,53 @@ const PLAN_DOT: Record<string, string> = {
   enterprise: "bg-amber-500",
 };
 
+type SortKey = "name" | "plan" | "members" | "usage_this_period" | "created_at";
+
 export function OrgsTable({ orgs }: { orgs: OrgSummary[] }) {
   const [q, setQ] = useState("");
   const [plan, setPlan] = useState<(typeof PLANS)[number]>("all");
+  const [sort, setSort] = useState<{ key: SortKey; dir: "asc" | "desc" }>({ key: "name", dir: "asc" });
+  const [page, setPage] = useState(1);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    return orgs.filter(
+    const rows = orgs.filter(
       (o) =>
         (plan === "all" || o.plan === plan) &&
-        (!needle ||
-          o.name.toLowerCase().includes(needle) ||
-          o.slug.toLowerCase().includes(needle)),
+        (!needle || o.name.toLowerCase().includes(needle) || o.slug.toLowerCase().includes(needle)),
     );
-  }, [orgs, q, plan]);
+    const dir = sort.dir === "asc" ? 1 : -1;
+    return [...rows].sort((a, b) => {
+      const x = a[sort.key];
+      const y = b[sort.key];
+      if (typeof x === "number" && typeof y === "number") return (x - y) * dir;
+      return String(x).localeCompare(String(y)) * dir;
+    });
+  }, [orgs, q, plan, sort]);
+
+  // Reset to page 1 whenever the result set changes shape.
+  const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const current = Math.min(page, pageCount);
+  const start = (current - 1) * PAGE_SIZE;
+  const pageRows = filtered.slice(start, start + PAGE_SIZE);
+
+  function sortBy(key: SortKey) {
+    setPage(1);
+    setSort((s) => (s.key === key ? { key, dir: s.dir === "asc" ? "desc" : "asc" } : { key, dir: "asc" }));
+  }
+  function onFilterChange<T>(setter: (v: T) => void) {
+    return (v: T) => {
+      setPage(1);
+      setter(v);
+    };
+  }
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <Input
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => onFilterChange(setQ)(e.target.value)}
           placeholder="Search name or slug…"
           className="h-9 max-w-xs"
         />
@@ -60,7 +89,7 @@ export function OrgsTable({ orgs }: { orgs: OrgSummary[] }) {
             <button
               key={p}
               type="button"
-              onClick={() => setPlan(p)}
+              onClick={() => onFilterChange(setPlan)(p)}
               className={cn(
                 "rounded px-2.5 py-1 capitalize transition-colors",
                 plan === p ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
@@ -79,22 +108,30 @@ export function OrgsTable({ orgs }: { orgs: OrgSummary[] }) {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Plan</TableHead>
-              <TableHead className="text-right">Members</TableHead>
-              <TableHead className="text-right">Emails (period)</TableHead>
-              <TableHead>Created</TableHead>
+              <SortHead label="Name" k="name" sort={sort} onSort={sortBy} />
+              <SortHead label="Plan" k="plan" sort={sort} onSort={sortBy} />
+              <SortHead label="Members" k="members" sort={sort} onSort={sortBy} align="right" />
+              <SortHead label="Emails (period)" k="usage_this_period" sort={sort} onSort={sortBy} align="right" />
+              <SortHead label="Created" k="created_at" sort={sort} onSort={sortBy} />
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {pageRows.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
-                  No matching organizations.
+                <TableCell colSpan={5} className="p-0">
+                  <EmptyState
+                    icon={Building2}
+                    title={orgs.length === 0 ? "No organizations yet" : "No matching organizations"}
+                    description={
+                      orgs.length === 0
+                        ? "Customer organizations appear here as soon as people sign up."
+                        : "Try a different search or clear the plan filter."
+                    }
+                  />
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((o) => (
+              pageRows.map((o) => (
                 <TableRow key={o.id}>
                   <TableCell>
                     <Link href={`/orgs/${o.id}`} className="font-medium hover:underline">
@@ -109,9 +146,7 @@ export function OrgsTable({ orgs }: { orgs: OrgSummary[] }) {
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{o.members}</TableCell>
-                  <TableCell className="text-right tabular-nums">
-                    {formatNumber(o.usage_this_period)}
-                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{formatNumber(o.usage_this_period)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(o.created_at)}</TableCell>
                 </TableRow>
               ))
@@ -119,6 +154,75 @@ export function OrgsTable({ orgs }: { orgs: OrgSummary[] }) {
           </TableBody>
         </Table>
       </div>
+
+      {filtered.length > PAGE_SIZE ? (
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">
+            {start + 1}–{Math.min(start + PAGE_SIZE, filtered.length)} of {filtered.length}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={current <= 1}
+              onClick={() => setPage(current - 1)}
+              className="rounded-md border px-2.5 py-1 font-medium transition-colors hover:bg-accent disabled:opacity-40"
+            >
+              Previous
+            </button>
+            <span className="text-muted-foreground">
+              Page {current} / {pageCount}
+            </span>
+            <button
+              type="button"
+              disabled={current >= pageCount}
+              onClick={() => setPage(current + 1)}
+              className="rounded-md border px-2.5 py-1 font-medium transition-colors hover:bg-accent disabled:opacity-40"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+function SortHead({
+  label,
+  k,
+  sort,
+  onSort,
+  align,
+}: {
+  label: string;
+  k: SortKey;
+  sort: { key: SortKey; dir: "asc" | "desc" };
+  onSort: (k: SortKey) => void;
+  align?: "right";
+}) {
+  const active = sort.key === k;
+  return (
+    <TableHead className={align === "right" ? "text-right" : undefined}>
+      <button
+        type="button"
+        onClick={() => onSort(k)}
+        className={cn(
+          "inline-flex items-center gap-1 transition-colors hover:text-foreground",
+          align === "right" && "flex-row-reverse",
+          active ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {label}
+        {active ? (
+          sort.dir === "asc" ? (
+            <ArrowUp className="size-3.5" />
+          ) : (
+            <ArrowDown className="size-3.5" />
+          )
+        ) : (
+          <ChevronsUpDown className="size-3.5 opacity-50" />
+        )}
+      </button>
+    </TableHead>
   );
 }

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { LifeBuoy } from "lucide-react";
+import { EmptyState } from "@/components/app/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { adminApi } from "@/lib/admin-api";
 
@@ -39,7 +41,13 @@ export default async function SupportPage() {
           {error}
         </p>
       ) : tickets.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No support tickets yet.</p>
+        <div className="rounded-lg border">
+          <EmptyState
+            icon={LifeBuoy}
+            title="No support tickets"
+            description="When a customer reaches out from their dashboard, the conversation lands here — your reply is emailed back to them."
+          />
+        </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full text-sm">
