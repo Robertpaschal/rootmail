@@ -30,7 +30,7 @@ export function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?
         {blurb ?? "This feature isn't included in your current plan."}
         {info.price != null ? ` ${planName} starts at $${info.price}/mo.` : ""}
       </p>
-      <Link href="/billing" className={cn(buttonVariants({ size: "sm" }), "mt-1")}>
+      <Link href="/billing?tab=plans" className={cn(buttonVariants({ size: "sm" }), "mt-1")}>
         See plans &amp; upgrade
       </Link>
     </Card>

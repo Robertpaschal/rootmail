@@ -299,7 +299,7 @@ export function WorkspaceSwitcher({
               </button>
             ) : (
               <Link
-                href="/billing"
+                href="/billing?tab=plans"
                 onClick={reset}
                 className="flex flex-col gap-0.5 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent"
               >

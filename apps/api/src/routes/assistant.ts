@@ -38,7 +38,7 @@ function assertAiCredits(used: number, allowance: number): void {
         feature: "ai_credits",
         used,
         allowance,
-        upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing`,
+        upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing?tab=plans`,
       },
     );
   }

@@ -11,11 +11,18 @@ export interface AssistantReply {
   /** The chat's current title (auto-set from content on the first message). */
   title?: string;
   error?: string;
+  /** True when the send was blocked by the AI-credit gate (402) — UI shows an upgrade CTA. */
+  upgrade?: boolean;
 }
 
 function toError(err: unknown): string {
   if (err instanceof ApiError || err instanceof ConnectionError) return err.message;
   return "The assistant is unavailable right now.";
+}
+
+/** A caught 402 from the assistant endpoint is the AI-credit gate (out of credits). */
+function isUpgrade(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 402;
 }
 
 /** Refresh views the assistant may have mutated (sequences/lists/campaigns). */
@@ -34,7 +41,7 @@ export async function askAssistant(prompt: string): Promise<AssistantReply> {
     revalidateAssistantSideEffects();
     return { reply: r.reply, actions: r.actions, credits: r.credits };
   } catch (err) {
-    return { error: toError(err) };
+    return { error: toError(err), upgrade: isUpgrade(err) };
   }
 }
 
@@ -89,7 +96,7 @@ export async function sendChatMessage(id: string, prompt: string): Promise<Assis
     revalidatePath("/assistant");
     return { reply: r.reply, actions: r.actions, credits: r.credits, title: r.chat?.title };
   } catch (err) {
-    return { error: toError(err) };
+    return { error: toError(err), upgrade: isUpgrade(err) };
   }
 }
 

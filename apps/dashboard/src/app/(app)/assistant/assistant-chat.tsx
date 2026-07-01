@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { Check, Loader2, Pencil, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Check, Loader2, Pencil, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
 import {
   createChat,
   deleteChat,
@@ -13,7 +14,7 @@ import {
 } from "./actions";
 import { ConversationOutline } from "./conversation-outline";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +39,7 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
   const [credits, setCredits] = useState<{ used: number; allowance: number } | null>(null);
+  const [upgrade, setUpgrade] = useState(false);
   const [input, setInput] = useState("");
   const [pending, startSend] = useTransition();
   const [loadingChat, setLoadingChat] = useState(false);
@@ -158,6 +160,7 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
 
         const res = await sendChatMessage(chatId, text);
         if (res.credits) setCredits(res.credits);
+        setUpgrade(Boolean(res.upgrade));
         setMessages((m) => [
           ...m,
           {
@@ -384,6 +387,14 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
             }}
             className="border-t pt-3"
           >
+            {upgrade ? (
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2">
+                <p className="text-sm">You&apos;re out of AI credits this month.</p>
+                <Link href="/billing?tab=plans" className={cn(buttonVariants({ size: "sm" }))}>
+                  Compare plans <ArrowRight className="ml-1 size-3.5" />
+                </Link>
+              </div>
+            ) : null}
             <div className="flex items-end gap-2 rounded-xl border bg-background p-1.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
               <Textarea
                 ref={ref}

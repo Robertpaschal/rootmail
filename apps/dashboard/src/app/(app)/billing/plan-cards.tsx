@@ -55,7 +55,7 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
       ))}
     </div>
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {plans.map((p) => {
+      {plans.map((p, i) => {
         const isCurrent = p.id === currentId;
         const featured = p.id === "pro";
         return (
@@ -106,6 +106,11 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
                   {p.trial_days}-day free trial
                 </p>
               ) : null}
+              {interval === "year" && p.price != null && p.price > 0 && p.price_yearly != null ? (
+                <p className="mt-1 text-xs font-medium text-emerald-600">
+                  Save ${p.price * 12 - p.price_yearly}/yr vs monthly
+                </p>
+              ) : null}
               <p className="mt-2 text-sm text-muted-foreground">
                 {p.monthly_quota.toLocaleString()} emails / mo
                 {p.allow_overage ? (
@@ -117,7 +122,12 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
                 )}
               </p>
 
-              <ul className="mt-4 flex-1 space-y-1.5">
+              {i > 0 ? (
+                <p className="mt-4 text-xs font-medium text-foreground">
+                  Everything in {plans[i - 1].name}, plus:
+                </p>
+              ) : null}
+              <ul className={cn("flex-1 space-y-1.5", i > 0 ? "mt-1.5" : "mt-4")}>
                 <li className="flex items-start gap-2 text-xs text-muted-foreground">
                   <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
                   {p.ai_credits === -1
