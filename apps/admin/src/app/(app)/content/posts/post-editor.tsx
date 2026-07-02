@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Loader2, Trash2 } from "lucide-react";
@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import type { AdminBlogPost, CmsStatus, PostCategory } from "@/lib/types";
 import { deleteBlogPost, saveBlogPost, type CmsState } from "../actions";
 import { StatusBadge } from "../status-badge";
+import { MarkdownComposer } from "./markdown-composer";
 
 const CATEGORIES: PostCategory[] = ["Company", "Guide", "Things we like"];
 
@@ -49,17 +50,6 @@ export function PostEditor({ post }: { post: AdminBlogPost | null }) {
     if (state.status) setStatus(state.status);
     if (!post && state.id) router.replace(`/content/posts/${state.id}`);
   }, [state, post, router]);
-
-  // The body grows with the document instead of scrolling inside a box.
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
-  const autogrow = () => {
-    const el = bodyRef.current;
-    if (el) {
-      el.style.height = "0px";
-      el.style.height = `${Math.max(el.scrollHeight, 320)}px`;
-    }
-  };
-  useEffect(autogrow, [tab]);
 
   return (
     <form action={action} className="mx-auto max-w-3xl">
@@ -193,17 +183,14 @@ export function PostEditor({ post }: { post: AdminBlogPost | null }) {
           </label>
         </div>
 
-        <textarea
-          ref={bodyRef}
-          name="body"
-          value={body}
-          onChange={(e) => {
-            setBody(e.target.value);
-            autogrow();
-          }}
-          placeholder={"Write in markdown — # headings, **bold**, lists, code…"}
-          className="mt-8 w-full resize-none border-0 bg-transparent text-base leading-relaxed outline-none placeholder:text-muted-foreground/40"
-        />
+        <div className="mt-8">
+          <MarkdownComposer
+            name="body"
+            value={body}
+            onChange={setBody}
+            placeholder={"Write your post — type “/” for headings, lists, quotes…"}
+          />
+        </div>
       </div>
 
       {tab === "preview" ? (
