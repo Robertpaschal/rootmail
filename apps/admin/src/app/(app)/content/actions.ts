@@ -1,10 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { adminApi, ApiError } from "@/lib/admin-api";
 import type { ChangeItem, CmsStatus, PostCategory } from "@/lib/types";
 
-export type CmsState = { ok?: boolean; error?: string };
+/** `id` + `status` echo the saved row, so a newly created document can move onto
+ * its own editor page and the editor can reflect publish/unpublish immediately. */
+export type CmsState = { ok?: boolean; error?: string; id?: string; status?: CmsStatus };
 
 function fail(err: unknown, fallback: string): CmsState {
   if (err instanceof ApiError && err.status === 403) {
@@ -30,20 +33,22 @@ export async function saveBlogPost(_prev: CmsState, formData: FormData): Promise
   };
   if (!input.slug || !input.title) return { error: "Slug and title are required." };
   try {
-    if (id) await adminApi.updateBlogPost(id, input);
-    else await adminApi.createBlogPost(input);
+    const saved = id
+      ? await adminApi.updateBlogPost(id, input)
+      : await adminApi.createBlogPost(input);
     revalidatePath("/content");
-    return { ok: true };
+    return { ok: true, id: saved.id, status: saved.status };
   } catch (err) {
     return fail(err, "Couldn't save the post.");
   }
 }
 
+/** Delete from the editor page — returns to the content list. */
 export async function deleteBlogPost(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  await adminApi.deleteBlogPost(id).catch(() => undefined);
+  if (id) await adminApi.deleteBlogPost(id).catch(() => undefined);
   revalidatePath("/content");
+  redirect("/content");
 }
 
 // ---- Changelog -----------------------------------------------------------
@@ -64,18 +69,20 @@ export async function saveChangelogEntry(_prev: CmsState, formData: FormData): P
   if (changes.length === 0) return { error: "Add at least one change." };
   try {
     const input = { title, changes, status, ...(date ? { date } : {}) };
-    if (id) await adminApi.updateChangelog(id, input);
-    else await adminApi.createChangelog(input);
+    const saved = id
+      ? await adminApi.updateChangelog(id, input)
+      : await adminApi.createChangelog(input);
     revalidatePath("/content");
-    return { ok: true };
+    return { ok: true, id: saved.id, status: saved.status };
   } catch (err) {
     return fail(err, "Couldn't save the entry.");
   }
 }
 
+/** Delete from the editor page — returns to the content list. */
 export async function deleteChangelogEntry(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
-  await adminApi.deleteChangelog(id).catch(() => undefined);
+  if (id) await adminApi.deleteChangelog(id).catch(() => undefined);
   revalidatePath("/content");
+  redirect("/content");
 }

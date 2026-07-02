@@ -22,7 +22,13 @@ type Group = { label?: string; items: Item[] };
 // Grouped by what staff are actually doing — customers, revenue, comms, insights,
 // team — so the console reads as a product, not a flat list of ten links.
 const groups: Group[] = [
-  { items: [{ href: "/", label: "Overview", icon: LayoutDashboard, exact: true }] },
+  {
+    // The two platform-wide reads live together at the top: the snapshot, then the depth.
+    items: [
+      { href: "/", label: "Overview", icon: LayoutDashboard, exact: true },
+      { href: "/analytics", label: "Analytics", icon: BarChart3 },
+    ],
+  },
   {
     label: "Customers",
     items: [
@@ -44,10 +50,6 @@ const groups: Group[] = [
       { href: "/content", label: "Content", icon: Newspaper },
       { href: "/announcements", label: "Announcements", icon: Megaphone },
     ],
-  },
-  {
-    label: "Insights",
-    items: [{ href: "/analytics", label: "Analytics", icon: BarChart3 }],
   },
   {
     label: "Team",
