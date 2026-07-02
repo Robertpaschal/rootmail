@@ -1,10 +1,12 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { adminApi, ApiError } from "@/lib/admin-api";
 
-export type AnnouncementState = { ok?: boolean; error?: string; sent?: number };
+export type AnnouncementState = { ok?: boolean; error?: string; sent?: number; id?: string };
 
-/** Broadcast a product/service announcement to every account owner. Superadmin. */
+/** Broadcast a product/service announcement to every account owner. Superadmin.
+ * Returns the archived announcement's id so the composer can land on its record. */
 export async function sendAnnouncement(
   _prev: AnnouncementState,
   formData: FormData,
@@ -15,7 +17,8 @@ export async function sendAnnouncement(
   if (!body) return { error: "Write a message." };
   try {
     const res = await adminApi.sendAnnouncement({ subject, body });
-    return { ok: true, sent: res.sent };
+    revalidatePath("/announcements");
+    return { ok: true, sent: res.sent, id: res.id };
   } catch (err) {
     if (err instanceof ApiError && err.status === 403) return { error: "Superadmins only." };
     if (err instanceof ApiError) return { error: err.message || "Couldn't send the announcement." };

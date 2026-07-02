@@ -7,6 +7,7 @@ import type {
   AdminChangelogEntry,
   AdminPlan,
   AddonPatch,
+  Announcement,
   AnnouncementRecipients,
   BillingStatus,
   ChangeItem,
@@ -157,7 +158,8 @@ export const adminApi = {
   announcementRecipients: () =>
     adminFetch<AnnouncementRecipients>("/v1/admin/announcements/recipients"),
   sendAnnouncement: (body: { subject: string; body: string }) =>
-    adminFetch<{ sent: number }>("/v1/admin/announcements", { method: "POST", body }),
+    adminFetch<{ id: string; sent: number }>("/v1/admin/announcements", { method: "POST", body }),
+  listAnnouncements: () => adminFetch<ListResponse<Announcement>>("/v1/admin/announcements"),
 
   listPromotions: () => adminFetch<ListResponse<Promotion>>("/v1/admin/promotions"),
   createPromotion: (body: CreatePromotion) =>

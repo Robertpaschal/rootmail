@@ -46,6 +46,7 @@ export const ID_PREFIXES = {
   changelogEntry: "log",
   supportTicket: "tkt",
   supportMessage: "tkm",
+  announcement: "ann",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

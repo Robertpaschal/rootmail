@@ -24,6 +24,7 @@ import {
 } from "@rootmail/core";
 import {
   addons,
+  announcements,
   auditEntries,
   type CustomPlan,
   customPlans,
@@ -1780,6 +1781,35 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { object: "announcement_recipients", count: rows.length };
   });
 
+  // The broadcast archive, newest first — what went out, when, by whom, to how many.
+  app.get("/v1/admin/announcements", async (req) => {
+    await requireStaff(req);
+    const rows = await db
+      .select({
+        id: announcements.id,
+        subject: announcements.subject,
+        body: announcements.body,
+        recipientCount: announcements.recipientCount,
+        sentByEmail: staffUsers.email,
+        createdAt: announcements.createdAt,
+      })
+      .from(announcements)
+      .leftJoin(staffUsers, eq(staffUsers.id, announcements.sentByStaffId))
+      .orderBy(desc(announcements.createdAt));
+    return {
+      object: "list",
+      data: rows.map((r) => ({
+        object: "announcement" as const,
+        id: r.id,
+        subject: r.subject,
+        body: r.body,
+        recipient_count: r.recipientCount,
+        sent_by_email: r.sentByEmail,
+        created_at: r.createdAt.toISOString(),
+      })),
+    };
+  });
+
   const announcementBody = z.object({
     subject: z.string().trim().min(1).max(200),
     body: z.string().trim().min(1).max(10_000),
@@ -1802,13 +1832,26 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       await sendSystemEmail({ to: r.email, subject: mail.subject, html: mail.html, text: mail.text });
     }
 
+    // Archive the broadcast so the console can present history, not just a form.
+    const [saved] = await db
+      .insert(announcements)
+      .values({
+        id: newId("announcement"),
+        subject: b.subject,
+        body: b.body,
+        recipientCount: recipients.length,
+        sentByStaffId: staff.id,
+      })
+      .returning();
+
     await writeStaffAudit({
       staffUserId: staff.id,
       action: "announcement.send",
       targetType: "broadcast",
+      targetId: saved.id,
       metadata: { subject: b.subject, recipients: recipients.length },
       ip: req.ip,
     });
-    return { object: "announcement", sent: recipients.length };
+    return { object: "announcement", id: saved.id, sent: recipients.length };
   });
 }

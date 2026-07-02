@@ -357,6 +357,17 @@ export interface AnnouncementRecipients {
   count: number;
 }
 
+/** An archived staff broadcast — the durable record of what went out. */
+export interface Announcement {
+  object: "announcement";
+  id: string;
+  subject: string;
+  body: string;
+  recipient_count: number;
+  sent_by_email: string | null;
+  created_at: string;
+}
+
 export interface AdminAnalytics {
   object: "admin_analytics";
   period: string;

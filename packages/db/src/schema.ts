@@ -1152,3 +1152,19 @@ export type SupportTicket = typeof supportTickets.$inferSelect;
 export type NewSupportTicket = typeof supportTickets.$inferInsert;
 export type SupportMessage = typeof supportMessages.$inferSelect;
 export type NewSupportMessage = typeof supportMessages.$inferInsert;
+
+// --- Announcements ----------------------------------------------------------
+// Archive of staff broadcasts to account owners — the send itself goes through
+// the system-mail pipeline; this row is the durable "what went out, when, by
+// whom, to how many" record the admin console presents.
+export const announcements = pgTable("announcements", {
+  id: text("id").primaryKey(),
+  subject: text("subject").notNull(),
+  body: text("body").notNull(),
+  recipientCount: integer("recipient_count").notNull(),
+  sentByStaffId: text("sent_by_staff_id").references(() => staffUsers.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+});
+
+export type Announcement = typeof announcements.$inferSelect;
+export type NewAnnouncement = typeof announcements.$inferInsert;

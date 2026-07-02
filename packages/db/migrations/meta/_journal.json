@@ -253,6 +253,13 @@
       "when": 1782991610036,
       "tag": "0035_boring_retro_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1783008473754,
+      "tag": "0036_thick_iron_fist",
+      "breakpoints": true
     }
   ]
 }
