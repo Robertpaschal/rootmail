@@ -225,9 +225,12 @@ export default async function BillingPage({
         </ul>
       </div>
 
-      <p className="mt-3 text-xs text-muted-foreground">
-        Have a promo code? Enter it at checkout to apply your discount.
-      </p>
+      <div className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+        <Tag className="size-4 shrink-0 text-primary" />
+        <span>
+          Have a promo code? Enter it at checkout — your discount applies to the first invoice.
+        </span>
+      </div>
     </>
   );
 
