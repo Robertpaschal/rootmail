@@ -5,7 +5,9 @@ import {
   type CampaignJob,
   createRedis,
   env,
+  LIFECYCLE_QUEUE,
   RETENTION_QUEUE,
+  scheduleLifecycleSweep,
   scheduleRetentionSweep,
   scheduleSequenceTick,
   SEND_QUEUE,
@@ -17,6 +19,7 @@ import {
 } from "@rootmail/core";
 import { closeDb } from "@rootmail/db";
 import { processCampaignSend } from "./campaigns";
+import { processLifecycleSweep } from "./lifecycle";
 import { processSend } from "./pipeline";
 import { processRetentionSweep } from "./retention";
 import { processSequenceTick } from "./sequences";
@@ -107,6 +110,21 @@ retentionWorker.on("ready", () => {
 });
 retentionWorker.on("error", (err) => console.error("retention worker error:", err.message));
 
+// Lifecycle emails: a repeatable daily sweep sends conditional usage-warning +
+// inactivity win-back email (Redis-deduped, verified owners only). Concurrency 1.
+const lifecycleWorker = new Worker(
+  LIFECYCLE_QUEUE,
+  async (job) => {
+    if (job.name === "sweep") await processLifecycleSweep();
+  },
+  { connection: createRedis() as unknown as ConnectionOptions, prefix: BULL_PREFIX, concurrency: 1 },
+);
+lifecycleWorker.on("ready", () => {
+  console.log(`rootmail lifecycle worker ready — queue "${LIFECYCLE_QUEUE}"`);
+  void scheduleLifecycleSweep();
+});
+lifecycleWorker.on("error", (err) => console.error("lifecycle worker error:", err.message));
+
 const shutdown = async (signal: string) => {
   console.log(`${signal} received — closing worker`);
   await worker.close();
@@ -115,6 +133,7 @@ const shutdown = async (signal: string) => {
   await campaignWorker.close();
   await systemMailWorker.close();
   await retentionWorker.close();
+  await lifecycleWorker.close();
   await closeDb();
   process.exit(0);
 };

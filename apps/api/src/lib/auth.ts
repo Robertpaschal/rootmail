@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { generateSessionToken, newId, sha256Hex } from "@rootmail/core";
 import {
   db,
@@ -95,6 +95,17 @@ export async function resolveSession(
   if (!user) return null;
 
   void db.update(sessions).set({ lastSeenAt: new Date() }).where(eq(sessions.id, session.id));
+  // Stamp the user's last activity, throttled to ~1/hour (via the WHERE) to bound
+  // writes — feeds the inactivity win-back sweep.
+  void db
+    .update(users)
+    .set({ lastActiveAt: new Date() })
+    .where(
+      and(
+        eq(users.id, user.id),
+        or(isNull(users.lastActiveAt), lt(users.lastActiveAt, new Date(Date.now() - 3_600_000))),
+      ),
+    );
   return { session, user };
 }
 

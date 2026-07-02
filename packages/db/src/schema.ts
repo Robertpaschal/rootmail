@@ -98,6 +98,8 @@ export const users = pgTable("users", {
   mfaRecoveryCodes: jsonb("mfa_recovery_codes").$type<string[]>(),
   // Set when the user opts out of staff broadcast announcements (CAN-SPAM).
   announcementOptOutAt: timestamp("announcement_opt_out_at", { withTimezone: true }),
+  // Last authenticated activity (throttled write ~1/hr) — powers inactivity win-back.
+  lastActiveAt: timestamp("last_active_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

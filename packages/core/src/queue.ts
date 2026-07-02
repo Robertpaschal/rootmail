@@ -205,3 +205,25 @@ export async function scheduleRetentionSweep(everyMs = 24 * 60 * 60 * 1000): Pro
     { repeat: { every: everyMs }, jobId: "retention-sweep", removeOnComplete: true, removeOnFail: { count: 50 } },
   );
 }
+
+// --- Lifecycle emails ------------------------------------------------------
+// A repeatable daily sweep that sends conditional lifecycle email (usage-limit
+// warnings, inactivity win-back), de-duplicated in Redis so nothing re-sends.
+// ---------------------------------------------------------------------------
+export const LIFECYCLE_QUEUE = "rootmail-lifecycle";
+
+let lifecycleQueue: Queue | undefined;
+export function getLifecycleQueue(): Queue {
+  if (!lifecycleQueue)
+    lifecycleQueue = new Queue(LIFECYCLE_QUEUE, { connection: bullConnection(), prefix: BULL_PREFIX });
+  return lifecycleQueue;
+}
+
+/** Register the repeatable lifecycle-email sweep (idempotent — fixed repeat jobId). */
+export async function scheduleLifecycleSweep(everyMs = 24 * 60 * 60 * 1000): Promise<void> {
+  await getLifecycleQueue().add(
+    "sweep",
+    {},
+    { repeat: { every: everyMs }, jobId: "lifecycle-sweep", removeOnComplete: true, removeOnFail: { count: 50 } },
+  );
+}
