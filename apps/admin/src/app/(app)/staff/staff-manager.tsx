@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { KeyRound, Loader2, UserPlus } from "lucide-react";
+import { KeyRound, Loader2, UserPlus, X } from "lucide-react";
 import {
   createStaffAction,
   deactivateStaffAction,
@@ -15,10 +15,36 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 import type { StaffRole, StaffUser } from "@/lib/types";
 
 const ROLES: StaffRole[] = ["superadmin", "billing", "support", "readonly"];
 
+// Role reads at a glance: authority = violet, money = green, care = blue, view = slate.
+const ROLE_BADGE: Record<StaffRole, string> = {
+  superadmin: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
+  billing: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  support: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  readonly: "bg-muted text-muted-foreground",
+};
+
+function RoleBadge({ role }: { role: StaffRole }) {
+  return (
+    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", ROLE_BADGE[role])}>
+      {role}
+    </span>
+  );
+}
+
+function initials(s: StaffUser): string {
+  const src = s.name?.trim() || s.email;
+  const parts = src.split(/[\s.@_-]+/).filter(Boolean);
+  return ((parts[0]?.[0] ?? "") + (parts[1]?.[0] ?? "")).toUpperCase() || "?";
+}
+
+/** The team directory: members presented as people (avatar, name, role), with
+ * managing — add, role change, reset, deactivate — as deliberate actions, not a
+ * form that greets you. */
 export function StaffManager({
   staff,
   canManage,
@@ -28,6 +54,7 @@ export function StaffManager({
   canManage: boolean;
   currentId: string;
 }) {
+  const [adding, setAdding] = useState(false);
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");
   const [role, setRole] = useState<StaffRole>("support");
@@ -48,6 +75,7 @@ export function StaffManager({
         const pw = (data as { generated_password?: string } | undefined)?.generated_password;
         setEmail("");
         setName("");
+        setAdding(false);
         setNotice(pw ? { kind: "secret", text: `Created. One-time password (copy now): ${pw}` } : { kind: "secret", text: "Staff member created." });
       },
     );
@@ -60,6 +88,8 @@ export function StaffManager({
         setNotice({ kind: "secret", text: `New one-time password for ${who} (copy now): ${pw}` });
       },
     );
+
+  const active = staff.filter((s) => s.active).length;
 
   return (
     <div className="space-y-6">
@@ -75,12 +105,31 @@ export function StaffManager({
         </div>
       ) : null}
 
-      {canManage ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Add staff</CardTitle>
-          </CardHeader>
-          <CardContent>
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle>
+            Team
+            <span className="ml-2 text-sm font-normal text-muted-foreground">
+              {staff.length} member{staff.length === 1 ? "" : "s"} · {active} active
+            </span>
+          </CardTitle>
+          {canManage ? (
+            <Button type="button" variant={adding ? "ghost" : "default"} size="sm" onClick={() => setAdding((v) => !v)}>
+              {adding ? (
+                <>
+                  <X className="size-4" /> Cancel
+                </>
+              ) : (
+                <>
+                  <UserPlus className="size-4" /> Add member
+                </>
+              )}
+            </Button>
+          ) : null}
+        </CardHeader>
+
+        {adding && canManage ? (
+          <CardContent className="border-b pb-5">
             <div className="flex flex-wrap items-end gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="s-email">Email</Label>
@@ -114,19 +163,13 @@ export function StaffManager({
               A one-time password is generated and shown once — share it securely; they can change it after logging in.
             </p>
           </CardContent>
-        </Card>
-      ) : null}
+        ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Team</CardTitle>
-        </CardHeader>
         <CardContent className="px-0">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Email</TableHead>
-                <TableHead>Name</TableHead>
+                <TableHead>Member</TableHead>
                 <TableHead>Role</TableHead>
                 <TableHead>Status</TableHead>
                 {canManage ? <TableHead className="text-right">Actions</TableHead> : null}
@@ -136,12 +179,23 @@ export function StaffManager({
               {staff.map((s) => {
                 const self = s.id === currentId;
                 return (
-                  <TableRow key={s.id}>
-                    <TableCell className="font-medium">
-                      {s.email}
-                      {self ? <span className="ml-1.5 text-xs text-muted-foreground">(you)</span> : null}
+                  <TableRow key={s.id} className={cn(!s.active && "opacity-60")}>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                          {initials(s)}
+                        </span>
+                        <span className="min-w-0">
+                          <span className="block truncate font-medium">
+                            {s.name || s.email}
+                            {self ? <span className="ml-1.5 text-xs font-normal text-muted-foreground">(you)</span> : null}
+                          </span>
+                          {s.name ? (
+                            <span className="block truncate text-xs text-muted-foreground">{s.email}</span>
+                          ) : null}
+                        </span>
+                      </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{s.name ?? "—"}</TableCell>
                     <TableCell>
                       {canManage && !self && s.active ? (
                         <select
@@ -157,7 +211,7 @@ export function StaffManager({
                           ))}
                         </select>
                       ) : (
-                        <Badge variant="muted">{s.role}</Badge>
+                        <RoleBadge role={s.role} />
                       )}
                     </TableCell>
                     <TableCell>
