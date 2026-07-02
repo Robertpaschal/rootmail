@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
-import { Pencil } from "lucide-react";
+import { Pencil, Plus } from "lucide-react";
 import { SubmitButton } from "@/components/app/submit-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,15 +37,20 @@ export function CustomPlanForm({
 
   return (
     <div className="space-y-5">
-      {plan && !editing ? (
+      {editing ? (
+        <CustomPlanFields orgId={orgId} plan={plan} openLeads={openLeads} onCancel={() => setEditing(false)} />
+      ) : plan ? (
         <CustomPlanSummary plan={plan} onEdit={() => setEditing(true)} />
       ) : (
-        <CustomPlanFields
-          orgId={orgId}
-          plan={plan}
-          openLeads={openLeads}
-          onCancel={plan ? () => setEditing(false) : undefined}
-        />
+        <div className="flex flex-col items-start gap-2 rounded-md border border-dashed p-4">
+          <p className="text-sm text-muted-foreground">
+            No custom plan on this org — it&apos;s on a standard plan. Set a bespoke price, quota, and
+            limits here only when you need to.
+          </p>
+          <Button variant="outline" size="sm" onClick={() => setEditing(true)} className="gap-1.5">
+            <Plus className="size-4" /> Set a custom plan
+          </Button>
+        </div>
       )}
 
       {plan ? <BillingControls orgId={orgId} plan={plan} hasStripeCustomer={hasStripeCustomer} /> : null}

@@ -49,7 +49,7 @@ export function ChangelogManager({ entries }: { entries: AdminChangelogEntry[] }
     setTitle(e.title);
     setDate(e.date ? e.date.slice(0, 10) : "");
     setChanges(e.changes.length ? e.changes.map((c) => ({ ...c })) : [{ kind: "New", text: "" }]);
-    setTab("edit");
+    setTab("preview");
   }
   function startNew() {
     setEditing(null);
@@ -88,21 +88,20 @@ export function ChangelogManager({ entries }: { entries: AdminChangelogEntry[] }
             </li>
           ) : (
             entries.map((e) => (
-              <li key={e.id} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{e.title}</p>
+              <li
+                key={e.id}
+                className={cn(
+                  "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
+                  editing?.id === e.id && "border-primary ring-1 ring-primary/30",
+                )}
+              >
+                <button type="button" onClick={() => startEdit(e)} className="min-w-0 flex-1 text-left">
+                  <p className="truncate font-medium hover:underline">{e.title}</p>
                   <p className="truncate text-xs text-muted-foreground">
                     {e.date.slice(0, 10)} · {e.changes.length} change{e.changes.length === 1 ? "" : "s"}
                   </p>
-                </div>
-                <StatusBadge status={e.status} />
-                <button
-                  type="button"
-                  onClick={() => startEdit(e)}
-                  className="rounded-md border px-2 py-1 text-xs hover:bg-accent"
-                >
-                  Edit
                 </button>
+                <StatusBadge status={e.status} />
                 <form action={deleteChangelogEntry}>
                   <input type="hidden" name="id" value={e.id} />
                   <button

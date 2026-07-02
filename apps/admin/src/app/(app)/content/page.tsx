@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { adminApi } from "@/lib/admin-api";
 import type { AdminBlogPost, AdminChangelogEntry } from "@/lib/types";
-import { BlogManager } from "./blog-manager";
-import { ChangelogManager } from "./changelog-manager";
+import { ContentTabs } from "./content-tabs";
 
 export const metadata: Metadata = { title: "Content" };
 
@@ -34,8 +33,7 @@ export default async function ContentPage() {
         </p>
       ) : null}
 
-      <BlogManager posts={posts} />
-      <ChangelogManager entries={entries} />
+      <ContentTabs posts={posts} entries={entries} />
     </div>
   );
 }

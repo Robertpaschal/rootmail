@@ -57,19 +57,18 @@ export function BlogManager({ posts }: { posts: AdminBlogPost[] }) {
             </li>
           ) : (
             posts.map((p) => (
-              <li key={p.id} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate font-medium">{p.title}</p>
+              <li
+                key={p.id}
+                className={cn(
+                  "flex items-center gap-2 rounded-md border px-3 py-2 text-sm",
+                  editing?.id === p.id && "border-primary ring-1 ring-primary/30",
+                )}
+              >
+                <button type="button" onClick={() => setEditing(p)} className="min-w-0 flex-1 text-left">
+                  <p className="truncate font-medium hover:underline">{p.title}</p>
                   <p className="truncate text-xs text-muted-foreground">/{p.slug}</p>
-                </div>
-                <StatusBadge status={p.status} />
-                <button
-                  type="button"
-                  onClick={() => setEditing(p)}
-                  className="rounded-md border px-2 py-1 text-xs hover:bg-accent"
-                >
-                  Edit
                 </button>
+                <StatusBadge status={p.status} />
                 <form action={deleteBlogPost}>
                   <input type="hidden" name="id" value={p.id} />
                   <button
@@ -95,7 +94,8 @@ export function BlogManager({ posts }: { posts: AdminBlogPost[] }) {
  * the marketing site would, so staff can see it before publishing without leaving admin. */
 function PostForm({ post }: { post: AdminBlogPost | null }) {
   const [state, action, pending] = useActionState<CmsState, FormData>(saveBlogPost, {});
-  const [tab, setTab] = useState<"edit" | "preview">("edit");
+  // Selecting an existing post opens its preview first; a new post starts in edit.
+  const [tab, setTab] = useState<"edit" | "preview">(post ? "preview" : "edit");
   const [title, setTitle] = useState(post?.title ?? "");
   const [description, setDescription] = useState(post?.description ?? "");
   const [body, setBody] = useState(post?.body ?? "");
