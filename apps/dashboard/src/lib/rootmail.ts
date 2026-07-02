@@ -12,6 +12,7 @@ import type {
   AuthSession,
   Billing,
   Campaign,
+  CampaignAnalytics,
   ComplianceExport,
   Deliverability,
   EmailAuthReport,
@@ -29,6 +30,7 @@ import type {
   Role,
   RolesResult,
   Sequence,
+  SequenceAnalytics,
   SequenceStepDef,
   SequenceTriggerDef,
   UploadedAsset,
@@ -339,6 +341,8 @@ export const api = {
     rmFetch<Enrollment>(`/v1/sequences/${id}/enroll`, { method: "POST", body: { email } }),
   listEnrollments: (id: string) =>
     rmFetch<ListResponse<Enrollment>>(`/v1/sequences/${id}/enrollments`),
+  sequenceAnalytics: (id: string) =>
+    rmFetch<SequenceAnalytics>(`/v1/sequences/${id}/analytics`),
 
   listLists: () => rmFetch<ListResponse<ContactList>>("/v1/lists"),
   getList: (id: string) => rmFetch<ContactList>(`/v1/lists/${id}`),
@@ -352,6 +356,9 @@ export const api = {
     rmFetch<{ deleted: boolean }>(`/v1/lists/${id}/contacts/${contactId}`, { method: "DELETE" }),
 
   listCampaigns: () => rmFetch<ListResponse<Campaign>>("/v1/campaigns"),
+  getCampaign: (id: string) => rmFetch<Campaign>(`/v1/campaigns/${id}`),
+  campaignAnalytics: (id: string) =>
+    rmFetch<CampaignAnalytics>(`/v1/campaigns/${id}/analytics`),
   createCampaign: (body: { name: string; list_id?: string; template_id?: string; subject?: string }) =>
     rmFetch<Campaign>("/v1/campaigns", { method: "POST", body }),
   sendCampaign: (id: string) =>

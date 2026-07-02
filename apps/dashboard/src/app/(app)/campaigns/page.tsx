@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Megaphone, Send, Trash2 } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
@@ -81,7 +82,11 @@ export default async function CampaignsPage() {
                   <TableBody>
                     {(rows ?? []).map((c) => (
                       <TableRow key={c.id}>
-                        <TableCell className="font-medium">{c.name}</TableCell>
+                        <TableCell>
+                          <Link href={`/campaigns/${c.id}`} className="font-medium hover:underline">
+                            {c.name}
+                          </Link>
+                        </TableCell>
                         <TableCell>
                           <Badge variant={STATUS_VARIANT[c.status]}>{c.status}</Badge>
                         </TableCell>

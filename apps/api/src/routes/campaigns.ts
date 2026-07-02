@@ -2,9 +2,10 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { enqueueCampaignSend, Errors, newId } from "@rootmail/core";
-import { type Campaign, campaigns, db, listContacts, lists, templates } from "@rootmail/db";
+import { type Campaign, campaigns, db, listContacts, lists, messages, templates } from "@rootmail/db";
 import { assertEmailVerified } from "../lib/billing";
 import { loadOrg, requireFeature } from "../lib/features";
+import { messageFunnel } from "../lib/funnel";
 import { requirePermission } from "../lib/permissions";
 import { parse } from "../lib/validate";
 
@@ -123,6 +124,18 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/campaigns/:id", async (req) => {
     const { id } = req.params as { id: string };
     return serialize(await getScoped(req, id));
+  });
+
+  // Per-campaign engagement: the sent → delivered → opened → clicked funnel over
+  // this campaign's own messages, same recipe (and shape) as /v1/analytics.
+  app.get("/v1/campaigns/:id/analytics", async (req) => {
+    const { id } = req.params as { id: string };
+    const c = await getScoped(req, id);
+    const stats = await messageFunnel([
+      eq(messages.workspaceId, req.auth.workspace.id),
+      eq(messages.campaignId, c.id),
+    ]);
+    return { object: "campaign_analytics", campaign_id: c.id, ...stats };
   });
 
   app.patch("/v1/campaigns/:id", async (req) => {

@@ -347,6 +347,25 @@ export interface Campaign {
   created_at: string;
 }
 
+/** Message-funnel rollup shared by the per-campaign and per-sequence analytics. */
+export interface MessageFunnelStats {
+  total: number;
+  by_status: Record<string, number>;
+  funnel: { sent: number; delivered: number; opened: number; clicked: number };
+  rates: { delivery: number; open: number; click: number; click_to_open: number; bounce: number };
+}
+
+export interface CampaignAnalytics extends MessageFunnelStats {
+  object: "campaign_analytics";
+  campaign_id: string;
+}
+
+export interface SequenceAnalytics extends MessageFunnelStats {
+  object: "sequence_analytics";
+  sequence_id: string;
+  steps: { step: number; sent: number; delivered: number; opened: number; clicked: number }[];
+}
+
 export interface AssistantResponse {
   object: "assistant_response";
   reply: string;

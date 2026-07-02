@@ -1,16 +1,19 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { Errors, MAX_SEQUENCE_STEPS, newId, SEQUENCE_TRIGGER_TYPES } from "@rootmail/core";
 import {
+  auditEntries,
   contacts,
   db,
+  messages,
   type Sequence,
   type SequenceEnrollment,
   sequenceEnrollments,
   sequences,
 } from "@rootmail/db";
 import { requireFeature } from "../lib/features";
+import { messageFunnel } from "../lib/funnel";
 import { requirePermission } from "../lib/permissions";
 import { findContact } from "../lib/queries";
 import { parse } from "../lib/validate";
@@ -132,6 +135,62 @@ export async function sequenceRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/sequences/:id", async (req) => {
     const { id } = req.params as { id: string };
     return serialize(await getScoped(req, id));
+  });
+
+  // Per-sequence engagement: the overall funnel plus a per-step breakdown (sends,
+  // delivered, opened, clicked per step) — where in the drip people drop off.
+  app.get("/v1/sequences/:id/analytics", async (req) => {
+    const { id } = req.params as { id: string };
+    const s = await getScoped(req, id);
+    const scope = [eq(messages.workspaceId, req.auth.workspace.id), eq(messages.sequenceId, s.id)];
+    const stats = await messageFunnel(scope);
+
+    // Step breakdown from message statuses…
+    const stepRows = await db
+      .select({
+        step: messages.sequenceStep,
+        status: messages.status,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(messages)
+      .where(and(...scope, isNotNull(messages.sequenceStep)))
+      .groupBy(messages.sequenceStep, messages.status);
+    // …and per-step opens/clicks from the audit log.
+    const engagementByStep = async (event: "opened" | "clicked") =>
+      db
+        .select({
+          step: messages.sequenceStep,
+          n: sql<number>`count(distinct ${auditEntries.messageId})::int`,
+        })
+        .from(auditEntries)
+        .innerJoin(messages, eq(auditEntries.messageId, messages.id))
+        .where(and(eq(auditEntries.event, event), ...scope, isNotNull(messages.sequenceStep)))
+        .groupBy(messages.sequenceStep);
+    const openedRows = await engagementByStep("opened");
+    const clickedRows = await engagementByStep("clicked");
+
+    const byStep = new Map<number, { sent: number; delivered: number; opened: number; clicked: number }>();
+    const stepOf = (n: number | null) => {
+      const k = n ?? 0;
+      if (!byStep.has(k)) byStep.set(k, { sent: 0, delivered: 0, opened: 0, clicked: 0 });
+      return byStep.get(k)!;
+    };
+    for (const r of stepRows) {
+      const s2 = stepOf(r.step);
+      if (["delivered", "bounced", "complained", "sent"].includes(r.status)) s2.sent += r.n;
+      if (r.status === "delivered") s2.delivered += r.n;
+    }
+    for (const r of openedRows) stepOf(r.step).opened = r.n;
+    for (const r of clickedRows) stepOf(r.step).clicked = r.n;
+
+    return {
+      object: "sequence_analytics",
+      sequence_id: s.id,
+      ...stats,
+      steps: [...byStep.entries()]
+        .sort((a, b) => a[0] - b[0])
+        .map(([step, v]) => ({ step, ...v })),
+    };
   });
 
   app.patch("/v1/sequences/:id", async (req) => {

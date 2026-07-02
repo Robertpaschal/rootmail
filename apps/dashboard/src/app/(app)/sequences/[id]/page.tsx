@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { FunnelCard } from "@/components/app/funnel-card";
 import { api, ApiError } from "@/lib/rootmail";
-import type { Enrollment, Sequence } from "@/lib/types";
+import type { Enrollment, Sequence, SequenceAnalytics } from "@/lib/types";
 import { SequenceBuilder } from "../builder";
 import { deleteSequenceAction, enrollAction } from "../actions";
 
@@ -24,6 +25,8 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
+  // Engagement is additive — never let an analytics hiccup break the builder.
+  const analytics: SequenceAnalytics | null = await api.sequenceAnalytics(id).catch(() => null);
 
   return (
     <>
@@ -35,6 +38,40 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
         </div>
 
         <div className="space-y-6">
+          {analytics ? (
+            <FunnelCard stats={analytics}>
+              {analytics.steps.length > 0 ? (
+                <div className="border-t pt-3">
+                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                    By step
+                  </p>
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left text-muted-foreground">
+                        <th className="py-1 font-medium">Step</th>
+                        <th className="py-1 text-right font-medium">Sent</th>
+                        <th className="py-1 text-right font-medium">Delivered</th>
+                        <th className="py-1 text-right font-medium">Opened</th>
+                        <th className="py-1 text-right font-medium">Clicked</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {analytics.steps.map((s) => (
+                        <tr key={s.step} className="border-t">
+                          <td className="py-1.5 font-medium">#{s.step + 1}</td>
+                          <td className="py-1.5 text-right tabular-nums">{s.sent}</td>
+                          <td className="py-1.5 text-right tabular-nums">{s.delivered}</td>
+                          <td className="py-1.5 text-right tabular-nums">{s.opened}</td>
+                          <td className="py-1.5 text-right tabular-nums">{s.clicked}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : null}
+            </FunnelCard>
+          ) : null}
+
           <Card>
             <CardHeader>
               <CardTitle className="text-base">Enroll a contact</CardTitle>
