@@ -34,7 +34,7 @@ export default async function MessagesPage({
   let isApiErr = false;
   try {
     const res = await api.listMessages({
-      limit: 200,
+      limit: 100, // the API's validation cap (max 100 per request)
       status: active === "all" ? undefined : (active as MessageStatus),
     });
     messages = res.data;

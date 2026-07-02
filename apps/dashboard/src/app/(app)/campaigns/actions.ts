@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 
 export interface CampaignFormState {
@@ -36,6 +37,7 @@ export async function sendCampaign(formData: FormData): Promise<void> {
     /* best-effort; the row reflects current status */
   }
   revalidatePath("/campaigns");
+  revalidatePath(`/campaigns/${id}`); // the detail page shows status + funnel too
 }
 
 export async function deleteCampaign(formData: FormData): Promise<void> {
@@ -47,4 +49,7 @@ export async function deleteCampaign(formData: FormData): Promise<void> {
     /* best-effort */
   }
   revalidatePath("/campaigns");
+  // Callable from the detail page of the campaign being deleted — always land on
+  // the list so nobody is stranded on a dead URL. (From the list it's a no-op hop.)
+  redirect("/campaigns");
 }
