@@ -1,7 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
+import { Pencil } from "lucide-react";
 import { SubmitButton } from "@/components/app/submit-button";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { AdminAddon } from "@/lib/types";
@@ -14,63 +17,120 @@ function saleIsActive(a: AdminAddon): boolean {
 }
 
 export function AddonEditor({ addon }: { addon: AdminAddon }) {
-  const [state, action] = useActionState<PlanState, FormData>(updateAddon, {});
+  const [editing, setEditing] = useState(false);
   return (
     <div className="border-b py-4 last:border-0">
-    <form action={action} className="flex flex-wrap items-end gap-4">
-      <input type="hidden" name="id" value={addon.id} />
-      <input type="hidden" name="name" value={addon.name} />
+      {editing ? (
+        <AddonForm addon={addon} onClose={() => setEditing(false)} />
+      ) : (
+        <AddonSummary addon={addon} onEdit={() => setEditing(true)} />
+      )}
+    </div>
+  );
+}
+
+function AddonSummary({ addon, onEdit }: { addon: AdminAddon; onEdit: () => void }) {
+  const onSale = saleIsActive(addon);
+  const discounted =
+    onSale && addon.sale_percent_off
+      ? Math.round(addon.unit_amount * (1 - addon.sale_percent_off / 100) * 100) / 100
+      : null;
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-2">
       <div className="min-w-[12rem] flex-1">
-        <div className="text-sm font-medium">{addon.name}</div>
+        <div className="flex items-center gap-2 text-sm font-medium">
+          {addon.name}
+          {!addon.active ? <Badge variant="muted">inactive</Badge> : null}
+        </div>
         <div className="text-xs text-muted-foreground">{addon.description}</div>
       </div>
-      <div className="space-y-1">
-        <Label htmlFor={`${addon.id}-amount`} className="text-xs text-muted-foreground">
-          Price (USD/mo)
-        </Label>
-        <Input
-          id={`${addon.id}-amount`}
-          name="unit_amount"
-          type="number"
-          min="0"
-          defaultValue={addon.unit_amount}
-          className="w-28"
-        />
+      <div className="flex items-center gap-6 text-sm">
+        <div>
+          <span className="text-xs text-muted-foreground">Price</span>{" "}
+          {onSale ? (
+            <>
+              <span className="text-muted-foreground line-through">${addon.unit_amount}</span>{" "}
+              <span className="font-medium text-emerald-600">${discounted}/mo</span>
+            </>
+          ) : (
+            <span className="font-medium tabular-nums">${addon.unit_amount}/mo</span>
+          )}
+        </div>
+        <div>
+          <span className="text-xs text-muted-foreground">Grant/unit</span>{" "}
+          <span className="font-medium tabular-nums">{addon.grant}</span>
+        </div>
+        {onSale ? <Badge variant="success">{addon.sale_percent_off}% off</Badge> : null}
       </div>
-      <div className="space-y-1">
-        <Label htmlFor={`${addon.id}-grant`} className="text-xs text-muted-foreground">
-          Grant / unit
-        </Label>
-        <Input
-          id={`${addon.id}-grant`}
-          name="grant"
-          type="number"
-          min="1"
-          defaultValue={addon.grant}
-          className="w-28"
-        />
-      </div>
-      <label className="flex items-center gap-2 pb-2 text-sm">
-        <input type="checkbox" name="active" defaultChecked={addon.active} className="size-4" />
-        Active
-      </label>
-      <div className="flex items-center gap-3 pb-1">
-        <SubmitButton variant="outline" size="sm" pendingLabel="Saving…">
-          Save
-        </SubmitButton>
-        {state.error ? <span className="text-sm text-destructive">{state.error}</span> : null}
-        {state.ok ? (
-          <span className={`text-sm ${state.sync === "failed" ? "text-amber-600" : "text-emerald-600"}`}>
-            {state.sync === "synced"
-              ? "Saved · Stripe synced"
-              : state.sync === "failed"
-                ? "Saved · sync failed"
-                : "Saved"}
-          </span>
-        ) : null}
-      </div>
-    </form>
-    <AddonSaleControls addon={addon} />
+      <Button variant="outline" size="sm" onClick={onEdit} className="gap-1.5">
+        <Pencil className="size-3.5" /> Edit
+      </Button>
+    </div>
+  );
+}
+
+function AddonForm({ addon, onClose }: { addon: AdminAddon; onClose: () => void }) {
+  const [state, action] = useActionState<PlanState, FormData>(updateAddon, {});
+  return (
+    <div>
+      <form action={action} className="flex flex-wrap items-end gap-4">
+        <input type="hidden" name="id" value={addon.id} />
+        <input type="hidden" name="name" value={addon.name} />
+        <div className="min-w-[12rem] flex-1">
+          <div className="text-sm font-medium">{addon.name}</div>
+          <div className="text-xs text-muted-foreground">{addon.description}</div>
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`${addon.id}-amount`} className="text-xs text-muted-foreground">
+            Price (USD/mo)
+          </Label>
+          <Input
+            id={`${addon.id}-amount`}
+            name="unit_amount"
+            type="number"
+            min="0"
+            defaultValue={addon.unit_amount}
+            className="w-28"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor={`${addon.id}-grant`} className="text-xs text-muted-foreground">
+            Grant / unit
+          </Label>
+          <Input
+            id={`${addon.id}-grant`}
+            name="grant"
+            type="number"
+            min="1"
+            defaultValue={addon.grant}
+            className="w-28"
+          />
+        </div>
+        <label className="flex items-center gap-2 pb-2 text-sm">
+          <input type="checkbox" name="active" defaultChecked={addon.active} className="size-4" />
+          Active
+        </label>
+        <div className="flex items-center gap-3 pb-1">
+          <Button type="button" variant="ghost" size="sm" onClick={onClose}>
+            {state.ok ? "Done" : "Cancel"}
+          </Button>
+          <SubmitButton variant="outline" size="sm" pendingLabel="Saving…">
+            Save
+          </SubmitButton>
+          {state.error ? <span className="text-sm text-destructive">{state.error}</span> : null}
+          {state.ok ? (
+            <span className={`text-sm ${state.sync === "failed" ? "text-amber-600" : "text-emerald-600"}`}>
+              {state.sync === "synced"
+                ? "Saved · Stripe synced"
+                : state.sync === "failed"
+                  ? "Saved · sync failed"
+                  : "Saved"}
+            </span>
+          ) : null}
+        </div>
+      </form>
+      <AddonSaleControls addon={addon} />
     </div>
   );
 }

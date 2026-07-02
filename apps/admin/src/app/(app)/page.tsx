@@ -89,7 +89,7 @@ export default async function OverviewPage() {
           </div>
           <ul className="mt-2 divide-y">
             {recentOrgs.length === 0 ? (
-              <li className="py-3 text-sm text-muted-foreground">No organizations yet.</li>
+              <li className="py-3 text-sm text-muted-foreground">No organizations yet — they&apos;ll appear here as people sign up.</li>
             ) : (
               recentOrgs.map((o) => (
                 <li key={o.id} className="flex items-center justify-between gap-2 py-2 text-sm">
@@ -119,7 +119,7 @@ export default async function OverviewPage() {
           </div>
           <ul className="mt-2 divide-y">
             {openTickets.length === 0 ? (
-              <li className="py-3 text-sm text-muted-foreground">No open tickets.</li>
+              <li className="py-3 text-sm text-muted-foreground">All caught up — no open tickets.</li>
             ) : (
               openTickets.slice(0, 5).map((t) => (
                 <li key={t.id} className="py-2 text-sm">
@@ -149,7 +149,7 @@ export default async function OverviewPage() {
           </div>
           <ul className="mt-2 divide-y">
             {newLeads.length === 0 ? (
-              <li className="py-3 text-sm text-muted-foreground">No new leads.</li>
+              <li className="py-3 text-sm text-muted-foreground">No new leads to triage right now.</li>
             ) : (
               newLeads.slice(0, 5).map((l) => (
                 <li key={l.id} className="py-2 text-sm">

@@ -22,9 +22,9 @@ export default async function PricingPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Pricing</h1>
         <p className="text-sm text-muted-foreground">
-          Your pricing control center — edit plans, features, add-ons, sales, and custom subs right
-          here. Economics apply immediately; the billed Stripe price syncs automatically, so you
-          rarely need the Stripe dashboard. Superadmin only.
+          Your pricing control center — review every plan, add-on, sale, and custom sub at a glance,
+          then edit any one inline. Changes apply immediately; the billed Stripe price syncs
+          automatically, so you rarely need the Stripe dashboard. Superadmin only.
         </p>
       </div>
 
