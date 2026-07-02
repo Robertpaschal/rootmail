@@ -80,7 +80,41 @@ export async function getAiUsage(organizationId: string, period = currentPeriod(
   return row?.n ?? 0;
 }
 
-/** Atomically add to this month's AI-credit counter (upsert). */
+/**
+ * Atomically reserve ONE AI credit against the monthly allowance — closing the
+ * read-then-record race in the assistant (two concurrent requests at the cap could
+ * both pass a separate read-then-check). Unlimited (allowance -1) isn't metered and
+ * always succeeds. Otherwise it increments aiCreditsUsed only if it stays within
+ * allowance, in a single conditional UPDATE. Returns the new used count on success,
+ * or null when already at the cap. The caller reconciles the real model-call count
+ * afterward with recordAiUse() (the run costs ≥1; extra steps are added post-hoc).
+ */
+export async function tryConsumeAiCredit(
+  organizationId: string,
+  allowance: number,
+): Promise<number | null> {
+  if (allowance === -1) return -1; // unlimited — not metered
+  const period = currentPeriod();
+  await db
+    .insert(usageRecords)
+    .values({ id: newId("usage"), organizationId, period, aiCreditsUsed: 0 })
+    .onConflictDoNothing({ target: [usageRecords.organizationId, usageRecords.period] });
+  const updated = await db
+    .update(usageRecords)
+    .set({ aiCreditsUsed: sql`${usageRecords.aiCreditsUsed} + 1`, updatedAt: new Date() })
+    .where(
+      and(
+        eq(usageRecords.organizationId, organizationId),
+        eq(usageRecords.period, period),
+        sql`${usageRecords.aiCreditsUsed} + 1 <= ${allowance}`,
+      ),
+    )
+    .returning({ n: usageRecords.aiCreditsUsed });
+  return updated.length > 0 ? updated[0].n : null;
+}
+
+/** Atomically add to this month's AI-credit counter (upsert). Accepts a negative
+ * `n` to refund (e.g. reconciling a reserved credit against a keyless/failed run). */
 export async function recordAiUse(organizationId: string, n = 1): Promise<void> {
   const period = currentPeriod();
   await db

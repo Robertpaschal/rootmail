@@ -28,7 +28,7 @@ import {
   workspaceForUser,
 } from "../lib/auth";
 import { consumeAuthToken, createAuthToken } from "../lib/auth-tokens";
-import { passwordResetEmail, verificationEmail, welcomeEmail } from "../lib/emails";
+import { passwordChangedEmail, passwordResetEmail, verificationEmail, welcomeEmail } from "../lib/emails";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { signupAllowed } from "../lib/signup-limit";
 import { serializeUser, serializeWorkspace } from "../lib/serialize";
@@ -507,6 +507,21 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(users.id, userId));
     // A reset invalidates existing sessions — force a fresh login everywhere.
     await db.delete(sessions).where(eq(sessions.userId, userId));
+    // Out-of-band security notice confirming the change (best-effort).
+    const [changed] = await db
+      .select({ email: users.email, name: users.name })
+      .from(users)
+      .where(eq(users.id, userId))
+      .limit(1);
+    if (changed) {
+      const mail = passwordChangedEmail(changed.name);
+      await sendSystemEmail({
+        to: changed.email,
+        subject: mail.subject,
+        html: mail.html,
+        text: mail.text,
+      }).catch(() => {});
+    }
     return { reset: true };
   });
 }

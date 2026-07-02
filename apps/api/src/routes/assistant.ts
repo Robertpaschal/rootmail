@@ -10,7 +10,7 @@ import {
   db,
 } from "@rootmail/db";
 import { generateChatTitle, type PriorTurn, runAssistant } from "../lib/assistant";
-import { getAiUsage, recordAiUse } from "../lib/billing";
+import { getAiUsage, recordAiUse, tryConsumeAiCredit } from "../lib/billing";
 import { aiCreditsForOrg, getAddon } from "../lib/plans";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
@@ -29,19 +29,36 @@ async function aiAllowance(orgId: string, base: number): Promise<number> {
   return base + packs * getAddon("ai_credit_pack").grant;
 }
 
-/** Throw 402 quota_exceeded if the org has spent its AI credits. */
-function assertAiCredits(used: number, allowance: number): void {
-  if (allowance !== -1 && used >= allowance) {
+/** Atomically reserve one AI credit, or throw 402 (with the upgrade path) when the
+ * org is at its monthly cap. Returns the reserved usage count (-1 when unlimited). */
+async function reserveAiCreditOrThrow(orgId: string, allowance: number): Promise<number> {
+  const reserved = await tryConsumeAiCredit(orgId, allowance);
+  if (reserved === null) {
     throw Errors.quotaExceeded(
       `You've used all ${allowance} AI credits this month. Upgrade your plan or add an AI credit pack.`,
       {
         feature: "ai_credits",
-        used,
+        used: allowance,
         allowance,
         upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing?tab=plans`,
       },
     );
   }
+  return reserved;
+}
+
+/** Reconcile the reserved credit against the real model-call count (calls=0 for a
+ * keyless/failed run refunds it), and return the used count to report in the reply. */
+async function settleAiCredits(
+  orgId: string,
+  allowance: number,
+  reserved: number,
+  calls: number,
+): Promise<number> {
+  if (allowance === -1) return getAiUsage(orgId); // unlimited: report raw usage
+  const delta = calls - 1; // one credit was already reserved atomically
+  if (delta !== 0) await recordAiUse(orgId, delta);
+  return reserved + delta;
 }
 
 /** Identify the session user behind a request; chats are owned per-user. */
@@ -103,22 +120,21 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       const org = await loadOrg(req);
 
       const allowance = await aiAllowance(org.id, aiCreditsForOrg(org));
-      const used = await getAiUsage(org.id);
-      assertAiCredits(used, allowance);
+      const reserved = await reserveAiCreditOrThrow(org.id, allowance);
 
       // Charge 1 credit per model call the assistant actually made (1 for a quick
-      // reply, up to 8 for a multi-step build/operate/diagnose run) — credits track
-      // real, token-bounded model calls, so heavier requests cost proportionally
-      // more. A keyless mock run makes none and is free.
+      // reply, up to 8 for a multi-step build/operate/diagnose run). One credit is
+      // reserved atomically above; settleAiCredits reconciles the rest and refunds a
+      // keyless/failed run (which makes no model calls and is free).
       const result = await runAssistant(app, req, prompt);
-      if (allowance !== -1 && result.calls > 0) await recordAiUse(org.id, result.calls);
+      const used = await settleAiCredits(org.id, allowance, reserved, result.calls);
 
       return {
         object: "assistant_response",
         reply: result.reply,
         actions: result.actions,
         source: result.source,
-        credits: { used: allowance === -1 ? used : used + result.calls, allowance },
+        credits: { used, allowance },
       };
     },
   );
@@ -186,8 +202,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       const { prompt } = parse(z.object({ prompt: z.string().min(1).max(2000) }), req.body);
 
       const allowance = await aiAllowance(org.id, aiCreditsForOrg(org));
-      const used = await getAiUsage(org.id);
-      assertAiCredits(used, allowance);
+      const reserved = await reserveAiCreditOrThrow(org.id, allowance);
 
       // Replay this chat's prior text turns for context.
       const priors = await db
@@ -198,7 +213,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       const history: PriorTurn[] = priors.map((m) => ({ role: m.role, content: m.content }));
 
       const result = await runAssistant(app, req, prompt, history);
-      if (allowance !== -1 && result.calls > 0) await recordAiUse(org.id, result.calls);
+      const used = await settleAiCredits(org.id, allowance, reserved, result.calls);
 
       // Persist the turn pair (user prompt, then assistant reply + actions).
       const now = new Date();
@@ -235,7 +250,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
         actions: result.actions,
         source: result.source,
         chat: { id: chat.id, title },
-        credits: { used: allowance === -1 ? used : used + result.calls, allowance },
+        credits: { used, allowance },
       };
     },
   );

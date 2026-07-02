@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import type Stripe from "stripe";
 import { env, newId, sendSystemEmail } from "@rootmail/core";
 import { billingEvents, db } from "@rootmail/db";
-import { paymentFailedEmail, trialEndingEmail } from "../lib/emails";
+import { paymentFailedEmail, paymentSucceededEmail, trialEndingEmail } from "../lib/emails";
 import { getStripe, ownerContactForCustomer, syncSubscription } from "../lib/stripe";
 
 function customerIdOf(c: string | { id: string } | null | undefined): string | null {
@@ -88,6 +88,30 @@ export async function stripeWebhookRoutes(app: FastifyInstance): Promise<void> {
               html: mail.html,
               text: mail.text,
             });
+          }
+          break;
+        }
+        case "invoice.payment_succeeded": {
+          const invoice = event.data.object as Stripe.Invoice;
+          // Only for real charges — skip $0 invoices (trials, 100%-off coupons).
+          if ((invoice.amount_paid ?? 0) > 0) {
+            const owner = await ownerContactForCustomer(customerIdOf(invoice.customer) ?? "");
+            if (owner) {
+              const amount = new Intl.NumberFormat("en-US", {
+                style: "currency",
+                currency: (invoice.currency ?? "usd").toUpperCase(),
+              }).format((invoice.amount_paid ?? 0) / 100);
+              const mail = paymentSucceededEmail(owner.name, {
+                amount,
+                invoiceUrl: invoice.hosted_invoice_url,
+              });
+              await sendSystemEmail({
+                to: owner.email,
+                subject: mail.subject,
+                html: mail.html,
+                text: mail.text,
+              });
+            }
           }
           break;
         }

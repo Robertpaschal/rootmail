@@ -171,3 +171,42 @@ export function passwordResetEmail(token: string, name?: string | null): EmailCo
     ),
   };
 }
+
+/** Sent after a successful payment — a branded receipt/confirmation, with a link to
+ * the Stripe-hosted invoice when available. */
+export function paymentSucceededEmail(
+  name: string | null | undefined,
+  opts: { amount?: string | null; invoiceUrl?: string | null } = {},
+): EmailContent {
+  const hi = name ? `Hi ${esc(name)},` : "Hi,";
+  const billing = `${dashboardOrigin()}/billing`;
+  const amt = opts.amount ? ` of ${opts.amount}` : "";
+  return {
+    subject: "Your rootmail payment was received",
+    text:
+      `${name ? `Hi ${name},` : "Hi,"}\n\nWe've received your rootmail payment${amt}. Thank you!\n` +
+      `${opts.invoiceUrl ? `\nView your invoice: ${opts.invoiceUrl}\n` : ""}` +
+      `\nManage your plan and invoices: ${billing}\n\n— The rootmail team`,
+    html: wrap(
+      `<p>${hi}</p><p>We've received your rootmail payment${esc(amt)}. Thank you!</p>` +
+        (opts.invoiceUrl ? `<p>${button(opts.invoiceUrl, "View invoice")}</p>` : "") +
+        `<p style="color:#666;font-size:13px">Manage your plan and invoices in <a href="${billing}">billing</a>.</p>`,
+    ),
+  };
+}
+
+/** Security notice sent after a password is successfully changed. */
+export function passwordChangedEmail(name?: string | null): EmailContent {
+  const hi = name ? `Hi ${esc(name)},` : "Hi,";
+  const login = `${dashboardOrigin()}/login`;
+  return {
+    subject: "Your rootmail password was changed",
+    text:
+      `${name ? `Hi ${name},` : "Hi,"}\n\nYour rootmail password was just changed. If this was you, no action is needed.\n\n` +
+      `If you didn't do this, secure your account right away from ${login} and contact support.`,
+    html: wrap(
+      `<p>${hi}</p><p>Your rootmail password was just changed. If this was you, no action is needed.</p>` +
+        `<p style="color:#666;font-size:13px">If you didn't do this, <a href="${login}">secure your account</a> right away and contact support.</p>`,
+    ),
+  };
+}
