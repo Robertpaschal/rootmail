@@ -14,6 +14,8 @@ const links = [
   { href: "/#features", label: "Features" },
   { href: "/docs", label: "Developers" },
   { href: "/pricing", label: "Pricing" },
+  // The freshness signal — the product ships weekly, so say so from the top nav.
+  { href: "/changelog", label: "Changelog" },
   { href: "/about", label: "About" },
   { href: "/contact", label: "Contact" },
 ];

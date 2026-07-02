@@ -23,6 +23,7 @@
     "db:seed": "pnpm --filter @rootmail/db seed",
     "db:seed:cms": "pnpm --filter @rootmail/db exec tsx src/seed-cms.ts",
     "db:seed:pricing": "pnpm --filter @rootmail/db exec tsx src/seed-pricing.ts",
+    "db:seed:changelog": "pnpm --filter @rootmail/db exec tsx src/seed-changelog-2026-07.ts",
     "api": "pnpm --filter @rootmail/api dev",
     "worker": "pnpm --filter @rootmail/worker dev",
     "marketing": "pnpm --filter @rootmail/marketing dev",

@@ -39,12 +39,12 @@ const features = [
   {
     icon: BarChart3,
     title: "Engagement analytics",
-    desc: "A sent → delivered → opened → clicked funnel with open and click rates, a daily send trend, and your top templates.",
+    desc: "The sent → delivered → opened → clicked funnel — platform-wide and per campaign or sequence, with per-step drop-off, daily trends, and top templates.",
   },
   {
     icon: Workflow,
     title: "Sequences & campaigns",
-    desc: "Drip sequences with delays and exit-on-reply, plus list-based campaigns — all metered against your plan, with stats.",
+    desc: "Drip sequences with delays and exit-on-reply, plus list-based campaigns — metered against your plan, each with its own engagement funnel.",
   },
   {
     icon: MessagesSquare,
@@ -74,7 +74,7 @@ const features = [
   {
     icon: Sparkles,
     title: "AI assistant",
-    desc: "An in-app agent that builds, operates, and diagnoses your email — “why did this bounce?” — within your plan, with an AI no-code studio.",
+    desc: "An in-app agent that plans multi-step work, builds, operates, and diagnoses your email — “why did this bounce?” — then reports back a checklist of what it did.",
   },
 ];
 
