@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import type Stripe from "stripe";
 import { z } from "zod";
@@ -36,6 +36,7 @@ import {
   type Message,
   memberships,
   messages,
+  orgAddons,
   organizations,
   plans,
   staffAudit,
@@ -759,6 +760,51 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // Add-on MRR — active org add-on quantities × list price.
+    const addonCatalog = await db.select().from(addons);
+    const addonPrice = new Map(addonCatalog.map((a) => [a.id, a.unitAmount]));
+    const addonRows = await db
+      .select({ addonId: orgAddons.addonId, qty: sql<number>`coalesce(sum(${orgAddons.quantity}),0)::int` })
+      .from(orgAddons)
+      .groupBy(orgAddons.addonId);
+    let addonMrr = 0;
+    for (const r of addonRows) addonMrr += (addonPrice.get(r.addonId) ?? 0) * r.qty;
+
+    // Overage revenue this period — reported overage units × each plan's rate.
+    const overageRows = await db
+      .select({ plan: organizations.plan, units: usageRecords.overageReportedUnits })
+      .from(usageRecords)
+      .innerJoin(organizations, eq(organizations.id, usageRecords.organizationId))
+      .where(and(eq(usageRecords.period, period), gt(usageRecords.overageReportedUnits, 0)));
+    let overageRevenue = 0;
+    for (const r of overageRows) overageRevenue += r.units * getPlan(r.plan).overagePer1000;
+
+    // MRR trend (estimate) — current active paid subscribers' list MRR accumulated by
+    // signup month, last 6 months. Approximate (uses current plan, excludes churned
+    // orgs) but shows the growth trajectory without historical snapshots.
+    const paidOrgRows = await db
+      .select({
+        plan: organizations.plan,
+        status: organizations.planStatus,
+        createdAt: organizations.createdAt,
+      })
+      .from(organizations);
+    const nowD = new Date();
+    const mrrTrend: { period: string; mrr: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const m = new Date(Date.UTC(nowD.getUTCFullYear(), nowD.getUTCMonth() - i, 1));
+      const nextMonth = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 1));
+      const key = `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, "0")}`;
+      let sum = 0;
+      for (const o of paidOrgRows) {
+        if (o.status !== "active") continue;
+        const price = getPlan(o.plan).price;
+        if (price && price > 0 && o.createdAt < nextMonth) sum += price;
+      }
+      mrrTrend.push({ period: key, mrr: sum });
+    }
+    const arpa = paidOrgs > 0 ? Math.round(mrr / paidOrgs) : 0;
+
     // Email + AI volume this period.
     const [vol] = await db
       .select({
@@ -812,7 +858,17 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       object: "admin_analytics",
       period,
       orgs: { total: totalOrgs, paid: paidOrgs, by_plan: byPlan },
-      revenue: { currency: "usd", mrr_estimate: mrr, by_plan: revenueByPlan },
+      revenue: {
+        currency: "usd",
+        mrr_estimate: mrr,
+        by_plan: revenueByPlan,
+        addon_mrr: addonMrr,
+        overage: Math.round(overageRevenue),
+        total_recurring: mrr + addonMrr,
+        arr: (mrr + addonMrr) * 12,
+        arpa,
+        trend: mrrTrend,
+      },
       volume: { emails_this_period: vol?.emails ?? 0, trend: trendDesc.reverse() },
       deliverability: {
         total: totalMsgs,

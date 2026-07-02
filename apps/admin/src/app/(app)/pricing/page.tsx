@@ -6,16 +6,19 @@ import { adminApi } from "@/lib/admin-api";
 import { AddonEditor } from "./addon-editor";
 import { CustomPlansCard } from "./custom-plans-card";
 import { PlanEditor } from "./plan-editor";
+import { RevenueSummary } from "./revenue-summary";
 
 export const metadata: Metadata = { title: "Pricing" };
 
 export default async function PricingPage() {
-  const [{ data: plans }, { data: addons }, { data: customPlans }, billing] = await Promise.all([
-    adminApi.listPlans(),
-    adminApi.listAddons(),
-    adminApi.listCustomPlans(),
-    adminApi.getBillingStatus().catch(() => null),
-  ]);
+  const [{ data: plans }, { data: addons }, { data: customPlans }, billing, analytics] =
+    await Promise.all([
+      adminApi.listPlans(),
+      adminApi.listAddons(),
+      adminApi.listCustomPlans(),
+      adminApi.getBillingStatus().catch(() => null),
+      adminApi.analytics().catch(() => null),
+    ]);
 
   return (
     <div className="space-y-6">
@@ -27,6 +30,8 @@ export default async function PricingPage() {
           automatically, so you rarely need the Stripe dashboard. Superadmin only.
         </p>
       </div>
+
+      {analytics ? <RevenueSummary analytics={analytics} /> : null}
 
       {/* Stripe / billing status */}
       {billing ? (
