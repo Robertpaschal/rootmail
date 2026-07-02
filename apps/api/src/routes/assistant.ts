@@ -123,7 +123,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       const reserved = await reserveAiCreditOrThrow(org.id, allowance);
 
       // Charge 1 credit per model call the assistant actually made (1 for a quick
-      // reply, up to 8 for a multi-step build/operate/diagnose run). One credit is
+      // reply, up to 10 for a multi-step build/operate/diagnose run). One credit is
       // reserved atomically above; settleAiCredits reconciles the rest and refunds a
       // keyless/failed run (which makes no model calls and is free).
       const result = await runAssistant(app, req, prompt);
