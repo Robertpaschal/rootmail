@@ -8,6 +8,7 @@ import {
   CreditCard,
   FileCheck2,
   FileText,
+  FlaskConical,
   Gauge,
   Upload,
   Images,
@@ -90,6 +91,7 @@ const groups: NavGroup[] = [
     label: "Developers",
     items: [
       { href: "/api-keys", label: "API keys", icon: KeyRound },
+      { href: "/test-inbox", label: "Test inbox", icon: FlaskConical },
       { href: "/webhooks", label: "Webhooks", icon: Webhook },
       { href: "/sub-tenants", label: "Sub-tenants", icon: Network },
       { href: "/docs", label: "Docs", icon: BookOpen },

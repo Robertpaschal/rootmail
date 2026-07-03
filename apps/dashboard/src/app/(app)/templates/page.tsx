@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { FileText, Plus } from "lucide-react";
+import { FileText, FileUp, Plus } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -33,9 +33,17 @@ export default async function TemplatesPage() {
         title="Templates"
         description="Reusable emails with {{variables}} — send them by slug from the app or the API."
         actions={
-          <Link href="/templates/new" className={cn(buttonVariants({ size: "sm" }))}>
-            <Plus className="size-4" /> New template
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/templates/import"
+              className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
+            >
+              <FileUp className="size-4" /> Import
+            </Link>
+            <Link href="/templates/new" className={cn(buttonVariants({ size: "sm" }))}>
+              <Plus className="size-4" /> New template
+            </Link>
+          </div>
         }
       />
 

@@ -167,8 +167,10 @@ type MessageType = "transactional" | "marketing" | "sales";
 type Priority = "high" | "normal" | "low";
 
 export const api = {
-  listMessages: (q: { limit?: number; status?: MessageStatus } = {}) =>
-    rmFetch<ListResponse<Message>>("/v1/messages", { query: q }),
+  listMessages: (q: { limit?: number; status?: MessageStatus; sandbox?: boolean } = {}) =>
+    rmFetch<ListResponse<Message>>("/v1/messages", {
+      query: { ...q, sandbox: q.sandbox === undefined ? undefined : String(q.sandbox) },
+    }),
   getMessage: (id: string) => rmFetch<Message>(`/v1/messages/${id}`),
   getAudit: (id: string) => rmFetch<AuditTrail>(`/v1/messages/${id}/audit`),
   getProof: (id: string) => rmFetch<ProofResponse>(`/v1/messages/${id}/proof`),

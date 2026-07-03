@@ -25,6 +25,7 @@ function parseCsv(text: string): string[][] {
 export function ImportPanel({ lists }: { lists: { id: string; name: string }[] }) {
   const [kind, setKind] = useState<Kind>("suppressions");
   const [csv, setCsv] = useState("");
+  const [fileName, setFileName] = useState<string | null>(null);
   const [listId, setListId] = useState("");
   const [result, setResult] = useState<ImportResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -97,9 +98,42 @@ export function ImportPanel({ lists }: { lists: { id: string; name: string }[] }
 
       <p className="text-sm text-muted-foreground">
         {kind === "suppressions"
-          ? "Paste your previous provider's suppression export (SendGrid, Postmark, Mailgun…). We detect the email column and map bounce / spam / unsubscribe reasons automatically."
-          : "Paste a contacts CSV. We detect the email and name columns. Imports never trigger sequences, so migrated contacts won't be auto-enrolled."}
+          ? "Upload or paste your previous provider's suppression export (SendGrid, Postmark, Mailgun…). We detect the email column and map bounce / spam / unsubscribe reasons automatically."
+          : "Upload or paste a contacts CSV. We detect the email and name columns. Imports never trigger sequences, so migrated contacts won't be auto-enrolled."}
       </p>
+
+      <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-5 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground">
+        <Upload className="size-4" />
+        {fileName ? (
+          <span>
+            <span className="font-medium text-foreground">{fileName}</span> loaded — review below,
+            or choose another file
+          </span>
+        ) : (
+          <span>
+            Drop your <span className="font-medium text-foreground">.csv</span> export here or
+            click to choose a file
+          </span>
+        )}
+        <input
+          type="file"
+          accept=".csv,.txt,text/csv,text/plain"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (!f) return;
+            const reader = new FileReader();
+            reader.onload = () => {
+              setCsv(String(reader.result ?? ""));
+              setFileName(f.name);
+              setResult(null);
+              setError(null);
+            };
+            reader.readAsText(f);
+            e.target.value = ""; // allow re-selecting the same file
+          }}
+        />
+      </label>
 
       <Textarea
         rows={8}

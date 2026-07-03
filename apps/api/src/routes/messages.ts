@@ -58,6 +58,8 @@ const sendBody = z.object({
 const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
   status: z.enum(MESSAGE_STATUSES).optional(),
+  // "true" → only sandbox sends (the test inbox); "false" → only live mail.
+  sandbox: z.enum(["true", "false"]).optional(),
 });
 
 const eventBody = z.object({
@@ -342,6 +344,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     const q = parse(listQuery, req.query);
     const conditions = [eq(messages.workspaceId, req.auth.workspace.id)];
     if (q.status) conditions.push(eq(messages.status, q.status));
+    if (q.sandbox) conditions.push(eq(messages.sandbox, q.sandbox === "true"));
     const rows = await db
       .select()
       .from(messages)

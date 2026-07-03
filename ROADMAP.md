@@ -429,23 +429,36 @@ legal-grade proof. Three bets compound on that, in rough priority:
    /v1/retention`) that **redacts** (strips PII but keeps id + content hash + status +
    audit, so messages stay provable) or **deletes** messages past the window, enforced by a
    daily worker sweep; default-disabled (no-op until opted in), owner/admin + Enterprise,
-   surfaced on the `/compliance` page. *Still ahead:* SSO / SAML / SCIM and data residency
-   (already plan features) into a real enterprise tier + a SOC 2 path — the Sales CRM +
-   custom plans already shipped are the GTM rails for it.
+   surfaced on the `/compliance` page. *Also shipped (2026-07-03):* the CAN-SPAM loop is
+   fully self-serve — dashboard **Settings → Sender address** sets the postal address the
+   footer injector uses, and bulk mail carries **RFC 8058 one-click unsubscribe** headers
+   (`List-Unsubscribe` + `List-Unsubscribe-Post`, `POST /v1/unsubscribe` acts immediately
+   on the signed token). *Still ahead (IN PROGRESS — the active build):* SSO / SAML / SCIM
+   and data residency (already plan features) into a real enterprise tier + a SOC 2 path —
+   the Sales CRM + custom plans already shipped are the GTM rails for it. (True multi-region
+   residency infra and IP warm-up pools remain owner-infra items.)
 
 **Supporting bets:** a customer-facing **analytics layer** — *shipped:* the sent →
 delivered → opened → clicked **engagement funnel** with rates, a daily send series, and
 top templates (`GET /v1/analytics`, dashboard `/analytics`, assistant `get_analytics`);
-*still ahead* — per-sequence/campaign breakdowns. Plus **migration on-ramps** — *shipped:* bulk
-**suppression** + **contacts** import (`POST /v1/imports/suppressions|contacts`, dashboard
-`/import`) that maps any provider's CSV export (SendGrid/Postmark/Mailgun) — normalizes
-bounce/spam/unsubscribe reasons, dedupes, and deliberately skips sequence triggers so
-migrated contacts aren't auto-enrolled; *still ahead* — template import. And **developer
-love** — *shipped:* the `@rootmail/node` SDK now covers the full surface (deliverability,
-analytics, compliance export, retention, imports, domain-auth, assistant) and a new
-`@rootmail/cli` (`rootmail send|messages|deliverability|analytics|domains:auth|import:*|
-assistant`, reads `ROOTMAIL_API_KEY`) for terminal/CI use; *still ahead* — Python/Go SDKs
-and a hosted "test inbox" (the dev `.maildir` is the seed of that).
+*shipped (2026-07-02):* **per-campaign and per-sequence breakdowns** — `GET /v1/campaigns/:id/
+analytics` + `/v1/sequences/:id/analytics` (funnel + per-step drop-off), surfaced on the
+campaign detail page and the sequence Engagement card, covered by the SDK. Plus
+**migration on-ramps** — *shipped:* bulk **suppression** + **contacts** import
+(`POST /v1/imports/suppressions|contacts`, dashboard `/import`) that maps any provider's
+CSV export (SendGrid/Postmark/Mailgun) — normalizes bounce/spam/unsubscribe reasons,
+dedupes, and deliberately skips sequence triggers so migrated contacts aren't
+auto-enrolled; *shipped (2026-07-03):* the import page takes a **drag-in .csv file
+upload** (not just paste), and **template import** — upload/paste any HTML file at
+`/templates/import` (live preview, auto name/slug/subject; Handlebars placeholders carry
+over from SendGrid unchanged). And **developer love** — *shipped:* the `@rootmail/node`
+SDK now covers the full surface (deliverability, analytics incl. per-entity, compliance
+export, retention, imports, domain-auth, assistant) and a new `@rootmail/cli`
+(`rootmail send|messages|deliverability|analytics|domains:auth|import:*|assistant`, reads
+`ROOTMAIL_API_KEY`) for terminal/CI use; *shipped (2026-07-03):* the hosted **test
+inbox** — every sandbox send lands on the dashboard's `/test-inbox` with full rendered
+content (`GET /v1/messages?sandbox=true`), no real mailbox needed; *still ahead* —
+Python/Go SDKs.
 
 **Shipped:** a one-click **unsubscribe flow** for admin announcements — every broadcast
 carries a signed opt-out link (`GET /v1/announcements/unsubscribe`, confirm-step page),
