@@ -8,6 +8,8 @@ export interface OutboundEmail {
   text: string;
   dkim?: { domain: string; selector: string; privateKeyPem: string } | null;
   sandbox?: boolean;
+  /** Extra top-level headers, e.g. RFC 8058 one-click unsubscribe on bulk mail. */
+  headers?: { name: string; value: string }[];
 }
 
 export interface SendResult {

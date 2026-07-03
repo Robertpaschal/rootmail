@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CreditCard, FileCheck2, ShieldCheck, UserCog } from "lucide-react";
+import { CreditCard, FileCheck2, MapPin, ShieldCheck, UserCog } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { api } from "@/lib/rootmail";
@@ -27,9 +27,15 @@ const sections = [
     icon: UserCog,
   },
   {
+    href: "/settings/sender",
+    title: "Sender address",
+    desc: "The postal address on marketing footers — required by anti-spam law.",
+    icon: MapPin,
+  },
+  {
     href: "/compliance",
-    title: "Sending & compliance",
-    desc: "Your sender address and exportable proof of delivery.",
+    title: "Compliance & proof",
+    desc: "Exportable, signed proof of delivery and data-retention policies.",
     icon: FileCheck2,
   },
 ];

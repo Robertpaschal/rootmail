@@ -25,6 +25,7 @@ function buildEml(email: OutboundEmail, messageIdHeader: string): string {
       ? `X-Rootmail-DKIM: selector=${email.dkim.selector}; domain=${email.dkim.domain}; signed`
       : null,
     email.sandbox ? "X-Rootmail-Sandbox: true" : null,
+    ...(email.headers ?? []).map((h) => `${h.name}: ${h.value}`),
     "MIME-Version: 1.0",
     `Content-Type: multipart/alternative; boundary="${boundary}"`,
   ].filter((h): h is string => h !== null);

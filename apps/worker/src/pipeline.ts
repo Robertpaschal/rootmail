@@ -89,6 +89,22 @@ export async function processSend(data: SendJobData): Promise<void> {
     }
   }
 
+  // RFC 8058 one-click unsubscribe on bulk mail (a Gmail/Yahoo bulk-sender
+  // requirement): the signed per-recipient unsubscribe URL was injected into the
+  // template variables at create time; surface it as headers so mailbox providers
+  // can render their native "Unsubscribe" affordance. Transactional mail is exempt.
+  const unsubUrl =
+    message.type === "marketing" || message.type === "sales"
+      ? (message.variables as Record<string, unknown> | null)?.unsubscribe_url
+      : undefined;
+  const headers =
+    typeof unsubUrl === "string" && unsubUrl
+      ? [
+          { name: "List-Unsubscribe", value: `<${unsubUrl}>` },
+          { name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click" },
+        ]
+      : undefined;
+
   const provider = getProviderFor(message.sandbox);
   try {
     const result = await provider.send({
@@ -101,6 +117,7 @@ export async function processSend(data: SendJobData): Promise<void> {
       text: message.renderedText ?? "",
       dkim,
       sandbox: message.sandbox,
+      headers,
     });
 
     await db

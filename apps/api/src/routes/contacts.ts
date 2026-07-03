@@ -149,4 +149,25 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       ),
     );
   });
+
+  // RFC 8058 one-click unsubscribe: mailbox providers POST to the List-Unsubscribe
+  // URL when the user hits their native "Unsubscribe" button. Must act immediately
+  // with NO confirmation step (that's the spec) — the HMAC-signed token is the
+  // authorization. Same effects as the confirmed GET above.
+  app.post("/v1/unsubscribe", async (req, reply) => {
+    const { token } = req.query as { token?: string };
+    const payload = token ? verifyUnsubscribeToken(token) : null;
+    if (!payload) return reply.code(400).send({ ok: false, error: "invalid token" });
+
+    const existing = await findContact(payload.w, payload.s ?? null, payload.e);
+    if (existing) {
+      await db
+        .update(contacts)
+        .set({ status: "unsubscribed", updatedAt: new Date() })
+        .where(eq(contacts.id, existing.id));
+    }
+    await addSuppression(payload.w, payload.s ?? null, payload.e, "unsubscribe", null, "one_click");
+    void exitEnrollments(payload.w, payload.e, "unsubscribed");
+    return reply.send({ ok: true });
+  });
 }

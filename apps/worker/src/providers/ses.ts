@@ -32,6 +32,10 @@ export class SesProvider implements MailProvider {
               Html: { Data: email.html, Charset: "UTF-8" },
               Text: { Data: email.text, Charset: "UTF-8" },
             },
+            // e.g. List-Unsubscribe / List-Unsubscribe-Post on marketing sends.
+            Headers: email.headers?.length
+              ? email.headers.map((h) => ({ Name: h.name, Value: h.value }))
+              : undefined,
           },
         },
       }),
