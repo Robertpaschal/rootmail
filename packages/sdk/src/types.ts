@@ -247,6 +247,26 @@ export interface Analytics {
   top_templates: { template_id: string | null; name: string; sent: number; delivered: number; delivered_rate: number }[];
 }
 
+/** Per-entity engagement rollup shared by campaign and sequence analytics. */
+export interface EntityFunnel {
+  total: number;
+  by_status: Record<string, number>;
+  funnel: { sent: number; delivered: number; opened: number; clicked: number };
+  rates: { delivery: number; open: number; click: number; click_to_open: number; bounce: number };
+}
+
+export interface CampaignAnalytics extends EntityFunnel {
+  object: "campaign_analytics";
+  campaign_id: string;
+}
+
+export interface SequenceAnalytics extends EntityFunnel {
+  object: "sequence_analytics";
+  sequence_id: string;
+  /** Engagement per sequence step — where the drip drops off. */
+  steps: { step: number; sent: number; delivered: number; opened: number; clicked: number }[];
+}
+
 export interface EmailAuthReport {
   object: "email_auth";
   sub_tenant_id: string;

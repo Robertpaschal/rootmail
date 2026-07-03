@@ -1,5 +1,5 @@
 import type { RootMail } from "../client";
-import type { Campaign, ListResponse } from "../types";
+import type { Campaign, CampaignAnalytics, ListResponse } from "../types";
 
 export class Campaigns {
   constructor(private readonly client: RootMail) {}
@@ -10,6 +10,11 @@ export class Campaigns {
 
   get(id: string): Promise<Campaign> {
     return this.client.request({ method: "GET", path: `/v1/campaigns/${id}` });
+  }
+
+  /** The campaign's own sent → delivered → opened → clicked funnel and rates. */
+  analytics(id: string): Promise<CampaignAnalytics> {
+    return this.client.request({ method: "GET", path: `/v1/campaigns/${id}/analytics` });
   }
 
   update(

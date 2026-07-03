@@ -105,8 +105,10 @@ Threat-modelled **price · service · product**; documented in `SECURITY.md`
 - [x] **3.4 Service abuse** — verified already enforced: global + per-route rate limits,
       webhook SSRF guard, signed idempotent inbound webhooks, Ed25519 proof with
       content-hash, role-gated + audited impersonation (7.2b).
-- [ ] _Minor residual:_ AI-credit check is read-then-record (rate-limit-bounded), not
-      yet atomic like the send quota.
+- [x] _Minor residual — FIXED 2026-07-02:_ AI-credit metering is now atomic like the
+      send quota (`tryConsumeAiCredit` reserves one credit in a single conditional
+      UPDATE before the run; the real call count is reconciled after, refunding
+      keyless/failed runs).
 
 ### 4. Auth & no-seed operability *(branch `feat/auth-no-seed`)*
 - [x] **4.1** Verified: sign-in is **session-only** (email/password + OAuth; no

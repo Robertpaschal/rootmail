@@ -1,5 +1,5 @@
 import type { RootMail } from "../client";
-import type { Enrollment, ListResponse, Sequence } from "../types";
+import type { Enrollment, ListResponse, Sequence, SequenceAnalytics } from "../types";
 
 export interface SequenceParams {
   name: string;
@@ -17,6 +17,11 @@ export class Sequences {
 
   get(id: string): Promise<Sequence> {
     return this.client.request({ method: "GET", path: `/v1/sequences/${id}` });
+  }
+
+  /** The sequence's engagement funnel plus per-step drop-off. */
+  analytics(id: string): Promise<SequenceAnalytics> {
+    return this.client.request({ method: "GET", path: `/v1/sequences/${id}/analytics` });
   }
 
   create(params: SequenceParams): Promise<Sequence> {
