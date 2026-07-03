@@ -177,6 +177,7 @@ export interface Organization {
   name: string;
   plan: PlanId;
   postal_address: string | null;
+  data_region: string;
 }
 
 export interface Plan {

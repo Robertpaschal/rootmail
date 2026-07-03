@@ -567,6 +567,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       plan: org.plan,
       plan_status: org.planStatus,
       postal_address: org.postalAddress ?? null,
+      data_region: org.dataRegion,
       stripe_customer_id: org.stripeCustomerId ?? null,
       stripe_subscription_id: org.stripeSubscriptionId ?? null,
       created_at: org.createdAt,

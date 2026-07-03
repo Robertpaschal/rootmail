@@ -86,7 +86,32 @@ hardening review. (For reporting a vulnerability, email security@rootmail.io.)
   the overage prices recreated as recurring metered + their meter `event_name`s set
   (see ROADMAP "Blocked on you"). High-volume paid sends bill rather than block (by
   design).
-- Minor: the AI-credit check is read-then-record (not atomic like the send quota); the
-  per-route rate limits + the 6-call cap bound any boundary overshoot.
+- ~~Minor: the AI-credit check is read-then-record~~ — **fixed 2026-07-02**: metering
+  is atomic (`tryConsumeAiCredit`, single conditional UPDATE), reconciled post-run.
 - A dedicated dependency/secret-scanning step in CI.
 - Full accessibility/UX audit (workstream 2.3).
+
+## SOC 2 readiness map (the path)
+
+Everything above is the *technical* evidence base, mapped roughly to the Trust
+Services Criteria: access control (CC6) = the Authentication/Authorization
+sections + staff RBAC + audited, time-boxed impersonation; change management
+(CC8) = CI-built images deployed by immutable `:sha` tags, versioned migrations,
+append-only message + staff audit logs; operations (CC7) = `/health` gating
+deploys, rate limits and abuse gates, suppression-before-send, CAN-SPAM footer +
+RFC 8058 one-click unsubscribe; confidentiality = TLS everywhere, VPC-only data
+stores, hash-only credentials, HMAC-signed links, Ed25519-signed exports,
+retention redact/delete, recorded per-org data region (`organizations.data_region`).
+
+**Sub-processors:** AWS (SES, RDS, ElastiCache, EC2), Stripe, Anthropic, GitHub,
+Docker Hub.
+
+**What remains is organizational, not code (owner actions):**
+1. Written policies — InfoSec, access review, incident response, vendor
+   management, BC/DR (the controls exist; the documents don't).
+2. Recurring access reviews (staff accounts, AWS IAM, GitHub, Stripe) with
+   sign-off records.
+3. A documented, *tested* RDS restore drill (automated backups are on).
+4. An external penetration test + remediation log.
+5. Pick an auditor / readiness platform (Vanta, Drata, Secureframe all cover
+   this AWS + GitHub + Stripe stack), run the Type I window, then Type II.

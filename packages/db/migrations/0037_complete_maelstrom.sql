@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "data_region" text DEFAULT 'us-east-1' NOT NULL;

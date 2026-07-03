@@ -32,6 +32,8 @@ function serialize(org: Organization) {
     name: org.name,
     plan: org.plan,
     postal_address: org.postalAddress ?? null,
+    // Residency surface — where this org's data lives (staff-managed).
+    data_region: org.dataRegion,
   };
 }
 

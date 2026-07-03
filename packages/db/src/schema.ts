@@ -140,6 +140,9 @@ export const organizations = pgTable("organizations", {
   billingInterval: billingIntervalEnum("billing_interval").notNull().default("month"),
   // Physical postal address shown in the CAN-SPAM footer on marketing/sales mail.
   postalAddress: text("postal_address"),
+  // Where this org's data lives (enterprise residency surface). Single-region
+  // today; additional regions are an infra rollout, set by staff when available.
+  dataRegion: text("data_region").notNull().default("us-east-1"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

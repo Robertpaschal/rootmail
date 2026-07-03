@@ -1,20 +1,27 @@
-import { Clock, FileCheck2, ShieldCheck } from "lucide-react";
+import { Clock, FileCheck2, Globe2, ShieldCheck } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { FeatureLocked } from "@/components/app/feature-locked";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { RetentionPolicy } from "@/lib/types";
+import type { Organization, RetentionPolicy } from "@/lib/types";
 import { ExportForm } from "./export-form";
 import { RetentionForm } from "./retention-form";
+
+// Human labels for the regions rootmail can pin an org's data to.
+const REGION_LABELS: Record<string, string> = {
+  "us-east-1": "United States — US East (N. Virginia)",
+};
 
 export default async function CompliancePage() {
   let hasProof = false;
   let retention: RetentionPolicy | null = null;
+  let org: Organization | null = null;
   try {
     const billing = await api.getBilling();
     hasProof = billing.plan.features.includes("proof");
     if (hasProof) retention = await api.getRetention().catch(() => null);
+    org = await api.getOrganization().catch(() => null);
   } catch (err) {
     return (
       <>
@@ -84,6 +91,32 @@ export default async function CompliancePage() {
             </CardHeader>
             <CardContent>
               <RetentionForm policy={retention} />
+            </CardContent>
+          </Card>
+        ) : null}
+
+        {org ? (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Globe2 className="size-4 text-muted-foreground" />
+                Data residency
+              </CardTitle>
+              <CardDescription>
+                Where this organization&apos;s data — messages, contacts, audit trail — is stored
+                and processed.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <p>
+                <span className="font-medium">{REGION_LABELS[org.data_region] ?? org.data_region}</span>{" "}
+                <span className="font-mono text-xs text-muted-foreground">({org.data_region})</span>
+              </p>
+              <p className="text-muted-foreground">
+                Residency is pinned per organization and changed only by rootmail staff. If your
+                compliance posture requires an EU region, raise it with support — regional
+                expansion is planned with the enterprise rollout.
+              </p>
             </CardContent>
           </Card>
         ) : null}

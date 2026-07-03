@@ -106,6 +106,9 @@ function OverviewTab({ org }: { org: OrgDetail }) {
               <span className="text-muted-foreground">Not set</span>
             )}
           </Row>
+          <Row label="Data region">
+            <span className="font-mono text-xs">{org.data_region}</span>
+          </Row>
         </CardContent>
       </Card>
 
