@@ -12,6 +12,7 @@ const tabs = [
   { href: "/settings/profile", label: "Profile" },
   { href: "/settings/security", label: "Security & login" },
   { href: "/settings/sender", label: "Sender address" },
+  { href: "/settings/sso", label: "Single sign-on" },
 ];
 
 export function SettingsTabs() {

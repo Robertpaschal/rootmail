@@ -11,6 +11,24 @@ import { changelogEntries } from "./schema";
 
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Single sign-on (SAML) for your team",
+    date: "2026-07-04",
+    changes: [
+      {
+        kind: "New",
+        text: "Enterprise workspaces can now connect a SAML identity provider — Okta, Microsoft Entra ID, Google Workspace, or any SAML 2.0 IdP. Set it up in Settings → Single sign-on.",
+      },
+      {
+        kind: "New",
+        text: "Members sign in with “Log in with SSO”: enter your work email and you're routed to your company's identity provider. New teammates are provisioned automatically on first login.",
+      },
+      {
+        kind: "New",
+        text: "Optional enforcement turns off password login for your domain, so everyone signs in through your IdP.",
+      },
+    ],
+  },
+  {
     title: "Clearer settings, enterprise foundations",
     date: "2026-07-04",
     changes: [

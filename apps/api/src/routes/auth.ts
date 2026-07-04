@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
@@ -16,7 +16,7 @@ import {
   verifyPassword,
   verifyTotp,
 } from "@rootmail/core";
-import { db, impersonationGrants, sessions, type User, users } from "@rootmail/db";
+import { db, impersonationGrants, sessions, ssoConnections, type User, users } from "@rootmail/db";
 import {
   createSession,
   defaultWorkspaceForUser,
@@ -174,6 +174,26 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post("/v1/auth/login", async (req) => {
     const body = parse(loginBody, req.body);
     const email = body.email.toLowerCase();
+
+    // If the org enforces SSO for this email domain, password login is off. This is
+    // a domain-level check (no user enumeration) — it only reveals the SSO policy.
+    const domain = email.split("@")[1] ?? "";
+    if (domain) {
+      const [enforced] = await db
+        .select({ id: ssoConnections.id })
+        .from(ssoConnections)
+        .where(
+          and(
+            eq(ssoConnections.emailDomain, domain),
+            eq(ssoConnections.enforced, true),
+            eq(ssoConnections.active, true),
+          ),
+        )
+        .limit(1);
+      if (enforced) {
+        throw Errors.forbidden("Your organization requires single sign-on. Use “Log in with SSO”.");
+      }
+    }
 
     if (await isLockedOut("pw", email)) {
       throw Errors.rateLimited("Too many failed login attempts. Try again in a few minutes.");

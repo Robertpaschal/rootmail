@@ -31,6 +31,9 @@ import type {
   RolesResult,
   Sequence,
   SequenceAnalytics,
+  SsoConnection,
+  SsoConnectionInput,
+  SsoConnectionResult,
   SequenceStepDef,
   SequenceTriggerDef,
   UploadedAsset,
@@ -305,6 +308,13 @@ export const api = {
   setRetention: (body: { retention_days: number | null; retention_mode?: "redact" | "delete" }) =>
     rmFetch<RetentionPolicy>("/v1/retention", { method: "PUT", body }),
 
+  // SAML single sign-on (enterprise) — the org's one connection.
+  getSsoConnection: () => rmFetch<SsoConnectionResult>("/v1/sso/connection"),
+  putSsoConnection: (body: SsoConnectionInput) =>
+    rmFetch<SsoConnection>("/v1/sso/connection", { method: "PUT", body }),
+  deleteSsoConnection: () =>
+    rmFetch<SsoConnectionResult>("/v1/sso/connection", { method: "DELETE" }),
+
   // Starts a plan change. In Stripe mode returns a hosted Checkout URL; in local
   // mode applies the switch and returns the updated billing.
   checkout: (plan: string, interval: "month" | "year" = "month") =>
@@ -517,4 +527,43 @@ export async function oauthUpsert(body: {
   }
   if (!res.ok) throw new ApiError(res.status, "Social login failed");
   return (await res.json()) as AuthSession;
+}
+
+// --- SAML SSO login relay (dashboard → API, internal secret) ---------------
+async function ssoInternal<T>(path: string, body: unknown): Promise<T> {
+  const secret = process.env.INTERNAL_API_SECRET;
+  if (!secret) throw new Error("INTERNAL_API_SECRET is not set");
+  let res: Response;
+  try {
+    res = await fetch(new URL(path, API_URL), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Rootmail-Internal": secret },
+      body: JSON.stringify(body),
+      cache: "no-store",
+    });
+  } catch {
+    throw new ConnectionError(`Cannot reach the rootmail API at ${API_URL}.`);
+  }
+  if (!res.ok) throw new ApiError(res.status, "SSO request failed");
+  return (await res.json()) as T;
+}
+
+/** Does this email's domain use SSO? Returns the connection id to start the flow. */
+export function ssoDiscover(email: string) {
+  return ssoInternal<{ connection_id: string | null; enforced: boolean }>(
+    "/v1/auth/sso/discover",
+    { email },
+  );
+}
+
+/** Build the IdP redirect (AuthnRequest) for a connection. */
+export function samlAuthorize(connectionId: string) {
+  return ssoInternal<{ url: string }>(`/v1/auth/saml/${connectionId}/authorize`, {});
+}
+
+/** Validate the IdP's SAML response and mint a session (JIT-provisions the member). */
+export function samlAcs(connectionId: string, samlResponse: string) {
+  return ssoInternal<AuthSession>(`/v1/auth/saml/${connectionId}/acs`, {
+    saml_response: samlResponse,
+  });
 }

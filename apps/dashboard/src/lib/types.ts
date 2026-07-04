@@ -180,6 +180,39 @@ export interface Organization {
   data_region: string;
 }
 
+/** A SAML SSO connection — with the SP values (entity id, ACS, metadata) the
+ * customer pastes into their identity provider. */
+export interface SsoConnection {
+  object: "sso_connection";
+  id: string;
+  email_domain: string;
+  idp_entity_id: string;
+  idp_sso_url: string;
+  default_role: "admin" | "member";
+  enforced: boolean;
+  active: boolean;
+  sp_entity_id: string;
+  acs_url: string;
+  metadata_url: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SsoConnectionResult {
+  object: "sso_connection_result";
+  connection: SsoConnection | null;
+}
+
+export interface SsoConnectionInput {
+  email_domain: string;
+  idp_entity_id: string;
+  idp_sso_url: string;
+  idp_certificate: string;
+  default_role: "admin" | "member";
+  enforced: boolean;
+  active: boolean;
+}
+
 export interface Plan {
   id: PlanId;
   name: string;

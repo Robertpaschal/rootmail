@@ -1171,3 +1171,36 @@ export const announcements = pgTable("announcements", {
 
 export type Announcement = typeof announcements.$inferSelect;
 export type NewAnnouncement = typeof announcements.$inferInsert;
+
+// --- SAML single sign-on ----------------------------------------------------
+// One SAML connection per organization (enterprise). The IdP config the org's
+// admin pastes from Okta/Azure/etc.; email_domain routes "Log in with SSO" to the
+// right IdP; enforced blocks password login for that domain; default_role is the
+// role JIT-provisioned members receive on first SSO login.
+export const ssoConnections = pgTable(
+  "sso_connections",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    // Lower-cased email domain this connection covers (e.g. "acme.com").
+    emailDomain: text("email_domain").notNull(),
+    idpEntityId: text("idp_entity_id").notNull(),
+    idpSsoUrl: text("idp_sso_url").notNull(),
+    // The IdP's x509 signing certificate (PEM body, no headers required).
+    idpCertificate: text("idp_certificate").notNull(),
+    defaultRole: text("default_role").notNull().default("member"),
+    enforced: boolean("enforced").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => ({
+    orgIdx: uniqueIndex("sso_connections_org_idx").on(t.organizationId),
+    domainIdx: uniqueIndex("sso_connections_domain_idx").on(t.emailDomain),
+  }),
+);
+
+export type SsoConnection = typeof ssoConnections.$inferSelect;
+export type NewSsoConnection = typeof ssoConnections.$inferInsert;

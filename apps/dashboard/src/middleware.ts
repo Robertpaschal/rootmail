@@ -15,6 +15,13 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // The SSO flow (email prompt → IdP redirect → ACS) is the same shape: the ACS
+  // mints the session, so it must run without one, and a signed-in user shouldn't
+  // be bounced mid-flow. Let the whole /sso subtree through.
+  if (pathname === "/sso" || pathname.startsWith("/sso/")) {
+    return NextResponse.next();
+  }
+
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   // Not signed in → send to login.

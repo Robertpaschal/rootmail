@@ -47,6 +47,7 @@ export const ID_PREFIXES = {
   supportTicket: "tkt",
   supportMessage: "tkm",
   announcement: "ann",
+  ssoConnection: "sso",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

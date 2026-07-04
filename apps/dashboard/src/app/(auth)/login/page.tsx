@@ -33,6 +33,14 @@ export default async function LoginPage({
             ) : null}
             <OAuthButtons />
             <LoginForm />
+            <div className="mt-4 border-t pt-4 text-center">
+              <Link
+                href="/sso"
+                className="text-sm font-medium text-muted-foreground hover:text-foreground"
+              >
+                Log in with single sign-on (SSO)
+              </Link>
+            </div>
           </CardContent>
         </Card>
         <p className="mt-4 text-center text-sm text-muted-foreground">
