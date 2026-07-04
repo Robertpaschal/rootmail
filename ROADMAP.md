@@ -439,9 +439,14 @@ legal-grade proof. Three bets compound on that, in rough priority:
    the existing org, domain-routed "Log in with SSO", optional enforcement (blocks password
    login for the domain), Enterprise-gated Settings → Single sign-on. Proven by a crypto
    round-trip (`apps/api/scripts/saml-smoke.ts`: valid accepted; tampered + wrong-signer
-   rejected). Data residency + a SOC 2 readiness map also shipped (above). *Still ahead
-   (the active build):* **SCIM 2.0** provisioning — auto-deprovision when the IdP removes a
-   user. (True multi-region residency infra and IP warm-up pools remain owner-infra items.)
+   rejected). Data residency + a SOC 2 readiness map also shipped (above). *Shipped
+   (2026-07-04):* **SCIM 2.0 provisioning** — `/scim/v2/Users` (list/get/create/replace/
+   patch/delete) + ServiceProviderConfig, per-org bearer token, JIT create + immediate
+   deprovision (an inactive membership grants no access — enforced in `userWorkspaces` /
+   `workspaceForUser`, sessions killed on deactivate). Verified by `scripts/scim-smoke.ts`
+   (provision → access → deactivate revokes → reactivate restores). **The enterprise tier
+   is now functionally complete.** (True multi-region residency infra and IP warm-up pools
+   remain owner-infra items; Python/Go SDKs are the additive long-tail.)
 
 **Supporting bets:** a customer-facing **analytics layer** — *shipped:* the sent →
 delivered → opened → clicked **engagement funnel** with rates, a daily send series, and

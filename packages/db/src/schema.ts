@@ -314,6 +314,11 @@ export const memberships = pgTable(
     role: membershipRoleEnum("role").notNull().default("owner"),
     // When set, a custom role (Scale) overrides the system role's permissions.
     customRoleId: text("custom_role_id").references(() => roles.id, { onDelete: "set null" }),
+    // Deactivated by SCIM deprovisioning — an inactive membership grants no access
+    // to the org (enforced in userWorkspaces / workspaceForUser).
+    active: boolean("active").notNull().default(true),
+    // The identity provider's user id, when provisioned via SCIM.
+    scimExternalId: text("scim_external_id"),
     createdAt: createdAt(),
   },
   (t) => [uniqueIndex("memberships_user_org_uq").on(t.userId, t.organizationId)],
@@ -1193,6 +1198,9 @@ export const ssoConnections = pgTable(
     defaultRole: text("default_role").notNull().default("member"),
     enforced: boolean("enforced").notNull().default(false),
     active: boolean("active").notNull().default(true),
+    // SHA-256 of the SCIM bearer token (the IdP authenticates provisioning with it).
+    // Null = SCIM provisioning disabled for this org.
+    scimTokenHash: text("scim_token_hash"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

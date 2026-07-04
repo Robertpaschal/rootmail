@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { env, Errors, type MembershipRole, newId } from "@rootmail/core";
+import { env, Errors, type MembershipRole, newId, randomToken, sha256Hex } from "@rootmail/core";
 import { db, ssoConnections } from "@rootmail/db";
 import { createSession, userWorkspaces } from "../lib/auth";
 import { requireFeature } from "../lib/features";
@@ -38,6 +38,10 @@ function serializeConnection(c: typeof ssoConnections.$inferSelect) {
     sp_entity_id: spEntityId(c.id),
     acs_url: acsUrl(c.id),
     metadata_url: `${env.PUBLIC_API_URL}/v1/auth/saml/${c.id}/metadata`,
+    // SCIM provisioning status + where the IdP points (the token is shown only once,
+    // on generation — we store just its hash).
+    scim_enabled: c.scimTokenHash != null,
+    scim_base_url: `${env.PUBLIC_API_URL}/scim/v2`,
     created_at: c.createdAt.toISOString(),
     updated_at: c.updatedAt.toISOString(),
   };
@@ -211,5 +215,33 @@ export async function samlRoutes(app: FastifyInstance): Promise<void> {
     await requirePermission(req, "members.manage");
     await db.delete(ssoConnections).where(eq(ssoConnections.organizationId, org.id));
     return { object: "sso_connection_result", connection: null };
+  });
+
+  // --- SCIM provisioning token (shown once) -------------------------------
+  app.post("/v1/sso/scim/token", async (req) => {
+    const org = await requireFeature(req, "sso");
+    await requirePermission(req, "members.manage");
+    const [conn] = await db
+      .select({ id: ssoConnections.id })
+      .from(ssoConnections)
+      .where(eq(ssoConnections.organizationId, org.id))
+      .limit(1);
+    if (!conn) throw Errors.badRequest("Set up a SAML connection before enabling SCIM provisioning.");
+    const token = `rmscim_${randomToken(24)}`;
+    await db
+      .update(ssoConnections)
+      .set({ scimTokenHash: sha256Hex(token), updatedAt: new Date() })
+      .where(eq(ssoConnections.id, conn.id));
+    return { object: "scim_token", token, base_url: `${env.PUBLIC_API_URL}/scim/v2` };
+  });
+
+  app.delete("/v1/sso/scim/token", async (req) => {
+    const org = await requireFeature(req, "sso");
+    await requirePermission(req, "members.manage");
+    await db
+      .update(ssoConnections)
+      .set({ scimTokenHash: null, updatedAt: new Date() })
+      .where(eq(ssoConnections.organizationId, org.id));
+    return { object: "scim_token", token: null };
   });
 }

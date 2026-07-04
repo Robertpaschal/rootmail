@@ -274,6 +274,13 @@
       "when": 1783158888853,
       "tag": "0038_cool_fenris",
       "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1783160501407,
+      "tag": "0039_petite_masque",
+      "breakpoints": true
     }
   ]
 }

@@ -232,7 +232,8 @@ export async function userWorkspaces(userId: string): Promise<Workspace[]> {
     .select({ workspace: workspaces })
     .from(memberships)
     .innerJoin(workspaces, eq(workspaces.organizationId, memberships.organizationId))
-    .where(eq(memberships.userId, userId));
+    // An inactive membership (SCIM-deprovisioned) grants no workspace access.
+    .where(and(eq(memberships.userId, userId), eq(memberships.active, true)));
   return rows.map((r) => r.workspace);
 }
 
@@ -245,7 +246,13 @@ export async function workspaceForUser(
     .select({ workspace: workspaces })
     .from(workspaces)
     .innerJoin(memberships, eq(memberships.organizationId, workspaces.organizationId))
-    .where(and(eq(workspaces.id, workspaceId), eq(memberships.userId, userId)))
+    .where(
+      and(
+        eq(workspaces.id, workspaceId),
+        eq(memberships.userId, userId),
+        eq(memberships.active, true),
+      ),
+    )
     .limit(1);
   return row?.workspace ?? null;
 }

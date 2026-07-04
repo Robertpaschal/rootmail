@@ -27,6 +27,7 @@ const conn = (cert: string): SsoConnection => ({
   defaultRole: "member",
   enforced: false,
   active: true,
+  scimTokenHash: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 });

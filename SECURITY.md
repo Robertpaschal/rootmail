@@ -14,8 +14,11 @@ hardening review. (For reporting a vulnerability, email security@rootmail.io.)
   `@node-saml/node-saml` — the IdP's assertion signature is verified against the
   org's configured x509 cert (never hand-rolled), logins are bound to the
   connection's email domain, members are JIT-provisioned into the existing org,
-  and optional per-domain enforcement disables password login. SCIM 2.0
-  provisioning is the next build.
+  and optional per-domain enforcement disables password login.
+- **SCIM 2.0 provisioning.** Per-org bearer-token endpoints (`/scim/v2/Users`)
+  let the IdP create/update/deactivate members; a deprovisioned (inactive)
+  membership grants no access — enforced centrally in workspace resolution,
+  with the user's sessions killed on deactivate.
 - **Brute-force controls.** Per-identity login lockout (10 failures → 429 for 15 min,
   on `/login` and `/mfa/verify`) and a per-IP sign-up cap (10/hour).
 - **Public surface is explicit.** Only `/health`, `/v1/webhooks/*`, `/v1/auth/*`,

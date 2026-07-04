@@ -6,6 +6,7 @@ import { ApiError, api } from "@/lib/rootmail";
 export interface ProfileState {
   ok?: boolean;
   error?: string;
+  name?: string | null;
 }
 
 // A profile change shows up in two places: the settings page and the app shell
@@ -23,7 +24,7 @@ export async function saveProfileName(
   try {
     await api.updateProfile({ name: name || null });
     refreshProfileSurfaces();
-    return { ok: true };
+    return { ok: true, name: name || null };
   } catch (err) {
     return { error: err instanceof ApiError ? err.message : "Couldn't save your name." };
   }

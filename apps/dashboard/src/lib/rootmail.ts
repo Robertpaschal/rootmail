@@ -31,6 +31,7 @@ import type {
   RolesResult,
   Sequence,
   SequenceAnalytics,
+  ScimTokenResult,
   SsoConnection,
   SsoConnectionInput,
   SsoConnectionResult,
@@ -314,6 +315,8 @@ export const api = {
     rmFetch<SsoConnection>("/v1/sso/connection", { method: "PUT", body }),
   deleteSsoConnection: () =>
     rmFetch<SsoConnectionResult>("/v1/sso/connection", { method: "DELETE" }),
+  generateScimToken: () => rmFetch<ScimTokenResult>("/v1/sso/scim/token", { method: "POST" }),
+  disableScim: () => rmFetch<ScimTokenResult>("/v1/sso/scim/token", { method: "DELETE" }),
 
   // Starts a plan change. In Stripe mode returns a hosted Checkout URL; in local
   // mode applies the switch and returns the updated billing.

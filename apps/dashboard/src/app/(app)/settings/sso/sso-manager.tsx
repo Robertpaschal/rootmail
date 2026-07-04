@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SsoConnection } from "@/lib/types";
-import { deleteSsoConnection, saveSsoConnection, type SsoState } from "./actions";
+import { deleteSsoConnection, disableScim, enableScim, saveSsoConnection, type SsoState } from "./actions";
 
 function CopyRow({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
@@ -65,6 +65,8 @@ export function SsoManager({ connection }: { connection: SsoConnection | null })
           </CardContent>
         </Card>
       ) : null}
+
+      {connection ? <ScimCard connection={connection} /> : null}
 
       <Card>
         <CardHeader className="flex-row items-start justify-between space-y-0">
@@ -230,6 +232,85 @@ export function SsoManager({ connection }: { connection: SsoConnection | null })
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function ScimCard({ connection }: { connection: SsoConnection }) {
+  const [enabled, setEnabled] = useState(connection.scim_enabled);
+  const [token, setToken] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
+  const generate = () =>
+    start(async () => {
+      setError(null);
+      const res = await enableScim();
+      if (res.error) setError(res.error);
+      else {
+        setToken(res.token ?? null);
+        setEnabled(true);
+      }
+    });
+
+  const disable = () =>
+    start(async () => {
+      if (!confirm("Disable SCIM? Your IdP will stop provisioning users here.")) return;
+      setError(null);
+      const res = await disableScim();
+      if (res.error) setError(res.error);
+      else {
+        setToken(null);
+        setEnabled(false);
+      }
+    });
+
+  return (
+    <Card>
+      <CardHeader className="flex-row items-start justify-between space-y-0">
+        <div>
+          <CardTitle className="text-base">Automatic provisioning (SCIM)</CardTitle>
+          <CardDescription>
+            Let your IdP create, update, and deactivate members automatically — deprovisioned
+            users lose access immediately.
+          </CardDescription>
+        </div>
+        <Badge variant={enabled ? "success" : "muted"}>{enabled ? "on" : "off"}</Badge>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {enabled ? <CopyRow label="SCIM base URL" value={connection.scim_base_url} /> : null}
+
+        {token ? (
+          <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-50 p-3 dark:bg-amber-950/40">
+            <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+              Copy this bearer token now — it&apos;s shown only once. Paste it into your IdP&apos;s
+              SCIM configuration.
+            </p>
+            <CopyRow label="SCIM token" value={token} />
+          </div>
+        ) : null}
+
+        {error ? <p className="text-sm text-destructive">{error}</p> : null}
+
+        <div className="flex items-center gap-2">
+          <Button type="button" variant="outline" size="sm" disabled={pending} onClick={generate}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
+            {enabled ? "Regenerate token" : "Enable SCIM"}
+          </Button>
+          {enabled ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              disabled={pending}
+              className="text-muted-foreground hover:text-destructive"
+              onClick={disable}
+            >
+              Disable
+            </Button>
+          ) : null}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

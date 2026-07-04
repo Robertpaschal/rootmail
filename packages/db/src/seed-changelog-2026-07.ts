@@ -26,6 +26,10 @@ const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
         kind: "New",
         text: "Optional enforcement turns off password login for your domain, so everyone signs in through your IdP.",
       },
+      {
+        kind: "New",
+        text: "SCIM 2.0 provisioning: connect it in your identity provider and members are created, updated, and deactivated automatically — deprovisioned people lose access immediately.",
+      },
     ],
   },
   {

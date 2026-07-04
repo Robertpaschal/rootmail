@@ -41,3 +41,26 @@ export async function deleteSsoConnection(): Promise<{ error?: string }> {
     return { error: "Couldn't remove the SSO connection." };
   }
 }
+
+// SCIM provisioning: the token is returned once, here — never stored client-side.
+export async function enableScim(): Promise<{ token?: string; base_url?: string; error?: string }> {
+  try {
+    const res = await api.generateScimToken();
+    revalidatePath("/settings/sso");
+    return { token: res.token ?? undefined, base_url: res.base_url };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't enable SCIM provisioning." };
+  }
+}
+
+export async function disableScim(): Promise<{ error?: string }> {
+  try {
+    await api.disableScim();
+    revalidatePath("/settings/sso");
+    return {};
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't disable SCIM provisioning." };
+  }
+}

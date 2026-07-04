@@ -194,8 +194,17 @@ export interface SsoConnection {
   sp_entity_id: string;
   acs_url: string;
   metadata_url: string;
+  scim_enabled: boolean;
+  scim_base_url: string;
   created_at: string;
   updated_at: string;
+}
+
+/** Returned once when SCIM provisioning is enabled — the token is never shown again. */
+export interface ScimTokenResult {
+  object: "scim_token";
+  token: string | null;
+  base_url?: string;
 }
 
 export interface SsoConnectionResult {
