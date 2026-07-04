@@ -182,6 +182,33 @@ export async function reconcileAddonsFromSubscription(
         target: [orgAddons.organizationId, orgAddons.addonId],
         set: { quantity: qty, updatedAt: new Date() },
       });
+    if (id === "dedicated_ip") await syncDedicatedIpProvisioning(orgId, qty);
+  }
+}
+
+/**
+ * A dedicated IP is real infra (an SES dedicated IP / pool) that staff provision.
+ * So buying the add-on flags the org for provisioning rather than pretending it's
+ * instant: none → requested on purchase; requested → none if canceled before it was
+ * ever provisioned; an `active` IP is left for staff to tear down deliberately.
+ */
+export async function syncDedicatedIpProvisioning(orgId: string, qty: number): Promise<void> {
+  const [org] = await db
+    .select({ status: organizations.dedicatedIpStatus })
+    .from(organizations)
+    .where(eq(organizations.id, orgId))
+    .limit(1);
+  if (!org) return;
+  if (qty > 0 && org.status === "none") {
+    await db
+      .update(organizations)
+      .set({ dedicatedIpStatus: "requested", updatedAt: new Date() })
+      .where(eq(organizations.id, orgId));
+  } else if (qty === 0 && org.status === "requested") {
+    await db
+      .update(organizations)
+      .set({ dedicatedIpStatus: "none", updatedAt: new Date() })
+      .where(eq(organizations.id, orgId));
   }
 }
 

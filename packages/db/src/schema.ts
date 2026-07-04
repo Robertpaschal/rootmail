@@ -143,6 +143,11 @@ export const organizations = pgTable("organizations", {
   // Where this org's data lives (enterprise residency surface). Single-region
   // today; additional regions are an infra rollout, set by staff when available.
   dataRegion: text("data_region").notNull().default("us-east-1"),
+  // Dedicated-IP add-on provisioning: none → requested (on purchase) → active
+  // (staff provisions the real SES dedicated IP + records it here). Keeps the
+  // add-on from being silently sold before the IP exists.
+  dedicatedIpStatus: text("dedicated_ip_status").notNull().default("none"),
+  dedicatedIpAddress: text("dedicated_ip_address"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

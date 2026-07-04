@@ -222,6 +222,11 @@ export const adminApi = {
       method: "POST",
       body: { amount_cents: amountCents, reason },
     }),
+  setDedicatedIp: (id: string, status: "none" | "requested" | "active", address?: string | null) =>
+    adminFetch<{ status: string; address: string | null }>(`/v1/admin/orgs/${id}/dedicated-ip`, {
+      method: "PATCH",
+      body: { status, address: address ?? null },
+    }),
 
   listOrgSuppressions: (id: string, limit = 50) =>
     adminFetch<ListResponse<Suppression>>(`/v1/admin/orgs/${id}/suppressions?limit=${limit}`),

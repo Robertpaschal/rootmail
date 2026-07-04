@@ -162,6 +162,8 @@ export interface OrgDetail {
   plan_status: string;
   postal_address: string | null;
   data_region: string;
+  dedicated_ip_status: "none" | "requested" | "active";
+  dedicated_ip_address: string | null;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   created_at: string;

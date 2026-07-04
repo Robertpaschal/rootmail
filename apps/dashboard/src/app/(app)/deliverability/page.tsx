@@ -57,6 +57,10 @@ export default async function DeliverabilityPage() {
     );
   }
 
+  // Best-effort: the dedicated-IP add-on's provisioning status, if purchased.
+  const org = await api.getOrganization().catch(() => null);
+  const dip = org?.dedicated_ip_status ?? "none";
+
   const meta = STATUS_META[d.status];
   const rates = [
     { label: "Delivery rate", value: d.rates.delivery, tone: "text-foreground", suffix: "higher is better" },
@@ -71,6 +75,26 @@ export default async function DeliverabilityPage() {
         title="Deliverability"
         description={`Your sender reputation from real delivery outcomes over the last ${d.window_days} days.`}
       />
+
+      {dip !== "none" ? (
+        <Card className="mb-6 border-l-4 border-l-primary">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <p className="flex items-center gap-2 font-medium">
+                Dedicated IP
+                <Badge variant={dip === "active" ? "success" : "warning"}>
+                  {dip === "active" ? "Active" : "Provisioning"}
+                </Badge>
+              </p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                {dip === "active"
+                  ? `Your mail sends from a dedicated IP${org?.dedicated_ip_address ? ` (${org.dedicated_ip_address})` : ""} — reputation you own.`
+                  : "Your dedicated IP is being set up by our team. We'll email you when it's live, then warm it gradually (usually 1–2 business days to start)."}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Score */}

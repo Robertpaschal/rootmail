@@ -568,6 +568,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       plan_status: org.planStatus,
       postal_address: org.postalAddress ?? null,
       data_region: org.dataRegion,
+      dedicated_ip_status: org.dedicatedIpStatus,
+      dedicated_ip_address: org.dedicatedIpAddress,
       stripe_customer_id: org.stripeCustomerId ?? null,
       stripe_subscription_id: org.stripeSubscriptionId ?? null,
       created_at: org.createdAt,
@@ -987,6 +989,41 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { object: "credit", amount_cents, applied: true };
+  });
+
+  // Dedicated-IP provisioning: staff move an org through requested → active once
+  // the real SES dedicated IP exists, recording the address.
+  app.patch("/v1/admin/orgs/:id/dedicated-ip", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "support.manage");
+    const { id } = req.params as { id: string };
+    const b = parse(
+      z.object({
+        status: z.enum(["none", "requested", "active"]),
+        address: z.string().trim().max(64).nullable().optional(),
+      }),
+      req.body,
+    );
+    const [org] = await db
+      .select({ id: organizations.id })
+      .from(organizations)
+      .where(eq(organizations.id, id))
+      .limit(1);
+    if (!org) throw Errors.notFound("Organization not found");
+    const address = b.status === "active" ? (b.address ?? null) : null;
+    await db
+      .update(organizations)
+      .set({ dedicatedIpStatus: b.status, dedicatedIpAddress: address, updatedAt: new Date() })
+      .where(eq(organizations.id, id));
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "dedicated_ip.update",
+      targetType: "organization",
+      targetId: id,
+      metadata: { status: b.status, address },
+      ip: req.ip,
+    });
+    return { object: "dedicated_ip", status: b.status, address };
   });
 
   // --- Pricing management (data-driven plans) -----------------------------

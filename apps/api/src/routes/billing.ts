@@ -21,7 +21,13 @@ import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { getAddon, getAiCredits, getSale, getTrialDays, listAddons, listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
-import { createCheckout, createEmbeddedCheckout, reportOverage, syncAddonItems } from "../lib/stripe";
+import {
+  createCheckout,
+  createEmbeddedCheckout,
+  reportOverage,
+  syncAddonItems,
+  syncDedicatedIpProvisioning,
+} from "../lib/stripe";
 import { parse } from "../lib/validate";
 
 function serializePlan(p: PlanDef) {
@@ -293,6 +299,9 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
         target: [orgAddons.organizationId, orgAddons.addonId],
         set: { quantity, updatedAt: new Date() },
       });
+
+    // Flag a dedicated IP for staff provisioning the moment it's purchased.
+    if (addon_id === "dedicated_ip") await syncDedicatedIpProvisioning(org.id, quantity);
 
     if (BILLING_MODE === "stripe") {
       try {

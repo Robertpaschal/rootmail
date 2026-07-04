@@ -178,6 +178,8 @@ export interface Organization {
   plan: PlanId;
   postal_address: string | null;
   data_region: string;
+  dedicated_ip_status: "none" | "requested" | "active";
+  dedicated_ip_address: string | null;
 }
 
 /** A SAML SSO connection — with the SP values (entity id, ACS, metadata) the

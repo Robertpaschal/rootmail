@@ -34,6 +34,9 @@ function serialize(org: Organization) {
     postal_address: org.postalAddress ?? null,
     // Residency surface — where this org's data lives (staff-managed).
     data_region: org.dataRegion,
+    // Dedicated-IP add-on provisioning status (none | requested | active).
+    dedicated_ip_status: org.dedicatedIpStatus,
+    dedicated_ip_address: org.dedicatedIpAddress,
   };
 }
 

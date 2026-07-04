@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { StatusBadge } from "@/components/app/status-badge";
 import { SubmitButton } from "@/components/app/submit-button";
+import { DedicatedIpForm } from "./dedicated-ip-form";
 import { formatDate, formatDateTime, formatMoney, formatUnix } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AdminBilling, MessageSummary, OrgDetail, Suppression } from "@/lib/types";
@@ -109,6 +110,15 @@ function OverviewTab({ org }: { org: OrgDetail }) {
           <Row label="Data region">
             <span className="font-mono text-xs">{org.data_region}</span>
           </Row>
+          {org.dedicated_ip_status !== "none" ? (
+            <div className="pt-2">
+              <DedicatedIpForm
+                orgId={org.id}
+                status={org.dedicated_ip_status}
+                address={org.dedicated_ip_address}
+              />
+            </div>
+          ) : null}
         </CardContent>
       </Card>
 

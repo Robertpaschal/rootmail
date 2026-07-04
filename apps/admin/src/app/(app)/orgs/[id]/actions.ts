@@ -7,6 +7,22 @@ const DASHBOARD_URL = process.env.ROOTMAIL_DASHBOARD_URL ?? "http://localhost:30
 
 export type CreditState = { ok?: boolean; error?: string };
 
+/** Move an org's dedicated-IP provisioning through requested → active. */
+export async function setDedicatedIp(
+  orgId: string,
+  status: "none" | "requested" | "active",
+  address: string | null,
+): Promise<{ error?: string }> {
+  try {
+    await adminApi.setDedicatedIp(orgId, status, address);
+    revalidatePath(`/orgs/${orgId}`);
+    return {};
+  } catch (e) {
+    if (e instanceof ApiError) return { error: e.message };
+    return { error: "Couldn't update the dedicated IP." };
+  }
+}
+
 /** Grant a goodwill account credit (superadmin only). */
 export async function grantCredit(_prev: CreditState, formData: FormData): Promise<CreditState> {
   const orgId = String(formData.get("orgId") ?? "");
