@@ -54,7 +54,7 @@ export async function Topbar() {
         <ThemeToggle />
         {email ? (
           <Link
-            href="/settings"
+            href="/settings/profile"
             title="Account & settings"
             className="hidden items-center gap-2 rounded-full border bg-background py-1 pl-1 pr-3 text-xs text-muted-foreground transition-colors hover:text-foreground sm:inline-flex"
           >

@@ -11,6 +11,50 @@ import { changelogEntries } from "./schema";
 
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Clearer settings, enterprise foundations",
+    date: "2026-07-04",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Settings is reorganized into clear tabs — Profile, Security & login, and Sender address — so each is a real page you can open directly, instead of a hub that led with your profile.",
+      },
+      {
+        kind: "New",
+        text: "Your Compliance page now shows data residency — exactly where this organization's data is stored and processed.",
+      },
+      {
+        kind: "New",
+        text: "We've mapped rootmail's security controls to the SOC 2 criteria as part of becoming enterprise-ready.",
+      },
+    ],
+  },
+  {
+    title: "Send like a real business — compliance & migration",
+    date: "2026-07-03",
+    changes: [
+      {
+        kind: "New",
+        text: "Set your business's postal address in Settings → Sender address; it's added automatically to marketing and sales footers to meet anti-spam law, with a live preview as you type.",
+      },
+      {
+        kind: "New",
+        text: "Bulk mail now carries one-click unsubscribe headers (RFC 8058), so Gmail and Yahoo show their native unsubscribe button — which keeps you on the right side of their bulk-sender rules.",
+      },
+      {
+        kind: "New",
+        text: "Import a template — upload or paste HTML from any provider, preview it, and save it as a rootmail template. SendGrid's Handlebars placeholders carry over unchanged.",
+      },
+      {
+        kind: "New",
+        text: "A hosted test inbox: every sandbox send appears in the dashboard with its full rendered content — no real mailbox needed, and it never touches your reputation.",
+      },
+      {
+        kind: "Improved",
+        text: "Contact and suppression import now takes a drag-in CSV file, not just paste — bring your SendGrid, Postmark, or Mailgun export straight in.",
+      },
+    ],
+  },
+  {
     title: "Upgrade where you hit the limit",
     date: "2026-07-01",
     changes: [
