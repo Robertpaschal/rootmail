@@ -1,0 +1,26 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "rootmail"
+version = "0.1.0"
+description = "Official Python SDK for the rootmail email API"
+readme = "README.md"
+requires-python = ">=3.8"
+license = { text = "MIT" }
+authors = [{ name = "rootmail" }]
+keywords = ["email", "smtp", "transactional", "deliverability", "rootmail"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+]
+dependencies = []
+
+[project.urls]
+Homepage = "https://rootmail.io"
+Documentation = "https://rootmail.io/docs"
+
+[tool.hatch.build.targets.wheel]
+packages = ["rootmail"]

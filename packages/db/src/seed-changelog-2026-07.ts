@@ -11,6 +11,16 @@ import { changelogEntries } from "./schema";
 
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Official Python and Go SDKs",
+    date: "2026-07-04",
+    changes: [
+      {
+        kind: "New",
+        text: "Build on rootmail from Python and Go with official SDKs — alongside the existing Node SDK and CLI. Both cover the full API (send, templates, contacts, lists, campaigns and sequences with analytics, suppressions, sub-tenants, deliverability, imports, and the AI assistant), with idempotent sends and typed errors.",
+      },
+    ],
+  },
+  {
     title: "Single sign-on (SAML) for your team",
     date: "2026-07-04",
     changes: [

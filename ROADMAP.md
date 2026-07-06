@@ -446,7 +446,7 @@ legal-grade proof. Three bets compound on that, in rough priority:
    `workspaceForUser`, sessions killed on deactivate). Verified by `scripts/scim-smoke.ts`
    (provision → access → deactivate revokes → reactivate restores). **The enterprise tier
    is now functionally complete.** (True multi-region residency infra and IP warm-up pools
-   remain owner-infra items; Python/Go SDKs are the additive long-tail.)
+   remain owner-infra items.)
 
 **Supporting bets:** a customer-facing **analytics layer** — *shipped:* the sent →
 delivered → opened → clicked **engagement funnel** with rates, a daily send series, and
@@ -467,8 +467,13 @@ export, retention, imports, domain-auth, assistant) and a new `@rootmail/cli`
 (`rootmail send|messages|deliverability|analytics|domains:auth|import:*|assistant`, reads
 `ROOTMAIL_API_KEY`) for terminal/CI use; *shipped (2026-07-03):* the hosted **test
 inbox** — every sandbox send lands on the dashboard's `/test-inbox` with full rendered
-content (`GET /v1/messages?sandbox=true`), no real mailbox needed; *still ahead* —
-Python/Go SDKs.
+content (`GET /v1/messages?sandbox=true`), no real mailbox needed; *shipped
+(2026-07-04):* official **Python SDK** (`packages/sdk-python`, zero-dependency,
+stdlib-only) and **Go SDK** (`packages/sdk-go`, no third-party deps, `go build`/`go
+vet`/tests green) — both mirror `@rootmail/node` (messages/send, templates, contacts,
+lists, campaigns + analytics, sequences + analytics, suppressions, sub-tenants +
+domain-auth, analytics, deliverability, imports, assistant), idempotent sends,
+sub-tenant scoping, typed errors. Ready to publish to PyPI / pkg.go.dev (owner step).
 
 **Shipped:** a one-click **unsubscribe flow** for admin announcements — every broadcast
 carries a signed opt-out link (`GET /v1/announcements/unsubscribe`, confirm-step page),
