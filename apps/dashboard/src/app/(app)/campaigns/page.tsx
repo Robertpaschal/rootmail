@@ -50,7 +50,7 @@ export default async function CampaignsPage() {
 
   return (
     <>
-      <PageHeader title="Campaigns" description="Send a template to a list. Volume counts against your monthly quota." />
+      <PageHeader title="Campaigns" description="Send one email to everyone on a list — a newsletter, a promotion, an announcement." />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="h-fit">

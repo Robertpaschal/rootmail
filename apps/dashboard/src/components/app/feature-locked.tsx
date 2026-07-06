@@ -156,7 +156,15 @@ export async function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; 
           ) : null}
           {extras ? <p className="mt-3 text-sm text-muted-foreground">{extras}</p> : null}
           <div className="mt-5 flex flex-col gap-2">
-            <Link href="/billing?tab=plans" className={cn(buttonVariants({ size: "sm" }))}>
+            {/* Straight to the money page — comparing is the secondary path. */}
+            <Link
+              href={
+                plan && plan.price != null
+                  ? `/billing/checkout?plan=${plan.id}&interval=month`
+                  : "/billing?tab=plans"
+              }
+              className={cn(buttonVariants({ size: "sm" }))}
+            >
               Unlock with {planName} <ArrowRight className="size-4" />
             </Link>
             <Link

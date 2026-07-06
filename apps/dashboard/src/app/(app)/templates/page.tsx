@@ -31,7 +31,7 @@ export default async function TemplatesPage() {
     <>
       <PageHeader
         title="Templates"
-        description="Reusable emails with {{variables}} — send them by slug from the app or the API."
+        description="Emails you design once and reuse everywhere — in one-off sends, campaigns, and sequences."
         actions={
           <div className="flex items-center gap-2">
             <Link

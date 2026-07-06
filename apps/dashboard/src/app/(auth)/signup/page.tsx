@@ -20,8 +20,8 @@ export default function SignupPage() {
           <CardHeader>
             <CardTitle className="text-xl">Create your account</CardTitle>
             <CardDescription>
-              Free to start. We&apos;ll set up your workspace and a first API key — no install, no
-              database to run.
+              Free to start. You get a live workspace and a sandbox for safe testing — send your
+              first email in minutes, nothing to install.
             </CardDescription>
           </CardHeader>
           <CardContent>

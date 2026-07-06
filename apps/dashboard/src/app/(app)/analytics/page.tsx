@@ -13,7 +13,7 @@ export default async function AnalyticsPage() {
   } catch (err) {
     return (
       <>
-        <PageHeader title="Analytics" description="Engagement across your sends." />
+        <PageHeader title="Analytics" description="Who received, opened, and clicked — across everything you send." />
         <ConnectionErrorCard
           message={
             err instanceof ConnectionError || err instanceof ApiError ? err.message : "An unexpected error occurred."

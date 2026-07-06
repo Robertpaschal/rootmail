@@ -29,7 +29,7 @@ export default async function ListsPage() {
     <>
       <PageHeader
         title="Lists"
-        description="Group contacts into lists to target with a campaign. Available on every plan."
+        description="Group your contacts — customers, subscribers, beta users — so campaigns reach exactly the right people."
       />
 
       <div className="mb-6">

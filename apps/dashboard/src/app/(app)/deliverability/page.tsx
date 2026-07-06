@@ -46,7 +46,7 @@ export default async function DeliverabilityPage() {
   } catch (err) {
     return (
       <>
-        <PageHeader title="Deliverability" description="Your sender reputation from real delivery outcomes." />
+        <PageHeader title="Deliverability" description="How reliably your email reaches inboxes — and what to fix when it doesn't." />
         <ConnectionErrorCard
           message={
             err instanceof ConnectionError || err instanceof ApiError ? err.message : "An unexpected error occurred."
@@ -73,7 +73,7 @@ export default async function DeliverabilityPage() {
     <>
       <PageHeader
         title="Deliverability"
-        description={`Your sender reputation from real delivery outcomes over the last ${d.window_days} days.`}
+        description={`How reliably your email reaches inboxes — measured from your real sends over the last ${d.window_days} days.`}
       />
 
       {dip !== "none" ? (

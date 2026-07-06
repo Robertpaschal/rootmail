@@ -41,7 +41,7 @@ export default async function SequencesPage() {
     <>
       <PageHeader
         title="Sequences"
-        description="Automated, multi-step email flows — triggered by events, with waits, branches, and exit-on-reply."
+        description="A series of emails sent automatically over days — welcome new signups, onboard, follow up. Stops the moment someone replies."
         actions={
           <Link href="/sequences/new" className={cn(buttonVariants({ size: "sm" }))}>
             <Plus className="size-4" /> New sequence

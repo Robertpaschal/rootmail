@@ -55,7 +55,7 @@ export default async function ContactsPage({
     <>
       <PageHeader
         title="Contacts"
-        description="Look up a contact, check suppression, and manage subscription status."
+        description="The people you send to — look someone up, see their status, or unsubscribe them safely."
       />
 
       <Card className="mb-6">

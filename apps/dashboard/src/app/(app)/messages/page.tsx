@@ -51,7 +51,7 @@ export default async function MessagesPage({
     <>
       <PageHeader
         title="Messages"
-        description="Every message sent through this workspace."
+        description="Every email you've sent, with its delivery story — search it, filter it, click into any one."
         actions={
           <Link href="/messages/new" className={cn(buttonVariants({ size: "sm" }))}>
             <Plus className="size-4" /> Send

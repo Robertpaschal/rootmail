@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Compose that looks like email",
+    date: "2026-07-06",
+    changes: [
+      {
+        kind: "New",
+        text: "Composing is now a real email surface: From, To, Subject, your message — with a live preview of exactly what your recipient gets, updating as you type.",
+      },
+      {
+        kind: "New",
+        text: "Templates are woven into writing: pick one under “Start from” and the preview fills in; add personalization and watch the placeholders resolve.",
+      },
+      {
+        kind: "Improved",
+        text: "No more jargon in the way — technical fields are gone or tucked behind Advanced, page descriptions across the dashboard now say what each section does in plain words, and upgrade buttons go straight to checkout.",
+      },
+    ],
+  },
+  {
     title: "Two dashboards: Transactional and Marketing",
     date: "2026-07-06",
     changes: [

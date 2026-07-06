@@ -33,7 +33,7 @@ export default async function InboxPage() {
     return (
       <>
         <PageHeader
-          title="Inbox"
+          title="Replies"
           description="Every send opens a conversation. Replies are matched back here so nothing lands in a noreply void."
         />
         <FeatureLocked
@@ -47,7 +47,7 @@ export default async function InboxPage() {
   return (
     <>
       <PageHeader
-        title="Inbox"
+        title="Replies"
         description="Every send opens a conversation. Replies are matched back here so nothing lands in a noreply void."
       />
 

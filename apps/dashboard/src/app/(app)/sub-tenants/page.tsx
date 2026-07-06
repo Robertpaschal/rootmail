@@ -34,8 +34,8 @@ export default async function SubTenantsPage() {
     return (
       <>
         <PageHeader
-          title="Sub-tenants"
-          description="Customers that send under their own verified domain — DKIM, SPF, and reputation isolated."
+          title="Domains"
+          description="Send from your own (or each client's) domain — verified once, with its email reputation kept separate and safe."
         />
         <FeatureLocked
           info={locked}
@@ -48,8 +48,8 @@ export default async function SubTenantsPage() {
   return (
     <>
       <PageHeader
-        title="Sub-tenants"
-        description="Customers that send under their own verified domain — DKIM, SPF, and reputation isolated."
+        title="Domains"
+        description="Send from your own (or each client's) domain — verified once, with its email reputation kept separate and safe."
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
