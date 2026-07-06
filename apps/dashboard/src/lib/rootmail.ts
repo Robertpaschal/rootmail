@@ -42,6 +42,7 @@ import type {
   LoginResult,
   MeResult,
   MfaActivated,
+  OnboardingInput,
   Organization,
   MfaSetup,
   Message,
@@ -484,6 +485,8 @@ export const api = {
     }),
 
   getOrganization: () => rmFetch<Organization>("/v1/organization"),
+  completeOnboarding: (body: OnboardingInput) =>
+    rmFetch<Organization>("/v1/onboarding", { method: "POST", body }),
   updateOrganization: (body: { name?: string; postal_address?: string | null }) =>
     rmFetch<Organization>("/v1/organization", { method: "PATCH", body }),
 

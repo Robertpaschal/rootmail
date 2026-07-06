@@ -37,8 +37,25 @@ function serialize(org: Organization) {
     // Dedicated-IP add-on provisioning status (none | requested | active).
     dedicated_ip_status: org.dedicatedIpStatus,
     dedicated_ip_address: org.dedicatedIpAddress,
+    // Onboarding profile — powers personalization + the migration nudge.
+    business_types: org.businessTypes,
+    previous_provider: org.previousProvider,
+    onboarding_completed: org.onboardingCompletedAt != null,
   };
 }
+
+// The post-signup wizard's payload: the business identity + address that ground
+// CAN-SPAM compliance, plus the two profile answers the product structurally uses.
+const onboardingBody = z.object({
+  business_name: z.string().trim().min(1).max(120).optional(),
+  address_line: z.string().trim().max(200).optional(),
+  city: z.string().trim().max(100).optional(),
+  state: z.string().trim().max(100).optional(),
+  postal_code: z.string().trim().max(20).optional(),
+  country: z.string().trim().max(100).optional(),
+  business_types: z.array(z.string().trim().min(1).max(60)).max(8).default([]),
+  previous_provider: z.string().trim().max(60).nullable().optional(),
+});
 
 export async function organizationRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/organization", async (req) => serialize(await loadOrg(req)));
@@ -52,6 +69,34 @@ export async function organizationRoutes(app: FastifyInstance): Promise<void> {
       .set({
         name: body.name ?? org.name,
         postalAddress: body.postal_address !== undefined ? body.postal_address : org.postalAddress,
+        updatedAt: new Date(),
+      })
+      .where(eq(organizations.id, org.id))
+      .returning();
+    return serialize(updated);
+  });
+
+  // --- Post-signup onboarding ----------------------------------------------
+  // Saves the business profile and marks onboarding complete. The structured
+  // address is assembled into postalAddress — the same field the CAN-SPAM footer
+  // injector reads — so compliance is grounded at onboarding, not discovered later.
+  app.post("/v1/onboarding", async (req) => {
+    await requirePermission(req, "billing.manage");
+    const org = await loadOrg(req);
+    const b = parse(onboardingBody, req.body ?? {});
+
+    const cityLine = [b.city, b.state, b.postal_code].filter(Boolean).join(", ");
+    const assembled = [b.address_line, cityLine, b.country].filter(Boolean).join("\n");
+
+    const [updated] = await db
+      .update(organizations)
+      .set({
+        name: b.business_name || org.name,
+        // Never blank an existing address with an empty wizard submission.
+        postalAddress: assembled || org.postalAddress,
+        businessTypes: b.business_types,
+        previousProvider: b.previous_provider ?? org.previousProvider,
+        onboardingCompletedAt: org.onboardingCompletedAt ?? new Date(),
         updatedAt: new Date(),
       })
       .where(eq(organizations.id, org.id))

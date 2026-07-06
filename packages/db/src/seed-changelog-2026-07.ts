@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A proper welcome — onboarding that sets you up right",
+    date: "2026-07-06",
+    changes: [
+      {
+        kind: "New",
+        text: "New accounts get a short guided setup: your business details (the postal address anti-spam law requires — added to your marketing footers automatically), what you do, and how you send today. Each step says why we ask.",
+      },
+      {
+        kind: "New",
+        text: "Setup ends with a plan recommendation matched to your answers — prices stay pinned while you compare what each tier actually does, and continuing on Free is always one click.",
+      },
+      {
+        kind: "Improved",
+        text: "Coming from SendGrid, Mailgun, Postmark, or Mailchimp? Telling us during setup points the migration importer at the right export from day one.",
+      },
+    ],
+  },
+  {
     title: "Single sign-on (SAML) for your team",
     date: "2026-07-04",
     changes: [

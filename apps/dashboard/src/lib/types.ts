@@ -151,6 +151,20 @@ export interface MeResult {
   active_workspace: Workspace | null;
   /** True when a staff member is impersonating this user for support. */
   impersonating?: boolean;
+  /** False until the org completes the post-signup onboarding wizard. */
+  onboarding_completed?: boolean;
+}
+
+/** The onboarding wizard's payload — business identity + profile answers. */
+export interface OnboardingInput {
+  business_name?: string;
+  address_line?: string;
+  city?: string;
+  state?: string;
+  postal_code?: string;
+  country?: string;
+  business_types: string[];
+  previous_provider?: string | null;
 }
 
 /** Plan-included + purchased live-workspace capacity (unlimited shown as -1). */
@@ -180,6 +194,9 @@ export interface Organization {
   data_region: string;
   dedicated_ip_status: "none" | "requested" | "active";
   dedicated_ip_address: string | null;
+  business_types: string[];
+  previous_provider: string | null;
+  onboarding_completed: boolean;
 }
 
 /** A SAML SSO connection — with the SP values (entity id, ACS, metadata) the

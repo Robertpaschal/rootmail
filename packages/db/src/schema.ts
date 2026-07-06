@@ -148,6 +148,14 @@ export const organizations = pgTable("organizations", {
   // add-on from being silently sold before the IP exists.
   dedicatedIpStatus: text("dedicated_ip_status").notNull().default("none"),
   dedicatedIpAddress: text("dedicated_ip_address"),
+  // Onboarding profile (first-principles doc): what the business is + how they
+  // send today — only what the product structurally uses (personalization,
+  // migration nudges); the postal address collected alongside feeds postalAddress.
+  businessTypes: jsonb("business_types").$type<string[]>().notNull().default([]),
+  previousProvider: text("previous_provider"),
+  // Null = the post-signup onboarding wizard hasn't been completed (new orgs);
+  // backfilled to now() for orgs that predate the wizard.
+  onboardingCompletedAt: timestamp("onboarding_completed_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

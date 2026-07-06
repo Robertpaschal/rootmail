@@ -16,7 +16,7 @@ import {
   verifyPassword,
   verifyTotp,
 } from "@rootmail/core";
-import { db, impersonationGrants, sessions, ssoConnections, type User, users } from "@rootmail/db";
+import { db, impersonationGrants, organizations, sessions, ssoConnections, type User, users } from "@rootmail/db";
 import {
   createSession,
   defaultWorkspaceForUser,
@@ -265,11 +265,23 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       (session.activeWorkspaceId
         ? await workspaceForUser(user.id, session.activeWorkspaceId)
         : null) ?? (await defaultWorkspaceForUser(user.id));
+    // Whether the active org has finished the post-signup wizard — the dashboard
+    // shell routes incomplete orgs to /onboarding. No workspace = nothing to onboard.
+    let onboardingCompleted = true;
+    if (active) {
+      const [org] = await db
+        .select({ done: organizations.onboardingCompletedAt })
+        .from(organizations)
+        .where(eq(organizations.id, active.organizationId))
+        .limit(1);
+      onboardingCompleted = org ? org.done != null : true;
+    }
     return {
       user: serializeUser(user),
       workspaces: workspaces.map(serializeWorkspace),
       active_workspace: active ? serializeWorkspace(active) : null,
       impersonating: session.impersonatedByStaffId != null,
+      onboarding_completed: onboardingCompleted,
     };
   }
 

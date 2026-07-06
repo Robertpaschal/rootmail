@@ -20,6 +20,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   } catch {
     /* ignore — don't wedge the app on a transient lookup failure */
   }
+  // New orgs set up their business profile first — it grounds compliance (the
+  // CAN-SPAM address) and personalizes the product. Existing orgs are backfilled
+  // complete, so only fresh signups ever see the wizard.
+  if (me && me.onboarding_completed === false) redirect("/onboarding");
+
   const unverified = me ? !me.user.email_verified : false;
   const impersonating = me?.impersonating ?? false;
 
