@@ -9,17 +9,10 @@ import { changelogEntries } from "./schema";
 //   docker compose run --rm --no-deps api pnpm db:seed:changelog
 // ), then revalidate the marketing changelog tag.
 
+// NOTE: the Python/Go SDK changelog entry is intentionally held until they're
+// published to PyPI / pkg.go.dev (otherwise "pip install rootmail" would 404).
+// Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
-  {
-    title: "Official Python and Go SDKs",
-    date: "2026-07-04",
-    changes: [
-      {
-        kind: "New",
-        text: "Build on rootmail from Python and Go with official SDKs — alongside the existing Node SDK and CLI. Both cover the full API (send, templates, contacts, lists, campaigns and sequences with analytics, suppressions, sub-tenants, deliverability, imports, and the AI assistant), with idempotent sends and typed errors.",
-      },
-    ],
-  },
   {
     title: "Single sign-on (SAML) for your team",
     date: "2026-07-04",
