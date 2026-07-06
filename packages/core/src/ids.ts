@@ -48,6 +48,7 @@ export const ID_PREFIXES = {
   supportMessage: "tkm",
   announcement: "ann",
   ssoConnection: "sso",
+  senderIdentity: "sid",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

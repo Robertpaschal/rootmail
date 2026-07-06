@@ -19,6 +19,7 @@ export async function sendMessage(
   const html = String(formData.get("html") ?? "").trim();
   const template = String(formData.get("template") ?? "").trim();
   const subTenantId = String(formData.get("sub_tenant_id") ?? "").trim();
+  const fromEmail = String(formData.get("from_email") ?? "").trim();
   const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim();
   const variablesRaw = String(formData.get("variables") ?? "").trim();
 
@@ -49,6 +50,7 @@ export async function sendMessage(
   if (subject) body.subject = subject;
   if (html) body.html = html;
   if (subTenantId) body.sub_tenant_id = subTenantId;
+  if (fromEmail) body.from = fromEmail;
   if (idempotencyKey) body.idempotency_key = idempotencyKey;
   if (variables) body.variables = variables;
 

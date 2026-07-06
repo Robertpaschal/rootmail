@@ -29,6 +29,7 @@ import type {
   ProofResponse,
   Role,
   RolesResult,
+  SenderIdentity,
   Sequence,
   SequenceAnalytics,
   ScimTokenResult,
@@ -487,6 +488,15 @@ export const api = {
   getOrganization: () => rmFetch<Organization>("/v1/organization"),
   completeOnboarding: (body: OnboardingInput) =>
     rmFetch<Organization>("/v1/onboarding", { method: "POST", body }),
+
+  // Own from-addresses (SES email-identity verification).
+  listSenders: () => rmFetch<ListResponse<SenderIdentity>>("/v1/senders"),
+  addSender: (body: { email: string; display_name?: string }) =>
+    rmFetch<SenderIdentity>("/v1/senders", { method: "POST", body }),
+  checkSender: (id: string) =>
+    rmFetch<SenderIdentity>(`/v1/senders/${id}/check`, { method: "POST" }),
+  deleteSender: (id: string) =>
+    rmFetch<{ deleted: boolean }>(`/v1/senders/${id}`, { method: "DELETE" }),
   updateOrganization: (body: { name?: string; postal_address?: string | null }) =>
     rmFetch<Organization>("/v1/organization", { method: "PATCH", body }),
 

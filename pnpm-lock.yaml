@@ -87,6 +87,9 @@ importers:
       '@aws-sdk/client-s3':
         specifier: ^3.1068.0
         version: 3.1068.0
+      '@aws-sdk/client-sesv2':
+        specifier: ^3.1068.0
+        version: 3.1068.0
       '@fastify/multipart':
         specifier: ^10.0.0
         version: 10.0.0

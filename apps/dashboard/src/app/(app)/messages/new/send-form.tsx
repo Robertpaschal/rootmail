@@ -54,9 +54,11 @@ const PREVIEW_WRAP_START =
 export function SendForm({
   tenants,
   templates,
+  senders,
 }: {
   tenants: SubTenant[];
   templates: ComposeTemplate[];
+  senders: { email: string; display_name: string | null }[];
 }) {
   const [state, formAction, pending] = useActionState<SendState | null, FormData>(
     sendMessage,
@@ -88,8 +90,11 @@ export function SendForm({
     return PREVIEW_WRAP_START + textToHtml(message) + "</div>";
   }, [template, varsRaw, rawHtml, htmlDraft, message]);
 
-  const fromLabel =
-    tenants.find((t) => t.id === from)?.sending_domain ?? "your workspace address";
+  const fromLabel = from.startsWith("id:")
+    ? from.slice(3)
+    : from.startsWith("st:")
+      ? (tenants.find((t) => t.id === from.slice(3))?.sending_domain ?? "your domain")
+      : "your workspace address";
 
   return (
     <div className="grid gap-6 lg:grid-cols-2">
@@ -98,19 +103,23 @@ export function SendForm({
         <CardContent className="p-0">
           <form action={formAction}>
             <div className="divide-y">
-              {/* From */}
+              {/* From — your verified addresses, your domains, or the workspace default */}
               <div className="flex items-center gap-3 px-5 py-3">
                 <span className="w-16 shrink-0 text-sm text-muted-foreground">From</span>
-                {tenants.length > 0 ? (
+                {senders.length > 0 || tenants.length > 0 ? (
                   <Select
-                    name="sub_tenant_id"
                     value={from}
                     onChange={(e) => setFrom(e.target.value)}
                     className="h-9 border-0 shadow-none focus-visible:ring-0"
                   >
                     <option value="">Workspace address</option>
+                    {senders.map((s) => (
+                      <option key={s.email} value={`id:${s.email}`}>
+                        {s.display_name ? `${s.display_name} · ${s.email}` : s.email}
+                      </option>
+                    ))}
                     {tenants.map((t) => (
-                      <option key={t.id} value={t.id}>
+                      <option key={t.id} value={`st:${t.id}`}>
                         {t.name} · {t.sending_domain}
                       </option>
                     ))}
@@ -118,11 +127,20 @@ export function SendForm({
                 ) : (
                   <span className="flex-1 text-sm">
                     Workspace address{" "}
-                    <Link href="/sub-tenants" className="text-xs text-muted-foreground underline hover:text-foreground">
-                      use your own domain
+                    <Link
+                      href="/settings/sender"
+                      className="text-xs text-muted-foreground underline hover:text-foreground"
+                    >
+                      send from your own address
                     </Link>
                   </span>
                 )}
+                {from.startsWith("id:") ? (
+                  <input type="hidden" name="from_email" value={from.slice(3)} />
+                ) : null}
+                {from.startsWith("st:") ? (
+                  <input type="hidden" name="sub_tenant_id" value={from.slice(3)} />
+                ) : null}
               </div>
 
               {/* To */}

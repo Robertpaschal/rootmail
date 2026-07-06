@@ -2,21 +2,27 @@ import type { Metadata } from "next";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
+import type { SenderIdentity } from "@/lib/types";
 import { SenderForm } from "./sender-form";
+import { SendersManager } from "./senders-manager";
 
-export const metadata: Metadata = { title: "Sender address · Settings" };
+export const metadata: Metadata = { title: "Sending · Settings" };
 
-// CAN-SPAM (and its cousins abroad) require commercial email to carry the
-// sender's physical postal address. rootmail appends it — with the unsubscribe
-// link — to every marketing/sales send automatically once it's set here.
-// Transactional mail is exempt and never gets the footer.
-export default async function SenderAddressPage() {
+// Everything about WHO your email comes from: the from-addresses you own (so
+// mail carries your name, and replies land in your real inbox) and the postal
+// address anti-spam law requires on marketing mail.
+export default async function SenderSettingsPage() {
   let postal = "";
   let orgName = "";
+  let senders: SenderIdentity[] = [];
   try {
-    const org = await api.getOrganization();
+    const [org, sn] = await Promise.all([
+      api.getOrganization(),
+      api.listSenders().catch(() => ({ data: [] as SenderIdentity[] })),
+    ]);
     postal = org.postal_address ?? "";
     orgName = org.name;
+    senders = sn.data;
   } catch (err) {
     return (
       <ConnectionErrorCard
@@ -31,19 +37,36 @@ export default async function SenderAddressPage() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Postal address</CardTitle>
-        <CardDescription>
-          The physical postal address for {orgName || "your organization"}, appended automatically —
-          with the unsubscribe link — to the footer of every <strong>marketing</strong> and{" "}
-          <strong>sales</strong> send. Transactional mail (receipts, resets) is exempt and never
-          gets the footer. A street address, P.O. box, or registered agent address all qualify.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <SenderForm initial={postal} />
-      </CardContent>
-    </Card>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Your sending addresses</CardTitle>
+          <CardDescription>
+            Send email as yourself — hello@yourcompany.com instead of a rootmail address. We email
+            that inbox a confirmation link; once clicked, it appears in compose&apos;s From menu,
+            and replies go straight to your real inbox.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SendersManager senders={senders} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Postal address</CardTitle>
+          <CardDescription>
+            The physical postal address for {orgName || "your organization"}, added automatically —
+            with the unsubscribe link — to the footer of every <strong>marketing</strong> and{" "}
+            <strong>sales</strong> send, as anti-spam law requires. Receipts and other transactional
+            mail never get the footer. A street address, P.O. box, or registered agent address all
+            qualify.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <SenderForm initial={postal} />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

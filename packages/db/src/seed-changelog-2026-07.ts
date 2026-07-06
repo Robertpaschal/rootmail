@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Send as yourself — your own from-address",
+    date: "2026-07-07",
+    changes: [
+      {
+        kind: "New",
+        text: "Add your own from-addresses under Settings → Sending: we email that inbox a confirmation link, and once clicked it appears in compose's From menu — hello@yourcompany.com instead of a rootmail address.",
+      },
+      {
+        kind: "New",
+        text: "Replies follow your business: mail sent from your address returns to your real inbox, no forwarding setup needed.",
+      },
+      {
+        kind: "Improved",
+        text: "If a send uses an unverified From, we now tell you plainly and point you to the fix — instead of a cryptic provider error.",
+      },
+    ],
+  },
+  {
     title: "Compose that looks like email",
     date: "2026-07-06",
     changes: [

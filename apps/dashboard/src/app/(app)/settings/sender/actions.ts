@@ -24,3 +24,41 @@ export async function updateSenderAddress(
     return { error: "Couldn't save the address. Please try again." };
   }
 }
+
+// --- Own from-addresses (SES identity verification) --------------------------
+
+export async function addSenderAction(_prev: SenderState, formData: FormData): Promise<SenderState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  const displayName = String(formData.get("display_name") ?? "").trim();
+  if (!email.includes("@")) return { error: "Enter a valid email address." };
+  try {
+    await api.addSender({ email, display_name: displayName || undefined });
+    revalidatePath("/settings/sender");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't add that address." };
+  }
+}
+
+export async function checkSenderAction(id: string): Promise<{ status?: string; error?: string }> {
+  try {
+    const res = await api.checkSender(id);
+    revalidatePath("/settings/sender");
+    return { status: res.status };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't check verification." };
+  }
+}
+
+export async function deleteSenderAction(id: string): Promise<{ error?: string }> {
+  try {
+    await api.deleteSender(id);
+    revalidatePath("/settings/sender");
+    return {};
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't remove that address." };
+  }
+}

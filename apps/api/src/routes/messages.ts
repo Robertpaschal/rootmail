@@ -29,6 +29,7 @@ import { writeAudit } from "../lib/audit";
 import { assertEmailVerified, planFor, recordSend, tryConsumeQuota } from "../lib/billing";
 import { requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
+import { verifiedSenderFor } from "../lib/senders";
 import { openThreadForSend, threadReplyAddress } from "../lib/threads";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
 import { serializeAudit, serializeMessage } from "../lib/serialize";
@@ -231,6 +232,20 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     }
     const contentHash = sha256Hex(rendered.html);
     const from = resolveFrom(body.from, subTenant, workspace);
+    // A caller-chosen From must be an address the org actually controls: a
+    // verified sender identity, the sub-tenant's verified domain, or the platform
+    // domain — otherwise SES would reject it downstream with a cryptic error.
+    if (body.from) {
+      const fromDomain = from.email.split("@")[1]?.toLowerCase() ?? "";
+      const tenantDomain = subTenant && fromDomain === subTenant.sendingDomain.toLowerCase();
+      const platformDomain = fromDomain === env.ROOTMAIL_DOMAIN.toLowerCase();
+      const verified = org ? await verifiedSenderFor(org.id, from.email) : null;
+      if (!tenantDomain && !platformDomain && !verified) {
+        throw Errors.validation(
+          `"${from.email}" isn't a verified sender for this organization. Verify it under Settings → Sending, or leave From empty to use your workspace address.`,
+        );
+      }
+    }
     const contact = await findContact(workspace.id, subTenantId, toEmail);
     const suppressed = await isSuppressed(workspace.id, subTenantId, toEmail);
 

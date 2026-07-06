@@ -29,7 +29,7 @@ const destinations: { label: string; href: string }[] = [
   { label: "Test inbox", href: "/test-inbox" },
   { label: "Settings · Profile", href: "/settings/profile" },
   { label: "Settings · Security & login", href: "/settings/security" },
-  { label: "Settings · Sender address", href: "/settings/sender" },
+  { label: "Settings · Sending", href: "/settings/sender" },
 ];
 
 const actions: { label: string; href: string }[] = [

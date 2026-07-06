@@ -1225,3 +1225,31 @@ export const ssoConnections = pgTable(
 
 export type SsoConnection = typeof ssoConnections.$inferSelect;
 export type NewSsoConnection = typeof ssoConnections.$inferInsert;
+
+// --- Sender identities -------------------------------------------------------
+// The org's own from-addresses (e.g. hello@acme.com). Verified through SES email
+// identity verification (SES emails the owner a confirmation link); only verified
+// identities may be used as a custom From on sends. Replies naturally return to
+// the user's real mailbox, so "replies follow the business" comes for free.
+export const senderIdentities = pgTable(
+  "sender_identities",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    displayName: text("display_name"),
+    status: text("status").notNull().default("pending"), // pending | verified
+    createdAt: createdAt(),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+  },
+  (t) => [
+    // An address belongs to exactly one org, platform-wide.
+    uniqueIndex("sender_identities_email_uq").on(t.email),
+    index("sender_identities_org_idx").on(t.organizationId),
+  ],
+);
+
+export type SenderIdentity = typeof senderIdentities.$inferSelect;
+export type NewSenderIdentity = typeof senderIdentities.$inferInsert;

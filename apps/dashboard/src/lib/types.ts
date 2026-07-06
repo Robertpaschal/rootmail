@@ -155,6 +155,17 @@ export interface MeResult {
   onboarding_completed?: boolean;
 }
 
+/** An org-owned from-address, verified through SES email-identity confirmation. */
+export interface SenderIdentity {
+  object: "sender_identity";
+  id: string;
+  email: string;
+  display_name: string | null;
+  status: "pending" | "verified";
+  created_at: string;
+  verified_at: string | null;
+}
+
 /** The onboarding wizard's payload — business identity + profile answers. */
 export interface OnboardingInput {
   business_name?: string;

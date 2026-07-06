@@ -6,8 +6,13 @@ import { SendForm, type ComposeTemplate } from "./send-form";
 export default async function NewMessagePage() {
   let tenants: SubTenant[] = [];
   let templates: ComposeTemplate[] = [];
+  let senders: { email: string; display_name: string | null }[] = [];
   try {
-    const [t, tpl] = await Promise.all([api.listSubTenants(), api.listTemplates()]);
+    const [t, tpl, sn] = await Promise.all([
+      api.listSubTenants(),
+      api.listTemplates(),
+      api.listSenders().catch(() => ({ data: [] })),
+    ]);
     tenants = t.data;
     templates = tpl.data.map((x) => ({
       slug: x.slug,
@@ -15,6 +20,9 @@ export default async function NewMessagePage() {
       subject: x.subject,
       html: x.html,
     }));
+    senders = sn.data
+      .filter((s) => s.status === "verified")
+      .map((s) => ({ email: s.email, display_name: s.display_name }));
   } catch {
     /* compose still works without either list */
   }
@@ -27,7 +35,7 @@ export default async function NewMessagePage() {
         backHref="/messages"
         backLabel="Messages"
       />
-      <SendForm tenants={tenants} templates={templates} />
+      <SendForm tenants={tenants} templates={templates} senders={senders} />
     </>
   );
 }
