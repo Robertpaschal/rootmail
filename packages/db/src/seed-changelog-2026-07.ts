@@ -14,6 +14,20 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Two dashboards: Transactional and Marketing",
+    date: "2026-07-06",
+    changes: [
+      {
+        kind: "New",
+        text: "The dashboard now has two clear wings, because they're two different jobs: Transactional (the send API, templates & blocks, message log, domains, deliverability) and Marketing (campaigns, sequences, replies, audience, engagement). Switch with one click — rootmail remembers where you work.",
+      },
+      {
+        kind: "Improved",
+        text: "The primary action follows the wing: “Send email” in Transactional, “New campaign” in Marketing.",
+      },
+    ],
+  },
+  {
     title: "A proper welcome — onboarding that sets you up right",
     date: "2026-07-06",
     changes: [
