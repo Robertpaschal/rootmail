@@ -5,21 +5,24 @@ import { SendForm } from "./send-form";
 
 export default async function NewMessagePage() {
   let tenants: SubTenant[] = [];
+  let templates: { slug: string; name: string }[] = [];
   try {
-    tenants = (await api.listSubTenants()).data;
+    const [t, tpl] = await Promise.all([api.listSubTenants(), api.listTemplates()]);
+    tenants = t.data;
+    templates = tpl.data.map((x) => ({ slug: x.slug, name: x.name }));
   } catch {
-    tenants = [];
+    /* compose still works without either list */
   }
 
   return (
     <>
       <PageHeader
-        title="Send a test email"
-        description="Push a message through the live pipeline — render, suppression, provider, audit."
+        title="Send an email"
+        description="Written and delivered like a normal email — suppression checked, rendered, tracked."
         backHref="/messages"
         backLabel="Messages"
       />
-      <SendForm tenants={tenants} />
+      <SendForm tenants={tenants} templates={templates} />
     </>
   );
 }
