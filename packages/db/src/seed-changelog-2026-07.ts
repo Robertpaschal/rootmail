@@ -29,6 +29,10 @@ const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
         kind: "Improved",
         text: "Coming from SendGrid, Mailgun, Postmark, or Mailchimp? Telling us during setup points the migration importer at the right export from day one.",
       },
+      {
+        kind: "Improved",
+        text: "Locked sections now show what they'd do for you — the concrete capabilities and the live price of the plan that unlocks them — instead of just a lock icon.",
+      },
     ],
   },
   {
