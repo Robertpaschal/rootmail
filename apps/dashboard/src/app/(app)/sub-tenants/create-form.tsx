@@ -17,8 +17,8 @@ export function CreateSubTenantForm() {
   return (
     <Card className="h-fit">
       <CardHeader>
-        <CardTitle className="text-base">New sub-tenant</CardTitle>
-        <CardDescription>Provision a sending domain — you&apos;ll get DNS records to publish.</CardDescription>
+        <CardTitle className="text-base">New client domain</CardTitle>
+        <CardDescription>Provision a client&apos;s sending domain — you&apos;ll get DNS records to publish.</CardDescription>
       </CardHeader>
       <CardContent>
         <form action={formAction} className="space-y-4">

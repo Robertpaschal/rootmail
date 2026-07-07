@@ -17,7 +17,7 @@ const destinations: { label: string; href: string }[] = [
   { label: "Templates", href: "/templates" },
   { label: "Sequences", href: "/sequences" },
   { label: "Campaigns", href: "/campaigns" },
-  { label: "Sub-tenants", href: "/sub-tenants" },
+  { label: "Client domains", href: "/sub-tenants" },
   { label: "Contacts", href: "/contacts" },
   { label: "Lists", href: "/lists" },
   { label: "Import", href: "/import" },

@@ -50,6 +50,13 @@ const WINGS: { id: Wing; label: string; icon: typeof Mail; home: string }[] = [
   { id: "marketing", label: "Marketing", icon: Megaphone, home: "/campaigns" },
 ];
 
+// Plain-English context — a user who's never heard "transactional" vs "marketing"
+// should still know what each wing is and what to expect, no demo required.
+const WING_HINT: Record<Wing, string> = {
+  transactional: "Automated emails your app sends one person — receipts, password resets, alerts. Built on the API.",
+  marketing: "Emails you send to an audience — campaigns, newsletters, and promos, driven by your contacts.",
+};
+
 const SHARED_TOP: NavItem[] = [
   { href: "/", label: "Overview", icon: LayoutDashboard, exact: true },
   { href: "/assistant", label: "Assistant", icon: Sparkles },
@@ -62,7 +69,7 @@ const TRANSACTIONAL_ITEMS: NavItem[] = [
   { href: "/api-keys", label: "API keys", icon: KeyRound },
   { href: "/webhooks", label: "Webhooks", icon: Webhook },
   { href: "/deliverability", label: "Deliverability", icon: Gauge },
-  { href: "/sub-tenants", label: "Domains", icon: Network },
+  { href: "/sub-tenants", label: "Client domains", icon: Network },
   { href: "/test-inbox", label: "Test inbox", icon: FlaskConical },
   { href: "/docs", label: "Docs", icon: BookOpen },
 ];
@@ -150,12 +157,14 @@ function WingSwitcher({ wing, onSwitch }: { wing: Wing; onSwitch: (w: Wing) => v
           key={w.id}
           type="button"
           onClick={() => onSwitch(w.id)}
+          title={WING_HINT[w.id]}
           className={cn(
             "flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
             wing === w.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
           )}
         >
-          <w.icon className="size-3.5" /> {w.label}
+          <w.icon className="size-3.5 shrink-0" />
+          <span className="truncate">{w.label}</span>
         </button>
       ))}
     </div>
@@ -188,7 +197,10 @@ export function Sidebar() {
             <NavLink key={it.href} item={it} isActive={isActive} />
           ))}
         </div>
-        <WingSwitcher wing={wing} onSwitch={switchWing} />
+        <div>
+          <WingSwitcher wing={wing} onSwitch={switchWing} />
+          <p className="mt-1.5 px-1 text-[11px] leading-snug text-muted-foreground/70">{WING_HINT[wing]}</p>
+        </div>
       </div>
 
       <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">

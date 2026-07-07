@@ -34,12 +34,12 @@ export default async function SubTenantsPage() {
     return (
       <>
         <PageHeader
-          title="Domains"
-          description="Send from your own (or each client's) domain — verified once, with its email reputation kept separate and safe."
+          title="Client domains"
+          description="Give each client or brand their own verified sending domain, with DKIM and email reputation kept separate. Different from your own from-address — set that under Settings → Sending."
         />
         <FeatureLocked
           info={locked}
-          blurb="Sub-tenants let your customers send under their own verified domains, with DKIM and reputation isolated."
+          blurb="Client domains let your customers send under their own verified domains, with DKIM and reputation isolated."
         />
       </>
     );
@@ -48,8 +48,8 @@ export default async function SubTenantsPage() {
   return (
     <>
       <PageHeader
-        title="Domains"
-        description="Send from your own (or each client's) domain — verified once, with its email reputation kept separate and safe."
+        title="Client domains"
+        description="Give each client or brand their own verified sending domain, with DKIM and email reputation kept separate. Different from your own from-address — set that under Settings → Sending."
       />
 
       <div className="grid gap-6 lg:grid-cols-3">
@@ -59,8 +59,8 @@ export default async function SubTenantsPage() {
           ) : tenants && tenants.length === 0 ? (
             <EmptyState
               icon={<Network className="size-6" />}
-              title="No sub-tenants yet"
-              description="Create one to provision a sending domain with its own DKIM and SPF records."
+              title="No client domains yet"
+              description="Add one to give a client their own sending domain, with its DKIM and SPF records verified and its reputation isolated."
             />
           ) : (
             <Card>

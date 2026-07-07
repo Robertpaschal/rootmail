@@ -46,7 +46,7 @@ export default async function SubTenantDetailPage({
     if (err instanceof ApiError && err.status === 404) notFound();
     return (
       <>
-        <PageHeader title="Sub-tenant" backHref="/sub-tenants" backLabel="Sub-tenants" />
+        <PageHeader title="Client domain" backHref="/sub-tenants" backLabel="Client domains" />
         <ConnectionErrorCard
           message={
             err instanceof ConnectionError || err instanceof ApiError
@@ -65,7 +65,7 @@ export default async function SubTenantDetailPage({
         title={st.sending_domain}
         description={st.name}
         backHref="/sub-tenants"
-        backLabel="Sub-tenants"
+        backLabel="Client domains"
         actions={<SubTenantStatusBadge status={st.status} />}
       />
 

@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Clearer wings, honest unlock pricing",
+    date: "2026-07-07",
+    changes: [
+      {
+        kind: "Improved",
+        text: "The Transactional and Marketing wings now explain themselves in plain English — a one-line description under the switcher and a tooltip on hover, so you always know what each side is for without any prior knowledge.",
+      },
+      {
+        kind: "Fixed",
+        text: "Locked sections were showing the unlocking plan's price far too small (a formatting bug — e.g. $0.80 instead of $80). They now show the plan's real price and make clear it unlocks the whole plan, not just that one feature.",
+      },
+      {
+        kind: "Improved",
+        text: "“Domains” is now “Client domains” — clearly distinct from your own from-address (which lives in Settings → Sending), so the two are never confused.",
+      },
+    ],
+  },
+  {
     title: "A design studio for your templates",
     date: "2026-07-07",
     changes: [

@@ -23,7 +23,7 @@ const CLI = `npx @rootmail/cli send \\
 const links = [
   { href: "/api-keys", icon: KeyRound, title: "API keys", desc: "Create and manage keys." },
   { href: "/webhooks", icon: Webhook, title: "Webhooks", desc: "Subscribe to lifecycle + inbound events." },
-  { href: "/sub-tenants", icon: Network, title: "Sub-tenants", desc: "Send on behalf of your own customers." },
+  { href: "/sub-tenants", icon: Network, title: "Client domains", desc: "Send on behalf of your own customers." },
 ];
 
 export default function DocsPage() {

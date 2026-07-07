@@ -88,8 +88,11 @@ const TIER_EXTRAS: Record<string, string> = {
   enterprise: "Also in Enterprise: signed compliance exports, SAML SSO + SCIM, and custom volume.",
 };
 
-function fmtCents(cents: number | null | undefined): string | null {
-  return cents == null ? null : `$${(cents / 100).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+// Plan prices are whole monthly USD (schema: plans.price // monthly USD), the
+// same value plan-cards renders directly — NOT cents. This is the tier's real
+// price, shown to market the whole plan, never a confusing per-feature micro-fee.
+function fmtUsd(dollars: number | null | undefined): string | null {
+  return dollars == null ? null : `$${dollars.toLocaleString()}`;
 }
 
 /** A locked section renders as a pitch: what it achieves, the capabilities that
@@ -104,8 +107,8 @@ export async function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; 
     const billing = await api.getBilling().catch(() => null);
     plan = billing?.plans.find((p) => p.id === info.required_plan) ?? null;
   }
-  const base = fmtCents(plan?.price);
-  const sale = fmtCents(plan?.sale_price);
+  const base = fmtUsd(plan?.price);
+  const sale = fmtUsd(plan?.sale_price);
   const extras = info.required_plan ? TIER_EXTRAS[info.required_plan] : undefined;
 
   return (
@@ -152,6 +155,11 @@ export async function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; 
                   {plan.sale_percent_off}% off
                 </span>
               ) : null}
+            </p>
+          ) : null}
+          {base ? (
+            <p className="mt-2 text-xs text-muted-foreground">
+              That&apos;s the whole {planName} plan — this feature plus everything it includes, one price.
             </p>
           ) : null}
           {extras ? <p className="mt-3 text-sm text-muted-foreground">{extras}</p> : null}
