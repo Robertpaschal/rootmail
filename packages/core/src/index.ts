@@ -13,3 +13,4 @@ export * from "./links";
 export * from "./proof";
 export * from "./mfa";
 export * from "./compliance";
+export * from "./branding";

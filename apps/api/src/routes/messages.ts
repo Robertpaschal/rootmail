@@ -2,7 +2,9 @@ import { and, asc, desc, eq } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  appendBrandingFooter,
   appendComplianceFooter,
+  brandingRequired,
   enqueueSend,
   env,
   Errors,
@@ -229,6 +231,11 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
           unsubscribeUrl: variables.unsubscribe_url,
         }),
       };
+    }
+    // Free-plan live mail carries the small "Sent with rootmail" footer (removed by
+    // upgrading). After compliance, before the hash — so proof matches what's sent.
+    if (mode === "live" && org && brandingRequired(org.plan)) {
+      rendered = { ...rendered, ...appendBrandingFooter(rendered, { url: env.MARKETING_URL }) };
     }
     const contentHash = sha256Hex(rendered.html);
     const from = resolveFrom(body.from, subTenant, workspace);

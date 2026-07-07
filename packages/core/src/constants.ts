@@ -298,6 +298,15 @@ export function featureUnlocked(planId: PlanId, feature: PlanFeature): boolean {
   return PLANS[planId]?.features.includes(feature) ?? false;
 }
 
+/**
+ * Whether live email from this plan carries the small "Sent with rootmail" footer.
+ * Free plans are branded; any paid plan removes it — the upgrade nudge. (When the
+ * per-wing pricing lands this becomes per-wing; today it keys off the single plan.)
+ */
+export function brandingRequired(planId: PlanId): boolean {
+  return planId === "free";
+}
+
 /** True if `planId` is at least `minPlanId` in tier order. */
 export function planAtLeast(planId: PlanId, minPlanId: PlanId): boolean {
   return PLAN_RANK[planId] >= PLAN_RANK[minPlanId];

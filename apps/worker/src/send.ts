@@ -1,11 +1,15 @@
 import { and, eq, isNull, sql } from "drizzle-orm";
 import {
+  appendBrandingFooter,
   appendComplianceFooter,
   type AuditEvent,
+  brandingRequired,
   enqueueSend,
   enqueueWebhookEvent,
+  env,
   type MessageType,
   newId,
+  type PlanId,
   render,
   sha256Hex,
   unsubscribeUrl,
@@ -86,16 +90,20 @@ export async function automationSend(
   // CAN-SPAM: campaigns/sequences are commercial mail — append the sender's
   // postal address + unsubscribe BEFORE hashing (so Layer-3 proof matches the
   // sent email). Transactional automation, if any, is exempt.
+  // One org lookup drives both footers: its postal address (compliance) and its plan
+  // (branding). One indexed PK read, reused below.
+  let orgPlan: PlanId | null = null;
+  let postalAddress: string | null = null;
+  if (input.organizationId) {
+    const [o] = await db
+      .select({ plan: organizations.plan, a: organizations.postalAddress })
+      .from(organizations)
+      .where(eq(organizations.id, input.organizationId))
+      .limit(1);
+    orgPlan = o?.plan ?? null;
+    postalAddress = o?.a ?? null;
+  }
   if (input.type === "marketing" || input.type === "sales") {
-    let postalAddress: string | null = null;
-    if (input.organizationId) {
-      const [o] = await db
-        .select({ a: organizations.postalAddress })
-        .from(organizations)
-        .where(eq(organizations.id, input.organizationId))
-        .limit(1);
-      postalAddress = o?.a ?? null;
-    }
     rendered = {
       ...rendered,
       ...appendComplianceFooter(rendered, {
@@ -103,6 +111,10 @@ export async function automationSend(
         unsubscribeUrl: variables.unsubscribe_url,
       }),
     };
+  }
+  // Free-plan live mail carries the "Sent with rootmail" footer (removed by upgrading).
+  if (input.mode === "live" && orgPlan && brandingRequired(orgPlan)) {
+    rendered = { ...rendered, ...appendBrandingFooter(rendered, { url: env.MARKETING_URL }) };
   }
   const contentHash = sha256Hex(rendered.html);
 
