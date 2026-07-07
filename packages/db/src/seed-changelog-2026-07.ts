@@ -14,6 +14,20 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A design studio for your templates",
+    date: "2026-07-07",
+    changes: [
+      {
+        kind: "New",
+        text: "Creating a template now opens a design gallery: pick a ready-made layout — Welcome, Password reset, Receipt or Notification for transactional; Newsletter, Announcement or Promotion for marketing — see it rendered as a real email, and edit it endlessly. No blank page to stare at.",
+      },
+      {
+        kind: "Improved",
+        text: "Template setup speaks plainly: choose “what's this for?” (Transactional or Marketing) instead of a raw type field, and the API slug is generated for you and tucked under Developer details.",
+      },
+    ],
+  },
+  {
     title: "Plans and templates, in the two wings",
     date: "2026-07-07",
     changes: [

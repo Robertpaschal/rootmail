@@ -6,7 +6,7 @@ export default function NewTemplatePage() {
     <>
       <PageHeader
         title="New template"
-        description="Compose once, reuse everywhere. Use {{variables}} for per-send values."
+        description="Start from a design, then make it yours. Use {{variables}} for per-send values."
         backHref="/templates"
         backLabel="Templates"
       />
