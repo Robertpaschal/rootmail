@@ -309,6 +309,29 @@ Built, deployed, and verified after the 2026-06-24 launch (all 5 images via CI):
   admin Leads inbox, where staff provision a custom plan via the existing flow.
 - **Stripe webhook** confirmed live + correct (`service.gateml.io/v1/webhooks/stripe`).
 
+### First-principles usability pass (2026-07-06 → 07)
+Driven by the owner's "usability from first principles" note. All deployed + verified:
+- **Onboarding as the linchpin.** New accounts get a short guided setup — business identity, the
+  CAN-SPAM postal address (auto-added to marketing footers), what you do, and how you send today —
+  each step explaining *why* we ask, ending in a plan recommendation matched to the answers with
+  sticky price cards and a one-click "continue on Free". Coming from SendGrid/Mailgun/Postmark/
+  Mailchimp points the migration importer at the right export.
+- **Locked features sell.** Gated sections now render the concrete capabilities + the live price of
+  the plan that unlocks them (not a lock icon); every upgrade CTA jumps straight to checkout.
+- **Compose is an email surface.** From / To / Subject / message with a live recipient preview,
+  templates woven in under "Start from", personalization that resolves in the preview, and the old
+  Type/Priority/HTML jargon dropped or tucked behind Advanced.
+- **Two wings: Transactional & Marketing.** The dashboard splits into two clearly-labelled wings
+  (a one-click switcher, remembered per browser) because they are two different jobs — Transactional
+  is the core (send API, templates & blocks, message log, domains, deliverability), Marketing is
+  campaigns/sequences/replies/audience. Templates shelve per wing; the **plan comparison now groups
+  every capability by wing** (Transactional / Marketing / Platform) and explains, in plain words,
+  what each feature actually does.
+- **Send as yourself.** Verify your own from-addresses under Settings → Sending (SES email-identity
+  verification; `DNS_VERIFY_MODE=mock` locally) — they appear in compose's From menu, replies land
+  in your real inbox, and an unverified From now returns a plain-language fix instead of a provider
+  error. New `sender_identities` table + `/v1/senders`; migration 0042.
+
 **Live over HTTPS** (gateml.io — alpha/beta; switches to rootmail.io when stable):
 - `service.gateml.io` — API (nginx + certbot) · healthy: Postgres (RDS) + Redis
 - `marketing.gateml.io` — marketing site
