@@ -40,6 +40,92 @@ const FEATURE_MEANING: Record<string, string> = {
   residency: "Choose where your organization's data is stored and processed.",
 };
 
+// Which wing each capability serves — transactional (product email reliability),
+// marketing (audience email), or the shared platform.
+type Wing = "transactional" | "marketing" | "platform";
+const WING_OF: Record<string, Wing> = {
+  suppression: "transactional",
+  audit: "transactional",
+  subtenants: "transactional",
+  dedicated_ip: "transactional",
+  campaigns: "marketing",
+  sequences: "marketing",
+  threads: "marketing",
+  rbac: "platform",
+  sso: "platform",
+  proof: "platform",
+  residency: "platform",
+};
+
+interface Line {
+  label: string;
+  meaning?: string;
+}
+
+/** The lines that belong on a given wing for a plan — quota/seats/etc. slot into
+ * the wing they naturally describe, alongside that wing's feature flags. */
+function wingLines(p: Plan, bucket: Wing): Line[] {
+  const lines: Line[] = [];
+  if (bucket === "transactional") {
+    lines.push({
+      label: `${p.monthly_quota.toLocaleString()} emails / month`,
+      meaning: p.allow_overage
+        ? `then $${p.overage_per_1000} per 1,000 — sending never just stops.`
+        : "a hard cap — sending pauses until next month or an upgrade.",
+    });
+    lines.push({ label: "Send API, templates & test sandbox" });
+  }
+  if (bucket === "marketing") {
+    lines.push({
+      label: p.ai_credits === -1 ? "Unlimited AI assistant credits" : `${p.ai_credits} AI assistant credits / mo`,
+      meaning: "Draft campaigns, build sequences, and diagnose delivery in plain language.",
+    });
+  }
+  if (bucket === "platform") {
+    lines.push({
+      label: p.seats === -1 ? "Unlimited team seats" : `${p.seats} team seat${p.seats === 1 ? "" : "s"}`,
+    });
+    lines.push({
+      label:
+        p.workspace_limit === -1 ? "Unlimited workspaces" : `${p.workspace_limit} workspace${p.workspace_limit === 1 ? "" : "s"}`,
+    });
+  }
+  for (const f of p.features) {
+    if (WING_OF[f] !== bucket) continue;
+    lines.push({
+      label:
+        f === "subtenants"
+          ? `${p.included_sub_tenants === -1 ? "Unlimited" : p.included_sub_tenants} client sending domains`
+          : (FEATURE_LABELS[f] ?? f),
+      meaning: FEATURE_MEANING[f],
+    });
+  }
+  return lines;
+}
+
+function WingGroup({ label, plan, bucket }: { label: string; plan: Plan; bucket: Wing }) {
+  const lines = wingLines(plan, bucket);
+  if (lines.length === 0) return null;
+  return (
+    <div>
+      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">{label}</p>
+      <ul className="mt-1 space-y-1.5">
+        {lines.map((l, idx) => (
+          <li key={idx} className="flex items-start gap-2 text-xs">
+            <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+            <span>
+              <span className="font-medium text-foreground">{l.label}</span>
+              {l.meaning ? (
+                <span className="block text-[11px] leading-snug text-muted-foreground">{l.meaning}</span>
+              ) : null}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 type Interval = "month" | "year";
 
 function price(p: Plan, interval: Interval): string {
@@ -71,7 +157,7 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
       ))}
     </div>
     <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {plans.map((p, i) => {
+      {plans.map((p) => {
         const isCurrent = p.id === currentId;
         const featured = p.id === "pro";
         return (
@@ -127,59 +213,14 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
                   Save ${p.price * 12 - p.price_yearly}/yr vs monthly
                 </p>
               ) : null}
-              <p className="mt-2 text-sm text-muted-foreground">
-                {p.monthly_quota.toLocaleString()} emails / mo
-                {p.allow_overage ? (
-                  <>
-                    , then ${p.overage_per_1000}/1k
-                  </>
-                ) : (
-                  <> · hard cap</>
-                )}
-              </p>
-
-              {i > 0 ? (
-                <p className="mt-4 text-xs font-medium text-foreground">
-                  Everything in {plans[i - 1].name}, plus:
-                </p>
-              ) : null}
-              <ul className={cn("flex-1 space-y-1.5", i > 0 ? "mt-1.5" : "mt-4")}>
-                <li className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                  {p.ai_credits === -1
-                    ? "Unlimited AI assistant credits"
-                    : `${p.ai_credits} AI assistant credits / mo`}
-                </li>
-                <li className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                  {p.seats === -1
-                    ? "Unlimited team seats"
-                    : `${p.seats} team seat${p.seats === 1 ? "" : "s"}`}
-                </li>
-                <li className="flex items-start gap-2 text-xs text-muted-foreground">
-                  <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                  {p.workspace_limit === -1
-                    ? "Unlimited workspaces"
-                    : `${p.workspace_limit} workspace${p.workspace_limit === 1 ? "" : "s"}`}
-                </li>
-                {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-xs">
-                    <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                    <span>
-                      <span className="font-medium text-foreground">
-                        {f === "subtenants"
-                          ? `${p.included_sub_tenants === -1 ? "Unlimited" : p.included_sub_tenants} client sending domains`
-                          : (FEATURE_LABELS[f] ?? f)}
-                      </span>
-                      {FEATURE_MEANING[f] ? (
-                        <span className="block text-[11px] leading-snug text-muted-foreground">
-                          {FEATURE_MEANING[f]}
-                        </span>
-                      ) : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+              {/* Capabilities grouped by the product's two wings, plus the shared
+                  platform — so each plan says plainly what you get for
+                  transactional and for marketing. */}
+              <div className="mt-4 flex-1 space-y-3">
+                <WingGroup label="Transactional" plan={p} bucket="transactional" />
+                <WingGroup label="Marketing" plan={p} bucket="marketing" />
+                <WingGroup label="Platform" plan={p} bucket="platform" />
+              </div>
 
               <PlanButton
                 planId={p.id}
