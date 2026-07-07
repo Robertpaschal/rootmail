@@ -158,6 +158,16 @@ export const organizations = pgTable("organizations", {
   // Null = the post-signup onboarding wizard hasn't been completed (new orgs);
   // backfilled to now() for orgs that predate the wizard.
   onboardingCompletedAt: timestamp("onboarding_completed_at", { withTimezone: true }),
+  // Per-wing pricing (PRICING-WINGS-SPEC.md). Soft refs to pricing_tiers.id, one per
+  // wing. **NULL on every existing org = resolve via the legacy single `plan` above**
+  // (the dormant fallback); set only once an org moves onto the new model (Phase C/D).
+  // Each paid wing gets its own Stripe subscription.
+  transactionalTier: text("transactional_tier"),
+  marketingTier: text("marketing_tier"),
+  platformTier: text("platform_tier"),
+  stripeTxSubscriptionId: text("stripe_tx_subscription_id"),
+  stripeMkSubscriptionId: text("stripe_mk_subscription_id"),
+  stripePlatformSubscriptionId: text("stripe_platform_subscription_id"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

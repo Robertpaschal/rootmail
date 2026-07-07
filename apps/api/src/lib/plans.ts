@@ -19,6 +19,12 @@ import {
   type Plan,
   plans as plansTable,
 } from "@rootmail/db";
+import {
+  orgHasWingPricing,
+  synthesizePlan,
+  wingAiCredits,
+  type WingOrg,
+} from "./wings";
 
 // Admin-editable plan economics live in the `plans` table. Reads happen on every
 // send (quota), so we keep a small in-memory cache refreshed on boot, on a short
@@ -201,21 +207,25 @@ export function getPlan(planId: PlanId): PlanDef {
  * single hot-path resolver: quota, overage, seats, and sub-tenant limits all flow
  * through it, so a custom plan is enforced exactly as it was sold.
  */
-export function planForOrg(org: { id: string; plan: PlanId }): PlanDef {
+export function planForOrg(org: WingOrg & { id: string }): PlanDef {
   maybeRefresh();
+  // Per-wing pricing wins when assigned. DORMANT today — no org has a wing tier set,
+  // so this is skipped and the legacy custom/tier resolution below runs unchanged.
+  if (orgHasWingPricing(org)) return synthesizePlan(org);
   const custom = customPlanCache.get(org.id);
   return custom ? custom.def : getPlan(org.plan);
 }
 
 /** Effective monthly AI credits for an org (custom plan wins; -1 = unlimited). */
-export function aiCreditsForOrg(org: { id: string; plan: PlanId }): number {
+export function aiCreditsForOrg(org: WingOrg & { id: string }): number {
   maybeRefresh();
+  if (orgHasWingPricing(org)) return wingAiCredits(org);
   const custom = customPlanCache.get(org.id);
   return custom ? custom.aiCredits : getAiCredits(org.plan);
 }
 
 /** Effective included live workspaces for an org (custom plan wins; -1 = unlimited). */
-export function workspaceLimitForOrg(org: { id: string; plan: PlanId }): number {
+export function workspaceLimitForOrg(org: WingOrg & { id: string }): number {
   return planForOrg(org).workspaceLimit;
 }
 

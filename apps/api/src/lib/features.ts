@@ -9,6 +9,7 @@ import {
 } from "@rootmail/core";
 import { db, memberships, type Organization, organizations } from "@rootmail/db";
 import { getPlan } from "./plans";
+import { orgHasWingPricing, requiredTierFor, wingFeatureUnlocked } from "./wings";
 
 /** Load the org behind the authenticated request's workspace. */
 export async function loadOrg(req: FastifyRequest): Promise<Organization> {
@@ -51,6 +52,24 @@ export async function requireFeature(
   feature: PlanFeature,
 ): Promise<Organization> {
   const org = await loadOrg(req);
+
+  // Per-wing gating when the org is on the new model. DORMANT today — no org has a
+  // wing tier set, so `orgHasWingPricing` is false and the legacy check below runs
+  // exactly as before.
+  if (orgHasWingPricing(org)) {
+    if (wingFeatureUnlocked(org, feature)) return org;
+    const tier = requiredTierFor(feature);
+    throw Errors.featureLocked(feature, {
+      current_plan: org.plan,
+      required_plan: tier?.id ?? null,
+      required_plan_name: tier?.name ?? null,
+      price: tier?.priceMonthly ?? null,
+      upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing`,
+      checkout_endpoint: "POST /v1/billing/checkout",
+      docs_url: `https://${env.ROOTMAIL_DOMAIN}/pricing`,
+    });
+  }
+
   if (featureUnlocked(org.plan, feature)) return org;
 
   const required = requiredPlanFor(feature);

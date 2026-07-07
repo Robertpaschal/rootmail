@@ -309,6 +309,13 @@
       "when": 1783452719596,
       "tag": "0043_fluffy_stranger",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1783453729505,
+      "tag": "0044_special_caretaker",
+      "breakpoints": true
     }
   ]
 }
