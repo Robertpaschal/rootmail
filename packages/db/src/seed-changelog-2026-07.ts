@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Know exactly what's left to set up",
+    date: "2026-07-07",
+    changes: [
+      {
+        kind: "Improved",
+        text: "The Overview now tracks your setup progress — how many steps are left and roughly how long — and calls out the ones that actually block sending, like verifying a sending address, broken into clear sub-steps.",
+      },
+      {
+        kind: "Improved",
+        text: "Composing an email now reminds you to verify a sending address if you haven't yet, so mail can go out from your own domain instead of a rootmail one.",
+      },
+      {
+        kind: "Improved",
+        text: "The ⌘K search is refreshed and context-aware: grouped by the wing you're working in, with billing, add-ons, and settings all reachable — and it understands synonyms, so “domains”, “spf”, or “upgrade” find the right place.",
+      },
+    ],
+  },
+  {
     title: "Clearer wings, honest unlock pricing",
     date: "2026-07-07",
     changes: [

@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { api } from "@/lib/rootmail";
 import type { SubTenant } from "@/lib/types";
@@ -35,6 +37,26 @@ export default async function NewMessagePage() {
         backHref="/messages"
         backLabel="Messages"
       />
+      {senders.length === 0 ? (
+        <div className="mb-6 flex flex-col gap-3 rounded-lg border border-amber-400/50 bg-amber-50/60 p-4 dark:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3">
+            <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div>
+              <p className="text-sm font-medium">Send from your own address — one-time setup (~5 min)</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Add an address like hello@yourcompany.com and click the link we email to confirm it.
+                Until then, email goes out from a rootmail address.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/settings/sender"
+            className="inline-flex shrink-0 items-center gap-1 self-start rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-600 sm:self-center"
+          >
+            Verify a sender <ArrowRight className="size-4" />
+          </Link>
+        </div>
+      ) : null}
       <SendForm tenants={tenants} templates={templates} senders={senders} />
     </>
   );
