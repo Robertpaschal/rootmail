@@ -12,6 +12,7 @@ import {
   type PlanDef,
   saleActive,
   salePrice,
+  type TierDef,
   yearlyPrice,
   YEARLY_MONTHS_FREE,
 } from "@rootmail/core";
@@ -21,6 +22,7 @@ import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { getAddon, getAiCredits, getSale, getTrialDays, listAddons, listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
+import { tiersForWing } from "../lib/wings";
 import {
   createCheckout,
   createEmbeddedCheckout,
@@ -54,6 +56,48 @@ function serializePlan(p: PlanDef) {
     sale_ends_at: onSale ? sale!.endsAt : null,
     sale_price: onSale ? salePrice(p.price as number, sale!.percentOff) : null,
     sale_price_yearly: onSale && py != null ? salePrice(py, sale!.percentOff) : null,
+  };
+}
+
+// Per-wing pricing catalog (PRICING-WINGS-SPEC.md). Served alongside the legacy
+// `plans` so the dashboard can render the three ladders; `current_tier_id` is null
+// for every org today (legacy single-plan) until Phase C/D assigns a wing tier.
+function serializeTier(t: TierDef) {
+  return {
+    id: t.id,
+    wing: t.wing,
+    name: t.name,
+    rank: t.rank,
+    price_monthly: t.priceMonthly,
+    price_yearly: t.priceYearly,
+    ai_credits: t.aiCredits,
+    features: t.features,
+    trial_days: t.trialDays,
+    included_sends: t.includedSends ?? null,
+    block_size: t.blockSize ?? null,
+    allow_overage: t.allowOverage ?? false,
+    overage_per_1000: t.overagePer1000 ?? 0,
+    included_sub_tenants: t.includedSubTenants ?? null,
+    included_contacts: t.includedContacts ?? null,
+    seats: t.seats ?? null,
+    workspace_limit: t.workspaceLimit ?? null,
+  };
+}
+
+function wingsPayload(org: Organization) {
+  return {
+    transactional: {
+      current_tier_id: org.transactionalTier ?? null,
+      tiers: tiersForWing("transactional").map(serializeTier),
+    },
+    marketing: {
+      current_tier_id: org.marketingTier ?? null,
+      tiers: tiersForWing("marketing").map(serializeTier),
+    },
+    platform: {
+      current_tier_id: org.platformTier ?? null,
+      tiers: tiersForWing("platform").map(serializeTier),
+    },
   };
 }
 
@@ -154,6 +198,8 @@ async function billingPayload(org: Organization, usage: QuotaState) {
     },
     summary: billingSummary(org, usage, seats, addons),
     plans: listPlans().map(serializePlan),
+    // The three independent per-wing ladders (read-only preview in the dashboard).
+    wings: wingsPayload(org),
     // Live add-on catalog (with any active sale) so the dashboard shows real prices.
     addons_catalog: listAddons()
       .filter((a) => a.active)

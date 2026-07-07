@@ -327,6 +327,38 @@ export interface BillingSummary {
   total: number;
 }
 
+export type WingId = "transactional" | "marketing" | "platform";
+
+/** A tier in one per-wing pricing ladder (PRICING-WINGS-SPEC.md). */
+export interface WingTier {
+  id: string;
+  wing: WingId;
+  name: string;
+  rank: number;
+  price_monthly: number | null;
+  price_yearly: number | null;
+  ai_credits: number;
+  features: string[];
+  trial_days: number;
+  included_sends: number | null;
+  block_size: number | null;
+  allow_overage: boolean;
+  overage_per_1000: number;
+  included_sub_tenants: number | null;
+  included_contacts: number | null;
+  seats: number | null;
+  workspace_limit: number | null;
+}
+export interface WingLadder {
+  current_tier_id: string | null;
+  tiers: WingTier[];
+}
+export interface Wings {
+  transactional: WingLadder;
+  marketing: WingLadder;
+  platform: WingLadder;
+}
+
 export interface Billing {
   object: "billing";
   organization_id: string;
@@ -346,6 +378,8 @@ export interface Billing {
   summary: BillingSummary;
   plans: Plan[];
   addons_catalog: AddonCatalogItem[];
+  // The three independent per-wing ladders (optional — absent on older API).
+  wings?: Wings;
 }
 
 export interface Member {

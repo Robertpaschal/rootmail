@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check, Tag } from "lucide-react";
+import { ArrowRight, Check, Sparkles, Tag } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { PageHeader } from "@/components/app/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -203,6 +203,22 @@ export default async function BillingPage({
           seats, and deliverability tools — prorated instantly, change or cancel anytime.
         </p>
       </div>
+
+      <Link
+        href="/billing/wings"
+        className="mb-5 flex items-center justify-between gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 transition-colors hover:bg-primary/10"
+      >
+        <span className="flex items-center gap-2 text-sm">
+          <Sparkles className="size-4 shrink-0 text-primary" />
+          <span>
+            <span className="font-medium">Preview pricing by wing</span>
+            <span className="ml-1 text-muted-foreground">
+              — pay for Transactional and Marketing independently.
+            </span>
+          </span>
+        </span>
+        <ArrowRight className="size-4 shrink-0 text-primary" />
+      </Link>
 
       <PlanCards plans={plans} currentId={plan.id} />
 
