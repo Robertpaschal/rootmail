@@ -449,6 +449,82 @@ export const AI_CREDITS: Record<PlanId, number> = {
 };
 
 // ---------------------------------------------------------------------------
+// Per-wing pricing (PRICING-WINGS-SPEC.md) — the three INDEPENDENT ladders that
+// replace the single plan. Each wing is sized by its own metric: Transactional by
+// monthly SENDS (blocks), Marketing by CONTACTS, Platform by SEATS. An org can sit
+// on a different tier per wing. These constants are the fallback; the `pricing_tiers`
+// table (admin-editable) overrides them, exactly like PLANS ↔ `plans`.
+//
+// Phase A = catalog only (this + the table + seed). Enforcement (resolver + contact
+// metering), the per-wing billing UI, and Stripe wiring come in later phases; the
+// legacy single-plan path keeps working until then.
+export const WINGS = ["transactional", "marketing", "platform"] as const;
+export type Wing = (typeof WINGS)[number];
+
+export interface TierDef {
+  id: string; // "tx_free", "mk_growth", "pf_team" — stable, wing-prefixed
+  wing: Wing;
+  name: string;
+  /** Order within the wing (0 = entry/Free). */
+  rank: number;
+  /** Whole monthly / yearly USD; null = custom / contact sales. */
+  priceMonthly: number | null;
+  priceYearly: number | null;
+  /** Org-level AI credits this tier grants — SUMMED across the org's three tiers
+   * (+ ai_credit_pack). -1 = unlimited (wins). A free-everything org nets 15. */
+  aiCredits: number;
+  /** PlanFeature flags this tier unlocks (re-homed to their wing). */
+  features: PlanFeature[];
+  trialDays: number;
+  // --- Transactional (metric = monthly sends) ---
+  includedSends?: number; // -1 = unlimited
+  blockSize?: number; // sends per purchasable block (drives the estimator UI)
+  allowOverage?: boolean;
+  overagePer1000?: number; // USD per 1,000 sends past included
+  includedSubTenants?: number; // client sending domains; -1 = unlimited
+  // --- Marketing (metric = contacts / audience memberships) ---
+  includedContacts?: number; // -1 = unlimited
+  // --- Platform (metric = seats) ---
+  seats?: number; // -1 = unlimited
+  workspaceLimit?: number; // -1 = unlimited
+}
+
+// Strawman numbers (owner delegated these to me; admin-editable via `pricing_tiers`).
+export const WING_TIERS: TierDef[] = [
+  // Transactional — priced by send volume (blocks of 25k).
+  { id: "tx_free", wing: "transactional", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 5, features: ["audit", "suppression"], trialDays: 0, includedSends: 3_000, blockSize: 25_000, allowOverage: false, overagePer1000: 0, includedSubTenants: 0 },
+  { id: "tx_starter", wing: "transactional", name: "Starter", rank: 1, priceMonthly: 20, priceYearly: 200, aiCredits: 25, features: ["audit", "suppression"], trialDays: 0, includedSends: 100_000, blockSize: 25_000, allowOverage: true, overagePer1000: 0.5, includedSubTenants: 0 },
+  { id: "tx_growth", wing: "transactional", name: "Growth", rank: 2, priceMonthly: 80, priceYearly: 800, aiCredits: 25, features: ["audit", "suppression", "subtenants"], trialDays: 0, includedSends: 500_000, blockSize: 25_000, allowOverage: true, overagePer1000: 0.4, includedSubTenants: 10 },
+  { id: "tx_scale", wing: "transactional", name: "Scale", rank: 3, priceMonthly: 200, priceYearly: 2_000, aiCredits: 25, features: ["audit", "suppression", "subtenants"], trialDays: 0, includedSends: 2_000_000, blockSize: 25_000, allowOverage: true, overagePer1000: 0.3, includedSubTenants: 50 },
+  { id: "tx_enterprise", wing: "transactional", name: "Enterprise", rank: 4, priceMonthly: null, priceYearly: null, aiCredits: -1, features: ["audit", "suppression", "subtenants", "dedicated_ip"], trialDays: 0, includedSends: -1, blockSize: 25_000, allowOverage: true, overagePer1000: 0.2, includedSubTenants: -1 },
+  // Marketing — priced by contacts (audience size).
+  { id: "mk_free", wing: "marketing", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 5, features: ["campaigns"], trialDays: 0, includedContacts: 500 },
+  { id: "mk_starter", wing: "marketing", name: "Starter", rank: 1, priceMonthly: 15, priceYearly: 150, aiCredits: 25, features: ["campaigns"], trialDays: 0, includedContacts: 2_500 },
+  { id: "mk_growth", wing: "marketing", name: "Growth", rank: 2, priceMonthly: 45, priceYearly: 450, aiCredits: 75, features: ["campaigns", "sequences", "threads"], trialDays: 0, includedContacts: 10_000 },
+  { id: "mk_pro", wing: "marketing", name: "Pro", rank: 3, priceMonthly: 120, priceYearly: 1_200, aiCredits: 150, features: ["campaigns", "sequences", "threads"], trialDays: 0, includedContacts: 50_000 },
+  { id: "mk_enterprise", wing: "marketing", name: "Enterprise", rank: 4, priceMonthly: null, priceYearly: null, aiCredits: -1, features: ["campaigns", "sequences", "threads"], trialDays: 0, includedContacts: -1 },
+  // Platform — org-level (seats/workspaces + governance).
+  { id: "pf_solo", wing: "platform", name: "Solo", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 5, features: [], trialDays: 0, seats: 2, workspaceLimit: 1 },
+  { id: "pf_team", wing: "platform", name: "Team", rank: 1, priceMonthly: 25, priceYearly: 250, aiCredits: 100, features: ["rbac"], trialDays: 0, seats: 10, workspaceLimit: 5 },
+  { id: "pf_enterprise", wing: "platform", name: "Enterprise", rank: 2, priceMonthly: null, priceYearly: null, aiCredits: -1, features: ["rbac", "sso", "proof", "residency"], trialDays: 0, seats: -1, workspaceLimit: -1 },
+];
+
+/** The tiers for one wing, in rank order. */
+export function tiersForWing(wing: Wing): TierDef[] {
+  return WING_TIERS.filter((t) => t.wing === wing).sort((a, b) => a.rank - b.rank);
+}
+
+/** A tier by id (catalog fallback). */
+export function getTierDef(id: string): TierDef | undefined {
+  return WING_TIERS.find((t) => t.id === id);
+}
+
+/** The entry (Free/rank-0) tier id for a wing — the default an org sits on. */
+export function defaultTierId(wing: Wing): string {
+  return tiersForWing(wing)[0]?.id ?? "";
+}
+
+// ---------------------------------------------------------------------------
 // Outbound dev webhooks
 // ---------------------------------------------------------------------------
 export const WEBHOOK_ENDPOINT_STATUSES = ["active", "disabled"] as const;

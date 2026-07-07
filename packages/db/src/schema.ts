@@ -39,6 +39,7 @@ import {
   THREAD_STATUSES,
   TEMPLATE_TYPES,
   WEBHOOK_ENDPOINT_STATUSES,
+  WINGS,
   WORKSPACE_ENVIRONMENTS,
 } from "@rootmail/core/constants";
 
@@ -59,6 +60,7 @@ export const staffRoleEnum = pgEnum("staff_role", STAFF_ROLES);
 export const planEnum = pgEnum("plan", PLAN_IDS);
 export const planStatusEnum = pgEnum("plan_status", PLAN_STATUSES);
 export const billingIntervalEnum = pgEnum("billing_interval", BILLING_INTERVALS);
+export const wingEnum = pgEnum("wing", WINGS);
 export const webhookEndpointStatusEnum = pgEnum("webhook_endpoint_status", WEBHOOK_ENDPOINT_STATUSES);
 export const sequenceStatusEnum = pgEnum("sequence_status", SEQUENCE_STATUSES);
 export const enrollmentStatusEnum = pgEnum("enrollment_status", ENROLLMENT_STATUSES);
@@ -269,6 +271,50 @@ export const addons = pgTable("addons", {
   updatedAt: updatedAt(),
 });
 export type Addon = typeof addons.$inferSelect;
+
+// Per-wing pricing catalog (PRICING-WINGS-SPEC.md) — admin-editable rows for the
+// three INDEPENDENT ladders (transactional=sends, marketing=contacts, platform=seats),
+// mirroring the WING_TIERS constants (constant fallback, DB override — like plans).
+// Most numeric columns are wing-specific + nullable; features re-home the PlanFeature
+// flags to their wing. Prices are whole monthly/yearly USD (null = custom).
+export const pricingTiers = pgTable(
+  "pricing_tiers",
+  {
+    id: text("id").primaryKey(), // "tx_free", "mk_growth", "pf_team"
+    wing: wingEnum("wing").notNull(),
+    name: text("name").notNull(),
+    rank: integer("rank").notNull().default(0),
+    priceMonthly: integer("price_monthly"), // USD; null = custom / contact sales
+    priceYearly: integer("price_yearly"),
+    aiCredits: integer("ai_credits").notNull().default(0), // org-level grant; summed across wings; -1 = unlimited
+    features: jsonb("features").$type<string[]>().notNull().default([]),
+    trialDays: integer("trial_days").notNull().default(0),
+    active: boolean("active").notNull().default(true),
+    // Transactional (sends)
+    includedSends: integer("included_sends"), // -1 = unlimited
+    blockSize: integer("block_size"), // sends per purchasable block
+    allowOverage: boolean("allow_overage").notNull().default(false),
+    overagePer1000Cents: integer("overage_per_1000_cents").notNull().default(0),
+    includedSubTenants: integer("included_sub_tenants").notNull().default(0),
+    // Marketing (contacts / audience memberships)
+    includedContacts: integer("included_contacts"), // -1 = unlimited
+    // Platform (seats / workspaces)
+    seats: integer("seats"), // -1 = unlimited
+    workspaceLimit: integer("workspace_limit"), // -1 = unlimited
+    // Public sale (like plans)
+    salePercentOff: integer("sale_percent_off"),
+    saleEndsAt: timestamp("sale_ends_at", { withTimezone: true }),
+    saleStripeCouponId: text("sale_stripe_coupon_id"),
+    // Stripe linkage (per tier)
+    stripePriceMonthId: text("stripe_price_month_id"),
+    stripePriceYearId: text("stripe_price_year_id"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [index("pricing_tiers_wing_rank_idx").on(t.wing, t.rank)],
+);
+export type PricingTier = typeof pricingTiers.$inferSelect;
+export type NewPricingTier = typeof pricingTiers.$inferInsert;
 
 // Monthly send meter per organization (period = "YYYY-MM", UTC). Sandbox/test
 // sends are never metered.
