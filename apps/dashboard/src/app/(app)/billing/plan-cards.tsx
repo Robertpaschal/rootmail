@@ -10,18 +10,34 @@ import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Plan } from "@/lib/types";
 
+// Each feature carries its plain-language meaning — the comparison should take
+// the time to explain what a feature actually does, not just name it.
 const FEATURE_LABELS: Record<string, string> = {
   audit: "Full audit trail",
   suppression: "Suppression & bounces",
-  threads: "Reply threads & inbox",
+  threads: "Replies & shared inbox",
   sequences: "Sequences & automation",
   campaigns: "Campaigns & lists",
-  subtenants: "Sub-tenants (own domains)",
-  rbac: "Team roles (RBAC)",
-  proof: "Proof bundles",
+  subtenants: "Client sending domains",
+  rbac: "Custom team roles",
+  proof: "Proof & compliance exports",
   dedicated_ip: "Dedicated IPs",
-  sso: "SSO / SAML",
+  sso: "SAML SSO + SCIM",
   residency: "Data residency",
+};
+
+const FEATURE_MEANING: Record<string, string> = {
+  audit: "Every delivery event logged immutably — see exactly what happened to any email.",
+  suppression: "Bounced and unsubscribed addresses are blocked automatically before every send.",
+  threads: "Replies come back into a shared inbox instead of a noreply void.",
+  sequences: "Automatic email series — welcome, onboard, follow up — that stop on reply.",
+  campaigns: "Send one email to a whole list, with its own open and click funnel.",
+  subtenants: "Each client sends from their own verified domain with isolated reputation.",
+  rbac: "Decide exactly who on your team can send, edit content, or touch billing.",
+  proof: "Cryptographically signed records that prove what you sent — verifiable by anyone.",
+  dedicated_ip: "An IP address only you send from — your reputation, fully yours.",
+  sso: "Your team signs in through Okta, Entra, or Google; leavers lose access automatically.",
+  residency: "Choose where your organization's data is stored and processed.",
 };
 
 type Interval = "month" | "year";
@@ -147,11 +163,20 @@ export function PlanCards({ plans, currentId }: { plans: Plan[]; currentId: Plan
                     : `${p.workspace_limit} workspace${p.workspace_limit === 1 ? "" : "s"}`}
                 </li>
                 {p.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-xs text-muted-foreground">
+                  <li key={f} className="flex items-start gap-2 text-xs">
                     <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
-                    {f === "subtenants"
-                      ? `${p.included_sub_tenants === -1 ? "Unlimited" : p.included_sub_tenants} sub-tenants (own domains)`
-                      : (FEATURE_LABELS[f] ?? f)}
+                    <span>
+                      <span className="font-medium text-foreground">
+                        {f === "subtenants"
+                          ? `${p.included_sub_tenants === -1 ? "Unlimited" : p.included_sub_tenants} client sending domains`
+                          : (FEATURE_LABELS[f] ?? f)}
+                      </span>
+                      {FEATURE_MEANING[f] ? (
+                        <span className="block text-[11px] leading-snug text-muted-foreground">
+                          {FEATURE_MEANING[f]}
+                        </span>
+                      ) : null}
+                    </span>
                   </li>
                 ))}
               </ul>

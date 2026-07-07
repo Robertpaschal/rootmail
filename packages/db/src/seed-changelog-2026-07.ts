@@ -29,6 +29,14 @@ const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
         kind: "Improved",
         text: "If a send uses an unverified From, we now tell you plainly and point you to the fix — instead of a cryptic provider error.",
       },
+      {
+        kind: "Improved",
+        text: "Templates now shelve by what they're for — Transactional blocks vs Marketing designs — and open on the shelf matching the wing you're working in.",
+      },
+      {
+        kind: "Improved",
+        text: "The plan comparison takes the time to explain what each feature actually does, in plain words under every line.",
+      },
     ],
   },
   {
