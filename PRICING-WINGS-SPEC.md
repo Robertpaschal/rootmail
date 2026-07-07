@@ -173,6 +173,42 @@ dashboard's mental model already matches.)
 
 ---
 
+## 6b. Overages & add-ons (per wing) — explicit
+
+Both exist today on the single plan; in the new model each attaches to the **wing it
+belongs to**, so a bill reads cleanly and each wing is independently controllable.
+
+**Overages — what happens past the included amount, per wing:**
+
+| Wing | Metric | Over the limit → |
+|------|--------|------------------|
+| Transactional | sends/mo | **metered overage**, billed per 1,000 past the purchased blocks (today's `usageRecords` meter + Stripe metered price). "Sending never just stops." Or auto-add a block if the owner prefers hard blocks — a per-org toggle. |
+| Marketing | contacts | **no per-unit overage** — you move to the next contact bracket. Adding contacts past the bracket prompts an upgrade (soft-block on *growing* the audience; existing contacts/sends keep working). |
+| Platform | seats / workspaces | **no metered overage** — buy an `extra_seat` / `workspace_pack` add-on (below). Over the cap simply blocks adding the next seat/workspace until purchased. |
+
+Overage always bills **monthly**, even for yearly wings (Stripe can't mix intervals
+in one sub) — the existing dedicated-monthly-overage-sub mechanism carries it.
+
+**Add-ons — re-homed to their wing** (today's five, plus branding-removal is *not* an
+add-on — it's automatic on any paid wing):
+
+| Add-on (today's id) | Wing it attaches to | What it does |
+|---------------------|---------------------|--------------|
+| `dedicated_ip` | Transactional | A sending IP only you use — your reputation. |
+| `subtenant_pack` | Transactional | Extra client sending domains past the tier's included count. |
+| `extra_seat` | Platform | One more team seat. |
+| `workspace_pack` | Platform | +N live workspaces. |
+| `ai_credit_pack` | Org-level (bills on the Platform sub, or standalone if no paid wing) | +100 AI assistant credits/mo (§3d). |
+
+Each add-on's Stripe price attaches to that wing's subscription; if the wing is Free
+(no subscription yet), buying a wing add-on either creates the wing's subscription at
+its Free/base or bills the add-on standalone — decided at build time, but the default
+is "an add-on that needs a paid wing prompts the smallest paid tier that includes it"
+(keeps the cross-sell honest and the Stripe model clean). The tier-specific configure
+step (§7) is where these are toggled with a plain-English explanation of each.
+
+---
+
 ## 7. Surfaces to change
 
 > **Design principle (owner):** the UI does the conviction. Each wing's pricing must
@@ -249,5 +285,9 @@ Each phase ships + deploys independently; nothing charges differently until D.
 6. **Yearly billing** on all three wings, like today. ✅
 7. **AI credits** = org-level, summed per active tier + pack (§3d). ✅
 8. **rootmail branding footer** on Free wings, removed on upgrade (§3d). ✅
+9. **Overages & add-ons** covered per wing (§6b): transactional = metered send
+   overage; marketing = bracket-up (no per-unit overage); platform = seat/workspace
+   packs; today's five add-ons re-homed to their wing; branding-removal is automatic
+   on any paid wing, not an add-on. ✅
 
 Build order: branding footer first (self-contained, ships today), then Phase A.
