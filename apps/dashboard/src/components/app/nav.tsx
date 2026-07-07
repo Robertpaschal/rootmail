@@ -79,7 +79,7 @@ const MARKETING_ITEMS: NavItem[] = [
   { href: "/sequences", label: "Sequences", icon: Workflow },
   { href: "/inbox", label: "Replies", icon: Inbox },
   { href: "/contacts", label: "Contacts", icon: Users },
-  { href: "/lists", label: "Lists", icon: ListChecks },
+  { href: "/lists", label: "Audiences", icon: ListChecks },
   { href: "/import", label: "Import", icon: Upload },
   { href: "/templates", label: "Templates", icon: FileText },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },

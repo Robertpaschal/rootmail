@@ -55,7 +55,7 @@ export default async function ContactsPage({
     <>
       <PageHeader
         title="Contacts"
-        description="The people you send to — look someone up, see their status, or unsubscribe them safely."
+        description="Everyone across your audiences — look someone up, see their status, or unsubscribe them safely."
       />
 
       <Card className="mb-6">

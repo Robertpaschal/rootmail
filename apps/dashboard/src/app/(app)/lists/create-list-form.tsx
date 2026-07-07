@@ -15,10 +15,10 @@ export function CreateListForm() {
 
   return (
     <form ref={ref} action={action} className="flex flex-col gap-2 sm:flex-row">
-      <Input name="name" placeholder="New list name" required className="sm:max-w-xs" />
+      <Input name="name" placeholder="New audience — e.g. Newsletter subscribers" required className="sm:max-w-xs" />
       <Button type="submit" disabled={pending}>
         {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-        Create list
+        Create audience
       </Button>
       {state?.error ? <p className="self-center text-sm text-destructive">{state.error}</p> : null}
     </form>

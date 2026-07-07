@@ -38,7 +38,7 @@ const MK: Item[] = [
   { label: "Sequences", href: "/sequences", kw: "automation drip flow onboarding" },
   { label: "Replies", href: "/inbox", kw: "inbox conversations threads responses" },
   { label: "Contacts", href: "/contacts", kw: "audience people subscribers" },
-  { label: "Lists", href: "/lists", kw: "audiences segments groups" },
+  { label: "Audiences", href: "/lists", kw: "lists segments groups subsets people" },
   { label: "Import", href: "/import", kw: "upload csv contacts migrate" },
   { label: "Analytics", href: "/analytics", kw: "opens clicks funnel stats reports" },
 ];

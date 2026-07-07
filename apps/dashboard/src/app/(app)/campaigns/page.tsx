@@ -66,7 +66,7 @@ export default async function CampaignsPage() {
           {failed ? (
             <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
           ) : rows && rows.length === 0 ? (
-            <EmptyState icon={<Megaphone className="size-6" />} title="No campaigns yet" description="Create one to send a template to a list." />
+            <EmptyState icon={<Megaphone className="size-6" />} title="No campaigns yet" description="Create one to send a template to an audience." />
           ) : (
             <Card>
               <CardContent className="p-0">

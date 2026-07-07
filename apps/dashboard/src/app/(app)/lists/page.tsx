@@ -28,21 +28,38 @@ export default async function ListsPage() {
   return (
     <>
       <PageHeader
-        title="Lists"
-        description="Group your contacts — customers, subscribers, beta users — so campaigns reach exactly the right people."
+        title="Audiences"
+        description="Audiences are the distinct groups of people you communicate with — customers, subscribers, beta users. Send a campaign or sequence to exactly the right one."
       />
 
       <div className="mb-6">
         <CreateListForm />
       </div>
 
+      {rows && rows.length > 0 ? (
+        <div className="mb-6 flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border bg-muted/30 px-4 py-3 text-sm">
+          <span>
+            <span className="font-semibold">{rows.length}</span>{" "}
+            <span className="text-muted-foreground">audience{rows.length === 1 ? "" : "s"}</span>
+          </span>
+          <span>
+            <span className="font-semibold">{rows.reduce((n, l) => n + l.contacts, 0).toLocaleString()}</span>{" "}
+            <span className="text-muted-foreground">total memberships</span>
+          </span>
+          <span className="text-xs text-muted-foreground">
+            A contact in more than one audience is counted in each — that&apos;s how contact-based
+            marketing plans are sized.
+          </span>
+        </div>
+      ) : null}
+
       {failed ? (
         <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
       ) : rows && rows.length === 0 ? (
         <EmptyState
           icon={<Users className="size-6" />}
-          title="No lists yet"
-          description="Create a list, add contacts, then send a campaign to it."
+          title="No audiences yet"
+          description="Create your first audience — say “Newsletter subscribers” — add contacts, then send a campaign to it."
         />
       ) : (
         <Card>

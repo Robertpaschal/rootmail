@@ -14,6 +14,20 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Lists are now Audiences",
+    date: "2026-07-07",
+    changes: [
+      {
+        kind: "Improved",
+        text: "The marketing side now speaks in audiences — the distinct groups of people you communicate with (customers, subscribers, beta users). Create one, then send a campaign or sequence to exactly the right audience.",
+      },
+      {
+        kind: "Improved",
+        text: "The Audiences page shows how many audiences you have and your total memberships, and explains that a contact in more than one audience is counted in each — how contact-based marketing plans are sized.",
+      },
+    ],
+  },
+  {
     title: "Know exactly what's left to set up",
     date: "2026-07-07",
     changes: [

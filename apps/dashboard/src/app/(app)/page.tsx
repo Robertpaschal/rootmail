@@ -277,7 +277,7 @@ export default async function OverviewPage() {
             <CardTitle className="text-base">Your workspace</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <SnapshotRow icon={Users} label="Lists" value={lists.length} href="/lists" />
+            <SnapshotRow icon={Users} label="Audiences" value={lists.length} href="/lists" />
             <SnapshotRow icon={FileText} label="Templates" value={templates.length} href="/templates" />
             <SnapshotRow
               icon={TriangleAlert}

@@ -28,10 +28,10 @@ export function CampaignComposer({
         <Input id="name" name="name" placeholder="June newsletter" required />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="list_id">List</Label>
+        <Label htmlFor="list_id">Audience</Label>
         <Select id="list_id" name="list_id" required defaultValue="">
           <option value="" disabled>
-            Pick a list…
+            Pick an audience…
           </option>
           {lists.map((l) => (
             <option key={l.id} value={l.id}>
