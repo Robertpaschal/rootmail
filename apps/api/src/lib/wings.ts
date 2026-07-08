@@ -41,6 +41,8 @@ function toDef(r: PricingTier): TierDef {
     includedContacts: r.includedContacts ?? undefined,
     seats: r.seats ?? undefined,
     workspaceLimit: r.workspaceLimit ?? undefined,
+    stripePriceMonthId: r.stripePriceMonthId,
+    stripePriceYearId: r.stripePriceYearId,
   };
 }
 

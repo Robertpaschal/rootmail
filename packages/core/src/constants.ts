@@ -487,6 +487,10 @@ export interface TierDef {
   // --- Platform (metric = seats) ---
   seats?: number; // -1 = unlimited
   workspaceLimit?: number; // -1 = unlimited
+  // Stripe linkage (synced by syncTierPrice; absent on the constants). Each paid
+  // tier is its own Stripe product with monthly + yearly recurring prices.
+  stripePriceMonthId?: string | null;
+  stripePriceYearId?: string | null;
 }
 
 // Strawman numbers (owner delegated these to me; admin-editable via `pricing_tiers`).

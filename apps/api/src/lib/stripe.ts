@@ -24,6 +24,8 @@ import {
   organizations,
   type Plan,
   plans,
+  type PricingTier,
+  pricingTiers,
   users,
 } from "@rootmail/db";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
@@ -662,6 +664,76 @@ export async function syncPlanPrice(plan: Plan): Promise<{ month: string; year: 
     .where(eq(plans.id, plan.id));
 
   return { month: month.id, year: year.id };
+}
+
+/**
+ * Provision a per-wing TIER's Stripe price (PRICING-WINGS-SPEC.md, Phase D) — the
+ * same immutable-price dance as `syncPlanPrice`, but for `pricing_tiers`: one Stripe
+ * product per tier (metadata tierId + wing) with monthly + yearly recurring prices,
+ * persisted on the row so checkout + the webhook can resolve them. No-op for free /
+ * custom tiers (price 0 / null) or without Stripe. Each price's metadata carries
+ * `wing` so the webhook knows which org column to set.
+ */
+export async function syncTierPrice(tier: PricingTier): Promise<{ month: string; year: string } | null> {
+  const stripe = getStripe();
+  if (!stripe || tier.priceMonthly == null || tier.priceMonthly <= 0) return null;
+
+  const existing = tier.stripePriceMonthId;
+  let productId: string;
+  if (existing) {
+    const ep = await stripe.prices.retrieve(existing);
+    productId = typeof ep.product === "string" ? ep.product : ep.product.id;
+  } else {
+    const product = await stripe.products.create({
+      name: `rootmail ${tier.name} · ${tier.wing}`,
+      metadata: { tierId: tier.id, wing: tier.wing },
+    });
+    productId = product.id;
+  }
+
+  const month = await stripe.prices.create({
+    product: productId,
+    currency: "usd",
+    unit_amount: tier.priceMonthly * 100,
+    recurring: { interval: "month" },
+    metadata: { tierId: tier.id, wing: tier.wing, interval: "month" },
+  });
+  const year = await stripe.prices.create({
+    product: productId,
+    currency: "usd",
+    unit_amount: (tier.priceYearly ?? tier.priceMonthly * 10) * 100, // yearly, else 2 months free
+    recurring: { interval: "year" },
+    metadata: { tierId: tier.id, wing: tier.wing, interval: "year" },
+  });
+  await stripe.products.update(productId, { default_price: month.id });
+
+  // Grandfather: archive only the previously-synced prices (current subs keep billing).
+  if (tier.stripePriceMonthId) await stripe.prices.update(tier.stripePriceMonthId, { active: false }).catch(() => {});
+  if (tier.stripePriceYearId) await stripe.prices.update(tier.stripePriceYearId, { active: false }).catch(() => {});
+
+  await db
+    .update(pricingTiers)
+    .set({ stripePriceMonthId: month.id, stripePriceYearId: year.id, updatedAt: new Date() })
+    .where(eq(pricingTiers.id, tier.id));
+
+  return { month: month.id, year: year.id };
+}
+
+/** Provision Stripe prices for every paid wing tier — run once after seeding
+ * `pricing_tiers` (idempotent-safe: re-running mints fresh prices + archives the old,
+ * exactly like an admin plan-price edit). Returns how many tiers were synced. */
+export async function syncAllTierPrices(): Promise<{ synced: number }> {
+  const stripe = getStripe();
+  if (!stripe) return { synced: 0 };
+  const rows = await db.select().from(pricingTiers);
+  let synced = 0;
+  for (const t of rows) {
+    if (t.priceMonthly != null && t.priceMonthly > 0) {
+      await syncTierPrice(t);
+      synced++;
+    }
+  }
+  return { synced };
 }
 
 /**
