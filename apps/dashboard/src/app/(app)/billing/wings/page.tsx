@@ -4,7 +4,7 @@ import { ConnectionError as ConnectionErrorCard } from "@/components/app/connect
 import { PageHeader } from "@/components/app/page-header";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Billing } from "@/lib/types";
-import { WingLadder } from "./wing-ladder";
+import { WingsPricing } from "./wings-pricing";
 
 export default async function WingsPricingPage() {
   let billing: Billing | null = null;
@@ -44,9 +44,7 @@ export default async function WingsPricingPage() {
             </div>
           </div>
 
-          <WingLadder wing="transactional" ladder={wings.transactional} />
-          <WingLadder wing="marketing" ladder={wings.marketing} />
-          <WingLadder wing="platform" ladder={wings.platform} />
+          <WingsPricing wings={wings} />
 
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <ArrowLeft className="size-3.5" />

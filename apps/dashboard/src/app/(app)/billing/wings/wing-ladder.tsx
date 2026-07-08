@@ -55,7 +55,15 @@ function metricLine(wing: WingId, t: WingTier): string {
   return `${seats} seats · ${ws} workspaces`;
 }
 
-export function WingLadder({ wing, ladder }: { wing: WingId; ladder: Ladder }) {
+export function WingLadder({
+  wing,
+  ladder,
+  recommendedId,
+}: {
+  wing: WingId;
+  ladder: Ladder;
+  recommendedId?: string;
+}) {
   const meta = WING_META[wing];
   // Best plan first, Free last (per the pricing reference).
   const tiers = [...ladder.tiers].sort((a, b) => b.rank - a.rank);
@@ -77,12 +85,24 @@ export function WingLadder({ wing, ladder }: { wing: WingId; ladder: Ladder }) {
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
         {tiers.map((t) => {
           const isCurrent = ladder.current_tier_id === t.id;
+          const isRecommended = recommendedId === t.id;
           return (
-            <Card key={t.id} className={cn("flex flex-col", isCurrent && "border-primary ring-1 ring-primary/30")}>
+            <Card
+              key={t.id}
+              className={cn(
+                "flex flex-col transition-shadow",
+                isCurrent && "border-primary ring-1 ring-primary/30",
+                isRecommended && !isCurrent && "border-emerald-500 ring-1 ring-emerald-500/30",
+              )}
+            >
               <CardContent className="flex flex-1 flex-col p-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">{t.name}</h3>
-                  {isCurrent ? <Badge>Current</Badge> : null}
+                  {isCurrent ? (
+                    <Badge>Current</Badge>
+                  ) : isRecommended ? (
+                    <Badge className="bg-emerald-500 hover:bg-emerald-500">For you</Badge>
+                  ) : null}
                 </div>
                 <div className="mt-1 flex items-baseline gap-1">
                   <span className="text-xl font-bold">{price(t.price_monthly)}</span>
