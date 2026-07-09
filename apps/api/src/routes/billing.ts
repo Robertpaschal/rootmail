@@ -13,6 +13,7 @@ import {
   saleActive,
   salePrice,
   type TierDef,
+  WINGS,
   yearlyPrice,
   YEARLY_MONTHS_FREE,
 } from "@rootmail/core";
@@ -22,10 +23,13 @@ import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { getAddon, getAiCredits, getSale, getTrialDays, listAddons, listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
-import { tiersForWing } from "../lib/wings";
+import { getTier, tiersForWing } from "../lib/wings";
 import {
+  assignWingTier,
+  cancelWingSubscription,
   createCheckout,
   createEmbeddedCheckout,
+  createWingCheckout,
   reportOverage,
   syncAddonItems,
   syncDedicatedIpProvisioning,
@@ -382,5 +386,43 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(organizations.id, org.id))
       .returning();
     return billingPayload(updated, await quotaState(updated));
+  });
+
+  // Choose a per-wing tier (PRICING-WINGS-SPEC.md, Phase D.2). Custom → contact
+  // sales; a paid tier in Stripe mode → hosted checkout (the webhook applies it);
+  // a Free tier (or local mode) → assigned directly, which activates the per-wing
+  // resolver for this org. Any prior paid subscription for the wing is cancelled.
+  app.post("/v1/billing/wing/checkout", async (req) => {
+    const body = parse(
+      z.object({
+        wing: z.enum(WINGS),
+        tier_id: z.string(),
+        interval: z.enum(BILLING_INTERVALS).optional(),
+      }),
+      req.body,
+    );
+    const org = await orgForReq(req);
+    await requirePermission(req, "billing.manage");
+
+    const tier = getTier(body.tier_id);
+    if (!tier || tier.wing !== body.wing) {
+      throw Errors.badRequest("Unknown tier for that wing.");
+    }
+    const interval = body.interval ?? "month";
+
+    if (tier.priceMonthly === null) {
+      return { object: "wing_checkout", mode: "contact_sales", wing: body.wing };
+    }
+    if (tier.priceMonthly > 0) {
+      const res = await createWingCheckout(org, tier.id, interval);
+      if (res.mode === "stripe") {
+        return { object: "wing_checkout", mode: "stripe", url: res.url };
+      }
+      // No Stripe / unsynced price → fall through to a direct (local) assignment.
+    }
+    // Free tier, or local-mode paid: assign directly + cancel any existing paid sub.
+    await cancelWingSubscription(org, body.wing);
+    await assignWingTier(org.id, body.wing, tier.id);
+    return { object: "wing_checkout", mode: "assigned", wing: body.wing, tier_id: tier.id };
   });
 }

@@ -359,6 +359,15 @@ export interface Wings {
   platform: WingLadder;
 }
 
+export interface WingCheckoutResult {
+  object: "wing_checkout";
+  /** stripe → redirect to `url`; assigned → applied directly; contact_sales → sales; local → applied. */
+  mode: "stripe" | "assigned" | "contact_sales" | "local";
+  url?: string;
+  wing?: WingId;
+  tier_id?: string;
+}
+
 export interface Billing {
   object: "billing";
   organization_id: string;

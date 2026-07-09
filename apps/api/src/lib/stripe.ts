@@ -6,11 +6,14 @@ import {
   type AddOnId,
   type BillingInterval,
   BILLING_MODE,
+  defaultTierId,
   env,
   newId,
   type PlanId,
   type PlanStatus,
   saleActive,
+  type Wing,
+  WINGS,
 } from "@rootmail/core";
 import {
   type Addon,
@@ -30,6 +33,7 @@ import {
 } from "@rootmail/db";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
 import { getAddon, getSale, getStripePrices, getTrialDays, planForOrg } from "./plans";
+import { getTier, tiersForWing } from "./wings";
 
 // ---------------------------------------------------------------------------
 // Stripe billing abstraction.
@@ -423,6 +427,12 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
   // The dedicated monthly overage sub (for yearly plans) is bookkeeping, not the plan
   // subscription — its events must not overwrite the org's plan/subscription id or add-ons.
   if (sub.metadata?.kind === "overage") return;
+  // Per-wing subscriptions carry a `wing` — route to the wing resolver, never the
+  // legacy single-plan one (which would clobber org.plan / the shared subscription id).
+  if (sub.metadata?.wing) {
+    await syncWingSubscription(sub);
+    return;
+  }
 
   const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
 
@@ -734,6 +744,151 @@ export async function syncAllTierPrices(): Promise<{ synced: number }> {
     }
   }
   return { synced };
+}
+
+// --- Per-wing subscriptions (PRICING-WINGS-SPEC.md, Phase D.2) -----------------
+// Each wing is its OWN Stripe subscription. The tier's price carries `wing`
+// metadata, so the webhook routes it to the right org column.
+
+/** The org columns to write for a wing — its tier id + its Stripe subscription id. */
+function wingUpdate(wing: Wing, tierId: string | null, subId: string | null) {
+  switch (wing) {
+    case "transactional":
+      return { transactionalTier: tierId, stripeTxSubscriptionId: subId };
+    case "marketing":
+      return { marketingTier: tierId, stripeMkSubscriptionId: subId };
+    case "platform":
+      return { platformTier: tierId, stripePlatformSubscriptionId: subId };
+  }
+}
+
+/** The org's current Stripe subscription id for a wing (to cancel on downgrade). */
+export function wingSubscriptionId(org: Organization, wing: Wing): string | null {
+  return wing === "transactional"
+    ? org.stripeTxSubscriptionId
+    : wing === "marketing"
+      ? org.stripeMkSubscriptionId
+      : org.stripePlatformSubscriptionId;
+}
+
+/** Stripe price id for a wing tier at the interval (synced by syncTierPrice), or null. */
+export function priceForWingTier(tierId: string, interval: BillingInterval = "month"): string | null {
+  const t = getTier(tierId);
+  if (!t) return null;
+  return (interval === "year" ? t.stripePriceYearId : t.stripePriceMonthId) ?? null;
+}
+
+/** Reverse lookup: which wing tier does a Stripe price id belong to? */
+function tierForPrice(priceId: string): { tierId: string; wing: Wing } | null {
+  for (const wing of WINGS) {
+    for (const t of tiersForWing(wing)) {
+      if (t.stripePriceMonthId === priceId || t.stripePriceYearId === priceId) {
+        return { tierId: t.id, wing };
+      }
+    }
+  }
+  return null;
+}
+
+/** Directly set an org's wing tier (free tiers + local mode — no Stripe charge).
+ * Clears any Stripe sub id for that wing (the caller cancels the sub if one exists). */
+export async function assignWingTier(orgId: string, wing: Wing, tierId: string): Promise<void> {
+  await db
+    .update(organizations)
+    .set({ ...wingUpdate(wing, tierId, null), updatedAt: new Date() })
+    .where(eq(organizations.id, orgId));
+}
+
+/** Cancel a wing's Stripe subscription if it has one (best-effort; used on
+ * downgrade-to-free). Safe if already gone. */
+export async function cancelWingSubscription(org: Organization, wing: Wing): Promise<void> {
+  const stripe = getStripe();
+  const subId = wingSubscriptionId(org, wing);
+  if (!stripe || !subId) return;
+  await stripe.subscriptions.cancel(subId).catch(() => {});
+}
+
+/** Start a per-wing subscription checkout (hosted). Returns a Stripe redirect URL,
+ * else `{ mode: "local" }` (no Stripe / no synced price) so the caller assigns
+ * directly. The session's metadata carries `wing` + `tierId` for the webhook. */
+export async function createWingCheckout(
+  org: Organization,
+  tierId: string,
+  interval: BillingInterval = "month",
+): Promise<CheckoutResult> {
+  const stripe = getStripe();
+  const tier = getTier(tierId);
+  const price = priceForWingTier(tierId, interval);
+  if (!stripe || !tier || !price) return { mode: "local" };
+
+  try {
+    const customer = await ensureCustomer(org);
+    const base = env.DASHBOARD_URL.replace(/\/$/, "");
+    const meta = { organizationId: org.id, wing: tier.wing, tierId, interval };
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer,
+      line_items: [{ price, quantity: 1 }],
+      success_url: `${base}/billing/wings?checkout=success`,
+      cancel_url: `${base}/billing/wings?checkout=cancel`,
+      metadata: meta,
+      subscription_data: { metadata: meta },
+      allow_promotion_codes: true,
+    });
+    if (session.url) return { mode: "stripe", url: session.url };
+  } catch (err) {
+    console.warn(`[stripe] wing checkout failed, falling back to local: ${String(err)}`);
+  }
+  return { mode: "local" };
+}
+
+/** Webhook: apply a per-wing subscription to its org column. Recognized by the
+ * `wing` metadata (syncSubscription delegates here). Canceled → that wing drops
+ * back to its Free tier. */
+export async function syncWingSubscription(sub: Stripe.Subscription): Promise<void> {
+  const wing = sub.metadata?.wing as Wing | undefined;
+  if (!wing || !WINGS.includes(wing)) return;
+
+  const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  let [org] = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.stripeCustomerId, customerId))
+    .limit(1);
+  if (!org && sub.metadata?.organizationId) {
+    [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, sub.metadata.organizationId))
+      .limit(1);
+  }
+  if (!org) return;
+
+  const status = toPlanStatus(sub.status);
+  if (status === "canceled") {
+    // Drop this wing to its Free tier + detach the sub (the other wings are untouched).
+    await db
+      .update(organizations)
+      .set({ ...wingUpdate(wing, defaultTierId(wing), null), updatedAt: new Date() })
+      .where(eq(organizations.id, org.id));
+    return;
+  }
+
+  // Which tier is billed — from the sub's price, else the metadata tierId.
+  let tierId: string | null = null;
+  for (const item of sub.items.data) {
+    const match = item.price?.id ? tierForPrice(item.price.id) : null;
+    if (match && match.wing === wing) {
+      tierId = match.tierId;
+      break;
+    }
+  }
+  tierId ??= sub.metadata?.tierId ?? defaultTierId(wing);
+
+  await db
+    .update(organizations)
+    .set({ ...wingUpdate(wing, tierId, sub.id), updatedAt: new Date() })
+    .where(eq(organizations.id, org.id));
 }
 
 /**
