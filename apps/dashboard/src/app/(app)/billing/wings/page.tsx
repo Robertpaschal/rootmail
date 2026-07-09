@@ -35,11 +35,12 @@ export default async function WingsPricingPage() {
           <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
             <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" />
             <div className="text-sm">
-              <p className="font-medium">A preview of rootmail&apos;s new pricing.</p>
+              <p className="font-medium">rootmail&apos;s new pricing — pay per wing.</p>
               <p className="mt-0.5 text-muted-foreground">
                 Transactional is sized by send volume, Marketing by contacts, and Platform by your team —
-                each on its own plan, so you can be Free on one and scale the other. Your current plan is
-                unchanged; choosing tiers here goes live soon.
+                each on its own plan, billed on its own, so you can be Free on one side and scale the other.
+                Choosing any tier moves your whole account to per-wing pricing; wings you haven&apos;t chosen
+                start on Free.
               </p>
             </div>
           </div>

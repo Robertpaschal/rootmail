@@ -58,6 +58,7 @@ import type {
   VerifyResult,
   WebhookDelivery,
   WebhookEndpoint,
+  WingCheckoutResult,
   Workspace,
   WorkspacesResult,
 } from "./types";
@@ -339,6 +340,13 @@ export const api = {
     rmFetch<Billing>("/v1/billing/plan", { method: "POST", body: { plan } }),
   setAddon: (addon_id: string, quantity: number) =>
     rmFetch<Billing>("/v1/billing/addons", { method: "POST", body: { addon_id, quantity } }),
+  // Choose a per-wing tier. Paid + Stripe → hosted Checkout URL (webhook applies it);
+  // Free or local mode → assigned directly; custom → contact sales.
+  wingCheckout: (wing: string, tier_id: string, interval: "month" | "year" = "month") =>
+    rmFetch<WingCheckoutResult>("/v1/billing/wing/checkout", {
+      method: "POST",
+      body: { wing, tier_id, interval },
+    }),
 
   listSequences: () => rmFetch<ListResponse<Sequence>>("/v1/sequences"),
   getSequence: (id: string) => rmFetch<Sequence>(`/v1/sequences/${id}`),

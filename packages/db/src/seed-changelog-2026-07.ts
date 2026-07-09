@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Pay per wing — pricing you can actually choose",
+    date: "2026-07-08",
+    changes: [
+      {
+        kind: "New",
+        text: "Per-wing pricing is live: Transactional is sized by send volume, Marketing by contacts, and Platform by your team — each on its own plan, billed on its own. Be Free on one side and scale the other; you only pay for what you use.",
+      },
+      {
+        kind: "New",
+        text: "Pick a tier right from Plan & usage → Pricing by wing: paid tiers check out through Stripe, Free tiers apply instantly, and wings you haven't chosen start on Free.",
+      },
+      {
+        kind: "New",
+        text: "Not sure what fits? Answer three questions — emails per month, contacts, team size — and we'll recommend a tier per wing with a combined monthly total.",
+      },
+    ],
+  },
+  {
     title: "Lists are now Audiences",
     date: "2026-07-07",
     changes: [

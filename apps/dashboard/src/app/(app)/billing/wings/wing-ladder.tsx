@@ -1,5 +1,10 @@
-import { Check, Megaphone, Users, Zap } from "lucide-react";
+"use client";
+
+import { useState, useTransition } from "react";
+import { Check, Loader2, Megaphone, Users, Zap } from "lucide-react";
+import { chooseWingTier } from "./actions";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { WingId, WingLadder as Ladder, WingTier } from "@/lib/types";
@@ -130,11 +135,67 @@ export function WingLadder({
                     ))}
                   </ul>
                 ) : null}
+
+                <ChooseTierButton wing={wing} tier={t} isCurrent={isCurrent} recommended={isRecommended} />
               </CardContent>
             </Card>
           );
         })}
       </div>
     </section>
+  );
+}
+
+/** Choose a tier: paid → Stripe Checkout (redirect), Free → applied immediately,
+ * custom → contact sales. The card's whole point of action. */
+function ChooseTierButton({
+  wing,
+  tier,
+  isCurrent,
+  recommended,
+}: {
+  wing: WingId;
+  tier: WingTier;
+  isCurrent: boolean;
+  recommended: boolean;
+}) {
+  const [pending, start] = useTransition();
+  const [error, setError] = useState<string | null>(null);
+
+  if (isCurrent) {
+    return (
+      <Button variant="outline" size="sm" className="mt-4 w-full" disabled>
+        Current plan
+      </Button>
+    );
+  }
+
+  const custom = tier.price_monthly === null;
+  const free = tier.price_monthly === 0;
+  const label = custom ? "Contact sales" : free ? `Use ${tier.name}` : `Choose ${tier.name}`;
+
+  return (
+    <div className="mt-4">
+      <Button
+        variant={recommended ? "default" : "outline"}
+        size="sm"
+        className="w-full"
+        disabled={pending}
+        onClick={() => {
+          if (free && !confirm(`Switch this wing to ${tier.name}? Paid features on this wing stop immediately.`)) {
+            return;
+          }
+          setError(null);
+          start(async () => {
+            const res = await chooseWingTier(wing, tier.id, "month");
+            if (res?.error) setError(res.error);
+          });
+        }}
+      >
+        {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+        {label}
+      </Button>
+      {error ? <p className="mt-1.5 text-[11px] text-destructive">{error}</p> : null}
+    </div>
   );
 }
