@@ -309,6 +309,23 @@ Built, deployed, and verified after the 2026-06-24 launch (all 5 images via CI):
   admin Leads inbox, where staff provision a custom plan via the existing flow.
 - **Stripe webhook** confirmed live + correct (`service.gateml.io/v1/webhooks/stripe`).
 
+### First-principles pricing (2026-07-08) — blocks × contacts, legacy removed
+Owner directive: volume-price instead of guarding one cap; scaling is never punished; no
+legacy solutions. Deployed + verified (commit a9b97cd; details in `PRICING-WINGS-SPEC.md` §12):
+- **Transactional = send blocks.** Free 3k/mo, then quantity × 25,000-send blocks at volume
+  rates ($8 → $7 → $6/block; Stripe tiered volume price, quantity = blocks). The dashboard's
+  blocks card is a real purchaser (stepper + live rate + buy/update).
+- **Marketing = contacts — sends never consume blocks.** The quota meters only transactional
+  mail; marketing enforcement moved to audience size (growth + campaign start vs the contact
+  bracket). A within-bracket audience can always receive a full campaign.
+- **Legacy ladder removed.** Free/Pro/Scale no longer resolves entitlements, gates features,
+  or renders; wings are the only model (custom enterprise plans still override). New orgs
+  provision on wing defaults; existing orgs backfilled; stale tiers dropped from the catalog.
+- **Integrated end-to-end:** onboarding sizes the account (sends/contacts/team → pre-filled
+  pricing handoff); /billing shows per-wing meters; feature locks name the wing tier; branding
+  is per wing. Still open: Stripe metered overage for blocks, add-ons on wing subs, yearly wing
+  checkout UI, admin editing for `pricing_tiers`, marketing-site pricing page (#59).
+
 ### First-principles usability pass (2026-07-06 → 07)
 Driven by the owner's "usability from first principles" note. All deployed + verified:
 - **Onboarding as the linchpin.** New accounts get a short guided setup — business identity, the
