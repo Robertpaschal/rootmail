@@ -1,5 +1,5 @@
 import { and, eq, isNull, lt, or } from "drizzle-orm";
-import { generateSessionToken, newId, sha256Hex } from "@rootmail/core";
+import { defaultTierId, generateSessionToken, newId, sha256Hex } from "@rootmail/core";
 import {
   db,
   memberships,
@@ -152,6 +152,11 @@ export async function provisionAccount(params: {
       id: orgId,
       name: orgName,
       slug: `${slugify(orgName) || "workspace"}-${orgId.slice(-6)}`,
+      // Per-wing pricing from day one: Free on each wing (transactional starts on
+      // the free allowance; blocks are purchased when they scale).
+      transactionalTier: defaultTierId("transactional"),
+      marketingTier: defaultTierId("marketing"),
+      platformTier: defaultTierId("platform"),
     });
 
     await tx.insert(memberships).values({

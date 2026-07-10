@@ -1,4 +1,6 @@
 import {
+  BLOCK_SIZE,
+  blocksMonthlyPrice,
   defaultTierId,
   type PlanDef,
   type PlanFeature,
@@ -9,13 +11,9 @@ import {
 } from "@rootmail/core";
 import { db, type PricingTier, pricingTiers as pricingTiersTable } from "@rootmail/db";
 
-// Per-wing pricing resolution (PRICING-WINGS-SPEC.md, Phase B).
-//
-// SAFETY: everything here is DORMANT until an org has at least one wing-tier column
-// set (transactional/marketing/platform). No org does yet (assignment arrives in
-// Phase C/D), so `orgHasWingPricing` is false everywhere and the callers
-// (planForOrg / aiCreditsForOrg / requireFeature) all take their unchanged legacy
-// branch. This lets us land + validate the machinery with zero behaviour change.
+// Per-wing pricing resolution (PRICING-WINGS-SPEC.md) — THE entitlements model.
+// Every org resolves through its three wings (null tier = that wing's Free); the
+// transactional wing is blocks-aware (organizations.transactional_blocks).
 
 // --- tier catalog cache (DB override, WING_TIERS constant fallback — like plans) ---
 const TTL_MS = 30_000;
@@ -77,18 +75,14 @@ export function tiersForWing(wing: Wing): TierDef[] {
 }
 
 // --- org → per-wing resolution -------------------------------------------------
-/** The org shape these resolvers read — the three wing-tier columns (+ plan). */
+/** The org shape these resolvers read — the wing tiers + purchased blocks. Every
+ * org resolves through wings: null tiers mean that wing's Free/entry tier. */
 export interface WingOrg {
-  plan: PlanId;
+  plan: PlanId; // vestigial label only — entitlements come from the wings
   transactionalTier?: string | null;
+  transactionalBlocks?: number | null;
   marketingTier?: string | null;
   platformTier?: string | null;
-}
-
-/** True once an org has moved onto the per-wing model (any wing tier assigned).
- * While false (every org today), the legacy single-plan path is used untouched. */
-export function orgHasWingPricing(org: WingOrg): boolean {
-  return !!(org.transactionalTier || org.marketingTier || org.platformTier);
 }
 
 function tierFor(wing: Wing, id: string | null | undefined): TierDef {
@@ -100,24 +94,37 @@ export const platformTierFor = (org: WingOrg): TierDef => tierFor("platform", or
 
 const UNLIMITED_SENDS = Number.MAX_SAFE_INTEGER;
 
-/** Synthesize a legacy-shaped PlanDef from the org's three wing tiers, so every
- * existing caller of planForOrg keeps working unchanged. Quota comes from the
- * transactional tier, seats/workspaces from platform, features are the union. */
+/** Monthly TRANSACTIONAL send allowance: blocks × BLOCK_SIZE when blocks are
+ * purchased, else the tier's included sends (Free 3k; Enterprise unlimited). */
+export function txSendAllowance(org: WingOrg): number {
+  const tx = txTierFor(org);
+  if (tx.includedSends === -1) return UNLIMITED_SENDS;
+  const blocks = org.transactionalBlocks ?? 0;
+  if (blocks > 0) return blocks * (tx.blockSize ?? BLOCK_SIZE);
+  return tx.includedSends ?? 0;
+}
+
+/** The org's effective plan, synthesized from its three wings — THE resolver.
+ * Quota = transactional allowance (blocks-aware), seats/workspaces = platform,
+ * features = union. `monthlyQuota` governs TRANSACTIONAL sends only; marketing
+ * volume is priced by contacts (contactLimitForOrg), never by send quota. */
 export function synthesizePlan(org: WingOrg): PlanDef {
   const tx = txTierFor(org);
   const mk = mkTierFor(org);
   const pf = platformTierFor(org);
+  const blocks = org.transactionalBlocks ?? 0;
   const features = [...new Set<PlanFeature>([...tx.features, ...mk.features, ...pf.features])];
+  const txPrice = tx.priceMonthly === null ? null : blocks > 0 ? blocksMonthlyPrice(blocks) : 0;
   const price =
-    tx.priceMonthly === null || mk.priceMonthly === null || pf.priceMonthly === null
+    txPrice === null || mk.priceMonthly === null || pf.priceMonthly === null
       ? null // any custom wing → custom overall
-      : (tx.priceMonthly ?? 0) + (mk.priceMonthly ?? 0) + (pf.priceMonthly ?? 0);
+      : txPrice + (mk.priceMonthly ?? 0) + (pf.priceMonthly ?? 0);
   return {
-    id: org.plan, // nominal label; entitlements come from the numeric fields below
-    name: "Custom (per-wing)",
+    id: org.plan, // vestigial label; entitlements come from the numeric fields below
+    name: "Per-wing",
     price,
-    monthlyQuota: tx.includedSends === -1 ? UNLIMITED_SENDS : (tx.includedSends ?? 0),
-    allowOverage: tx.allowOverage ?? false,
+    monthlyQuota: txSendAllowance(org),
+    allowOverage: blocks > 0 ? true : (tx.allowOverage ?? false),
     overagePer1000: tx.overagePer1000 ?? 0,
     includedSubTenants: tx.includedSubTenants ?? 0,
     seats: pf.seats ?? 1,
@@ -126,9 +133,12 @@ export function synthesizePlan(org: WingOrg): PlanDef {
   };
 }
 
-/** Org-level AI credits from the three wing tiers (summed; -1 = unlimited wins). */
+/** Org-level AI credits from the three wing tiers (summed; -1 = unlimited wins).
+ * The transactional Blocks grant only applies once blocks are actually purchased. */
 export function wingAiCredits(org: WingOrg): number {
-  const grants = [txTierFor(org).aiCredits, mkTierFor(org).aiCredits, platformTierFor(org).aiCredits];
+  const tx = txTierFor(org);
+  const txGrant = tx.id === "tx_blocks" && (org.transactionalBlocks ?? 0) === 0 ? 5 : tx.aiCredits;
+  const grants = [txGrant, mkTierFor(org).aiCredits, platformTierFor(org).aiCredits];
   if (grants.some((g) => g === -1)) return -1;
   return grants.reduce((a, b) => a + b, 0);
 }
@@ -138,10 +148,8 @@ export function wingFeatureUnlocked(org: WingOrg, feature: PlanFeature): boolean
   return synthesizePlan(org).features.includes(feature);
 }
 
-/** Billable contact limit under the marketing tier (-1 = unlimited). Only meaningful
- * for wing-priced orgs; legacy orgs have no contact cap (return -1). */
+/** Billable contact limit under the marketing tier (-1 = unlimited). */
 export function contactLimitForOrg(org: WingOrg): number {
-  if (!orgHasWingPricing(org)) return -1;
   return mkTierFor(org).includedContacts ?? -1;
 }
 

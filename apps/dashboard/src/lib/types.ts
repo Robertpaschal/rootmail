@@ -353,8 +353,20 @@ export interface WingLadder {
   current_tier_id: string | null;
   tiers: WingTier[];
 }
+export interface BlockBracket {
+  up_to_blocks: number;
+  per_block: number;
+}
+/** The transactional wing adds the block model (quantity × block_size sends/mo). */
+export interface TransactionalLadder extends WingLadder {
+  blocks: number;
+  block_size: number;
+  free_sends: number;
+  max_blocks: number;
+  brackets: BlockBracket[];
+}
 export interface Wings {
-  transactional: WingLadder;
+  transactional: TransactionalLadder;
   marketing: WingLadder;
   platform: WingLadder;
 }
@@ -366,6 +378,7 @@ export interface WingCheckoutResult {
   url?: string;
   wing?: WingId;
   tier_id?: string;
+  blocks?: number;
 }
 
 export interface Billing {
@@ -383,6 +396,10 @@ export interface Billing {
     overage: number;
     overage_cost: number;
     over_limit: boolean;
+    /** Marketing volume is priced by contacts — these are informational/enforced separately. */
+    marketing_sent: number;
+    contacts_used: number;
+    contacts_limit: number;
   };
   summary: BillingSummary;
   plans: Plan[];
@@ -543,14 +560,6 @@ export interface MembersResult {
   members: Member[];
   invitations: PendingInvite[];
 }
-
-export type CheckoutResponse =
-  | { object: "checkout"; mode: "stripe"; url: string }
-  | { object: "checkout"; mode: "local"; billing: Billing };
-
-export type EmbeddedCheckoutResponse =
-  | { object: "embedded_checkout"; available: true; client_secret: string; publishable_key: string }
-  | { object: "embedded_checkout"; available: false };
 
 export interface AiDraftResponse {
   object: "ai_draft";

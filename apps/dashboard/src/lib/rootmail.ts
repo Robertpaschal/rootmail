@@ -18,8 +18,6 @@ import type {
   EmailAuthReport,
   ImportResult,
   RetentionPolicy,
-  CheckoutResponse,
-  EmbeddedCheckoutResponse,
   Contact,
   ContactList,
   ContactStatus,
@@ -321,31 +319,15 @@ export const api = {
   generateScimToken: () => rmFetch<ScimTokenResult>("/v1/sso/scim/token", { method: "POST" }),
   disableScim: () => rmFetch<ScimTokenResult>("/v1/sso/scim/token", { method: "DELETE" }),
 
-  // Starts a plan change. In Stripe mode returns a hosted Checkout URL; in local
-  // mode applies the switch and returns the updated billing.
-  checkout: (plan: string, interval: "month" | "year" = "month") =>
-    rmFetch<CheckoutResponse>("/v1/billing/checkout", { method: "POST", body: { plan, interval } }),
-  // On-page checkout: returns a session client_secret + publishable key to mount
-  // inline, or { available: false } so the caller falls back to hosted checkout.
-  embeddedCheckout: (
-    plan: string,
-    interval: "month" | "year" = "month",
-    addons?: Record<string, number>,
-  ) =>
-    rmFetch<EmbeddedCheckoutResponse>("/v1/billing/checkout/embedded", {
-      method: "POST",
-      body: { plan, interval, ...(addons ? { addons } : {}) },
-    }),
-  setPlan: (plan: string) =>
-    rmFetch<Billing>("/v1/billing/plan", { method: "POST", body: { plan } }),
   setAddon: (addon_id: string, quantity: number) =>
     rmFetch<Billing>("/v1/billing/addons", { method: "POST", body: { addon_id, quantity } }),
   // Choose a per-wing tier. Paid + Stripe → hosted Checkout URL (webhook applies it);
-  // Free or local mode → assigned directly; custom → contact sales.
-  wingCheckout: (wing: string, tier_id: string, interval: "month" | "year" = "month") =>
+  // Free or local mode → assigned directly; custom → contact sales. `blocks` is the
+  // transactional block quantity (25k sends each).
+  wingCheckout: (wing: string, tier_id: string, interval: "month" | "year" = "month", blocks?: number) =>
     rmFetch<WingCheckoutResult>("/v1/billing/wing/checkout", {
       method: "POST",
-      body: { wing, tier_id, interval },
+      body: { wing, tier_id, interval, ...(blocks ? { blocks } : {}) },
     }),
 
   listSequences: () => rmFetch<ListResponse<Sequence>>("/v1/sequences"),

@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Scaling is never punished — blocks and brackets",
+    date: "2026-07-08",
+    changes: [
+      {
+        kind: "New",
+        text: "Transactional email is now bought in blocks of 25,000 sends at volume rates that drop as you grow ($8 → $7 → $6 per block). Estimate your volume, buy exactly that, change it any time — your first 3,000 sends each month stay free.",
+      },
+      {
+        kind: "New",
+        text: "Marketing email never counts against your send blocks. You pay for audience size, and a campaign to your whole audience is always included — a million contacts can receive a full promo round without touching transactional volume.",
+      },
+      {
+        kind: "Improved",
+        text: "Onboarding now sizes your account: tell us your monthly sends, contacts, and team, and the pricing page opens with your per-wing recommendation ready. Plan & usage shows each wing's real meter — sends against blocks, audience against its bracket.",
+      },
+      {
+        kind: "Improved",
+        text: "The old one-size plans (Free/Pro/Scale) are gone. Everything is per wing now — clearer, honest, and each side billed on its own.",
+      },
+    ],
+  },
+  {
     title: "Pay per wing — pricing you can actually choose",
     date: "2026-07-08",
     changes: [

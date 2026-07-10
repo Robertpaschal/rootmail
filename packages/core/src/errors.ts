@@ -43,6 +43,8 @@ export const Errors = {
       current_plan: string;
       required_plan: string | null;
       required_plan_name?: string | null;
+      /** Which wing the unlocking tier belongs to (per-wing pricing). */
+      required_wing?: string | null;
       price?: number | null;
       upgrade_url?: string | null;
       checkout_endpoint?: string | null;
@@ -59,6 +61,7 @@ export const Errors = {
       current_plan: opts.current_plan,
       required_plan: opts.required_plan,
       required_plan_name: opts.required_plan_name ?? null,
+      required_wing: opts.required_wing ?? null,
       price: opts.price ?? null,
       upgrade_url: opts.upgrade_url ?? null,
       checkout_endpoint: opts.checkout_endpoint ?? null,

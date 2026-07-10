@@ -3,7 +3,6 @@ import { redirect } from "next/navigation";
 import { Logo } from "@/components/app/logo";
 import { api } from "@/lib/rootmail";
 import { getSessionToken } from "@/lib/session";
-import type { Plan } from "@/lib/types";
 import { OnboardingWizard } from "./onboarding-wizard";
 
 export const metadata: Metadata = { title: "Welcome to rootmail" };
@@ -11,22 +10,21 @@ export const dynamic = "force-dynamic";
 
 // The post-signup wizard: gather the little we structurally need (identity +
 // compliance address + what they do + how they send today), explaining why at
-// each step — then a personalized plan pitch instead of a silent drop into Free.
+// each step — then size the account (send volume + contacts + team) and hand off
+// to the per-wing pricing with those answers pre-filled.
 export default async function OnboardingPage() {
   const token = await getSessionToken();
   if (!token) redirect("/login");
 
   let orgName = "";
   let userName = "";
-  let plans: Plan[] = [];
   let alreadyDone = false;
   let failed = false;
   try {
-    const [me, org, billing] = await Promise.all([api.me(), api.getOrganization(), api.getBilling()]);
+    const [me, org] = await Promise.all([api.me(), api.getOrganization()]);
     alreadyDone = me.onboarding_completed !== false;
     orgName = org.name;
     userName = me.user.name ?? "";
-    plans = billing.plans ?? [];
   } catch {
     failed = true;
   }
@@ -40,7 +38,7 @@ export default async function OnboardingPage() {
         <Logo />
       </header>
       <main className="mx-auto max-w-5xl px-4 pb-16">
-        <OnboardingWizard orgName={orgName} userName={userName} plans={plans} />
+        <OnboardingWizard orgName={orgName} userName={userName} />
       </main>
     </div>
   );

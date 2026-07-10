@@ -291,3 +291,48 @@ Each phase ships + deploys independently; nothing charges differently until D.
    on any paid wing, not an add-on. ✅
 
 Build order: branding footer first (self-contained, ships today), then Phase A.
+
+---
+
+## 12. EXECUTED — first-principles rebuild (2026-07-08)
+
+Owner directive: "no need for legacy solutions — remove them; volume-price instead
+of guarding one cap; scaling is not punished." Shipped as the ONLY pricing model:
+
+- **Legacy removed.** The free/pro/scale/enterprise ladder no longer resolves
+  entitlements, gates features, or renders anywhere. `planForOrg` = custom
+  enterprise override ?? wings synthesis. Legacy routes (`/v1/billing/checkout`,
+  `/checkout/embedded`, `/billing/plan`), the dashboard plan cards, and the legacy
+  checkout page are deleted. (`org.plan`, the `plans` table, and `/v1/pricing`
+  remain as vestigial data for admin/marketing until #59 — nothing reads them for
+  entitlements.)
+- **Transactional = true blocks.** tx_free (3k/mo) → **tx_blocks**: quantity ×
+  25,000 sends at BLOCK_BRACKETS volume rates (≤4 @ $8, ≤20 @ $7, ≤80 @ $6 —
+  Stripe `billing_scheme: tiered, tiers_mode: volume`, quantity = blocks; yearly =
+  10× rates) → tx_enterprise (custom). `organizations.transactional_blocks` holds
+  the purchased count (webhook reads the subscription item quantity).
+- **Marketing sends never consume blocks.** `tryConsumeQuota` meters ONLY
+  transactional sends; marketing/sales volume records to `usage_records.
+  marketing_sent` (informational). Enforcement moved to AUDIENCE SIZE:
+  `billableContacts` (audience memberships) gated at growth (import, list add) and
+  at campaign start (`assertContactCapacity` → 402 with the marketing-wing
+  upgrade). A within-bracket audience can ALWAYS receive a full campaign.
+- **Branding per wing** (§3d realized): transactional mail branded while on the
+  free allowance (no blocks); marketing mail branded while marketing is Free.
+- **Everywhere in the product:** onboarding's final step now asks the three sizing
+  questions (sends/mo, contacts, team) and hands off to `/billing/wings` with them
+  pre-filled + auto-recommended; `/billing` shows per-wing usage (sends vs blocks,
+  contacts vs bracket) with the wings pricing as THE plans tab; the blocks card is
+  a real purchaser (stepper + live volume rate + buy/update); feature locks name
+  the wing tier and link to the wing pricing; new orgs provision on wing defaults.
+- **Verified locally end-to-end** (real DB + Stripe test): tiered price accepted
+  by Stripe; buy-6-blocks → checkout URL; webhook qty 6 → quota 150,000 @ $42/mo
+  (bracket rate applied); contact cap 402 past bracket; per-wing branding truth
+  table; catalog reseed removes stale tiers + backfills orgs.
+
+**Owner notes (nothing needed right now):** Stripe products/prices are created
+programmatically in TEST mode by `sync-wing-prices` — when live keys land, rerun it
+once. Still TODO: metered Stripe overage price for blocks (overage computes + shows
+but doesn't bill to Stripe yet), add-ons attached to wing subs (§6b Stripe side),
+yearly wing checkout UI, admin editing for `pricing_tiers`, SDK method sync, and the
+marketing-site pricing page (#59).

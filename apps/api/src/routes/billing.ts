@@ -6,9 +6,12 @@ import {
   type AddOnId,
   BILLING_INTERVALS,
   BILLING_MODE,
+  BLOCK_BRACKETS,
+  BLOCK_SIZE,
   Errors,
+  FREE_TX_SENDS,
+  MAX_SELF_SERVE_BLOCKS,
   newId,
-  PLAN_IDS,
   type PlanDef,
   saleActive,
   salePrice,
@@ -27,8 +30,6 @@ import { getTier, tiersForWing } from "../lib/wings";
 import {
   assignWingTier,
   cancelWingSubscription,
-  createCheckout,
-  createEmbeddedCheckout,
   createWingCheckout,
   reportOverage,
   syncAddonItems,
@@ -92,6 +93,12 @@ function wingsPayload(org: Organization) {
   return {
     transactional: {
       current_tier_id: org.transactionalTier ?? null,
+      // The block model — everything the estimator UI needs to price honestly.
+      blocks: org.transactionalBlocks,
+      block_size: BLOCK_SIZE,
+      free_sends: FREE_TX_SENDS,
+      max_blocks: MAX_SELF_SERVE_BLOCKS,
+      brackets: BLOCK_BRACKETS.map((b) => ({ up_to_blocks: b.upToBlocks, per_block: b.perBlock })),
       tiers: tiersForWing("transactional").map(serializeTier),
     },
     marketing: {
@@ -199,6 +206,10 @@ async function billingPayload(org: Organization, usage: QuotaState) {
       overage: usage.overage,
       overage_cost: usage.overage_cost,
       over_limit: usage.over_limit,
+      // Per-wing: marketing volume is priced by contacts, not blocks.
+      marketing_sent: usage.marketing_sent,
+      contacts_used: usage.contacts_used,
+      contacts_limit: usage.contacts_limit,
     },
     summary: billingSummary(org, usage, seats, addons),
     plans: listPlans().map(serializePlan),
@@ -247,73 +258,6 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       void reportOverage(org).catch((err) => req.log.warn({ err }, "overage report failed"));
     }
     return billingPayload(org, await quotaState(org));
-  });
-
-  // Start a plan change (monthly or yearly). Stripe mode → hosted Checkout;
-  // local mode (or unresolved price) → apply directly so self-serve still works.
-  app.post("/v1/billing/checkout", async (req) => {
-    const { plan, interval } = parse(
-      z.object({ plan: z.enum(PLAN_IDS), interval: z.enum(BILLING_INTERVALS).default("month") }),
-      req.body,
-    );
-    const org = await orgForReq(req);
-    await requirePermission(req, "billing.manage");
-    if (plan === "enterprise") {
-      throw Errors.badRequest("Enterprise is sales-assisted — contact sales to upgrade.");
-    }
-
-    const result = await createCheckout(org, plan, interval);
-    if (result.mode === "stripe" && result.url) {
-      return { object: "checkout", mode: "stripe", url: result.url };
-    }
-    // Fail CLOSED in Stripe mode: if a checkout session couldn't be created
-    // (misconfigured price, Stripe outage), never silently grant a free upgrade.
-    // The direct switch below is only for local/self-host mode where there's no
-    // Stripe to bill against.
-    if (BILLING_MODE === "stripe") {
-      throw Errors.badRequest(
-        "Couldn't start checkout right now — please try again in a moment or contact support.",
-      );
-    }
-    const [updated] = await db
-      .update(organizations)
-      .set({ plan, planStatus: "active", billingInterval: interval, updatedAt: new Date() })
-      .where(eq(organizations.id, org.id))
-      .returning();
-    return { object: "checkout", mode: "local", billing: await billingPayload(updated, await quotaState(updated)) };
-  });
-
-  // Start an ON-PAGE (embedded) checkout: returns a session client_secret + the
-  // publishable key for the dashboard to mount inline. `available: false` when
-  // embedded isn't configured (no publishable key, unresolved price) — the caller
-  // falls back to the hosted /checkout. Same gating as hosted checkout.
-  app.post("/v1/billing/checkout/embedded", async (req) => {
-    const { plan, interval, addons } = parse(
-      z.object({
-        plan: z.enum(PLAN_IDS),
-        interval: z.enum(BILLING_INTERVALS).default("month"),
-        // Add-ons chosen on the checkout page (id → quantity). Omitted → carry over
-        // the org's current add-ons. Unknown ids are ignored downstream.
-        addons: z.record(z.string(), z.coerce.number().int().min(0).max(1000)).optional(),
-      }),
-      req.body,
-    );
-    const org = await orgForReq(req);
-    await requirePermission(req, "billing.manage");
-    if (plan === "enterprise") {
-      throw Errors.badRequest("Enterprise is sales-assisted — contact sales to upgrade.");
-    }
-
-    const result = await createEmbeddedCheckout(org, plan, interval, addons);
-    if (result.mode === "embedded" && result.client_secret && result.publishable_key) {
-      return {
-        object: "embedded_checkout",
-        available: true,
-        client_secret: result.client_secret,
-        publishable_key: result.publishable_key,
-      };
-    }
-    return { object: "embedded_checkout", available: false };
   });
 
   // Set an add-on quantity (extra seats, dedicated IP, sub-tenant packs, AI
@@ -372,32 +316,19 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     return billingPayload(org, await quotaState(org));
   });
 
-  // Direct plan switch — local mode only.
-  app.post("/v1/billing/plan", async (req) => {
-    const { plan } = parse(z.object({ plan: z.enum(PLAN_IDS) }), req.body);
-    const org = await orgForReq(req);
-    await requirePermission(req, "billing.manage");
-    if (BILLING_MODE === "stripe") {
-      throw Errors.badRequest("Stripe billing is enabled — use POST /v1/billing/checkout.");
-    }
-    const [updated] = await db
-      .update(organizations)
-      .set({ plan, planStatus: "active", updatedAt: new Date() })
-      .where(eq(organizations.id, org.id))
-      .returning();
-    return billingPayload(updated, await quotaState(updated));
-  });
-
-  // Choose a per-wing tier (PRICING-WINGS-SPEC.md, Phase D.2). Custom → contact
-  // sales; a paid tier in Stripe mode → hosted checkout (the webhook applies it);
-  // a Free tier (or local mode) → assigned directly, which activates the per-wing
-  // resolver for this org. Any prior paid subscription for the wing is cancelled.
+  // Choose a per-wing tier — THE plan-change endpoint (PRICING-WINGS-SPEC.md).
+  // Custom → contact sales; a paid tier → hosted Stripe checkout (the webhook
+  // applies it; blocks ride as the subscription quantity); Free → assigned
+  // directly. Fails CLOSED for paid tiers in Stripe mode — never silently grants
+  // a paid wing un-billed.
   app.post("/v1/billing/wing/checkout", async (req) => {
     const body = parse(
       z.object({
         wing: z.enum(WINGS),
         tier_id: z.string(),
         interval: z.enum(BILLING_INTERVALS).optional(),
+        // Transactional blocks (quantity × 25k sends/mo); ignored on other tiers.
+        blocks: z.coerce.number().int().min(1).max(MAX_SELF_SERVE_BLOCKS).optional(),
       }),
       req.body,
     );
@@ -409,20 +340,33 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       throw Errors.badRequest("Unknown tier for that wing.");
     }
     const interval = body.interval ?? "month";
+    const blocks = body.tier_id === "tx_blocks" ? (body.blocks ?? 1) : 0;
 
     if (tier.priceMonthly === null) {
       return { object: "wing_checkout", mode: "contact_sales", wing: body.wing };
     }
     if (tier.priceMonthly > 0) {
-      const res = await createWingCheckout(org, tier.id, interval);
+      const res = await createWingCheckout(org, tier.id, interval, blocks);
       if (res.mode === "stripe") {
         return { object: "wing_checkout", mode: "stripe", url: res.url };
       }
-      // No Stripe / unsynced price → fall through to a direct (local) assignment.
+      // Fail CLOSED in Stripe mode (misconfigured price / outage) — never grant a
+      // paid wing without billing it. Local/self-host mode assigns directly below.
+      if (BILLING_MODE === "stripe") {
+        throw Errors.badRequest(
+          "Couldn't start checkout right now — please try again in a moment or contact support.",
+        );
+      }
     }
     // Free tier, or local-mode paid: assign directly + cancel any existing paid sub.
     await cancelWingSubscription(org, body.wing);
-    await assignWingTier(org.id, body.wing, tier.id);
-    return { object: "wing_checkout", mode: "assigned", wing: body.wing, tier_id: tier.id };
+    await assignWingTier(org.id, body.wing, tier.id, blocks);
+    return {
+      object: "wing_checkout",
+      mode: "assigned",
+      wing: body.wing,
+      tier_id: tier.id,
+      ...(blocks ? { blocks } : {}),
+    };
   });
 }

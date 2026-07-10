@@ -4,7 +4,7 @@ import { z } from "zod";
 import {
   appendBrandingFooter,
   appendComplianceFooter,
-  brandingRequired,
+  wingBrandingRequired,
   enqueueSend,
   env,
   Errors,
@@ -28,7 +28,7 @@ import {
   type Workspace,
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
-import { assertEmailVerified, planFor, recordSend, tryConsumeQuota } from "../lib/billing";
+import { assertEmailVerified, planFor, recordSend, sendKindOf, tryConsumeQuota } from "../lib/billing";
 import { requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { verifiedSenderFor } from "../lib/senders";
@@ -160,23 +160,30 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
-    // Plan enforcement — live sends count against the org's monthly quota.
+    // Per-wing enforcement: TRANSACTIONAL sends reserve against the block
+    // allowance; marketing/sales sends are covered by the contact-priced marketing
+    // wing (recorded for visibility, never billed against blocks).
+    const sendKind = sendKindOf(body.type);
     const [org] = await db
       .select()
       .from(organizations)
       .where(eq(organizations.id, workspace.organizationId))
       .limit(1);
-    // Verify the sender, then atomically reserve quota. The reserve is the
-    // single source of truth for the cap (no read-then-write race); replays are
-    // short-circuited by the idempotency check above, so they don't double-count.
+    // Verify the sender, then atomically reserve quota (transactional only). The
+    // reserve is the single source of truth for the cap (no read-then-write race);
+    // replays are short-circuited by the idempotency check above.
     if (mode === "live" && org) {
       await assertEmailVerified(org);
-      if (!(await tryConsumeQuota(org))) {
-        const plan = planFor(org);
-        throw Errors.quotaExceeded(
-          `You've reached your monthly limit of ${plan.monthlyQuota.toLocaleString()} emails. Upgrade your plan to keep sending.`,
-          { quota: plan.monthlyQuota },
-        );
+      if (sendKind === "transactional") {
+        if (!(await tryConsumeQuota(org))) {
+          const plan = planFor(org);
+          throw Errors.quotaExceeded(
+            `You've used your free ${plan.monthlyQuota.toLocaleString()} transactional emails this month. Buy send blocks (25,000 emails each) to keep sending.`,
+            { quota: plan.monthlyQuota, wing: "transactional", upgrade_url: "/billing/wings" },
+          );
+        }
+      } else {
+        await recordSend(org.id, 1, "marketing");
       }
     }
 
@@ -234,7 +241,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     }
     // Free-plan live mail carries the small "Sent with rootmail" footer (removed by
     // upgrading). After compliance, before the hash — so proof matches what's sent.
-    if (mode === "live" && org && brandingRequired(org.plan)) {
+    if (mode === "live" && org && wingBrandingRequired(body.type, org)) {
       rendered = { ...rendered, ...appendBrandingFooter(rendered, { url: env.MARKETING_URL }) };
     }
     const contentHash = sha256Hex(rendered.html);
@@ -304,7 +311,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       if (!existing) throw Errors.internal("Insert conflict could not be resolved");
       // This request reserved quota above but produced no new send (the winner
       // did) — refund the reservation so the duplicate doesn't over-count.
-      if (mode === "live" && org) await recordSend(org.id, -1);
+      if (mode === "live" && org) await recordSend(org.id, -1, sendKind);
       void reply.header("Idempotent-Replayed", "true");
       return reply.status(200).send(serializeMessage(existing));
     }

@@ -3,6 +3,8 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { Errors, newId } from "@rootmail/core";
 import { contacts, db, type List, listContacts, lists } from "@rootmail/db";
+import { assertContactCapacity } from "../lib/billing";
+import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { findContact } from "../lib/queries";
 import { serializeContact } from "../lib/serialize";
@@ -164,6 +166,8 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
       if (!c) throw Errors.notFound(`Contact ${contactId} not found`);
     }
 
+    // Audience growth is what the marketing wing prices — gate on the bracket.
+    await assertContactCapacity(await loadOrg(req), 1);
     await db
       .insert(listContacts)
       .values({ id: newId("listContact"), listId: l.id, contactId })

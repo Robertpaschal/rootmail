@@ -1,10 +1,30 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { Errors, newId, type PlanDef } from "@rootmail/core";
-import { db, memberships, type Organization, usageRecords, users } from "@rootmail/db";
+import {
+  db,
+  listContacts,
+  lists,
+  memberships,
+  type Organization,
+  usageRecords,
+  users,
+  workspaces,
+} from "@rootmail/db";
 import { planForOrg } from "./plans";
+import { contactLimitForOrg, mkTierFor, type WingOrg } from "./wings";
 
-export function planFor(org: Pick<Organization, "id" | "plan">): PlanDef {
+/** The org fields the pricing resolvers need — always the wing columns now. */
+export type BillableOrg = WingOrg & { id: string };
+
+export function planFor(org: BillableOrg): PlanDef {
   return planForOrg(org);
+}
+
+/** Which meter a message type feeds: transactional sends consume BLOCKS; marketing
+ * and sales volume is covered by the CONTACT-priced marketing wing. */
+export type SendKind = "transactional" | "marketing";
+export function sendKindOf(type: string): SendKind {
+  return type === "marketing" || type === "sales" ? "marketing" : "transactional";
 }
 
 /** Calendar-month period key in UTC, e.g. "2026-06". */
@@ -21,9 +41,25 @@ export async function getUsage(organizationId: string, period = currentPeriod())
   return row?.n ?? 0;
 }
 
-/** Atomically add to this month's send counter (upsert). */
-export async function recordSend(organizationId: string, n = 1): Promise<void> {
+/** Atomically add to this month's send counter (upsert). Transactional sends feed
+ * the block meter (`emailsSent`); marketing/sales feed the informational
+ * `marketingSent` counter — they are never billed against blocks. */
+export async function recordSend(
+  organizationId: string,
+  n = 1,
+  kind: SendKind = "transactional",
+): Promise<void> {
   const period = currentPeriod();
+  if (kind === "marketing") {
+    await db
+      .insert(usageRecords)
+      .values({ id: newId("usage"), organizationId, period, marketingSent: n })
+      .onConflictDoUpdate({
+        target: [usageRecords.organizationId, usageRecords.period],
+        set: { marketingSent: sql`${usageRecords.marketingSent} + ${n}`, updatedAt: new Date() },
+      });
+    return;
+  }
   await db
     .insert(usageRecords)
     .values({ id: newId("usage"), organizationId, period, emailsSent: n })
@@ -33,18 +69,59 @@ export async function recordSend(organizationId: string, n = 1): Promise<void> {
     });
 }
 
+/** Marketing/sales sends this calendar month (informational — priced by contacts). */
+export async function getMarketingUsage(
+  organizationId: string,
+  period = currentPeriod(),
+): Promise<number> {
+  const [row] = await db
+    .select({ n: usageRecords.marketingSent })
+    .from(usageRecords)
+    .where(and(eq(usageRecords.organizationId, organizationId), eq(usageRecords.period, period)))
+    .limit(1);
+  return row?.n ?? 0;
+}
+
 /**
- * Atomically reserve one send against the monthly quota. Overage plans always
- * succeed (they bill the excess); hard-capped plans (Free) only succeed while
- * under the cap — the check and the increment happen in a single statement, so
- * a burst of concurrent sends can't overshoot the limit (closes the
- * read-then-write race in `assertCanSend` + `recordSend`). Returns false when a
- * hard-capped plan is already at its limit.
+ * Billable contacts for an org — audience memberships across all its workspaces
+ * (a contact in three audiences counts three times; PRICING-WINGS-SPEC §3b). This
+ * is the number the marketing wing prices.
  */
-export async function tryConsumeQuota(
-  org: Pick<Organization, "id" | "plan">,
-  n = 1,
-): Promise<boolean> {
+export async function billableContacts(organizationId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(listContacts)
+    .innerJoin(lists, eq(lists.id, listContacts.listId))
+    .innerJoin(workspaces, eq(workspaces.id, lists.workspaceId))
+    .where(eq(workspaces.organizationId, organizationId));
+  return row?.n ?? 0;
+}
+
+/**
+ * Gate audience GROWTH on the marketing tier's contact bracket: adding `adding`
+ * memberships must stay within the bracket, else 402 with the marketing-wing
+ * upgrade. Existing contacts keep working — only growth is blocked.
+ */
+export async function assertContactCapacity(org: BillableOrg, adding = 1): Promise<void> {
+  const limit = contactLimitForOrg(org);
+  if (limit === -1) return; // unlimited
+  const current = await billableContacts(org.id);
+  if (current + adding > limit) {
+    const tier = mkTierFor(org);
+    throw Errors.quotaExceeded(
+      `Your audience is at ${current.toLocaleString()} of ${limit.toLocaleString()} contacts on Marketing ${tier.name}. Upgrade the Marketing wing to grow it.`,
+      { contacts: current, limit, wing: "marketing", upgrade_url: "/billing/wings" },
+    );
+  }
+}
+
+/**
+ * Atomically reserve one TRANSACTIONAL send against the block allowance. Block
+ * customers always succeed (excess bills as overage); the Free allowance is a hard
+ * cap — the check and the increment happen in a single statement, so a burst of
+ * concurrent sends can't overshoot. Marketing sends never come through here.
+ */
+export async function tryConsumeQuota(org: BillableOrg, n = 1): Promise<boolean> {
   const plan = planFor(org);
   if (plan.allowOverage) {
     await recordSend(org.id, n);
@@ -156,17 +233,27 @@ export async function setReportedOverage(
 
 export interface QuotaState {
   plan: PlanDef;
+  /** Transactional sends this period (the block meter). */
   used: number;
   quota: number;
   remaining: number;
   overage: number;
   overage_cost: number;
   over_limit: boolean;
+  /** Marketing sends this period — informational (priced by contacts, not blocks). */
+  marketing_sent: number;
+  /** Billable contacts (audience memberships) vs the marketing bracket. */
+  contacts_used: number;
+  contacts_limit: number;
 }
 
 export async function quotaState(org: Organization): Promise<QuotaState> {
   const plan = planFor(org);
-  const used = await getUsage(org.id);
+  const [used, marketingSent, contactsUsed] = await Promise.all([
+    getUsage(org.id),
+    getMarketingUsage(org.id),
+    billableContacts(org.id),
+  ]);
   const overage = Math.max(0, used - plan.monthlyQuota);
   return {
     plan,
@@ -177,6 +264,9 @@ export async function quotaState(org: Organization): Promise<QuotaState> {
     // Overage billed per started 1,000.
     overage_cost: Math.ceil(overage / 1000) * plan.overagePer1000,
     over_limit: used >= plan.monthlyQuota,
+    marketing_sent: marketingSent,
+    contacts_used: contactsUsed,
+    contacts_limit: contactLimitForOrg(org),
   };
 }
 
@@ -205,9 +295,9 @@ export async function assertEmailVerified(org: Organization): Promise<void> {
 }
 
 /**
- * Gate a live send: email verification first (anti-abuse), then volume. Plans
- * that allow overage are never volume-blocked (they bill the excess); hard-capped
- * plans (Free) throw 402 once the quota is reached.
+ * Gate a live TRANSACTIONAL send: email verification first (anti-abuse), then the
+ * block allowance. Block customers are never volume-blocked (excess bills as
+ * overage); the Free allowance throws 402 once reached — buy send blocks to scale.
  */
 export async function assertCanSend(org: Organization): Promise<void> {
   await assertEmailVerified(org);
@@ -216,8 +306,8 @@ export async function assertCanSend(org: Organization): Promise<void> {
   const used = await getUsage(org.id);
   if (used >= plan.monthlyQuota) {
     throw Errors.quotaExceeded(
-      `You've reached your monthly limit of ${plan.monthlyQuota.toLocaleString()} emails. Upgrade your plan to keep sending.`,
-      { quota: plan.monthlyQuota },
+      `You've used your free ${plan.monthlyQuota.toLocaleString()} transactional emails this month. Buy send blocks (25,000 emails each) to keep sending.`,
+      { quota: plan.monthlyQuota, wing: "transactional", upgrade_url: "/billing/wings" },
     );
   }
 }

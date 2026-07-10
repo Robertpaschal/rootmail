@@ -1,12 +1,17 @@
 import Link from "next/link";
-import { ArrowLeft, Sparkles } from "lucide-react";
+import { ArrowLeft, CheckCircle2, XCircle } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { PageHeader } from "@/components/app/page-header";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Billing } from "@/lib/types";
 import { WingsPricing } from "./wings-pricing";
 
-export default async function WingsPricingPage() {
+export default async function WingsPricingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ checkout?: string; emails?: string; contacts?: string; team?: string }>;
+}) {
+  const params = await searchParams;
   let billing: Billing | null = null;
   let failed: string | null = null;
   try {
@@ -16,36 +21,44 @@ export default async function WingsPricingPage() {
   }
 
   const wings = billing?.wings;
+  // Onboarding handoff — pre-fill + auto-run the quiz from the wizard's answers.
+  const prefill =
+    params.emails || params.contacts || params.team
+      ? {
+          emails: Number(params.emails) || undefined,
+          contacts: Number(params.contacts) || undefined,
+          team: Number(params.team) || undefined,
+        }
+      : undefined;
 
   return (
     <>
       <PageHeader
-        title="Pricing by wing"
-        description="Two products, priced independently — pay for what you actually use on each side, and stay Free on the other."
+        title="Plans & pricing"
+        description="Priced by what you actually use: Transactional by send volume, Marketing by contacts, Platform by your team — each billed on its own."
         backHref="/billing"
         backLabel="Plan & usage"
       />
 
+      {params.checkout === "success" ? (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
+          <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+          Payment complete — your wing updates the moment Stripe confirms it (a few seconds).
+        </div>
+      ) : params.checkout === "cancel" ? (
+        <div className="mb-6 flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
+          <XCircle className="size-4 shrink-0" />
+          Checkout canceled — nothing changed.
+        </div>
+      ) : null}
+
       {failed ? (
         <ConnectionErrorCard message={failed} showReconnect />
       ) : !wings ? (
-        <p className="text-sm text-muted-foreground">Per-wing pricing isn&apos;t available yet.</p>
+        <p className="text-sm text-muted-foreground">Pricing isn&apos;t available right now.</p>
       ) : (
         <div className="space-y-8">
-          <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
-            <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" />
-            <div className="text-sm">
-              <p className="font-medium">rootmail&apos;s new pricing — pay per wing.</p>
-              <p className="mt-0.5 text-muted-foreground">
-                Transactional is sized by send volume, Marketing by contacts, and Platform by your team —
-                each on its own plan, billed on its own, so you can be Free on one side and scale the other.
-                Choosing any tier moves your whole account to per-wing pricing; wings you haven&apos;t chosen
-                start on Free.
-              </p>
-            </div>
-          </div>
-
-          <WingsPricing wings={wings} />
+          <WingsPricing wings={wings} prefill={prefill} />
 
           <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
             <ArrowLeft className="size-3.5" />

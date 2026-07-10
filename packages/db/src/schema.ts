@@ -163,6 +163,10 @@ export const organizations = pgTable("organizations", {
   // (the dormant fallback); set only once an org moves onto the new model (Phase C/D).
   // Each paid wing gets its own Stripe subscription.
   transactionalTier: text("transactional_tier"),
+  // Purchased transactional send blocks (quantity × BLOCK_SIZE sends/mo). 0 = the
+  // free allowance. Set by the wing checkout webhook (subscription item quantity)
+  // or a direct assignment in local mode.
+  transactionalBlocks: integer("transactional_blocks").notNull().default(0),
   marketingTier: text("marketing_tier"),
   platformTier: text("platform_tier"),
   stripeTxSubscriptionId: text("stripe_tx_subscription_id"),
@@ -336,7 +340,12 @@ export const usageRecords = pgTable(
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
     period: text("period").notNull(),
+    // TRANSACTIONAL sends this period — the only kind metered against blocks.
     emailsSent: integer("emails_sent").notNull().default(0),
+    // Marketing/sales sends this period — informational only. Marketing volume is
+    // priced by CONTACTS, never against transactional blocks (a full audience can
+    // always receive a campaign).
+    marketingSent: integer("marketing_sent").notNull().default(0),
     // AI template drafts used this period (metered against the plan's AI credits).
     aiCreditsUsed: integer("ai_credits_used").notNull().default(0),
     // Overage units (1 unit = 1,000 emails) already reported to Stripe's meter

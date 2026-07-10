@@ -130,7 +130,9 @@ export default async function OverviewPage() {
               <>
                 <div className="flex items-baseline justify-between">
                   <span className="text-3xl font-bold tracking-tight">{fmt(usage.used)}</span>
-                  <span className="text-sm text-muted-foreground">of {fmt(usage.quota)} included</span>
+                  <span className="text-sm text-muted-foreground">
+                    of {fmt(usage.quota)} transactional
+                  </span>
                 </div>
                 <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
                   <div
@@ -143,8 +145,12 @@ export default async function OverviewPage() {
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {usage.over_limit
-                    ? `Over your included limit — ${fmt(usage.overage)} extra this period.`
-                    : `${fmt(usage.remaining)} remaining this period.`}
+                    ? `Past your send volume — ${fmt(usage.overage)} extra this period.`
+                    : `${fmt(usage.remaining)} transactional sends left this period.`}
+                  {" · "}
+                  {fmt(usage.contacts_used)}
+                  {usage.contacts_limit !== -1 ? ` / ${fmt(usage.contacts_limit)}` : ""} marketing
+                  contacts
                 </p>
               </>
             ) : (

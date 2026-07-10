@@ -316,6 +316,13 @@
       "when": 1783453729505,
       "tag": "0044_special_caretaker",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1783626667708,
+      "tag": "0045_ambiguous_hellfire_club",
+      "breakpoints": true
     }
   ]
 }

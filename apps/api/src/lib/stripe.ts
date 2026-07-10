@@ -6,6 +6,7 @@ import {
   type AddOnId,
   type BillingInterval,
   BILLING_MODE,
+  BLOCK_BRACKETS,
   defaultTierId,
   env,
   newId,
@@ -701,19 +702,33 @@ export async function syncTierPrice(tier: PricingTier): Promise<{ month: string;
     productId = product.id;
   }
 
+  // The transactional Blocks tier bills quantity × per-block with VOLUME discounts
+  // (the whole quantity at its bracket's rate) — Stripe's tiered billing scheme.
+  // Everything else is a flat monthly/yearly price.
+  const volumeTiers = (multiplier: number): Stripe.PriceCreateParams.Tier[] =>
+    BLOCK_BRACKETS.map((b, i) => ({
+      up_to: i === BLOCK_BRACKETS.length - 1 ? ("inf" as const) : b.upToBlocks,
+      unit_amount: Math.round(b.perBlock * multiplier * 100),
+    }));
+  const isBlocks = tier.id === "tx_blocks";
+
   const month = await stripe.prices.create({
     product: productId,
     currency: "usd",
-    unit_amount: tier.priceMonthly * 100,
     recurring: { interval: "month" },
     metadata: { tierId: tier.id, wing: tier.wing, interval: "month" },
+    ...(isBlocks
+      ? { billing_scheme: "tiered", tiers_mode: "volume", tiers: volumeTiers(1) }
+      : { unit_amount: tier.priceMonthly * 100 }),
   });
   const year = await stripe.prices.create({
     product: productId,
     currency: "usd",
-    unit_amount: (tier.priceYearly ?? tier.priceMonthly * 10) * 100, // yearly, else 2 months free
     recurring: { interval: "year" },
     metadata: { tierId: tier.id, wing: tier.wing, interval: "year" },
+    ...(isBlocks
+      ? { billing_scheme: "tiered", tiers_mode: "volume", tiers: volumeTiers(10) } // 2 months free
+      : { unit_amount: (tier.priceYearly ?? tier.priceMonthly * 10) * 100 }),
   });
   await stripe.products.update(productId, { default_price: month.id });
 
@@ -750,11 +765,12 @@ export async function syncAllTierPrices(): Promise<{ synced: number }> {
 // Each wing is its OWN Stripe subscription. The tier's price carries `wing`
 // metadata, so the webhook routes it to the right org column.
 
-/** The org columns to write for a wing — its tier id + its Stripe subscription id. */
-function wingUpdate(wing: Wing, tierId: string | null, subId: string | null) {
+/** The org columns to write for a wing — its tier id + its Stripe subscription id
+ * (+ the purchased block count on the transactional wing). */
+function wingUpdate(wing: Wing, tierId: string | null, subId: string | null, blocks = 0) {
   switch (wing) {
     case "transactional":
-      return { transactionalTier: tierId, stripeTxSubscriptionId: subId };
+      return { transactionalTier: tierId, stripeTxSubscriptionId: subId, transactionalBlocks: blocks };
     case "marketing":
       return { marketingTier: tierId, stripeMkSubscriptionId: subId };
     case "platform":
@@ -792,10 +808,15 @@ function tierForPrice(priceId: string): { tierId: string; wing: Wing } | null {
 
 /** Directly set an org's wing tier (free tiers + local mode — no Stripe charge).
  * Clears any Stripe sub id for that wing (the caller cancels the sub if one exists). */
-export async function assignWingTier(orgId: string, wing: Wing, tierId: string): Promise<void> {
+export async function assignWingTier(
+  orgId: string,
+  wing: Wing,
+  tierId: string,
+  blocks = 0,
+): Promise<void> {
   await db
     .update(organizations)
-    .set({ ...wingUpdate(wing, tierId, null), updatedAt: new Date() })
+    .set({ ...wingUpdate(wing, tierId, null, blocks), updatedAt: new Date() })
     .where(eq(organizations.id, orgId));
 }
 
@@ -815,11 +836,15 @@ export async function createWingCheckout(
   org: Organization,
   tierId: string,
   interval: BillingInterval = "month",
+  blocks = 1,
 ): Promise<CheckoutResult> {
   const stripe = getStripe();
   const tier = getTier(tierId);
   const price = priceForWingTier(tierId, interval);
   if (!stripe || !tier || !price) return { mode: "local" };
+
+  // The blocks tier bills quantity × per-block (volume-tiered); other tiers qty 1.
+  const quantity = tierId === "tx_blocks" ? Math.max(1, blocks) : 1;
 
   try {
     const customer = await ensureCustomer(org);
@@ -828,7 +853,7 @@ export async function createWingCheckout(
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer,
-      line_items: [{ price, quantity: 1 }],
+      line_items: [{ price, quantity }],
       success_url: `${base}/billing/wings?checkout=success`,
       cancel_url: `${base}/billing/wings?checkout=cancel`,
       metadata: meta,
@@ -874,20 +899,24 @@ export async function syncWingSubscription(sub: Stripe.Subscription): Promise<vo
     return;
   }
 
-  // Which tier is billed — from the sub's price, else the metadata tierId.
+  // Which tier is billed — from the sub's price, else the metadata tierId — and,
+  // for the blocks tier, HOW MANY blocks (the subscription item quantity).
   let tierId: string | null = null;
+  let blocks = 0;
   for (const item of sub.items.data) {
     const match = item.price?.id ? tierForPrice(item.price.id) : null;
     if (match && match.wing === wing) {
       tierId = match.tierId;
+      if (match.tierId === "tx_blocks") blocks = item.quantity ?? 1;
       break;
     }
   }
   tierId ??= sub.metadata?.tierId ?? defaultTierId(wing);
+  if (tierId === "tx_blocks" && blocks === 0) blocks = 1;
 
   await db
     .update(organizations)
-    .set({ ...wingUpdate(wing, tierId, sub.id), updatedAt: new Date() })
+    .set({ ...wingUpdate(wing, tierId, sub.id, blocks), updatedAt: new Date() })
     .where(eq(organizations.id, org.id));
 }
 

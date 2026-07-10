@@ -3,17 +3,16 @@ import {
   appendBrandingFooter,
   appendComplianceFooter,
   type AuditEvent,
-  brandingRequired,
   enqueueSend,
   enqueueWebhookEvent,
   env,
   type MessageType,
   newId,
-  type PlanId,
   render,
   sha256Hex,
   unsubscribeUrl,
   WEBHOOK_EVENTS,
+  wingBrandingRequired,
 } from "@rootmail/core";
 import { auditEntries, contacts, db, messages, organizations, suppressions, usageRecords } from "@rootmail/db";
 
@@ -90,17 +89,32 @@ export async function automationSend(
   // CAN-SPAM: campaigns/sequences are commercial mail — append the sender's
   // postal address + unsubscribe BEFORE hashing (so Layer-3 proof matches the
   // sent email). Transactional automation, if any, is exempt.
-  // One org lookup drives both footers: its postal address (compliance) and its plan
-  // (branding). One indexed PK read, reused below.
-  let orgPlan: PlanId | null = null;
+  // One org lookup drives both footers: the postal address (compliance) and the
+  // wing state (per-wing branding). One indexed PK read, reused below.
+  let orgWings: {
+    transactionalTier: string | null;
+    transactionalBlocks: number;
+    marketingTier: string | null;
+  } | null = null;
   let postalAddress: string | null = null;
   if (input.organizationId) {
     const [o] = await db
-      .select({ plan: organizations.plan, a: organizations.postalAddress })
+      .select({
+        transactionalTier: organizations.transactionalTier,
+        transactionalBlocks: organizations.transactionalBlocks,
+        marketingTier: organizations.marketingTier,
+        a: organizations.postalAddress,
+      })
       .from(organizations)
       .where(eq(organizations.id, input.organizationId))
       .limit(1);
-    orgPlan = o?.plan ?? null;
+    orgWings = o
+      ? {
+          transactionalTier: o.transactionalTier,
+          transactionalBlocks: o.transactionalBlocks,
+          marketingTier: o.marketingTier,
+        }
+      : null;
     postalAddress = o?.a ?? null;
   }
   if (input.type === "marketing" || input.type === "sales") {
@@ -112,8 +126,9 @@ export async function automationSend(
       }),
     };
   }
-  // Free-plan live mail carries the "Sent with rootmail" footer (removed by upgrading).
-  if (input.mode === "live" && orgPlan && brandingRequired(orgPlan)) {
+  // Free-WING live mail carries the "Sent with rootmail" footer — branded per the
+  // wing this message belongs to; paying for that wing removes it.
+  if (input.mode === "live" && orgWings && wingBrandingRequired(input.type, orgWings)) {
     rendered = { ...rendered, ...appendBrandingFooter(rendered, { url: env.MARKETING_URL }) };
   }
   const contentHash = sha256Hex(rendered.html);
@@ -161,12 +176,23 @@ export async function automationSend(
   });
 
   if (input.mode === "live" && input.organizationId) {
+    // Per-wing metering: marketing/sales volume is covered by the contact-priced
+    // marketing wing (informational counter); only transactional feeds the block meter.
+    const isMarketing = input.type === "marketing" || input.type === "sales";
     await db
       .insert(usageRecords)
-      .values({ id: newId("usage"), organizationId: input.organizationId, period: currentPeriod(), emailsSent: 1 })
+      .values({
+        id: newId("usage"),
+        organizationId: input.organizationId,
+        period: currentPeriod(),
+        emailsSent: isMarketing ? 0 : 1,
+        marketingSent: isMarketing ? 1 : 0,
+      })
       .onConflictDoUpdate({
         target: [usageRecords.organizationId, usageRecords.period],
-        set: { emailsSent: sql`${usageRecords.emailsSent} + 1`, updatedAt: new Date() },
+        set: isMarketing
+          ? { marketingSent: sql`${usageRecords.marketingSent} + 1`, updatedAt: new Date() }
+          : { emailsSent: sql`${usageRecords.emailsSent} + 1`, updatedAt: new Date() },
       });
   }
 

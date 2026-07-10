@@ -2,8 +2,6 @@ import Link from "next/link";
 import { ArrowRight, Check, Lock } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { api } from "@/lib/rootmail";
-import type { Plan } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 /** The actionable payload carried by a 402 `feature_locked` API error. */
@@ -12,6 +10,8 @@ export interface FeatureLockedInfo {
   current_plan?: string;
   required_plan?: string | null;
   required_plan_name?: string | null;
+  /** Which wing the unlocking tier belongs to (per-wing pricing). */
+  required_wing?: string | null;
   price?: number | null;
 }
 
@@ -81,35 +81,35 @@ const PITCHES: Record<string, { headline: string; capabilities: string[] }> = {
   },
 };
 
-// The marquee extras that ride along with each tier — context for the price.
+// The marquee extras that ride along with each wing tier — context for the price.
 const TIER_EXTRAS: Record<string, string> = {
-  pro: "Also in Pro: campaigns, sequences, the shared inbox, and 10× the send quota.",
-  scale: "Also in Scale: client sending domains, custom roles, and more seats + workspaces.",
-  enterprise: "Also in Enterprise: signed compliance exports, SAML SSO + SCIM, and custom volume.",
+  tx_blocks: "Send blocks also bring client sending domains and volume rates that drop as you grow.",
+  mk_growth: "Marketing Growth also brings sequences, the shared replies inbox, and 10,000 contacts.",
+  mk_pro: "Marketing Pro also brings 50,000 contacts and more AI assistant credits.",
+  pf_team: "Platform Team also brings 10 seats, 5 workspaces, and custom roles.",
 };
 
-// Plan prices are whole monthly USD (schema: plans.price // monthly USD), the
-// same value plan-cards renders directly — NOT cents. This is the tier's real
-// price, shown to market the whole plan, never a confusing per-feature micro-fee.
+// Tier prices are whole monthly USD — the tier's real price, shown to market the
+// whole wing tier, never a confusing per-feature micro-fee.
 function fmtUsd(dollars: number | null | undefined): string | null {
   return dollars == null ? null : `$${dollars.toLocaleString()}`;
 }
 
-/** A locked section renders as a pitch: what it achieves, the capabilities that
- * deliver it, and the live (sale-aware) price of the plan that unlocks it. */
-export async function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?: string }) {
-  const planName = info.required_plan_name ?? info.required_plan ?? "a higher plan";
-  const pitch = info.feature ? PITCHES[info.feature] : undefined;
+const WING_LABEL: Record<string, string> = {
+  transactional: "Transactional wing",
+  marketing: "Marketing wing",
+  platform: "Platform",
+};
 
-  // Live catalog price for the required tier — best-effort, never blocks the page.
-  let plan: Plan | null = null;
-  if (info.required_plan) {
-    const billing = await api.getBilling().catch(() => null);
-    plan = billing?.plans.find((p) => p.id === info.required_plan) ?? null;
-  }
-  const base = fmtUsd(plan?.price);
-  const sale = fmtUsd(plan?.sale_price);
+/** A locked section renders as a pitch: what it achieves, the capabilities that
+ * deliver it, and the price of the WING TIER that unlocks it (per-wing pricing —
+ * upgrading one wing never touches the other's bill). */
+export function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?: string }) {
+  const planName = info.required_plan_name ?? info.required_plan ?? "a higher tier";
+  const pitch = info.feature ? PITCHES[info.feature] : undefined;
+  const base = fmtUsd(info.price);
   const extras = info.required_plan ? TIER_EXTRAS[info.required_plan] : undefined;
+  const wingLabel = info.required_wing ? WING_LABEL[info.required_wing] : null;
 
   return (
     <Card className="overflow-hidden">
@@ -135,51 +135,37 @@ export async function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; 
           ) : null}
         </div>
 
-        {/* The price — live, sale-aware, with what else the tier brings. */}
+        {/* The price — the wing tier that unlocks it. */}
         <div className="border-t bg-muted/30 p-8 md:col-span-2 md:border-l md:border-t-0">
-          <p className="text-sm font-medium text-muted-foreground">Included in</p>
+          <p className="text-sm font-medium text-muted-foreground">
+            {wingLabel ? `Included in the ${wingLabel}` : "Included in"}
+          </p>
           <p className="mt-1 text-xl font-bold">{planName}</p>
           {base ? (
             <p className="mt-1">
-              {sale && sale !== base ? (
-                <>
-                  <span className="text-2xl font-bold">{sale}</span>
-                  <span className="ml-2 text-sm text-muted-foreground line-through">{base}</span>
-                </>
-              ) : (
-                <span className="text-2xl font-bold">{base}</span>
-              )}
-              <span className="text-sm text-muted-foreground">/mo</span>
-              {plan?.sale_percent_off ? (
-                <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-600">
-                  {plan.sale_percent_off}% off
-                </span>
-              ) : null}
+              <span className="text-2xl font-bold">{base}</span>
+              <span className="text-sm text-muted-foreground">
+                /mo{info.required_plan === "tx_blocks" ? " per block" : ""}
+              </span>
             </p>
           ) : null}
           {base ? (
             <p className="mt-2 text-xs text-muted-foreground">
-              That&apos;s the whole {planName} plan — this feature plus everything it includes, one price.
+              That unlocks this wing&apos;s whole tier — and only this wing&apos;s bill changes; the
+              rest of your account stays as it is.
             </p>
           ) : null}
           {extras ? <p className="mt-3 text-sm text-muted-foreground">{extras}</p> : null}
           <div className="mt-5 flex flex-col gap-2">
             {/* Straight to the money page — comparing is the secondary path. */}
-            <Link
-              href={
-                plan && plan.price != null
-                  ? `/billing/checkout?plan=${plan.id}&interval=month`
-                  : "/billing?tab=plans"
-              }
-              className={cn(buttonVariants({ size: "sm" }))}
-            >
+            <Link href="/billing/wings" className={cn(buttonVariants({ size: "sm" }))}>
               Unlock with {planName} <ArrowRight className="size-4" />
             </Link>
             <Link
               href="/billing?tab=plans"
               className="text-center text-xs font-medium text-muted-foreground hover:text-foreground"
             >
-              Compare all plans
+              See all pricing
             </Link>
           </div>
         </div>

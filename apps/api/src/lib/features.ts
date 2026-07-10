@@ -1,15 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
-import {
-  env,
-  Errors,
-  featureUnlocked,
-  type PlanFeature,
-  requiredPlanFor,
-} from "@rootmail/core";
+import { env, Errors, type PlanFeature } from "@rootmail/core";
 import { db, memberships, type Organization, organizations } from "@rootmail/db";
-import { getPlan } from "./plans";
-import { orgHasWingPricing, requiredTierFor, wingFeatureUnlocked } from "./wings";
+import { requiredTierFor, wingFeatureUnlocked } from "./wings";
 
 /** Load the org behind the authenticated request's workspace. */
 export async function loadOrg(req: FastifyRequest): Promise<Organization> {
@@ -52,35 +45,19 @@ export async function requireFeature(
   feature: PlanFeature,
 ): Promise<Organization> {
   const org = await loadOrg(req);
+  if (wingFeatureUnlocked(org, feature)) return org;
 
-  // Per-wing gating when the org is on the new model. DORMANT today — no org has a
-  // wing tier set, so `orgHasWingPricing` is false and the legacy check below runs
-  // exactly as before.
-  if (orgHasWingPricing(org)) {
-    if (wingFeatureUnlocked(org, feature)) return org;
-    const tier = requiredTierFor(feature);
-    throw Errors.featureLocked(feature, {
-      current_plan: org.plan,
-      required_plan: tier?.id ?? null,
-      required_plan_name: tier?.name ?? null,
-      price: tier?.priceMonthly ?? null,
-      upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing`,
-      checkout_endpoint: "POST /v1/billing/checkout",
-      docs_url: `https://${env.ROOTMAIL_DOMAIN}/pricing`,
-    });
-  }
-
-  if (featureUnlocked(org.plan, feature)) return org;
-
-  const required = requiredPlanFor(feature);
-  const requiredPlan = required ? getPlan(required) : null;
+  // Locked → say exactly which WING TIER unlocks it, and send them to the per-wing
+  // pricing page (the only pricing there is).
+  const tier = requiredTierFor(feature);
   throw Errors.featureLocked(feature, {
     current_plan: org.plan,
-    required_plan: required,
-    required_plan_name: requiredPlan?.name ?? null,
-    price: requiredPlan?.price ?? null,
-    upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing`,
-    checkout_endpoint: "POST /v1/billing/checkout",
+    required_plan: tier?.id ?? null,
+    required_plan_name: tier ? `${tier.name} (${tier.wing})` : null,
+    required_wing: tier?.wing ?? null,
+    price: tier?.priceMonthly ?? null,
+    upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing/wings`,
+    checkout_endpoint: "POST /v1/billing/wing/checkout",
     docs_url: `https://${env.ROOTMAIL_DOMAIN}/pricing`,
   });
 }

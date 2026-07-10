@@ -3,6 +3,8 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { Errors, newId, type SuppressionReason } from "@rootmail/core";
 import { contacts, db, listContacts, lists, suppressions } from "@rootmail/db";
+import { assertContactCapacity } from "../lib/billing";
+import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { parse } from "../lib/validate";
 
@@ -137,11 +139,13 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       }));
     const inserted = toInsert.length ? await db.insert(contacts).values(toInsert).returning({ id: contacts.id }) : [];
 
-    // Optionally add everyone (new + existing) to the target list.
+    // Optionally add everyone (new + existing) to the target list. Audience growth
+    // is what the marketing wing prices — gate it on the contact bracket.
     let addedToList = 0;
     if (listId) {
       const allIds = [...existingByEmail.values(), ...inserted.map((c) => c.id)];
       if (allIds.length) {
+        await assertContactCapacity(await loadOrg(req), allIds.length);
         const memberships = allIds.map((contactId) => ({ id: newId("listContact"), listId: listId as string, contactId }));
         const added = await db.insert(listContacts).values(memberships).onConflictDoNothing().returning({ id: listContacts.id });
         addedToList = added.length;
