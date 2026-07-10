@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Each wing has its own pricing page now",
+    date: "2026-07-09",
+    changes: [
+      {
+        kind: "New",
+        text: "Transactional, Marketing, and Platform each have a dedicated pricing page — its own meter, its own sizing question, its own plans and add-ons, and a plain-English tour of exactly what that side includes. No more one giant page for everything.",
+      },
+      {
+        kind: "Improved",
+        text: "Plan & usage now follows the wing you're working in: in Transactional you see send volume against your blocks; in Marketing you see your audience against its bracket — each side stands cleanly on its own.",
+      },
+      {
+        kind: "Improved",
+        text: "Every upgrade path lands on the right page: hit a send limit and you're taken to Transactional pricing, hit your contact bracket and you're taken to Marketing — with the other wings one deliberate click away, never mixed in.",
+      },
+    ],
+  },
+  {
     title: "Billing that reads like the product — per wing",
     date: "2026-07-09",
     changes: [

@@ -179,7 +179,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
           const plan = planFor(org);
           throw Errors.quotaExceeded(
             `You've used your free ${plan.monthlyQuota.toLocaleString()} transactional emails this month. Buy send blocks (25,000 emails each) to keep sending.`,
-            { quota: plan.monthlyQuota, wing: "transactional", upgrade_url: "/billing/wings" },
+            { quota: plan.monthlyQuota, wing: "transactional", upgrade_url: "/billing/transactional" },
           );
         }
       } else {

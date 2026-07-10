@@ -371,7 +371,7 @@ function VolumePitch({
     if (e) q.set("emails", String(e));
     if (c) q.set("contacts", String(c));
     if (t > 1) q.set("team", String(t));
-    router.push(`/billing/wings${q.size ? `?${q.toString()}` : ""}`);
+    router.push(`/billing/transactional${q.size ? `?${q.toString()}` : ""}`);
   };
 
   return (
@@ -446,7 +446,7 @@ function VolumePitch({
 
       <div className="mt-8 flex flex-col items-center gap-3">
         <Button type="button" size="lg" className="w-full sm:w-auto" onClick={handoff}>
-          See my per-wing plan <ArrowRight className="size-4" />
+          Size my Transactional plan <ArrowRight className="size-4" />
         </Button>
         <button
           type="button"

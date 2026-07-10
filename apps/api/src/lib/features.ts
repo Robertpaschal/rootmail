@@ -56,7 +56,7 @@ export async function requireFeature(
     required_plan_name: tier ? `${tier.name} (${tier.wing})` : null,
     required_wing: tier?.wing ?? null,
     price: tier?.priceMonthly ?? null,
-    upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing/wings`,
+    upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing/${tier?.wing ?? "transactional"}`,
     checkout_endpoint: "POST /v1/billing/wing/checkout",
     docs_url: `https://${env.ROOTMAIL_DOMAIN}/pricing`,
   });

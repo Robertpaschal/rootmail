@@ -1,5 +1,6 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import {
   ArrowRight,
   CheckCircle2,
@@ -44,6 +45,9 @@ function gradeTone(grade: string | null): string {
 }
 
 export default async function OverviewPage() {
+  // The overview adapts to the wing the user is working in (nav switcher cookie).
+  const wingCookie = (await cookies()).get("rm_wing")?.value;
+  const activeWing = wingCookie === "marketing" ? "marketing" : "transactional";
   // Pull the whole snapshot in parallel; tolerate partial failure so one slow/erroring
   // endpoint doesn't blank the home page.
   const [meR, billR, anaR, delR, msgR, listR, tplR] = await Promise.allSettled([
@@ -127,32 +131,63 @@ export default async function OverviewPage() {
           </CardHeader>
           <CardContent>
             {usage ? (
-              <>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-3xl font-bold tracking-tight">{fmt(usage.used)}</span>
-                  <span className="text-sm text-muted-foreground">
-                    of {fmt(usage.quota)} transactional
-                  </span>
-                </div>
-                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                  <div
-                    className={cn(
-                      "h-full rounded-full",
-                      usage.over_limit ? "bg-red-500" : usedPct > 80 ? "bg-amber-500" : "bg-primary",
-                    )}
-                    style={{ width: `${usedPct}%` }}
-                  />
-                </div>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  {usage.over_limit
-                    ? `Past your send volume — ${fmt(usage.overage)} extra this period.`
-                    : `${fmt(usage.remaining)} transactional sends left this period.`}
-                  {" · "}
-                  {fmt(usage.contacts_used)}
-                  {usage.contacts_limit !== -1 ? ` / ${fmt(usage.contacts_limit)}` : ""} marketing
-                  contacts
-                </p>
-              </>
+              activeWing === "transactional" ? (
+                <>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-3xl font-bold tracking-tight">{fmt(usage.used)}</span>
+                    <span className="text-sm text-muted-foreground">
+                      of {fmt(usage.quota)} transactional sends
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className={cn(
+                        "h-full rounded-full",
+                        usage.over_limit ? "bg-red-500" : usedPct > 80 ? "bg-amber-500" : "bg-primary",
+                      )}
+                      style={{ width: `${usedPct}%` }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {usage.over_limit
+                      ? `Past your send volume — ${fmt(usage.overage)} extra this period.`
+                      : `${fmt(usage.remaining)} sends left this period.`}{" "}
+                    Marketing has its own meter in its wing.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="flex items-baseline justify-between">
+                    <span className="text-3xl font-bold tracking-tight">{fmt(usage.contacts_used)}</span>
+                    <span className="text-sm text-muted-foreground">
+                      {usage.contacts_limit === -1
+                        ? "contacts in your audiences"
+                        : `of ${fmt(usage.contacts_limit)} contacts`}
+                    </span>
+                  </div>
+                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
+                    <div
+                      className={cn(
+                        "h-full rounded-full",
+                        usage.contacts_limit !== -1 && usage.contacts_used >= usage.contacts_limit
+                          ? "bg-red-500"
+                          : "bg-primary",
+                      )}
+                      style={{
+                        width: `${
+                          usage.contacts_limit > 0
+                            ? Math.min(100, Math.round((usage.contacts_used / usage.contacts_limit) * 100))
+                            : 4
+                        }%`,
+                      }}
+                    />
+                  </div>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    {fmt(usage.marketing_sent)} marketing emails sent this period — campaigns never
+                    consume send blocks. Transactional has its own meter in its wing.
+                  </p>
+                </>
+              )
             ) : (
               <p className="text-sm text-muted-foreground">Usage appears here once you start sending.</p>
             )}

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowRight, Check, Megaphone, Tag, Zap } from "lucide-react";
+import { cookies } from "next/headers";
+import { ArrowRight, Check, Megaphone, Tag, Users, Zap } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { PageHeader } from "@/components/app/page-header";
 import { buttonVariants } from "@/components/ui/button";
@@ -7,11 +8,43 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Billing } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { AddonManager } from "./addon-manager";
 import { BillingTabs } from "./billing-tabs";
-import { WingsPricing } from "./wings/wings-pricing";
 
 const num = (n: number) => n.toLocaleString();
+
+type Wing = "transactional" | "marketing";
+
+// The three wings, pitched as what they are — each links OUT to its own dedicated
+// pricing page. Nothing is folded together here (two-wings doctrine).
+const WING_PITCHES = [
+  {
+    id: "transactional",
+    href: "/billing/transactional",
+    icon: Zap,
+    title: "Transactional",
+    sizedBy: "Priced by send volume",
+    desc: "Product email — receipts, resets, alerts. 3,000 free sends/mo, then blocks of 25,000 at volume rates.",
+    cta: "Transactional pricing",
+  },
+  {
+    id: "marketing",
+    href: "/billing/marketing",
+    icon: Megaphone,
+    title: "Marketing",
+    sizedBy: "Priced by contacts",
+    desc: "Audience email — campaigns, sequences, replies. Pay for audience size; campaigns to everyone are always included.",
+    cta: "Marketing pricing",
+  },
+  {
+    id: "platform",
+    href: "/billing/platform",
+    icon: Users,
+    title: "Platform",
+    sizedBy: "Priced by team",
+    desc: "The shared foundation — seats, workspaces, roles, SSO, and compliance, serving both wings.",
+    cta: "Platform pricing",
+  },
+] as const;
 
 export default async function BillingPage({
   searchParams,
@@ -20,6 +53,9 @@ export default async function BillingPage({
 }) {
   const { tab } = await searchParams;
   const initialTab = tab === "plans" ? "plans" : "usage";
+  // The page adapts to the wing the user is working in (set by the nav switcher).
+  const wingCookie = (await cookies()).get("rm_wing")?.value;
+  const activeWing: Wing = wingCookie === "marketing" ? "marketing" : "transactional";
 
   let billing: Billing | null = null;
   let failed: string | null = null;
@@ -44,20 +80,14 @@ export default async function BillingPage({
     );
   }
 
-  const { usage, summary, addons_catalog, wings } = billing;
-  const addonQty: Record<string, number> = {};
-  for (const a of summary.add_ons) addonQty[a.id] = a.quantity;
+  const { usage, summary, wings } = billing;
+  const txBlocks = wings?.transactional.blocks ?? 0;
 
-  // Transactional — sends vs the block allowance.
+  // Transactional meter (shown in the transactional wing).
   const txPct = Math.min(100, Math.round((usage.used / Math.max(1, usage.quota)) * 100));
   const txBar = usage.over_limit ? "bg-destructive" : txPct > 80 ? "bg-amber-500" : "bg-primary";
-  const txBlocks = wings?.transactional.blocks ?? 0;
-  const txAllowanceLabel =
-    txBlocks > 0
-      ? `${num(txBlocks)} block${txBlocks === 1 ? "" : "s"} · ${num(usage.quota)} emails/mo`
-      : `Free allowance · ${num(usage.quota)} emails/mo`;
 
-  // Marketing — audience size vs the contact bracket (sends are informational).
+  // Marketing meter (shown in the marketing wing).
   const ctUsed = usage.contacts_used;
   const ctLimit = usage.contacts_limit;
   const ctPct = ctLimit > 0 ? Math.min(100, Math.round((ctUsed / ctLimit) * 100)) : 0;
@@ -65,20 +95,23 @@ export default async function BillingPage({
 
   const usageSlot = (
     <>
-      <div className="mb-6 grid gap-6 md:grid-cols-2">
-        <Card>
+      {/* ONLY the active wing's meter — the other wing lives on its own page. */}
+      {activeWing === "transactional" ? (
+        <Card className="mb-6">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Zap className="size-4 text-muted-foreground" /> Transactional
+              <Zap className="size-4 text-muted-foreground" /> Transactional usage
             </CardTitle>
             <span className="text-xs text-muted-foreground">{usage.period}</span>
           </CardHeader>
           <CardContent className="space-y-3">
-            <p className="text-xs text-muted-foreground">{txAllowanceLabel}</p>
+            <p className="text-xs text-muted-foreground">
+              {txBlocks > 0
+                ? `${num(txBlocks)} block${txBlocks === 1 ? "" : "s"} · ${num(usage.quota)} sends/mo`
+                : `Free allowance · ${num(usage.quota)} sends/mo`}
+            </p>
             <div className="flex items-baseline justify-between text-sm">
-              <span className="font-medium">
-                {num(usage.used)} / {num(usage.quota)} emails
-              </span>
+              <span className="font-medium">{num(usage.used)} / {num(usage.quota)} sends</span>
               <span className="text-muted-foreground">
                 {usage.over_limit
                   ? txBlocks > 0
@@ -90,33 +123,24 @@ export default async function BillingPage({
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
               <div className={`h-full rounded-full ${txBar}`} style={{ width: `${txPct}%` }} />
             </div>
-            {usage.over_limit && txBlocks === 0 ? (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3">
-                <p className="text-sm text-destructive">
-                  Free allowance reached — buy send blocks to keep sending.
-                </p>
-                <Link href="/billing?tab=plans" className={cn(buttonVariants({ size: "sm" }))}>
-                  Buy blocks <ArrowRight className="ml-1 size-3.5" />
-                </Link>
-              </div>
-            ) : txPct >= 80 ? (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-muted-foreground">At {txPct}% of your send volume.</p>
-                <Link
-                  href="/billing?tab=plans"
-                  className="inline-flex items-center text-sm font-medium text-primary hover:underline"
-                >
-                  {txBlocks > 0 ? "Add a block" : "Buy blocks"} <ArrowRight className="ml-1 size-3.5" />
-                </Link>
-              </div>
-            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <p className="text-xs text-muted-foreground">
+                Marketing has its own meter — audience size, on its own page.
+              </p>
+              <Link
+                href="/billing/transactional"
+                className={cn(buttonVariants({ size: "sm", variant: usage.over_limit || txPct >= 80 ? "default" : "outline" }))}
+              >
+                {txBlocks > 0 ? "Manage blocks" : "Buy send blocks"} <ArrowRight className="ml-1 size-3.5" />
+              </Link>
+            </div>
           </CardContent>
         </Card>
-
-        <Card>
+      ) : (
+        <Card className="mb-6">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Megaphone className="size-4 text-muted-foreground" /> Marketing
+              <Megaphone className="size-4 text-muted-foreground" /> Marketing usage
             </CardTitle>
             <span className="text-xs text-muted-foreground">{usage.period}</span>
           </CardHeader>
@@ -128,41 +152,25 @@ export default async function BillingPage({
               <span className="font-medium">
                 {num(ctUsed)} {ctLimit === -1 ? "contacts" : `/ ${num(ctLimit)} contacts`}
               </span>
-              <span className="text-muted-foreground">
-                {num(usage.marketing_sent)} marketing emails sent
-              </span>
+              <span className="text-muted-foreground">{num(usage.marketing_sent)} marketing emails sent</span>
             </div>
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
-              <div
-                className={`h-full rounded-full ${ctBar}`}
-                style={{ width: `${ctLimit === -1 ? 4 : ctPct}%` }}
-              />
+              <div className={`h-full rounded-full ${ctBar}`} style={{ width: `${ctLimit === -1 ? 4 : ctPct}%` }} />
             </div>
-            {ctLimit !== -1 && ctUsed >= ctLimit ? (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3">
-                <p className="text-sm text-destructive">
-                  Audience at its bracket — upgrade Marketing to grow it.
-                </p>
-                <Link href="/billing?tab=plans" className={cn(buttonVariants({ size: "sm" }))}>
-                  See brackets <ArrowRight className="ml-1 size-3.5" />
-                </Link>
-              </div>
-            ) : ctLimit !== -1 && ctPct >= 80 ? (
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm text-muted-foreground">
-                  Audience at {ctPct}% of its bracket.
-                </p>
-                <Link
-                  href="/billing?tab=plans"
-                  className="inline-flex items-center text-sm font-medium text-primary hover:underline"
-                >
-                  See brackets <ArrowRight className="ml-1 size-3.5" />
-                </Link>
-              </div>
-            ) : null}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <p className="text-xs text-muted-foreground">
+                Transactional has its own meter — send volume, on its own page.
+              </p>
+              <Link
+                href="/billing/marketing"
+                className={cn(buttonVariants({ size: "sm", variant: ctLimit !== -1 && ctPct >= 80 ? "default" : "outline" }))}
+              >
+                See brackets <ArrowRight className="ml-1 size-3.5" />
+              </Link>
+            </div>
           </CardContent>
         </Card>
-      </div>
+      )}
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
@@ -188,6 +196,9 @@ export default async function BillingPage({
                   <span className="font-semibold">Estimated total / mo</span>
                   <span className="font-semibold">${summary.total.toFixed(2)}</span>
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  Each wing bills on its own subscription — change one side without touching the other.
+                </p>
                 {billing.billing_mode === "local" ? (
                   <p className="text-xs text-muted-foreground">Demo billing — no card is charged.</p>
                 ) : null}
@@ -198,7 +209,7 @@ export default async function BillingPage({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Seats &amp; add-ons</CardTitle>
+            <CardTitle className="text-base">Platform</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -206,20 +217,59 @@ export default async function BillingPage({
                 ? `${summary.seats.used} seats in use · unlimited included.`
                 : `${summary.seats.used} of ${summary.seats.capacity} seats in use (${summary.seats.included} included${summary.seats.purchased ? ` + ${summary.seats.purchased} purchased` : ""}).`}
             </p>
-            <AddonManager quantities={addonQty} catalog={addons_catalog} />
+            <Link
+              href="/billing/platform"
+              className="inline-flex items-center text-sm font-medium text-primary hover:underline"
+            >
+              Seats, workspaces &amp; add-ons <ArrowRight className="ml-1 size-3.5" />
+            </Link>
           </CardContent>
         </Card>
       </div>
     </>
   );
 
+  const ordered = [...WING_PITCHES].sort((a, b) =>
+    a.id === activeWing ? -1 : b.id === activeWing ? 1 : 0,
+  );
+
   const plansSlot = (
     <>
-      {wings ? (
-        <WingsPricing wings={wings} />
-      ) : (
-        <p className="text-sm text-muted-foreground">Pricing isn&apos;t available right now.</p>
-      )}
+      <div className="mb-5">
+        <h2 className="text-lg font-semibold tracking-tight">Pricing, per wing</h2>
+        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+          Two products, one foundation — each priced by what it actually uses and billed on its
+          own. Pick the side you came for; the other is there when you need it.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-3">
+        {ordered.map((w) => {
+          const primary = w.id === activeWing;
+          return (
+            <Card key={w.id} className={cn("flex flex-col", primary && "border-primary/40 ring-1 ring-primary/15")}>
+              <CardContent className="flex flex-1 flex-col p-5">
+                <div className="flex items-center gap-2">
+                  <span className="grid size-8 place-items-center rounded-lg bg-secondary">
+                    <w.icon className="size-4" />
+                  </span>
+                  <div>
+                    <p className="font-semibold">{w.title}</p>
+                    <p className="text-[11px] text-muted-foreground">{w.sizedBy}</p>
+                  </div>
+                </div>
+                <p className="mt-3 flex-1 text-sm text-muted-foreground">{w.desc}</p>
+                <Link
+                  href={w.href}
+                  className={cn(buttonVariants({ size: "sm", variant: primary ? "default" : "outline" }), "mt-4 w-full")}
+                >
+                  {w.cta} <ArrowRight className="ml-1 size-3.5" />
+                </Link>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
 
       <div className="mt-6 rounded-lg border bg-card p-4">
         <p className="text-xs font-semibold">Every account includes</p>
@@ -253,7 +303,11 @@ export default async function BillingPage({
     <>
       <PageHeader
         title="Plan & usage"
-        description="Transactional is billed by send volume, Marketing by audience size. Sandbox (test mode) is always free."
+        description={
+          activeWing === "transactional"
+            ? "Your transactional usage and bill. Marketing is priced separately, by audience."
+            : "Your marketing usage and bill. Transactional is priced separately, by send volume."
+        }
       />
       <BillingTabs initialTab={initialTab} usage={usageSlot} plans={plansSlot} />
     </>

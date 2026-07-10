@@ -158,7 +158,7 @@ export function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?
           {extras ? <p className="mt-3 text-sm text-muted-foreground">{extras}</p> : null}
           <div className="mt-5 flex flex-col gap-2">
             {/* Straight to the money page — comparing is the secondary path. */}
-            <Link href="/billing/wings" className={cn(buttonVariants({ size: "sm" }))}>
+            <Link href={`/billing/${info.required_wing ?? "transactional"}`} className={cn(buttonVariants({ size: "sm" }))}>
               Unlock with {planName} <ArrowRight className="size-4" />
             </Link>
             <Link

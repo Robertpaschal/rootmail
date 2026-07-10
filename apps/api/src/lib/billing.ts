@@ -110,7 +110,7 @@ export async function assertContactCapacity(org: BillableOrg, adding = 1): Promi
     const tier = mkTierFor(org);
     throw Errors.quotaExceeded(
       `Your audience is at ${current.toLocaleString()} of ${limit.toLocaleString()} contacts on Marketing ${tier.name}. Upgrade the Marketing wing to grow it.`,
-      { contacts: current, limit, wing: "marketing", upgrade_url: "/billing/wings" },
+      { contacts: current, limit, wing: "marketing", upgrade_url: "/billing/marketing" },
     );
   }
 }
@@ -307,7 +307,7 @@ export async function assertCanSend(org: Organization): Promise<void> {
   if (used >= plan.monthlyQuota) {
     throw Errors.quotaExceeded(
       `You've used your free ${plan.monthlyQuota.toLocaleString()} transactional emails this month. Buy send blocks (25,000 emails each) to keep sending.`,
-      { quota: plan.monthlyQuota, wing: "transactional", upgrade_url: "/billing/wings" },
+      { quota: plan.monthlyQuota, wing: "transactional", upgrade_url: "/billing/transactional" },
     );
   }
 }

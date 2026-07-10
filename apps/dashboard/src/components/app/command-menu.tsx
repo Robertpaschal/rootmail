@@ -45,8 +45,9 @@ const MK: Item[] = [
 
 const WORKSPACE: Item[] = [
   { label: "Plan & usage", href: "/billing", kw: "billing subscription overage quota invoice" },
-  { label: "Compare plans & upgrade", href: "/billing?tab=plans", kw: "pricing tiers upgrade downgrade" },
-  { label: "Add-ons", href: "/billing", kw: "dedicated ip extra seats ai credits workspaces packs" },
+  { label: "Transactional pricing", href: "/billing/transactional", kw: "send blocks volume upgrade overage buy sends" },
+  { label: "Marketing pricing", href: "/billing/marketing", kw: "contacts brackets audience upgrade" },
+  { label: "Platform pricing", href: "/billing/platform", kw: "seats workspaces roles sso team add-ons ai credits packs dedicated ip" },
   { label: "Team", href: "/members", kw: "members invite users seats people" },
   { label: "Roles", href: "/roles", kw: "permissions rbac access control" },
   { label: "Compliance", href: "/compliance", kw: "residency soc2 proof gdpr privacy" },
@@ -134,7 +135,7 @@ export function CommandMenu() {
         ];
   actions.push(
     { label: "Verify a sending address", href: "/settings/sender", kw: "from domain sender setup verify" },
-    { label: "Buy add-ons or upgrade", href: "/billing?tab=plans", kw: "dedicated ip seats credits pricing overage" },
+    { label: "Buy send blocks", href: "/billing/transactional", kw: "upgrade transactional volume overage" },
   );
 
   const renderGroup = (heading: string, items: Item[], icon: "go" | "action") => (
