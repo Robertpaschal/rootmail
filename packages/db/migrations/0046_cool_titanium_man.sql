@@ -1,0 +1,1 @@
+ALTER TABLE "pricing_tiers" ADD COLUMN "stripe_overage_price_id" text;

@@ -13,6 +13,7 @@ import {
   type PlanId,
   type PlanStatus,
   saleActive,
+  TX_OVERAGE_METER_EVENT,
   type Wing,
   WINGS,
 } from "@rootmail/core";
@@ -110,22 +111,10 @@ export function priceForAddOn(id: AddOnId, interval: BillingInterval = "month"):
   return regularAddOnPriceId(id, interval);
 }
 
-/**
- * Configured METERED Stripe price id for a plan's overage, or null. The price
- * must be a metered recurring price billed per UNIT, where 1 unit = 1,000 emails
- * (Pro $0.85/unit, Scale $0.70/unit) — we report `ceil(overage / 1000)` units.
- */
-export function overagePriceForPlan(planId: PlanId): string | null {
-  if (planId === "pro") return env.STRIPE_PRICE_OVERAGE_PRO ?? null;
-  if (planId === "scale") return env.STRIPE_PRICE_OVERAGE_SCALE ?? null;
-  return null; // free has no overage; enterprise is custom-billed
-}
-
-/** Billing Meter `event_name` used to report overage usage for a plan, or null. */
-export function overageMeterEvent(planId: PlanId): string | null {
-  if (planId === "pro") return env.STRIPE_METER_OVERAGE_PRO ?? null;
-  if (planId === "scale") return env.STRIPE_METER_OVERAGE_SCALE ?? null;
-  return null;
+/** The metered overage price for transactional blocks ($/1,000 sends past the
+ * purchased blocks), synced onto the blocks product by syncTierPrice. */
+function txOveragePriceId(): string | null {
+  return getTier("tx_blocks")?.stripeOveragePriceId ?? null;
 }
 
 /** All add-on Stripe price ids — regular AND sale — so add-on items on a sub are
@@ -174,13 +163,17 @@ function addOnForPrice(priceId: string): AddOnId | null {
 export async function reconcileAddonsFromSubscription(
   orgId: string,
   sub: Stripe.Subscription,
+  /** When given, only add-ons homed to this wing are reconciled — a wing sub must
+   * never zero the OTHER wing's add-ons (they bill on their own subscription). */
+  wing?: Wing,
 ): Promise<void> {
   const billed = new Map<AddOnId, number>();
   for (const item of sub.items.data) {
     const id = item.price?.id ? addOnForPrice(item.price.id) : null;
     if (id) billed.set(id, (billed.get(id) ?? 0) + (item.quantity ?? 0));
   }
-  for (const id of ADD_ON_IDS) {
+  const scope = wing ? ADD_ON_IDS.filter((id) => ADD_ONS[id].wing === wing) : ADD_ON_IDS;
+  for (const id of scope) {
     const qty = sub.status === "canceled" ? 0 : (billed.get(id) ?? 0);
     await db
       .insert(orgAddons)
@@ -275,144 +268,9 @@ export interface CheckoutResult {
   url?: string;
 }
 
-/** Plan + add-ons (as quantity items) + the metered overage item — the full set of
- * subscription line items shared by hosted and embedded checkout. `addonQtys`, when
- * given, overrides the org's current add-ons (the "configure at checkout" flow);
- * otherwise the org's existing add-ons are carried over. */
-async function buildCheckoutLineItems(
-  org: Organization,
-  planId: PlanId,
-  price: string,
-  interval: BillingInterval,
-  addonQtys?: Record<string, number>,
-): Promise<Stripe.Checkout.SessionCreateParams.LineItem[]> {
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price, quantity: 1 }];
-  const selected = addonQtys
-    ? ADD_ON_IDS.filter((id) => (addonQtys[id] ?? 0) > 0).map((id) => ({ id, quantity: addonQtys[id] }))
-    : await loadAddonQuantities(org.id);
-  for (const a of selected) {
-    // Add-ons bill at the same interval as the plan (yearly sub → yearly add-on price).
-    const addonPrice = priceForAddOn(a.id, interval);
-    if (addonPrice) lineItems.push({ price: addonPrice, quantity: a.quantity });
-  }
-  // Metered overage is a MONTHLY price; Stripe forbids mixing billing intervals in one
-  // subscription, so it only attaches to monthly checkout (a yearly plan would need a
-  // yearly metered overage price). Only attach once fully configured (price + meter).
-  const overagePrice = overagePriceForPlan(planId);
-  if (interval === "month" && overagePrice && overageMeterEvent(planId)) {
-    lineItems.push({ price: overagePrice });
-  }
-  return lineItems;
-}
-
-/** On sale → auto-apply the sale coupon (so the charge matches the marketed price);
- * otherwise allow a manual promo code. Stripe forbids both at once. */
-function checkoutDiscountParams(
-  planId: PlanId,
-): { discounts: Array<{ coupon: string }> } | { allow_promotion_codes: true } {
-  const sale = getSale(planId);
-  if (sale?.couponId && saleActive({ percentOff: sale.percentOff, endsAt: sale.endsAt })) {
-    return { discounts: [{ coupon: sale.couponId }] };
-  }
-  return { allow_promotion_codes: true };
-}
-
-/**
- * Start a plan change via HOSTED Stripe Checkout. Returns a redirect URL in Stripe
- * mode with a resolvable price; otherwise `{ mode: "local" }` so the caller applies
- * the change from the PLANS defaults — Stripe being unavailable never blocks it.
- */
-export async function createCheckout(
-  org: Organization,
-  planId: PlanId,
-  interval: BillingInterval = "month",
-): Promise<CheckoutResult> {
-  const stripe = getStripe();
-  const price = priceForPlan(planId, interval);
-  if (!stripe || !price) return { mode: "local" };
-
-  try {
-    const customer = await ensureCustomer(org);
-    const base = env.DASHBOARD_URL.replace(/\/$/, "");
-    const lineItems = await buildCheckoutLineItems(org, planId, price, interval);
-    const trialDays = getTrialDays(planId);
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      customer,
-      line_items: lineItems,
-      success_url: `${base}/billing?checkout=success`,
-      cancel_url: `${base}/billing?checkout=cancel`,
-      metadata: { organizationId: org.id, planId, interval },
-      subscription_data: {
-        metadata: { organizationId: org.id, planId, interval },
-        ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
-      },
-      ...checkoutDiscountParams(planId),
-    });
-    if (session.url) return { mode: "stripe", url: session.url };
-  } catch (err) {
-    // Stripe hiccup mid-setup — don't block the user; fall back to local.
-    console.warn(`[stripe] checkout failed, falling back to local: ${String(err)}`);
-  }
-  return { mode: "local" };
-}
-
-export interface EmbeddedCheckoutResult {
-  mode: "embedded" | "unavailable";
-  client_secret?: string;
-  publishable_key?: string;
-}
-
-/**
- * Start a plan change via ON-PAGE (embedded) Stripe Checkout: returns a session
- * client_secret + the publishable key for the dashboard to mount inline (no
- * redirect). Same subscription / add-ons / overage / trial + sale-or-promo logic
- * as the hosted flow. Returns `{ mode: "unavailable" }` when Stripe, the price, or
- * the publishable key isn't configured — the caller then falls back to the hosted
- * redirect (or local), so checkout always works.
- */
-export async function createEmbeddedCheckout(
-  org: Organization,
-  planId: PlanId,
-  interval: BillingInterval = "month",
-  addonQtys?: Record<string, number>,
-): Promise<EmbeddedCheckoutResult> {
-  const stripe = getStripe();
-  const price = priceForPlan(planId, interval);
-  const pk = env.STRIPE_PUBLISHABLE_KEY;
-  if (!stripe || !price || !pk) return { mode: "unavailable" };
-
-  try {
-    const customer = await ensureCustomer(org);
-    const base = env.DASHBOARD_URL.replace(/\/$/, "");
-    const lineItems = await buildCheckoutLineItems(org, planId, price, interval, addonQtys);
-    const trialDays = getTrialDays(planId);
-    const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
-      // This SDK pins a Stripe API version whose embedded UI mode is "embedded_page"
-      // (the stable alias is "embedded"); @stripe/react-stripe-js consumes the
-      // resulting client_secret either way.
-      ui_mode: "embedded_page",
-      customer,
-      line_items: lineItems,
-      // Embedded sessions return here in-page after completion; the webhook is what
-      // actually flips the plan (return is just UX).
-      return_url: `${base}/billing?checkout=complete&session_id={CHECKOUT_SESSION_ID}`,
-      metadata: { organizationId: org.id, planId, interval },
-      subscription_data: {
-        metadata: { organizationId: org.id, planId, interval },
-        ...(trialDays > 0 ? { trial_period_days: trialDays } : {}),
-      },
-      ...checkoutDiscountParams(planId),
-    });
-    if (session.client_secret) {
-      return { mode: "embedded", client_secret: session.client_secret, publishable_key: pk };
-    }
-  } catch (err) {
-    console.warn(`[stripe] embedded checkout failed: ${String(err)}`);
-  }
-  return { mode: "unavailable" };
-}
+// (Legacy single-plan checkout builders removed — per-wing checkout below is the
+// only purchase path; add-ons attach to their wing's subscription via
+// syncAddonItems, and blocks overage bills on the dedicated overage sub.)
 
 /**
  * Sync an org's plan/status from a Stripe subscription (webhook-driven). Looks
@@ -499,51 +357,81 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
  * add, change the quantity of, or remove add-on items so Stripe matches the DB.
  * No-op without a Stripe subscription (a free org has none → upgrade first).
  */
+/**
+ * Reconcile an org's add-on items with its `org_addons` rows — PER WING: each
+ * add-on bills as a quantity item on ITS wing's subscription (ADD_ONS[id].wing,
+ * spec §6b). Throws when a wanted add-on's wing has no active subscription — the
+ * route rolls the entitlement back and surfaces the message, so an add-on is never
+ * granted un-billed. Wings with a sub but no wanted add-ons get their add-on items
+ * removed (plan + overage items are never touched).
+ */
 export async function syncAddonItems(org: Organization): Promise<void> {
   const stripe = getStripe();
-  if (!stripe || !org.stripeSubscriptionId) return;
+  if (!stripe) return;
 
-  const sub = await stripe.subscriptions.retrieve(org.stripeSubscriptionId);
   const addonPrices = addOnPriceIds();
-  const want = new Map<string, number>();
-  for (const a of await loadAddonQuantities(org.id)) {
-    const price = priceForAddOn(a.id, org.billingInterval);
-    if (price) want.set(price, a.quantity);
+  const wanted = await loadAddonQuantities(org.id);
+
+  // wing → (priceId → qty) wanted on that wing's subscription.
+  const wantByWing = new Map<Wing, Map<string, number>>();
+  for (const a of wanted) {
+    const wing = ADD_ONS[a.id].wing;
+    const price = priceForAddOn(a.id, "month");
+    if (!price) continue;
+    const m = wantByWing.get(wing) ?? new Map<string, number>();
+    m.set(price, a.quantity);
+    wantByWing.set(wing, m);
   }
 
-  for (const item of sub.items.data) {
-    const priceId = item.price.id;
-    if (!addonPrices.has(priceId)) continue; // leave the plan + overage items alone
-    const qty = want.get(priceId);
-    if (qty && qty > 0) {
-      if (item.quantity !== qty) await stripe.subscriptionItems.update(item.id, { quantity: qty });
-      want.delete(priceId);
-    } else {
-      await stripe.subscriptionItems.del(item.id);
+  // A wanted add-on whose wing has no subscription → fail (rolled back upstream).
+  for (const [wing, m] of wantByWing) {
+    if ([...m.values()].some((q) => q > 0) && !wingSubscriptionId(org, wing)) {
+      const label = wing === "platform" ? "Platform" : wing === "transactional" ? "Transactional" : "Marketing";
+      throw new Error(`Add-ons on the ${label} wing need a paid ${label} plan first — choose one under Plans.`);
     }
   }
-  for (const [priceId, qty] of want) {
-    if (qty > 0) {
-      await stripe.subscriptionItems.create({ subscription: sub.id, price: priceId, quantity: qty });
+
+  // Reconcile every wing subscription the org has.
+  for (const wing of WINGS) {
+    const subId = wingSubscriptionId(org, wing);
+    if (!subId) continue;
+    const want = new Map(wantByWing.get(wing) ?? []);
+    const sub = await stripe.subscriptions.retrieve(subId).catch(() => null);
+    if (!sub) continue;
+    for (const item of sub.items.data) {
+      const priceId = item.price.id;
+      if (!addonPrices.has(priceId)) continue; // leave the tier + overage items alone
+      const qty = want.get(priceId);
+      if (qty && qty > 0) {
+        if (item.quantity !== qty) await stripe.subscriptionItems.update(item.id, { quantity: qty });
+        want.delete(priceId);
+      } else {
+        await stripe.subscriptionItems.del(item.id);
+      }
+    }
+    for (const [priceId, qty] of want) {
+      if (qty > 0) {
+        await stripe.subscriptionItems.create({ subscription: sub.id, price: priceId, quantity: qty });
+      }
     }
   }
 }
 
 /**
- * Report this month's overage to Stripe's Billing Meter (1 unit = 1,000 emails).
- * Meters aggregate events by sum, so we report only the DELTA since the last
- * report and persist the running total. No-op until the plan's meter `event_name`
- * is configured (STRIPE_METER_OVERAGE_*). Safe to call lazily (bill view) and/or
- * from a period-end job.
+ * Report this month's TRANSACTIONAL overage to Stripe's Billing Meter (1 unit =
+ * 1,000 sends past the purchased blocks). Meters aggregate by sum, so only the
+ * DELTA since the last report is sent. Overage always bills on the dedicated
+ * monthly overage subscription (one path for monthly AND yearly blocks — Stripe
+ * forbids mixing intervals, and a second $0-until-used sub keeps checkout clean).
+ * Free-allowance orgs hard-cap instead (no overage). Lazy + best-effort.
  */
 export async function reportOverage(org: Organization): Promise<void> {
   const stripe = getStripe();
   if (!stripe || !org.stripeCustomerId) return;
-  const eventName = overageMeterEvent(org.plan);
-  if (!eventName) return; // meter not configured yet → nothing to report
+  if ((org.transactionalBlocks ?? 0) <= 0) return; // free allowance hard-caps; enterprise custom-billed
+  if (!txOveragePriceId()) return; // metered price not synced yet
 
-  // Yearly plans bill overage on a separate monthly sub; make sure it exists before
-  // we report usage (no-op for monthly, or once the sub already exists).
+  // Make sure the dedicated overage sub exists before reporting usage.
   await reconcileOverageSubscription(org);
 
   const used = await getUsage(org.id);
@@ -554,34 +442,24 @@ export async function reportOverage(org: Organization): Promise<void> {
   if (delta <= 0) return; // nothing new this period
 
   await stripe.billing.meterEvents.create({
-    event_name: eventName,
+    event_name: TX_OVERAGE_METER_EVENT,
     payload: { value: String(delta), stripe_customer_id: org.stripeCustomerId },
   });
   await setReportedOverage(org.id, units);
 }
 
 /**
- * Keep an org's overage billing in sync with its plan interval.
- *
- * Overage is an inherently MONTHLY charge, but Stripe forbids mixing billing
- * intervals in one subscription — so a YEARLY plan can't carry the metered overage
- * item on its annual base subscription. Instead we bill overage on a SEPARATE
- * monthly metered subscription. The per-customer meter events (`reportOverage`) then
- * bill on whichever subscription holds the metered price: the plan sub for monthly
- * orgs, this dedicated sub for yearly orgs.
- *
- * This reconciles reality to the org's state — a yearly org on a metered plan gets
- * the dedicated overage sub (created once, $0 until usage accrues); anything else
- * (monthly, free, enterprise, Stripe off) has it cancelled. Idempotent and safe to
- * call from both the webhook (plan changes) and `reportOverage` (lazy first use).
+ * Keep the dedicated monthly overage subscription in sync with the org's blocks:
+ * blocks purchased → the sub exists ($0 until overage accrues); no blocks → it's
+ * cancelled. Idempotent; called from the wing webhook (purchase/downgrade) and
+ * lazily from `reportOverage`.
  */
 export async function reconcileOverageSubscription(org: Organization): Promise<void> {
   const stripe = getStripe();
   if (!stripe || !org.stripeCustomerId) return;
 
-  const overagePrice = overagePriceForPlan(org.plan);
-  const shouldHave =
-    org.billingInterval === "year" && overagePrice != null && overageMeterEvent(org.plan) != null;
+  const overagePrice = txOveragePriceId();
+  const shouldHave = (org.transactionalBlocks ?? 0) > 0 && overagePrice != null;
 
   if (shouldHave && !org.stripeOverageSubscriptionId) {
     try {
@@ -591,7 +469,7 @@ export async function reconcileOverageSubscription(org: Organization): Promise<v
         {
           customer: org.stripeCustomerId,
           items: [{ price: overagePrice! }],
-          metadata: { organization_id: org.id, kind: "overage", plan: org.plan },
+          metadata: { organizationId: org.id, kind: "overage", wing: "transactional" },
         },
         { idempotencyKey: `overage-sub-${org.id}` },
       );
@@ -603,9 +481,8 @@ export async function reconcileOverageSubscription(org: Organization): Promise<v
       console.warn(`[stripe] overage subscription create failed for ${org.id}: ${String(err)}`);
     }
   } else if (!shouldHave && org.stripeOverageSubscriptionId) {
-    // Left yearly / lost overage → stop the dedicated sub (overage moves back onto the
-    // monthly plan sub, or away entirely). Clearing the id is safe even if the cancel
-    // 404s (already gone).
+    // Blocks gone (downgrade to the free allowance) → stop the dedicated sub.
+    // Clearing the id is safe even if the cancel 404s (already gone).
     await stripe.subscriptions
       .cancel(org.stripeOverageSubscriptionId)
       .catch((err) => console.warn(`[stripe] overage sub cancel failed for ${org.id}: ${String(err)}`));
@@ -732,13 +609,44 @@ export async function syncTierPrice(tier: PricingTier): Promise<{ month: string;
   });
   await stripe.products.update(productId, { default_price: month.id });
 
+  // Blocks also get the METERED overage price ($/1,000 sends past the purchased
+  // blocks) on a global Billing Meter — billed via the dedicated overage sub.
+  let overagePriceId: string | null = tier.stripeOveragePriceId ?? null;
+  if (isBlocks && tier.overagePer1000Cents > 0) {
+    const meters = await stripe.billing.meters.list({ status: "active" });
+    let meter = meters.data.find((m) => m.event_name === TX_OVERAGE_METER_EVENT);
+    meter ??= await stripe.billing.meters.create({
+      display_name: "rootmail transactional overage (1k sends)",
+      event_name: TX_OVERAGE_METER_EVENT,
+      default_aggregation: { formula: "sum" },
+      customer_mapping: { type: "by_id", event_payload_key: "stripe_customer_id" },
+      value_settings: { event_payload_key: "value" },
+    });
+    const overage = await stripe.prices.create({
+      product: productId,
+      currency: "usd",
+      unit_amount: tier.overagePer1000Cents,
+      recurring: { interval: "month", usage_type: "metered", meter: meter.id },
+      metadata: { tierId: tier.id, wing: tier.wing, kind: "overage" },
+    });
+    if (tier.stripeOveragePriceId) {
+      await stripe.prices.update(tier.stripeOveragePriceId, { active: false }).catch(() => {});
+    }
+    overagePriceId = overage.id;
+  }
+
   // Grandfather: archive only the previously-synced prices (current subs keep billing).
   if (tier.stripePriceMonthId) await stripe.prices.update(tier.stripePriceMonthId, { active: false }).catch(() => {});
   if (tier.stripePriceYearId) await stripe.prices.update(tier.stripePriceYearId, { active: false }).catch(() => {});
 
   await db
     .update(pricingTiers)
-    .set({ stripePriceMonthId: month.id, stripePriceYearId: year.id, updatedAt: new Date() })
+    .set({
+      stripePriceMonthId: month.id,
+      stripePriceYearId: year.id,
+      stripeOveragePriceId: overagePriceId,
+      updatedAt: new Date(),
+    })
     .where(eq(pricingTiers.id, tier.id));
 
   return { month: month.id, year: year.id };
@@ -871,6 +779,10 @@ export async function createWingCheckout(
  * `wing` metadata (syncSubscription delegates here). Canceled → that wing drops
  * back to its Free tier. */
 export async function syncWingSubscription(sub: Stripe.Subscription): Promise<void> {
+  // The dedicated overage sub also carries `wing` metadata for bookkeeping — it must
+  // never drive the wing tier (its guard in syncSubscription fires first; this is
+  // defense in depth for direct callers).
+  if (sub.metadata?.kind === "overage") return;
   const wing = sub.metadata?.wing as Wing | undefined;
   if (!wing || !WINGS.includes(wing)) return;
 
@@ -896,28 +808,38 @@ export async function syncWingSubscription(sub: Stripe.Subscription): Promise<vo
       .update(organizations)
       .set({ ...wingUpdate(wing, defaultTierId(wing), null), updatedAt: new Date() })
       .where(eq(organizations.id, org.id));
-    return;
-  }
-
-  // Which tier is billed — from the sub's price, else the metadata tierId — and,
-  // for the blocks tier, HOW MANY blocks (the subscription item quantity).
-  let tierId: string | null = null;
-  let blocks = 0;
-  for (const item of sub.items.data) {
-    const match = item.price?.id ? tierForPrice(item.price.id) : null;
-    if (match && match.wing === wing) {
-      tierId = match.tierId;
-      if (match.tierId === "tx_blocks") blocks = item.quantity ?? 1;
-      break;
+  } else {
+    // Which tier is billed — from the sub's price, else the metadata tierId — and,
+    // for the blocks tier, HOW MANY blocks (the subscription item quantity).
+    let tierId: string | null = null;
+    let blocks = 0;
+    for (const item of sub.items.data) {
+      const match = item.price?.id ? tierForPrice(item.price.id) : null;
+      if (match && match.wing === wing) {
+        tierId = match.tierId;
+        if (match.tierId === "tx_blocks") blocks = item.quantity ?? 1;
+        break;
+      }
     }
-  }
-  tierId ??= sub.metadata?.tierId ?? defaultTierId(wing);
-  if (tierId === "tx_blocks" && blocks === 0) blocks = 1;
+    tierId ??= sub.metadata?.tierId ?? defaultTierId(wing);
+    if (tierId === "tx_blocks" && blocks === 0) blocks = 1;
 
-  await db
-    .update(organizations)
-    .set({ ...wingUpdate(wing, tierId, sub.id, blocks), updatedAt: new Date() })
-    .where(eq(organizations.id, org.id));
+    await db
+      .update(organizations)
+      .set({ ...wingUpdate(wing, tierId, sub.id, blocks), updatedAt: new Date() })
+      .where(eq(organizations.id, org.id));
+  }
+
+  // Keep entitlements honest for THIS wing only: its add-on items (chosen at
+  // checkout or edited in Stripe) and, for transactional, the dedicated overage sub
+  // (created on first blocks purchase; cancelled when blocks go away).
+  await reconcileAddonsFromSubscription(org.id, sub, wing);
+  const [fresh] = await db
+    .select()
+    .from(organizations)
+    .where(eq(organizations.id, org.id))
+    .limit(1);
+  if (fresh && wing === "transactional") await reconcileOverageSubscription(fresh);
 }
 
 /**

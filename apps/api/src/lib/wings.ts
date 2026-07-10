@@ -41,6 +41,7 @@ function toDef(r: PricingTier): TierDef {
     workspaceLimit: r.workspaceLimit ?? undefined,
     stripePriceMonthId: r.stripePriceMonthId,
     stripePriceYearId: r.stripePriceYearId,
+    stripeOveragePriceId: r.stripeOveragePriceId,
   };
 }
 

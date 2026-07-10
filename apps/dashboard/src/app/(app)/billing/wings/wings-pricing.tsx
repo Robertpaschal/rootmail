@@ -39,6 +39,7 @@ export function WingsPricing({
   const [contacts, setContacts] = useState(prefill?.contacts ? String(prefill.contacts) : "");
   const [team, setTeam] = useState(prefill?.team ? String(prefill.team) : "");
   const [rec, setRec] = useState<Rec | null>(null);
+  const [interval, setInterval] = useState<"month" | "year">("month");
 
   function findPlan(e?: number, c?: number, t?: number) {
     const sends = e ?? Number(emails) ?? 0;
@@ -140,14 +141,32 @@ export function WingsPricing({
         </CardContent>
       </Card>
 
+      <div className="inline-flex rounded-lg border p-0.5 text-sm">
+        {(["month", "year"] as const).map((iv) => (
+          <button
+            key={iv}
+            type="button"
+            onClick={() => setInterval(iv)}
+            className={
+              interval === iv
+                ? "rounded-md bg-secondary px-3.5 py-1.5 font-medium"
+                : "rounded-md px-3.5 py-1.5 font-medium text-muted-foreground hover:text-foreground"
+            }
+          >
+            {iv === "year" ? "Yearly — 2 months free" : "Monthly"}
+          </button>
+        ))}
+      </div>
+
       <WingLadder
         wing="transactional"
         ladder={wings.transactional}
+        interval={interval}
         recommendedId={rec?.tiers.transactional}
         recommendedBlocks={rec?.blocks || undefined}
       />
-      <WingLadder wing="marketing" ladder={wings.marketing} recommendedId={rec?.tiers.marketing} />
-      <WingLadder wing="platform" ladder={wings.platform} recommendedId={rec?.tiers.platform} />
+      <WingLadder wing="marketing" ladder={wings.marketing} interval={interval} recommendedId={rec?.tiers.marketing} />
+      <WingLadder wing="platform" ladder={wings.platform} interval={interval} recommendedId={rec?.tiers.platform} />
     </div>
   );
 }

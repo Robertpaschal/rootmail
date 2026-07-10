@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Billing that reads like the product — per wing",
+    date: "2026-07-09",
+    changes: [
+      {
+        kind: "New",
+        text: "Yearly billing is now available per wing — pay for send blocks, your Marketing bracket, or Platform yearly (2 months free), each side on its own schedule.",
+      },
+      {
+        kind: "Improved",
+        text: "Your bill now reads exactly like the product: a Transactional line (your blocks), a Marketing line (your bracket), and a Platform line — plus any overage, all itemized honestly.",
+      },
+      {
+        kind: "Improved",
+        text: "Add-ons now belong to their wing: dedicated IPs and client-domain packs extend Transactional, seats and workspace packs extend Platform — each billed on that wing's own subscription.",
+      },
+      {
+        kind: "Improved",
+        text: "Send past your blocks and the overage now bills automatically through a metered line — sending never stops, and you only pay for what actually went out.",
+      },
+    ],
+  },
+  {
     title: "Scaling is never punished — blocks and brackets",
     date: "2026-07-08",
     changes: [

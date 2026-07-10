@@ -323,6 +323,13 @@
       "when": 1783626667708,
       "tag": "0045_ambiguous_hellfire_club",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1783670313378,
+      "tag": "0046_cool_titanium_man",
+      "breakpoints": true
     }
   ]
 }

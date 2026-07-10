@@ -40,6 +40,7 @@ import {
   orgAddons,
   organizations,
   plans,
+  pricingTiers,
   staffAudit,
   staffUsers,
   subTenants,
@@ -63,6 +64,7 @@ import {
 } from "../lib/admin-auth";
 import { currentPeriod } from "../lib/billing";
 import { getPlan, refreshPlanCache } from "../lib/plans";
+import { refreshTierCache } from "../lib/wings";
 import {
   cancelCustomSubscription,
   deleteAddonSalePrice,
@@ -73,6 +75,7 @@ import {
   syncAddonSalePrice,
   syncCustomPlanPrice,
   syncPlanPrice,
+  syncTierPrice,
   syncPlanSaleCoupon,
 } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
@@ -1112,6 +1115,91 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { ...serializePlanRow(row), stripe_sync: stripeSync };
+  });
+
+  // --- Per-wing pricing tiers (THE pricing model: tx blocks / mk contacts / pf) --
+  app.get("/v1/admin/pricing-tiers", async (req) => {
+    await requireStaff(req);
+    const rows = await db.select().from(pricingTiers).orderBy(asc(pricingTiers.wing), asc(pricingTiers.rank));
+    return { object: "list", data: rows };
+  });
+
+  const tierPatch = z.object({
+    name: z.string().min(1).max(60).optional(),
+    price_monthly: z.number().int().min(0).max(1_000_000).nullable().optional(),
+    price_yearly: z.number().int().min(0).max(10_000_000).nullable().optional(),
+    ai_credits: z.coerce.number().int().min(-1).optional(),
+    included_sends: z.coerce.number().int().min(-1).nullable().optional(),
+    included_contacts: z.coerce.number().int().min(-1).nullable().optional(),
+    included_sub_tenants: z.coerce.number().int().min(-1).optional(),
+    seats: z.coerce.number().int().min(-1).nullable().optional(),
+    workspace_limit: z.coerce.number().int().min(-1).nullable().optional(),
+    allow_overage: z.boolean().optional(),
+    overage_per_1000_cents: z.coerce.number().int().min(0).max(100_000).optional(),
+    trial_days: z.coerce.number().int().min(0).max(365).optional(),
+    features: z.array(z.string()).optional(),
+    active: z.boolean().optional(),
+  });
+  // Edit a wing tier's economics. Money lever → superadmin only, audited. App-side
+  // limits take effect immediately (tier cache refresh); a billed-price change
+  // creates/swaps the Stripe prices (existing subscriptions grandfathered).
+  app.patch("/v1/admin/pricing-tiers/:id", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "commerce.manage");
+    const { id } = req.params as { id: string };
+    const body = parse(tierPatch, req.body);
+
+    const [before] = await db.select().from(pricingTiers).where(eq(pricingTiers.id, id)).limit(1);
+    if (!before) throw Errors.notFound("Tier not found");
+
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (body.name !== undefined) set.name = body.name;
+    if (body.price_monthly !== undefined) set.priceMonthly = body.price_monthly;
+    if (body.price_yearly !== undefined) set.priceYearly = body.price_yearly;
+    if (body.ai_credits !== undefined) set.aiCredits = body.ai_credits;
+    if (body.included_sends !== undefined) set.includedSends = body.included_sends;
+    if (body.included_contacts !== undefined) set.includedContacts = body.included_contacts;
+    if (body.included_sub_tenants !== undefined) set.includedSubTenants = body.included_sub_tenants;
+    if (body.seats !== undefined) set.seats = body.seats;
+    if (body.workspace_limit !== undefined) set.workspaceLimit = body.workspace_limit;
+    if (body.allow_overage !== undefined) set.allowOverage = body.allow_overage;
+    if (body.overage_per_1000_cents !== undefined) set.overagePer1000Cents = body.overage_per_1000_cents;
+    if (body.trial_days !== undefined) set.trialDays = body.trial_days;
+    if (body.features !== undefined) set.features = body.features;
+    if (body.active !== undefined) set.active = body.active;
+
+    let [updated] = await db.update(pricingTiers).set(set).where(eq(pricingTiers.id, id)).returning();
+    await refreshTierCache(); // limits live immediately
+
+    const priceChanged =
+      (body.price_monthly !== undefined && body.price_monthly !== before.priceMonthly) ||
+      (body.overage_per_1000_cents !== undefined &&
+        body.overage_per_1000_cents !== before.overagePer1000Cents);
+    let stripeSync: "synced" | "skipped" | "failed" | "unchanged" = priceChanged ? "skipped" : "unchanged";
+    if (priceChanged) {
+      try {
+        const synced = await syncTierPrice(updated);
+        if (synced) {
+          await refreshTierCache();
+          const [after] = await db.select().from(pricingTiers).where(eq(pricingTiers.id, id)).limit(1);
+          if (after) updated = after;
+          stripeSync = "synced";
+        }
+      } catch (err) {
+        req.log.error({ err }, "tier price sync to Stripe failed");
+        stripeSync = "failed";
+      }
+    }
+
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "pricing_tier.update",
+      targetType: "pricing_tier",
+      targetId: id,
+      metadata: { ...body, stripe_sync: stripeSync },
+      ip: req.ip,
+    });
+    return { ...updated, stripe_sync: stripeSync };
   });
 
   // --- Plan sales (a visible % off, synced to an auto-applied coupon) ------

@@ -330,9 +330,17 @@ of guarding one cap; scaling is not punished." Shipped as the ONLY pricing model
   (bracket rate applied); contact cap 402 past bracket; per-wing branding truth
   table; catalog reseed removes stale tiers + backfills orgs.
 
-**Owner notes (nothing needed right now):** Stripe products/prices are created
+**Hardening shipped (2026-07-09, #64):** metered Stripe overage for blocks (global
+Billing Meter + metered price on the blocks product, billed via a dedicated monthly
+overage sub created on first blocks purchase — one path for monthly AND yearly);
+add-ons re-homed to their wing's subscription (§6b realized — a wing add-on without
+that wing's paid sub is rejected with an actionable message and rolled back); yearly
+interval per wing in the pricing UI; staff editing for `pricing_tiers`
+(GET/PATCH /v1/admin/pricing-tiers, superadmin, audited, price edits re-sync Stripe);
+the bill itemizes per wing (Transactional blocks / Marketing tier / Platform tier).
+
+**Owner notes (nothing needed right now):** Stripe products/prices/meters are created
 programmatically in TEST mode by `sync-wing-prices` — when live keys land, rerun it
-once. Still TODO: metered Stripe overage price for blocks (overage computes + shows
-but doesn't bill to Stripe yet), add-ons attached to wing subs (§6b Stripe side),
-yearly wing checkout UI, admin editing for `pricing_tiers`, SDK method sync, and the
-marketing-site pricing page (#59).
+once. Still open: an admin UI for the tier endpoints (API is live; UI folds into the
+next admin sweep), and the marketing-site pricing page (#59). The Node SDK has no
+billing surface (billing is dashboard-only), so no SDK sync was needed.

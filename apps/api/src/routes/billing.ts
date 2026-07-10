@@ -8,6 +8,7 @@ import {
   BILLING_MODE,
   BLOCK_BRACKETS,
   BLOCK_SIZE,
+  blocksMonthlyPrice,
   Errors,
   FREE_TX_SENDS,
   MAX_SELF_SERVE_BLOCKS,
@@ -119,12 +120,33 @@ function wingsPayload(org: Organization) {
  */
 function billingSummary(org: Organization, usage: QuotaState, seats: SeatState, addons: OrgAddon[]) {
   const plan = usage.plan;
+  // The bill reads per wing — each side priced on its own axis (two-wings doctrine).
+  const blocks = org.transactionalBlocks ?? 0;
+  const mkTier = getTier(org.marketingTier ?? "mk_free");
+  const pfTier = getTier(org.platformTier ?? "pf_solo");
   const lines: Array<{ label: string; kind: string; amount: number }> = [
-    { label: `${plan.name} plan`, kind: "base", amount: plan.price ?? 0 },
+    {
+      label:
+        blocks > 0
+          ? `Transactional · ${blocks} block${blocks === 1 ? "" : "s"} (${(blocks * BLOCK_SIZE).toLocaleString()} sends/mo)`
+          : "Transactional · Free allowance",
+      kind: "base",
+      amount: blocks > 0 ? blocksMonthlyPrice(blocks) : 0,
+    },
+    {
+      label: `Marketing · ${mkTier?.name ?? "Free"}`,
+      kind: "base",
+      amount: mkTier?.priceMonthly ?? 0,
+    },
+    {
+      label: `Platform · ${pfTier?.name ?? "Solo"}`,
+      kind: "base",
+      amount: pfTier?.priceMonthly ?? 0,
+    },
   ];
   if (usage.overage_cost > 0) {
     lines.push({
-      label: `Overage · ${usage.overage.toLocaleString()} emails`,
+      label: `Transactional overage · ${usage.overage.toLocaleString()} emails`,
       kind: "overage",
       amount: usage.overage_cost,
     });
@@ -152,7 +174,8 @@ function billingSummary(org: Organization, usage: QuotaState, seats: SeatState, 
   }
 
   const monthlyTotal = lines.reduce((s, l) => s + l.amount, 0);
-  const yp = yearlyPrice(plan.id);
+  // Yearly is chosen per wing at checkout now — no single blended yearly option.
+  const yp: number | null = null;
   return {
     currency: "usd",
     interval: org.billingInterval,
@@ -270,12 +293,8 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     );
     const org = await orgForReq(req);
     await requirePermission(req, "billing.manage");
-
-    // In Stripe mode, add-ons bill as subscription items, so the org needs an
-    // active subscription to attach them to (free orgs have none → upgrade first).
-    if (BILLING_MODE === "stripe" && !org.stripeSubscriptionId) {
-      throw Errors.badRequest("Start a paid plan before adding add-ons.");
-    }
+    // Per-wing billing: each add-on attaches to ITS wing's subscription — the sync
+    // below enforces that (and the entitlement rolls back if the wing isn't paid).
 
     // Remember the prior quantity so we can roll back if the Stripe sync fails —
     // we must never grant an un-billed entitlement.
@@ -310,7 +329,12 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
             set: { quantity: prior, updatedAt: new Date() },
           });
         req.log.error({ err }, "addon stripe sync failed");
-        throw Errors.badRequest("Couldn't update your subscription — please try again.");
+        // A wing-gating failure carries an actionable message ("start a paid X
+        // plan first") — surface it; anything else stays generic.
+        const msg = err instanceof Error && err.message.includes("wing")
+          ? err.message
+          : "Couldn't update your subscription — please try again.";
+        throw Errors.badRequest(msg);
       }
     }
     return billingPayload(org, await quotaState(org));

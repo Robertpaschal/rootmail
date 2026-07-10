@@ -76,11 +76,13 @@ function metricLine(wing: WingId, t: WingTier): string {
 export function WingLadder({
   wing,
   ladder,
+  interval = "month",
   recommendedId,
   recommendedBlocks,
 }: {
   wing: WingId;
   ladder: Ladder | TransactionalLadder;
+  interval?: "month" | "year";
   recommendedId?: string;
   /** Quiz-recommended block count (transactional wing only). */
   recommendedBlocks?: number;
@@ -115,6 +117,7 @@ export function WingLadder({
                 key={t.id}
                 tx={tx}
                 tier={t}
+                interval={interval}
                 isCurrent={isCurrent}
                 recommended={isRecommended}
                 recommendedBlocks={recommendedBlocks}
@@ -140,10 +143,14 @@ export function WingLadder({
                   ) : null}
                 </div>
                 <div className="mt-1 flex items-baseline gap-1">
-                  <span className="text-xl font-bold">{price(t.price_monthly)}</span>
-                  {t.price_monthly ? <span className="text-xs text-muted-foreground">/mo</span> : null}
+                  <span className="text-xl font-bold">
+                    {price(interval === "year" ? (t.price_yearly ?? t.price_monthly) : t.price_monthly)}
+                  </span>
+                  {t.price_monthly ? (
+                    <span className="text-xs text-muted-foreground">/{interval === "year" ? "yr" : "mo"}</span>
+                  ) : null}
                 </div>
-                {t.price_monthly != null && t.price_monthly > 0 && t.price_yearly != null ? (
+                {interval === "month" && t.price_monthly != null && t.price_monthly > 0 && t.price_yearly != null ? (
                   <p className="text-[11px] text-emerald-600">${num(t.price_yearly)}/yr — 2 months free</p>
                 ) : null}
 
@@ -163,7 +170,7 @@ export function WingLadder({
                   </ul>
                 ) : null}
 
-                <ChooseTierButton wing={wing} tier={t} isCurrent={isCurrent} recommended={isRecommended} />
+                <ChooseTierButton wing={wing} tier={t} interval={interval} isCurrent={isCurrent} recommended={isRecommended} />
               </CardContent>
             </Card>
           );
@@ -181,12 +188,14 @@ export function WingLadder({
 function BlocksCard({
   tx,
   tier,
+  interval,
   isCurrent,
   recommended,
   recommendedBlocks,
 }: {
   tx: TransactionalLadder;
   tier: WingTier;
+  interval: "month" | "year";
   isCurrent: boolean;
   recommended: boolean;
   recommendedBlocks?: number;
@@ -200,6 +209,8 @@ function BlocksCard({
   const clamped = Math.min(Math.max(1, blocks || 1), tx.max_blocks);
   const rate = rateFor(tx.brackets, clamped);
   const monthly = clamped * rate;
+  const shown = interval === "year" ? monthly * 10 : monthly; // yearly = 2 months free
+  const unit = interval === "year" ? "yr" : "mo";
   const sends = clamped * tx.block_size;
   const discounted = rate < (tx.brackets[0]?.per_block ?? rate);
   const changed = tx.blocks > 0 && clamped !== tx.blocks;
@@ -268,8 +279,8 @@ function BlocksCard({
 
         <div className="mt-3 rounded-md border bg-muted/30 p-3">
           <div className="flex items-baseline justify-between">
-            <span className="text-xl font-bold">${num(monthly)}<span className="text-xs font-normal text-muted-foreground">/mo</span></span>
-            <span className="text-xs text-muted-foreground">${rate}/block</span>
+            <span className="text-xl font-bold">${num(shown)}<span className="text-xs font-normal text-muted-foreground">/{unit}</span></span>
+            <span className="text-xs text-muted-foreground">${rate}/block{interval === "year" ? " · 2 months free" : ""}</span>
           </div>
           <p className="mt-1 text-xs font-medium text-foreground">= {num(sends)} emails / mo</p>
           {discounted ? (
@@ -301,7 +312,7 @@ function BlocksCard({
             onClick={() => {
               setError(null);
               start(async () => {
-                const res = await chooseWingTier("transactional", "tx_blocks", "month", clamped);
+                const res = await chooseWingTier("transactional", "tx_blocks", interval, clamped);
                 if (res?.error) setError(res.error);
               });
             }}
@@ -311,7 +322,7 @@ function BlocksCard({
               ? "Current volume"
               : tx.blocks > 0
                 ? `Update to ${num(clamped)} block${clamped === 1 ? "" : "s"}`
-                : `Buy ${num(clamped)} block${clamped === 1 ? "" : "s"} · $${num(monthly)}/mo`}
+                : `Buy ${num(clamped)} block${clamped === 1 ? "" : "s"} · $${num(shown)}/${unit}`}
           </Button>
           {error ? <p className="mt-1.5 text-[11px] text-destructive">{error}</p> : null}
         </div>
@@ -325,11 +336,13 @@ function BlocksCard({
 function ChooseTierButton({
   wing,
   tier,
+  interval,
   isCurrent,
   recommended,
 }: {
   wing: WingId;
   tier: WingTier;
+  interval: "month" | "year";
   isCurrent: boolean;
   recommended: boolean;
 }) {
@@ -361,7 +374,7 @@ function ChooseTierButton({
           }
           setError(null);
           start(async () => {
-            const res = await chooseWingTier(wing, tier.id, "month");
+            const res = await chooseWingTier(wing, tier.id, interval);
             if (res?.error) setError(res.error);
           });
         }}

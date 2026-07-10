@@ -322,6 +322,9 @@ export const pricingTiers = pgTable(
     // Stripe linkage (per tier)
     stripePriceMonthId: text("stripe_price_month_id"),
     stripePriceYearId: text("stripe_price_year_id"),
+    // Metered overage price (tx_blocks only): bills per 1,000 sends past the
+    // purchased blocks on a dedicated monthly overage subscription.
+    stripeOveragePriceId: text("stripe_overage_price_id"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },

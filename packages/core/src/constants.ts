@@ -356,60 +356,73 @@ export interface AddOnDef {
   kind: AddOnKind;
   priceEnvKey: string;
   grant: number;
+  /** Which wing this add-on extends — it bills on that wing's subscription
+   * (PRICING-WINGS-SPEC §6b) and reads as part of that wing in the UI. */
+  wing: Wing;
 }
 
 export const ADD_ONS: Record<AddOnId, AddOnDef> = {
   extra_seat: {
     id: "extra_seat",
     name: "Extra seat",
-    description: "One additional team member beyond your plan's included seats.",
+    description: "One more teammate beyond your Platform tier's included seats.",
     unit: "seat",
     defaultUnitAmount: 8,
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_SEAT",
     grant: 1,
+    wing: "platform",
   },
   dedicated_ip: {
     id: "dedicated_ip",
     name: "Dedicated IP",
-    description: "A dedicated sending IP for reputation isolation.",
+    description: "A transactional sending IP only you use — your reputation, fully yours.",
     unit: "IP",
     defaultUnitAmount: 30,
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_ADDON_DEDICATED_IP",
     grant: 1,
+    wing: "transactional",
   },
   subtenant_pack: {
     id: "subtenant_pack",
-    name: "Sub-tenant pack",
-    description: "Raises your included sub-tenant ceiling by 10 per pack.",
+    name: "Client domain pack",
+    description: "Raises your transactional client-domain ceiling by 10 per pack.",
     unit: "pack of 10",
     defaultUnitAmount: 15,
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_ADDON_SUBTENANT_PACK",
     grant: 10,
+    wing: "transactional",
   },
   workspace_pack: {
     id: "workspace_pack",
     name: "Workspace pack",
-    description: "Raises your included workspace ceiling by 5 per pack — one per product or brand.",
+    description: "Raises your Platform workspace ceiling by 5 per pack — one per product or brand.",
     unit: "pack of 5",
     defaultUnitAmount: 10,
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_ADDON_WORKSPACE_PACK",
     grant: 5,
+    wing: "platform",
   },
   ai_credit_pack: {
     id: "ai_credit_pack",
     name: "AI credit pack",
-    description: "Adds 100 AI drafts/month on top of your plan's included credits.",
+    description: "Adds 100 AI assistant credits/month on top of what your tiers include — usable in both wings.",
     unit: "100 credits",
     defaultUnitAmount: 5,
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_ADDON_AI_CREDITS",
     grant: 100,
+    wing: "platform",
   },
 };
+
+/** Stripe Billing Meter event for transactional overage (1 unit = 1,000 sends past
+ * the purchased blocks). One global meter; the metered price lives on the blocks
+ * product and bills on a dedicated monthly overage subscription. */
+export const TX_OVERAGE_METER_EVENT = "rootmail_tx_overage_units";
 
 // Add-ons extend *quantities* (more seats, sub-tenant capacity, AI credits); they
 // never unlock a gated capability — those require the tier that includes them.
@@ -536,6 +549,9 @@ export interface TierDef {
   // tier is its own Stripe product with monthly + yearly recurring prices.
   stripePriceMonthId?: string | null;
   stripePriceYearId?: string | null;
+  /** Metered overage price (tx_blocks): $/1,000 sends past the purchased blocks,
+   * billed on a dedicated monthly overage subscription. */
+  stripeOveragePriceId?: string | null;
 }
 
 // Strawman numbers (owner delegated these to me; admin-editable via `pricing_tiers`).
