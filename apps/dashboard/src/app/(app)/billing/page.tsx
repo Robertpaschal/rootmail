@@ -69,7 +69,8 @@ export default async function BillingPage({
   const txBlocks = wings?.transactional.blocks ?? 0;
   const addonQty: Record<string, number> = {};
   for (const a of summary.add_ons) addonQty[a.id] = a.quantity;
-  const platformAddons = billing.addons_catalog.filter((a) => a.group === "platform");
+  // Standalone add-ons = the full catalog (any add-on is buyable without a wing).
+  const allAddons = billing.addons_catalog;
 
   const txPct = Math.round((usage.used / Math.max(1, usage.quota)) * 100);
   const ctPct = usage.contacts_limit > 0 ? Math.round((usage.contacts_used / usage.contacts_limit) * 100) : 4;
@@ -298,7 +299,7 @@ export default async function BillingPage({
   // ---- Compare plans (tab 2) — centered pill + add-ons everywhere.
   const plansSlot = (
     <div className="space-y-10">
-      <ComparePlans addonCatalog={platformAddons} addonQty={addonQty} />
+      <ComparePlans addonCatalog={allAddons} addonQty={addonQty} />
 
       <div className="rounded-lg border bg-card p-4">
         <p className="text-xs font-semibold">Every account includes</p>

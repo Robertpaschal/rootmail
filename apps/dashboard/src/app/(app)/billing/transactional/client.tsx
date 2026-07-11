@@ -76,14 +76,16 @@ export function TransactionalBilling({
   const savePct = baseRate > 0 ? Math.round((1 - rate / baseRate) * 100) : 0;
   const overagePer1000 = tx.tiers.find((t) => t.id === "tx_blocks")?.overage_per_1000 ?? 0;
 
+  // Add-ons always bill MONTHLY (on their own subscription) — even under a yearly
+  // plan — so they're never multiplied by the yearly factor.
   const addonPrice = (a: AddonCatalogItem) => a.sale_price ?? a.unit_amount;
   const addonLines = txAddons
     .map((a) => ({ a, qty: addons[a.id] ?? 0 }))
     .filter((x) => x.qty > 0)
-    .map((x) => ({ a: x.a, qty: x.qty, amount: x.qty * addonPrice(x.a) * (yr ? 10 : 1) }));
+    .map((x) => ({ a: x.a, qty: x.qty, amount: x.qty * addonPrice(x.a) }));
   const addonsMonthly = txAddons.reduce((s, a) => s + (addons[a.id] ?? 0) * addonPrice(a), 0);
-  const total = blocksLine + addonsMonthly * (yr ? 10 : 1);
-  const yearlySave = (monthly + addonsMonthly) * 2;
+  const hasAddons = addonsMonthly > 0;
+  const yearlySave = monthly * 2;
 
   // "Current" only when nothing in the cart differs from what's active.
   const addonsUnchanged = txAddons.every((a) => (addons[a.id] ?? 0) === (addonQty[a.id] ?? 0));
@@ -265,8 +267,11 @@ export function TransactionalBilling({
                     Send blocks ×{clamped}
                     <span className="block text-xs">{num(sends)} emails/mo</span>
                   </span>
-                  <span className="font-medium tabular-nums">{money(blocksLine)}</span>
+                  <span className="font-medium tabular-nums">{money(blocksLine)}<span className="text-xs font-normal text-muted-foreground">/{unit}</span></span>
                 </li>
+                {hasAddons ? (
+                  <li className="pt-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Add-ons · billed monthly</li>
+                ) : null}
                 <AnimatePresence>
                   {addonLines.map(({ a, qty, amount }) => (
                     <motion.li key={a.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
@@ -275,22 +280,29 @@ export function TransactionalBilling({
                         {a.name}
                         {qty > 1 ? ` ×${qty}` : ""}
                       </span>
-                      <span className="font-medium tabular-nums">{money(amount)}</span>
+                      <span className="font-medium tabular-nums">{money(amount)}<span className="text-xs font-normal text-muted-foreground">/mo</span></span>
                     </motion.li>
                   ))}
                 </AnimatePresence>
               </ul>
-              <div className="mt-3 flex items-baseline justify-between border-t pt-3">
-                <span className="font-semibold">Total</span>
-                <span className="text-lg font-bold tabular-nums">
-                  {money(total)}
-                  <span className="text-xs font-normal text-muted-foreground">/{unit}</span>
-                </span>
+              <div className="mt-3 space-y-1 border-t pt-3">
+                <div className="flex items-baseline justify-between">
+                  <span className="font-semibold">Plan total</span>
+                  <span className="text-lg font-bold tabular-nums">
+                    {money(blocksLine)}<span className="text-xs font-normal text-muted-foreground">/{unit}</span>
+                  </span>
+                </div>
+                {hasAddons ? (
+                  <div className="flex items-baseline justify-between text-sm text-muted-foreground">
+                    <span>+ add-ons</span>
+                    <span className="tabular-nums">{money(addonsMonthly)}/mo</span>
+                  </div>
+                ) : null}
               </div>
               {yr ? (
-                <p className="mt-1 text-xs font-medium text-emerald-600">Includes 2 months free</p>
+                <p className="mt-1 text-xs font-medium text-emerald-600">Plan includes 2 months free</p>
               ) : (
-                <p className="mt-1 text-xs text-muted-foreground">{money(total * 10)}/yr if paid yearly</p>
+                <p className="mt-1 text-xs text-muted-foreground">{money(monthly * 10)}/yr if paid yearly</p>
               )}
 
               <Button className="mt-4 w-full" size="lg" disabled={pending || isCurrent} onClick={checkout}>

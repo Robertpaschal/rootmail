@@ -348,8 +348,8 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
           .set({ stripePlatformSubscriptionId: nextSubId, updatedAt: new Date() })
           .where(eq(organizations.id, org2.id));
       }
-      // Scoped to platform-group — transactional add-ons live on the tx sub.
-      await reconcileAddonsFromSubscription(org2.id, sub, "platform");
+      // The org-level add-ons sub bills ALL add-ons — reconcile them all.
+      await reconcileAddonsFromSubscription(org2.id, sub);
     }
     return;
   }
@@ -437,9 +437,7 @@ export async function syncAddonItems(org: Organization): Promise<void> {
   const addonPrices = addOnPriceIds();
   const want = new Map<string, number>();
   for (const a of await loadAddonQuantities(org.id)) {
-    // PLATFORM-group add-ons bill on this org-level sub; transactional-group add-ons
-    // (dedicated IP, client domains) ride the transactional subscription instead.
-    if (ADD_ONS[a.id].wing !== "platform") continue;
+    // ALL add-ons bill (monthly) on this one org-level add-ons subscription.
     const price = priceForAddOn(a.id, "month");
     if (price && a.quantity > 0) want.set(price, a.quantity);
   }
@@ -949,23 +947,17 @@ export async function createWingEmbeddedCheckout(
       : tier.wing === "marketing" && (tier.perThousandCents ?? 0) > 0
         ? contactUnits(opts.contacts ?? CONTACT_UNIT)
         : 1;
-  // Add-ons that belong to THIS wing ride the same subscription as LINE ITEMS — so
-  // the plan and its extras "add up" to one checkout (blocks + a dedicated IP +
-  // client domains). Add-ons of ANOTHER group (platform add-ons chosen during a
-  // marketing purchase) can't share a sub cleanly, so they're carried as PENDING
-  // add-ons in metadata and applied to the org-level add-ons sub once this is paid
-  // (the customer then has a card on file). Either way it's one checkout for the user.
+  // Add-ons are inherently MONTHLY and bill on the org-level add-ons subscription —
+  // never on a wing sub (mixing monthly add-ons with a yearly plan on one Stripe
+  // subscription is rejected). So any add-ons chosen here are carried as PENDING in
+  // metadata and applied to the org-level add-ons sub once the plan is paid (the
+  // customer then has a card on file). For the user it's still one checkout: the
+  // order summary shows plan + add-ons, and everything lands together.
   const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price, quantity }];
   const pending: Partial<Record<AddOnId, number>> = {};
   for (const id of ADD_ON_IDS) {
     const q = Math.max(0, Math.floor(opts.addons?.[id] ?? 0));
-    if (q <= 0) continue;
-    if (ADD_ONS[id].wing === tier.wing) {
-      const ap = priceForAddOn(id, "month");
-      if (ap) line_items.push({ price: ap, quantity: q });
-    } else {
-      pending[id] = q;
-    }
+    if (q > 0) pending[id] = q;
   }
   try {
     const customer = await ensureCustomer(org);
@@ -1012,9 +1004,6 @@ export async function createAddonsEmbeddedCheckout(
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   for (const id of ADD_ON_IDS) {
-    // Only platform-group add-ons ride the org-level add-ons sub (transactional ones
-    // are folded into the transactional checkout).
-    if (ADD_ONS[id].wing !== "platform") continue;
     const qty = quantities[id] ?? 0;
     const price = priceForAddOn(id, "month");
     if (qty > 0 && price) lineItems.push({ price, quantity: qty });
@@ -1125,26 +1114,22 @@ export async function syncWingSubscription(sub: Stripe.Subscription): Promise<vo
       .set({ ...wingUpdate(wing, tierId, sub.id, { blocks, contacts }), updatedAt: new Date() })
       .where(eq(organizations.id, org.id));
 
-    // The wing's OWN add-ons (e.g. transactional's dedicated IP + client domains)
-    // ride this same subscription — reconcile them from it, scoped to this wing so
-    // the other wing / platform add-ons are never touched.
-    await reconcileAddonsFromSubscription(org.id, sub, wing);
-
-    // Platform add-ons chosen during this purchase were carried as PENDING (they
-    // can't share the wing sub) — now that the tier is paid and a card is on file,
-    // apply them to the org-level add-ons sub. Only ADD/RAISE from pending; never
-    // lower here (that's the standalone add-ons flow's job).
+    // Add-ons chosen during this purchase were carried as PENDING (they bill
+    // monthly on the org-level add-ons sub, never on a wing sub). Now that the plan
+    // is paid and a card is on file, apply them. Set to the chosen quantity, then
+    // reconcile the org-level add-ons subscription.
     const pendingRaw = sub.metadata?.pendingAddons;
     if (pendingRaw) {
       try {
         const pending = JSON.parse(pendingRaw) as Partial<Record<AddOnId, number>>;
         for (const id of ADD_ON_IDS) {
           const q = pending[id];
-          if (q == null || ADD_ONS[id].wing !== "platform") continue;
+          if (q == null) continue;
           await db
             .insert(orgAddons)
             .values({ id: newId("orgAddon"), organizationId: org.id, addonId: id, quantity: q })
             .onConflictDoUpdate({ target: [orgAddons.organizationId, orgAddons.addonId], set: { quantity: q, updatedAt: new Date() } });
+          if (id === "dedicated_ip") await syncDedicatedIpProvisioning(org.id, q);
         }
         const [withPending] = await db.select().from(organizations).where(eq(organizations.id, org.id)).limit(1);
         if (withPending) await syncAddonItems(withPending);

@@ -7,11 +7,8 @@ import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Billing } from "@/lib/types";
 import { AddonCards } from "../addon-cards";
 
-// Add-ons are wing-AGNOSTIC — the "platform" foundation is now just these, shown
-// everywhere. Transactional-flavoured ones (dedicated IP, client domains) live on
-// the Transactional page folded into blocks; everything else is here.
-const PLATFORM_GROUP = "platform";
-
+// Add-ons are wing-AGNOSTIC — any of them can be bought here on their own, with no
+// wing plan attached. They bill monthly on one org-level add-ons subscription.
 const num = (n: number) => n.toLocaleString();
 
 export default async function AddonsPage() {
@@ -34,7 +31,7 @@ export default async function AddonsPage() {
 
   const addonQty: Record<string, number> = {};
   for (const a of billing.summary.add_ons) addonQty[a.id] = a.quantity;
-  const platformAddons = billing.addons_catalog.filter((a) => a.group === PLATFORM_GROUP);
+  const allAddons = billing.addons_catalog; // any add-on, standalone
   const seats = billing.summary.seats;
 
   return (
@@ -69,7 +66,7 @@ export default async function AddonsPage() {
         </CardContent>
       </Card>
 
-      <AddonCards catalog={platformAddons} quantities={addonQty} />
+      <AddonCards catalog={allAddons} quantities={addonQty} />
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
         <Link href="/billing/transactional" className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">
