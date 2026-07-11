@@ -88,6 +88,7 @@ async function main(): Promise<void> {
       perThousandCents: t.perThousandCents ?? null,
       sendsPerContact: t.sendsPerContact ?? null,
       dailyPerContact: t.dailyPerContact ?? null,
+      includedAudiences: t.includedAudiences ?? null,
       seats: t.seats ?? null,
       workspaceLimit: t.workspaceLimit ?? null,
     };

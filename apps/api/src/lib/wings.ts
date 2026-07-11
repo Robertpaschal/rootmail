@@ -49,6 +49,7 @@ function toDef(r: PricingTier): TierDef {
     perThousandCents: r.perThousandCents ?? undefined,
     sendsPerContact: r.sendsPerContact ?? undefined,
     dailyPerContact: r.dailyPerContact ?? undefined,
+    includedAudiences: r.includedAudiences ?? undefined,
     seats: r.seats ?? undefined,
     workspaceLimit: r.workspaceLimit ?? undefined,
     stripePriceMonthId: r.stripePriceMonthId,
@@ -191,6 +192,11 @@ export function contactLimitForOrg(org: WingOrg): number {
   const mk = mkTierFor(org);
   if (mk.id === "mk_free") return mk.includedContacts ?? FREE_MK_CONTACTS;
   return org.marketingContacts ?? 0;
+}
+
+/** Distinct audiences (lists) the org's marketing tier allows (-1 = unlimited). */
+export function audienceLimitForOrg(org: WingOrg): number {
+  return mkTierFor(org).includedAudiences ?? 1;
 }
 
 /** The lowest-rank tier that unlocks a feature (tier features only) — the upgrade

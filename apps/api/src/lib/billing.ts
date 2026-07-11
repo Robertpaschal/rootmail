@@ -13,6 +13,7 @@ import {
 } from "@rootmail/db";
 import { planForOrg } from "./plans";
 import {
+  audienceLimitForOrg,
   contactLimitForOrg,
   marketingDailyLimitForOrg,
   marketingSendAllowanceForOrg,
@@ -88,6 +89,34 @@ export async function getMarketingUsage(
     .where(and(eq(usageRecords.organizationId, organizationId), eq(usageRecords.period, period)))
     .limit(1);
   return row?.n ?? 0;
+}
+
+/** Distinct audiences (lists) an org has across all its workspaces. */
+export async function audienceCount(organizationId: string): Promise<number> {
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(lists)
+    .innerJoin(workspaces, eq(workspaces.id, lists.workspaceId))
+    .where(eq(workspaces.organizationId, organizationId));
+  return row?.n ?? 0;
+}
+
+/**
+ * Gate creating a new audience on the marketing tier's audience count. 402 with the
+ * marketing-wing upgrade when the org is at its limit (audiences are a real, sold
+ * dimension — not "unlimited").
+ */
+export async function assertAudienceCapacity(org: BillableOrg): Promise<void> {
+  const limit = audienceLimitForOrg(org);
+  if (limit === -1) return;
+  const current = await audienceCount(org.id);
+  if (current >= limit) {
+    const tier = mkTierFor(org);
+    throw Errors.quotaExceeded(
+      `You've used all ${limit} audience${limit === 1 ? "" : "s"} on Marketing ${tier.name}. Upgrade the Marketing wing for more.`,
+      { audiences_used: current, audiences_limit: limit, wing: "marketing", upgrade_url: "/billing/marketing" },
+    );
+  }
 }
 
 /** UTC day key "YYYY-MM-DD" for the per-day marketing cap. */
@@ -371,15 +400,19 @@ export interface QuotaState {
   /** Billable contacts (audience memberships) vs the chosen contact size. */
   contacts_used: number;
   contacts_limit: number;
+  /** Distinct audiences (lists) vs the marketing tier's allowance. */
+  audiences_used: number;
+  audiences_limit: number;
 }
 
 export async function quotaState(org: Organization): Promise<QuotaState> {
   const plan = planFor(org);
-  const [used, marketingSent, marketingToday, contactsUsed] = await Promise.all([
+  const [used, marketingSent, marketingToday, contactsUsed, audiencesUsed] = await Promise.all([
     getUsage(org.id),
     getMarketingUsage(org.id),
     getMarketingDaily(org.id),
     billableContacts(org.id),
+    audienceCount(org.id),
   ]);
   const overage = Math.max(0, used - plan.monthlyQuota);
   return {
@@ -397,6 +430,8 @@ export async function quotaState(org: Organization): Promise<QuotaState> {
     marketing_daily_limit: marketingDailyLimitForOrg(org),
     contacts_used: contactsUsed,
     contacts_limit: contactLimitForOrg(org),
+    audiences_used: audiencesUsed,
+    audiences_limit: audienceLimitForOrg(org),
   };
 }
 

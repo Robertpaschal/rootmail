@@ -5,7 +5,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Billing } from "@/lib/types";
-import { AddonManager } from "../addon-manager";
+import { AddonCards } from "../addon-cards";
 
 // Add-ons are wing-AGNOSTIC — the "platform" foundation is now just these, shown
 // everywhere. Transactional-flavoured ones (dedicated IP, client domains) live on
@@ -69,7 +69,7 @@ export default async function AddonsPage() {
         </CardContent>
       </Card>
 
-      <AddonManager quantities={addonQty} catalog={platformAddons} />
+      <AddonCards catalog={platformAddons} quantities={addonQty} />
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
         <Link href="/billing/transactional" className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">

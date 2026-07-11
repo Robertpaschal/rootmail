@@ -321,6 +321,7 @@ export const pricingTiers = pgTable(
     perThousandCents: integer("per_thousand_cents"), // cents per 1,000 contacts/mo (price = contacts/1000 × this)
     sendsPerContact: integer("sends_per_contact"), // monthly sends = contacts × this
     dailyPerContact: integer("daily_per_contact"), // per-day cap = contacts × this
+    includedAudiences: integer("included_audiences"), // distinct audiences allowed; -1 = unlimited
     // Platform (seats / workspaces)
     seats: integer("seats"), // -1 = unlimited
     workspaceLimit: integer("workspace_limit"), // -1 = unlimited

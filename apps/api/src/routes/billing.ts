@@ -97,6 +97,7 @@ function serializeTier(t: TierDef) {
     per_thousand_cents: t.perThousandCents ?? null,
     sends_per_contact: t.sendsPerContact ?? null,
     daily_per_contact: t.dailyPerContact ?? null,
+    included_audiences: t.includedAudiences ?? null,
     seats: t.seats ?? null,
     workspace_limit: t.workspaceLimit ?? null,
   };
@@ -256,6 +257,8 @@ async function billingPayload(org: Organization, usage: QuotaState) {
       marketing_daily_limit: usage.marketing_daily_limit,
       contacts_used: usage.contacts_used,
       contacts_limit: usage.contacts_limit,
+      audiences_used: usage.audiences_used,
+      audiences_limit: usage.audiences_limit,
     },
     summary: billingSummary(org, usage, seats, addons),
     plans: listPlans().map(serializePlan),

@@ -28,6 +28,10 @@ export default async function MarketingBillingPage({
     );
   }
 
+  const addonQty: Record<string, number> = {};
+  for (const a of billing.summary.add_ons) addonQty[a.id] = a.quantity;
+  const mkAddons = billing.addons_catalog.filter((a) => a.group === "platform");
+
   return (
     <>
       <PageHeader
@@ -52,6 +56,8 @@ export default async function MarketingBillingPage({
       <MarketingBilling
         billing={billing}
         prefillContacts={Number(params.contacts) || undefined}
+        mkAddons={mkAddons}
+        addonQty={addonQty}
         stitch={{ team: Number(params.team) || undefined }}
       />
     </>

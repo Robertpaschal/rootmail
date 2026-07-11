@@ -1,0 +1,1 @@
+ALTER TABLE "pricing_tiers" ADD COLUMN "included_audiences" integer;

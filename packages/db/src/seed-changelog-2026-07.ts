@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Add-ons on their own, clearer marketing plans",
+    date: "2026-07-11",
+    changes: [
+      {
+        kind: "New",
+        text: "Add-ons now have their own tab in Compare plans — browse them as proper product cards (what it does, the price, and how many you want) and buy them on their own, no plan required. They show what you already have, too.",
+      },
+      {
+        kind: "Improved",
+        text: "The Marketing plans are now an honest, side-by-side comparison: for your chosen contact size, each plan shows the real monthly emails, daily limit, number of audiences, and exactly which features it unlocks — with the plan names and prices staying pinned as you scroll. No vague wording.",
+      },
+      {
+        kind: "Improved",
+        text: "Audiences are now a real part of each Marketing plan (1, 3, 10, 50) instead of a vague 'unlimited' — you always know what your plan includes.",
+      },
+      {
+        kind: "Fixed",
+        text: "The Change plan button on Plan & usage now works, the plan tabs animate smoothly, and configuring add-ons during a Marketing purchase carries them into the same checkout.",
+      },
+    ],
+  },
+  {
     title: "One cart, one checkout",
     date: "2026-07-11",
     changes: [

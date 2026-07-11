@@ -393,6 +393,7 @@ export interface WingTier {
   per_thousand_cents: number | null;
   sends_per_contact: number | null;
   daily_per_contact: number | null;
+  included_audiences: number | null;
   seats: number | null;
   workspace_limit: number | null;
 }
@@ -462,6 +463,8 @@ export interface Billing {
     marketing_daily_limit: number;
     contacts_used: number;
     contacts_limit: number;
+    audiences_used: number;
+    audiences_limit: number;
   };
   summary: BillingSummary;
   plans: Plan[];

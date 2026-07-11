@@ -687,6 +687,7 @@ export interface TierDef {
   perThousandCents?: number; // cents per 1,000 contacts/mo — price = contacts/1000 × this
   sendsPerContact?: number; // monthly send allowance = contacts × this
   dailyPerContact?: number; // per-day send cap = contacts × this
+  includedAudiences?: number; // distinct audiences (lists) this tier allows; -1 = unlimited
   // --- Platform base (everyone sits on the free base; extras are add-ons) ---
   seats?: number; // -1 = unlimited
   workspaceLimit?: number; // -1 = unlimited
@@ -714,10 +715,13 @@ export const WING_TIERS: TierDef[] = [
   { id: "tx_blocks", wing: "transactional", name: "Send blocks", rank: 1, priceMonthly: BLOCK_BRACKETS[0].perBlock, priceYearly: BLOCK_BRACKETS[0].perBlock * 10, aiCredits: 0, features: ["audit", "suppression"], trialDays: 0, includedSends: 0 /* = blocks × BLOCK_SIZE */, blockSize: BLOCK_SIZE, allowOverage: true, overagePer1000: 0.4, includedSubTenants: 0 },
   // Marketing — the CONTACT SIZE is the base; the tier multiplies it into price,
   // monthly sends, and a daily cap (perContactCents / sendsPerContact / dailyPerContact).
-  { id: "mk_free", wing: "marketing", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns"], trialDays: 0, includedContacts: FREE_MK_CONTACTS, perThousandCents: 0, sendsPerContact: 2, dailyPerContact: 1 },
-  { id: "mk_starter", wing: "marketing", name: "Starter", rank: 1, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns"], trialDays: 0, perThousandCents: 1_200, sendsPerContact: 12, dailyPerContact: 1 },
-  { id: "mk_growth", wing: "marketing", name: "Growth", rank: 2, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns", "sequences", "threads"], trialDays: 0, perThousandCents: 1_800, sendsPerContact: 20, dailyPerContact: 2 },
-  { id: "mk_pro", wing: "marketing", name: "Pro", rank: 3, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns", "sequences", "threads"], trialDays: 0, perThousandCents: 2_800, sendsPerContact: 40, dailyPerContact: 4 },
+  // Objective, enforced dimensions only: audience size (contacts), monthly + daily
+  // send volume (contacts × multiplier), the number of distinct audiences, and the
+  // real feature unlocks (campaigns → + sequences + replies inbox). No vague copy.
+  { id: "mk_free", wing: "marketing", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns"], trialDays: 0, includedContacts: FREE_MK_CONTACTS, perThousandCents: 0, sendsPerContact: 2, dailyPerContact: 1, includedAudiences: 1 },
+  { id: "mk_starter", wing: "marketing", name: "Starter", rank: 1, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns"], trialDays: 0, perThousandCents: 1_200, sendsPerContact: 12, dailyPerContact: 1, includedAudiences: 3 },
+  { id: "mk_growth", wing: "marketing", name: "Growth", rank: 2, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns", "sequences", "threads"], trialDays: 0, perThousandCents: 1_800, sendsPerContact: 20, dailyPerContact: 2, includedAudiences: 10 },
+  { id: "mk_pro", wing: "marketing", name: "Pro", rank: 3, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns", "sequences", "threads"], trialDays: 0, perThousandCents: 2_800, sendsPerContact: 40, dailyPerContact: 4, includedAudiences: 50 },
   // Platform — the invisible FREE base every org sits on. Seats/workspaces beyond
   // this, and roles/SSO/proof/residency, are add-ons (no Platform plan, no contact-us).
   { id: "pf_solo", wing: "platform", name: "Base", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: [], trialDays: 0, seats: BASE_SEATS, workspaceLimit: BASE_WORKSPACES },

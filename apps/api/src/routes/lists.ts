@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { Errors, newId } from "@rootmail/core";
 import { contacts, db, type List, listContacts, lists } from "@rootmail/db";
-import { assertContactCapacity } from "../lib/billing";
+import { assertAudienceCapacity, assertContactCapacity } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { findContact } from "../lib/queries";
@@ -74,6 +74,8 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
   app.post("/v1/lists", async (req, reply) => {
     await requirePermission(req, "content.manage");
     const body = parse(z.object({ name: z.string().min(1).max(120), description: z.string().max(500).optional() }), req.body);
+    // Audiences are a per-tier marketing dimension — enforce the count.
+    await assertAudienceCapacity(await loadOrg(req));
     const [row] = await db
       .insert(lists)
       .values({

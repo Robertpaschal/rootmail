@@ -5,6 +5,7 @@ import {
   Download,
   ExternalLink,
   Megaphone,
+  Package,
   Receipt,
   Sparkles,
   Tag,
@@ -17,7 +18,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Billing, Invoice } from "@/lib/types";
 import { cn } from "@/lib/utils";
-import { AddonManager } from "./addon-manager";
 import { BillingTabs } from "./billing-tabs";
 import { ComparePlans } from "./compare-plans";
 
@@ -166,6 +166,38 @@ export default async function BillingPage({
         </Card>
       </div>
 
+      {/* Your add-ons — what you already have, with volumes. */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Package className="size-4 text-muted-foreground" /> Your add-ons
+          </CardTitle>
+          <Link href="/billing?tab=plans" className="inline-flex items-center text-sm font-medium text-primary hover:underline">
+            Manage <ArrowRight className="ml-0.5 size-3.5" />
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {summary.add_ons.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No add-ons yet. Seats, roles, SSO, proof exports, AI credits and more are available under Compare
+              plans → Add-ons.
+            </p>
+          ) : (
+            <ul className="divide-y text-sm">
+              {summary.add_ons.map((a) => (
+                <li key={a.id} className="flex items-center justify-between py-2">
+                  <span className="text-muted-foreground">
+                    {a.name}
+                    {a.quantity > 1 ? <span className="ml-1 font-medium text-foreground">×{a.quantity}</span> : null}
+                  </span>
+                  <span className="font-medium tabular-nums">{money(a.amount)}/mo</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
       {/* Itemized bill — exactly what makes up the total. */}
       <Card>
         <CardHeader>
@@ -266,20 +298,7 @@ export default async function BillingPage({
   // ---- Compare plans (tab 2) — centered pill + add-ons everywhere.
   const plansSlot = (
     <div className="space-y-10">
-      <ComparePlans />
-
-      <div>
-        <div className="mb-3 text-center">
-          <h3 className="text-base font-semibold">Add-ons — for both wings</h3>
-          <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
-            Seats, workspaces, roles, SSO, proof exports, residency, and AI credits. Each priced per one; buying one
-            changes only your add-ons bill.
-          </p>
-        </div>
-        <div className="mx-auto max-w-2xl">
-          <AddonManager quantities={addonQty} catalog={platformAddons} />
-        </div>
-      </div>
+      <ComparePlans addonCatalog={platformAddons} addonQty={addonQty} />
 
       <div className="rounded-lg border bg-card p-4">
         <p className="text-xs font-semibold">Every account includes</p>

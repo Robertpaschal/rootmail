@@ -1,19 +1,16 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { useEffect, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import { PillTabs } from "@/components/app/pill-tabs";
 
-const TABS = [
-  { key: "usage", label: "Your plan & usage" },
-  { key: "plans", label: "Compare plans" },
-] as const;
-type TabKey = (typeof TABS)[number]["key"];
+type TabKey = "usage" | "plans";
 
 /**
- * Two-tab Plan & usage. Tab 1 is "what you have now"; tab 2 is the upgrade surface.
- * The tab is URL-synced (?tab=plans) so any limit hiccup elsewhere can deep-link
- * straight to the comparison — the point of friction lands on upgrading, not on
- * current usage. Switching is shallow (history.replaceState) — no server refetch.
+ * Two-tab Plan & usage — a centered, animated pill. Tab 1 is "what you have now";
+ * tab 2 is the upgrade surface. The tab syncs with the URL (?tab=plans) so deep
+ * links AND in-page links (e.g. the "Change plan" button) actually switch it —
+ * `initialTab` changes on a soft navigation, and we follow it.
  */
 export function BillingTabs({
   initialTab,
@@ -26,6 +23,10 @@ export function BillingTabs({
 }) {
   const [tab, setTab] = useState<TabKey>(initialTab);
 
+  // Follow the URL: a <Link> to /billing?tab=plans re-renders the server page with
+  // a new initialTab; sync to it so those links aren't dead.
+  useEffect(() => setTab(initialTab), [initialTab]);
+
   function select(t: TabKey) {
     setTab(t);
     if (typeof window !== "undefined") {
@@ -35,24 +36,28 @@ export function BillingTabs({
 
   return (
     <>
-      <div className="mb-6 inline-flex rounded-lg border p-0.5 text-sm">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            onClick={() => select(t.key)}
-            className={cn(
-              "rounded-md px-3.5 py-1.5 font-medium transition-colors",
-              tab === t.key
-                ? "bg-secondary text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {t.label}
-          </button>
-        ))}
+      <div className="mb-6">
+        <PillTabs
+          options={[
+            { value: "usage", label: "Your plan & usage" },
+            { value: "plans", label: "Compare plans" },
+          ]}
+          value={tab}
+          onChange={(v) => select(v as TabKey)}
+          layoutId="billing-tab"
+        />
       </div>
-      {tab === "usage" ? usage : plans}
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0, y: 6 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -6 }}
+          transition={{ duration: 0.18 }}
+        >
+          {tab === "usage" ? usage : plans}
+        </motion.div>
+      </AnimatePresence>
     </>
   );
 }

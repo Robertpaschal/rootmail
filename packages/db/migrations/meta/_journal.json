@@ -337,6 +337,13 @@
       "when": 1783740886279,
       "tag": "0047_loving_crystal",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1783778914096,
+      "tag": "0048_minor_chamber",
+      "breakpoints": true
     }
   ]
 }
