@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { enqueueCampaignSend, Errors, newId } from "@rootmail/core";
 import { type Campaign, campaigns, db, listContacts, lists, messages, templates } from "@rootmail/db";
-import { assertContactCapacity, assertEmailVerified } from "../lib/billing";
+import { assertContactCapacity, assertEmailVerified, assertMarketingSendCapacity } from "../lib/billing";
 import { loadOrg, requireFeature } from "../lib/features";
 import { messageFunnel } from "../lib/funnel";
 import { requirePermission } from "../lib/permissions";
@@ -173,13 +173,13 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   // --- Send (or schedule) -------------------------------------------------
   app.post("/v1/campaigns/:id/send", async (req) => {
     await requirePermission(req, "content.manage");
-    // Anti-abuse: a live campaign blast requires a verified account owner — and an
-    // audience within the marketing bracket. Contacts are the price, sends aren't:
-    // a within-bracket audience can ALWAYS receive a full campaign (no send cap).
-    if (req.auth.mode === "live") {
-      const org = await loadOrg(req);
-      await assertEmailVerified(org);
-      await assertContactCapacity(org, 0);
+    // Anti-abuse: a live campaign blast requires a verified account owner, an
+    // audience within the chosen contact size, and enough marketing send volume for
+    // the batch (the monthly + daily caps scale with contact size × the tier).
+    const liveOrg = req.auth.mode === "live" ? await loadOrg(req) : null;
+    if (liveOrg) {
+      await assertEmailVerified(liveOrg);
+      await assertContactCapacity(liveOrg, 0);
     }
     const { id } = req.params as { id: string };
     const body = parse(z.object({ scheduled_at: z.string().datetime().optional() }), req.body ?? {});
@@ -196,6 +196,9 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       .from(listContacts)
       .where(eq(listContacts.listId, c.listId));
     const recipients = cnt?.n ?? 0;
+
+    // The whole batch must fit the marketing send allowance (monthly + today).
+    if (liveOrg) await assertMarketingSendCapacity(liveOrg, recipients);
 
     const scheduledAt = body.scheduled_at ? new Date(body.scheduled_at) : null;
     const delayMs = scheduledAt ? Math.max(0, scheduledAt.getTime() - Date.now()) : 0;

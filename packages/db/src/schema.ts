@@ -168,9 +168,15 @@ export const organizations = pgTable("organizations", {
   // or a direct assignment in local mode.
   transactionalBlocks: integer("transactional_blocks").notNull().default(0),
   marketingTier: text("marketing_tier"),
+  // Chosen marketing CONTACT SIZE (the base the marketing tier multiplies into
+  // price, monthly sends, and the daily cap). 0 = the free ceiling. Set by the
+  // marketing wing checkout (Stripe quantity × CONTACT_UNIT) or local assignment.
+  marketingContacts: integer("marketing_contacts").notNull().default(0),
   platformTier: text("platform_tier"),
   stripeTxSubscriptionId: text("stripe_tx_subscription_id"),
   stripeMkSubscriptionId: text("stripe_mk_subscription_id"),
+  // Repurposed: the org-level ADD-ONS subscription (Platform-as-a-plan is gone;
+  // seats/workspaces/roles/SSO/proof/residency/AI packs all bill here).
   stripePlatformSubscriptionId: text("stripe_platform_subscription_id"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
@@ -310,8 +316,11 @@ export const pricingTiers = pgTable(
     allowOverage: boolean("allow_overage").notNull().default(false),
     overagePer1000Cents: integer("overage_per_1000_cents").notNull().default(0),
     includedSubTenants: integer("included_sub_tenants").notNull().default(0),
-    // Marketing (contacts / audience memberships)
-    includedContacts: integer("included_contacts"), // -1 = unlimited
+    // Marketing (CONTACT SIZE is the base — the tier multiplies it)
+    includedContacts: integer("included_contacts"), // free-tier ceiling only (mk_free)
+    perThousandCents: integer("per_thousand_cents"), // cents per 1,000 contacts/mo (price = contacts/1000 × this)
+    sendsPerContact: integer("sends_per_contact"), // monthly sends = contacts × this
+    dailyPerContact: integer("daily_per_contact"), // per-day cap = contacts × this
     // Platform (seats / workspaces)
     seats: integer("seats"), // -1 = unlimited
     workspaceLimit: integer("workspace_limit"), // -1 = unlimited
@@ -358,6 +367,24 @@ export const usageRecords = pgTable(
     updatedAt: updatedAt(),
   },
   (t) => [uniqueIndex("usage_org_period_uq").on(t.organizationId, t.period)],
+);
+
+// Marketing per-DAY send meter (day = "YYYY-MM-DD", UTC). The marketing tier's
+// daily cap = contacts × dailyPerContact; this counts against it. Separate from the
+// monthly meter so a burst can't blow a month's allowance in a day.
+export const marketingDailyUsage = pgTable(
+  "marketing_daily_usage",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    day: text("day").notNull(), // "YYYY-MM-DD" UTC
+    sent: integer("sent").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("marketing_daily_org_day_uq").on(t.organizationId, t.day)],
 );
 
 export const workspaces = pgTable(

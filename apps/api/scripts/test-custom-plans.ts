@@ -132,7 +132,7 @@ async function main(): Promise<void> {
     check(def.overagePer1000 === 0.4, "resolver enforces custom overage ($0.40/1k)");
     check(def.includedSubTenants === 50, "resolver enforces custom sub-tenants (50)");
     check(def.features.includes("sso") && def.features.includes("proof"), "inherits enterprise feature unlocks");
-    check(aiCreditsForOrg(resolverOrg) === 1000, "resolver enforces custom AI credits (1000)");
+    check((await aiCreditsForOrg(resolverOrg)) === 1000, "resolver enforces custom AI credits (1000)");
 
     // Org detail surfaces the custom plan.
     const detail = await json(await fetch(`${API}/v1/admin/orgs/${orgId}`, { headers: H }));
@@ -192,7 +192,7 @@ async function main(): Promise<void> {
     const deactBody = (await deact.json()) as Record<string, unknown>;
     await refreshPlanCache();
     check(planForOrg(resolverOrg).monthlyQuota === 1_000_000, "after deactivate, resolver falls back to enterprise quota (1,000,000)");
-    check(aiCreditsForOrg(resolverOrg) === -1, "after deactivate, AI credits fall back to enterprise (unlimited)");
+    check((await aiCreditsForOrg(resolverOrg)) === -1, "after deactivate, AI credits fall back to enterprise (unlimited)");
 
     // Billing is made consistent with the reverted economics: the org stays on the
     // enterprise tier, and the custom subscription is canceled in Stripe + detached.

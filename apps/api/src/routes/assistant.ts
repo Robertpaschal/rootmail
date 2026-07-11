@@ -119,7 +119,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       const { prompt } = parse(z.object({ prompt: z.string().min(1).max(2000) }), req.body);
       const org = await loadOrg(req);
 
-      const allowance = await aiAllowance(org.id, aiCreditsForOrg(org));
+      const allowance = await aiAllowance(org.id, await aiCreditsForOrg(org));
       const reserved = await reserveAiCreditOrThrow(org.id, allowance);
 
       // Charge 1 credit per model call the assistant actually made (1 for a quick
@@ -201,7 +201,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       const chat = await getOwnedChat(req, org.id, id);
       const { prompt } = parse(z.object({ prompt: z.string().min(1).max(2000) }), req.body);
 
-      const allowance = await aiAllowance(org.id, aiCreditsForOrg(org));
+      const allowance = await aiAllowance(org.id, await aiCreditsForOrg(org));
       const reserved = await reserveAiCreditOrThrow(org.id, allowance);
 
       // Replay this chat's prior text turns for context.

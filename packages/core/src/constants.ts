@@ -316,8 +316,7 @@ export function wingBrandingRequired(
   if (messageType === "marketing" || messageType === "sales") {
     return !org.marketingTier || org.marketingTier === "mk_free";
   }
-  const tier = org.transactionalTier ?? "tx_free";
-  if (tier === "tx_enterprise") return false;
+  // Transactional is branded while on the free allowance (no blocks purchased).
   return (org.transactionalBlocks ?? 0) === 0;
 }
 
@@ -344,80 +343,176 @@ export type PlanStatus = (typeof PLAN_STATUSES)[number];
 export const ADD_ON_KINDS = ["recurring", "metered", "one_time"] as const;
 export type AddOnKind = (typeof ADD_ON_KINDS)[number];
 
-export const ADD_ON_IDS = ["extra_seat", "dedicated_ip", "subtenant_pack", "workspace_pack", "ai_credit_pack"] as const;
+// Add-ons are wing-AGNOSTIC (there is no separate "Platform plan" — its seats,
+// workspaces, roles, SSO, proof, and residency live here) and are offered
+// EVERYWHERE pricing renders. Each is priced PER ONE unit so the volume is never
+// ambiguous. Two groups only decide where they surface most prominently:
+//   • "transactional" → folded into the send-blocks purchase (dedicated IP, client
+//     sending domains) since they're app-email concerns;
+//   • "platform"      → the shared foundation (seats, workspaces, roles, SSO,
+//     proof, residency, AI credits), shown on every billing surface.
+// Boolean capabilities (roles/SSO/proof/residency) are a one-unit toggle that
+// GRANTS a feature; quantity add-ons (seats, workspaces, domains, IPs, AI credits)
+// stack. All bill on one org-level add-ons subscription.
+export const ADD_ON_IDS = [
+  "extra_seat",
+  "workspace_pack",
+  "dedicated_ip",
+  "subtenant_pack",
+  "ai_credit_pack",
+  "custom_roles",
+  "sso_scim",
+  "proof_exports",
+  "data_residency",
+] as const;
 export type AddOnId = (typeof ADD_ON_IDS)[number];
 
 export interface AddOnDef {
   id: AddOnId;
   name: string;
   description: string;
+  /** Singular unit as a user reads it ("seat", "workspace", "dedicated IP"). */
   unit: string;
+  /** Plain-language note on what ONE unit is (kills "pack of N?" confusion). */
+  unitNote: string;
   defaultUnitAmount: number;
   kind: AddOnKind;
   priceEnvKey: string;
+  /** Resource units one purchased unit confers (1 seat, 1 workspace, 100 credits). */
   grant: number;
-  /** Which wing this add-on extends — it bills on that wing's subscription
-   * (PRICING-WINGS-SPEC §6b) and reads as part of that wing in the UI. */
+  /** A boolean capability this add-on unlocks (roles/SSO/proof/residency). */
+  grantsFeature?: PlanFeature;
+  /** Max quantity (1 = a toggle, e.g. SSO; omitted = stackable). */
+  max?: number;
+  /** Grouping only (all add-ons show everywhere): where it surfaces most. */
   wing: Wing;
 }
 
 export const ADD_ONS: Record<AddOnId, AddOnDef> = {
   extra_seat: {
     id: "extra_seat",
-    name: "Extra seat",
-    description: "One more teammate beyond your Platform tier's included seats.",
+    name: "Team seat",
+    description: "One more teammate who can sign in and work in rootmail.",
     unit: "seat",
+    unitNote: "Priced per seat — one seat is one teammate.",
     defaultUnitAmount: 8,
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_SEAT",
     grant: 1,
     wing: "platform",
   },
+  workspace_pack: {
+    id: "workspace_pack",
+    name: "Workspace",
+    description: "One more workspace — a separate space per product or brand, each with its own sending, templates, and audiences.",
+    unit: "workspace",
+    unitNote: "Priced per workspace — one workspace is one product or brand.",
+    defaultUnitAmount: 10,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_WORKSPACE_PACK",
+    grant: 1,
+    wing: "platform",
+  },
   dedicated_ip: {
     id: "dedicated_ip",
     name: "Dedicated IP",
-    description: "A transactional sending IP only you use — your reputation, fully yours.",
-    unit: "IP",
+    description: "A sending IP address only you send from, so your reputation is entirely your own (most senders share a warm pool — this isolates yours).",
+    unit: "dedicated IP",
+    unitNote: "Priced per IP — one IP is one dedicated address.",
     defaultUnitAmount: 30,
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_ADDON_DEDICATED_IP",
     grant: 1,
+    grantsFeature: "dedicated_ip",
     wing: "transactional",
   },
   subtenant_pack: {
     id: "subtenant_pack",
-    name: "Client domain pack",
-    description: "Raises your transactional client-domain ceiling by 10 per pack.",
-    unit: "pack of 10",
-    defaultUnitAmount: 15,
+    name: "Client sending domain",
+    description: "Send on behalf of a client from their own verified domain, with their reputation kept separate from yours and everyone else's (for agencies and platforms).",
+    unit: "client domain",
+    unitNote: "Priced per domain — one is a single client's sending domain.",
+    defaultUnitAmount: 2,
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_ADDON_SUBTENANT_PACK",
-    grant: 10,
+    grant: 1,
+    grantsFeature: "subtenants",
     wing: "transactional",
-  },
-  workspace_pack: {
-    id: "workspace_pack",
-    name: "Workspace pack",
-    description: "Raises your Platform workspace ceiling by 5 per pack — one per product or brand.",
-    unit: "pack of 5",
-    defaultUnitAmount: 10,
-    kind: "recurring",
-    priceEnvKey: "STRIPE_PRICE_ADDON_WORKSPACE_PACK",
-    grant: 5,
-    wing: "platform",
   },
   ai_credit_pack: {
     id: "ai_credit_pack",
-    name: "AI credit pack",
-    description: "Adds 100 AI assistant credits/month on top of what your tiers include — usable in both wings.",
-    unit: "100 credits",
+    name: "AI credits",
+    description: "100 more AI assistant actions per month — drafting, building, and diagnosing across both wings.",
+    unit: "100 credits/mo",
+    unitNote: "Priced per pack — one pack is 100 AI actions each month.",
     defaultUnitAmount: 5,
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_ADDON_AI_CREDITS",
     grant: 100,
     wing: "platform",
   },
+  custom_roles: {
+    id: "custom_roles",
+    name: "Custom team roles",
+    description: "Define your own roles from the full permission set — decide exactly who can send, edit content, or touch billing.",
+    unit: "custom roles",
+    unitNote: "One flat price enables custom roles for your whole team.",
+    defaultUnitAmount: 15,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_CUSTOM_ROLES",
+    grant: 1,
+    grantsFeature: "rbac",
+    max: 1,
+    wing: "platform",
+  },
+  sso_scim: {
+    id: "sso_scim",
+    name: "SAML SSO + SCIM",
+    description: "Sign in through Okta, Microsoft Entra, or Google Workspace; new teammates are provisioned on first login and leavers lose access automatically.",
+    unit: "SSO + SCIM",
+    unitNote: "One flat price enables SSO + SCIM for your whole team.",
+    defaultUnitAmount: 40,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_SSO_SCIM",
+    grant: 1,
+    grantsFeature: "sso",
+    max: 1,
+    wing: "platform",
+  },
+  proof_exports: {
+    id: "proof_exports",
+    name: "Proof & compliance exports",
+    description: "Cryptographically signed, tamper-evident records of exactly what you sent, exportable over any date range.",
+    unit: "proof exports",
+    unitNote: "One flat price enables signed compliance exports.",
+    defaultUnitAmount: 25,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_PROOF",
+    grant: 1,
+    grantsFeature: "proof",
+    max: 1,
+    wing: "platform",
+  },
+  data_residency: {
+    id: "data_residency",
+    name: "Data residency",
+    description: "Pin where your data is stored and processed to meet regional requirements.",
+    unit: "data residency",
+    unitNote: "One flat price enables regional data residency.",
+    defaultUnitAmount: 50,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_RESIDENCY",
+    grant: 1,
+    grantsFeature: "residency",
+    max: 1,
+    wing: "platform",
+  },
 };
+
+/** Add-ons that GRANT a boolean capability (vs. quantity add-ons). */
+export function addonForFeature(feature: PlanFeature): AddOnDef | undefined {
+  return ADD_ON_IDS.map((id) => ADD_ONS[id]).find((a) => a.grantsFeature === feature);
+}
 
 /** Stripe Billing Meter event for transactional overage (1 unit = 1,000 sends past
  * the purchased blocks). One global meter; the metered price lives on the blocks
@@ -519,6 +614,51 @@ export function blocksForSends(sends: number): number {
   return Math.max(1, Math.ceil(sends / BLOCK_SIZE));
 }
 
+// --- Marketing contact-size pricing ----------------------------------------
+// Marketing's base is the CONTACT SIZE the user chooses (organizations.
+// marketing_contacts) — like blocks, but for audience. The chosen tier then
+// multiplies that size into price, monthly send allowance, and a per-day cap. So
+// 500 contacts on Pro and 1,000 on Pro are genuinely different products.
+/** Free marketing contact ceiling (no contacts purchased). */
+export const FREE_MK_CONTACTS = 500;
+/** Stripe bills marketing per this many contacts (keeps the quantity small). */
+export const CONTACT_UNIT = 100;
+/** Contact sizes the selector offers (self-serve; grows smoothly beyond). */
+export const CONTACT_STEPS = [500, 1_000, 2_500, 5_000, 10_000, 25_000, 50_000, 100_000] as const;
+export const MAX_SELF_SERVE_CONTACTS = 250_000;
+
+/** Monthly $ for a marketing tier at a chosen contact size (0 for Free). */
+export function marketingMonthlyPrice(tier: TierDef, contacts: number): number {
+  if (!tier.perThousandCents || contacts <= 0) return 0;
+  return Math.round((contacts * tier.perThousandCents) / 1000) / 100;
+}
+/** Stripe per-CONTACT_UNIT price (cents) for a marketing tier. */
+export function marketingUnitCents(tier: TierDef): number {
+  return Math.round(((tier.perThousandCents ?? 0) * CONTACT_UNIT) / 1000);
+}
+/** Monthly send allowance = contacts × the tier's per-contact multiplier. */
+export function marketingSendAllowance(tier: TierDef, contacts: number): number {
+  const base = Math.max(contacts, tier.id === "mk_free" ? FREE_MK_CONTACTS : 0);
+  return base * (tier.sendsPerContact ?? 0);
+}
+/** Per-day send cap = contacts × the tier's per-contact daily multiplier. */
+export function marketingDailyLimit(tier: TierDef, contacts: number): number {
+  const base = Math.max(contacts, tier.id === "mk_free" ? FREE_MK_CONTACTS : 0);
+  return base * (tier.dailyPerContact ?? 0);
+}
+/** Stripe quantity (in CONTACT_UNIT units) for a contact size. */
+export function contactUnits(contacts: number): number {
+  return Math.max(1, Math.ceil(contacts / CONTACT_UNIT));
+}
+
+// --- Platform base (no Platform plan; these come free, extras are add-ons) ---
+/** Seats included before any `extra_seat` add-on. */
+export const BASE_SEATS = 2;
+/** Live workspaces included before any `workspace_pack` add-on. */
+export const BASE_WORKSPACES = 1;
+/** AI assistant credits included before any `ai_credit_pack` add-on. */
+export const BASE_AI_CREDITS = 20;
+
 export interface TierDef {
   id: string; // "tx_free", "mk_growth", "pf_team" — stable, wing-prefixed
   wing: Wing;
@@ -540,9 +680,14 @@ export interface TierDef {
   allowOverage?: boolean;
   overagePer1000?: number; // USD per 1,000 sends past included
   includedSubTenants?: number; // client sending domains; -1 = unlimited
-  // --- Marketing (metric = contacts / audience memberships) ---
-  includedContacts?: number; // -1 = unlimited
-  // --- Platform (metric = seats) ---
+  // --- Marketing (metric = CONTACT SIZE, chosen by the user) ---
+  // The tier no longer *caps* contacts — it multiplies the chosen contact size
+  // into what the tier is worth: price, monthly sends, and the per-day limit.
+  includedContacts?: number; // free-tier contact ceiling only (mk_free); paid = user-chosen
+  perThousandCents?: number; // cents per 1,000 contacts/mo — price = contacts/1000 × this
+  sendsPerContact?: number; // monthly send allowance = contacts × this
+  dailyPerContact?: number; // per-day send cap = contacts × this
+  // --- Platform base (everyone sits on the free base; extras are add-ons) ---
   seats?: number; // -1 = unlimited
   workspaceLimit?: number; // -1 = unlimited
   // Stripe linkage (synced by syncTierPrice; absent on the constants). Each paid
@@ -555,22 +700,27 @@ export interface TierDef {
 }
 
 // Strawman numbers (owner delegated these to me; admin-editable via `pricing_tiers`).
+// Org-level AI credits are BASE_AI_CREDITS + ai_credit_pack add-ons (carried across
+// both wings), NOT granted by tiers — so every tier's aiCredits is 0. Boolean
+// capabilities (rbac/sso/proof/residency) and client domains/dedicated IP are
+// ADD-ONS now, not tier features. There is no "contact us" tier: transactional is
+// Free→Blocks, marketing scales with contact size, Platform is the free base.
 export const WING_TIERS: TierDef[] = [
   // Transactional — Free allowance, then BLOCKS (quantity × BLOCK_SIZE at
-  // BLOCK_BRACKETS rates; the org's block count lives on organizations.transactional_blocks).
-  { id: "tx_free", wing: "transactional", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 5, features: ["audit", "suppression"], trialDays: 0, includedSends: FREE_TX_SENDS, blockSize: BLOCK_SIZE, allowOverage: false, overagePer1000: 0, includedSubTenants: 0 },
-  { id: "tx_blocks", wing: "transactional", name: "Blocks", rank: 1, priceMonthly: BLOCK_BRACKETS[0].perBlock, priceYearly: BLOCK_BRACKETS[0].perBlock * 10, aiCredits: 25, features: ["audit", "suppression", "subtenants"], trialDays: 0, includedSends: 0 /* = blocks × BLOCK_SIZE */, blockSize: BLOCK_SIZE, allowOverage: true, overagePer1000: 0.4, includedSubTenants: 10 },
-  { id: "tx_enterprise", wing: "transactional", name: "Enterprise", rank: 2, priceMonthly: null, priceYearly: null, aiCredits: -1, features: ["audit", "suppression", "subtenants", "dedicated_ip"], trialDays: 0, includedSends: -1, blockSize: BLOCK_SIZE, allowOverage: true, overagePer1000: 0.2, includedSubTenants: -1 },
-  // Marketing — priced by contacts (audience size).
-  { id: "mk_free", wing: "marketing", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 5, features: ["campaigns"], trialDays: 0, includedContacts: 500 },
-  { id: "mk_starter", wing: "marketing", name: "Starter", rank: 1, priceMonthly: 15, priceYearly: 150, aiCredits: 25, features: ["campaigns"], trialDays: 0, includedContacts: 2_500 },
-  { id: "mk_growth", wing: "marketing", name: "Growth", rank: 2, priceMonthly: 45, priceYearly: 450, aiCredits: 75, features: ["campaigns", "sequences", "threads"], trialDays: 0, includedContacts: 10_000 },
-  { id: "mk_pro", wing: "marketing", name: "Pro", rank: 3, priceMonthly: 120, priceYearly: 1_200, aiCredits: 150, features: ["campaigns", "sequences", "threads"], trialDays: 0, includedContacts: 50_000 },
-  { id: "mk_enterprise", wing: "marketing", name: "Enterprise", rank: 4, priceMonthly: null, priceYearly: null, aiCredits: -1, features: ["campaigns", "sequences", "threads"], trialDays: 0, includedContacts: -1 },
-  // Platform — org-level (seats/workspaces + governance).
-  { id: "pf_solo", wing: "platform", name: "Solo", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 5, features: [], trialDays: 0, seats: 2, workspaceLimit: 1 },
-  { id: "pf_team", wing: "platform", name: "Team", rank: 1, priceMonthly: 25, priceYearly: 250, aiCredits: 100, features: ["rbac"], trialDays: 0, seats: 10, workspaceLimit: 5 },
-  { id: "pf_enterprise", wing: "platform", name: "Enterprise", rank: 2, priceMonthly: null, priceYearly: null, aiCredits: -1, features: ["rbac", "sso", "proof", "residency"], trialDays: 0, seats: -1, workspaceLimit: -1 },
+  // BLOCK_BRACKETS rates; org's block count lives on organizations.transactional_blocks).
+  // Blocks are pure VOLUME — audit + suppression are baseline; client domains and a
+  // dedicated IP are add-ons folded into the purchase.
+  { id: "tx_free", wing: "transactional", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["audit", "suppression"], trialDays: 0, includedSends: FREE_TX_SENDS, blockSize: BLOCK_SIZE, allowOverage: false, overagePer1000: 0, includedSubTenants: 0 },
+  { id: "tx_blocks", wing: "transactional", name: "Send blocks", rank: 1, priceMonthly: BLOCK_BRACKETS[0].perBlock, priceYearly: BLOCK_BRACKETS[0].perBlock * 10, aiCredits: 0, features: ["audit", "suppression"], trialDays: 0, includedSends: 0 /* = blocks × BLOCK_SIZE */, blockSize: BLOCK_SIZE, allowOverage: true, overagePer1000: 0.4, includedSubTenants: 0 },
+  // Marketing — the CONTACT SIZE is the base; the tier multiplies it into price,
+  // monthly sends, and a daily cap (perContactCents / sendsPerContact / dailyPerContact).
+  { id: "mk_free", wing: "marketing", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns"], trialDays: 0, includedContacts: FREE_MK_CONTACTS, perThousandCents: 0, sendsPerContact: 2, dailyPerContact: 1 },
+  { id: "mk_starter", wing: "marketing", name: "Starter", rank: 1, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns"], trialDays: 0, perThousandCents: 1_200, sendsPerContact: 12, dailyPerContact: 1 },
+  { id: "mk_growth", wing: "marketing", name: "Growth", rank: 2, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns", "sequences", "threads"], trialDays: 0, perThousandCents: 1_800, sendsPerContact: 20, dailyPerContact: 2 },
+  { id: "mk_pro", wing: "marketing", name: "Pro", rank: 3, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns", "sequences", "threads"], trialDays: 0, perThousandCents: 2_800, sendsPerContact: 40, dailyPerContact: 4 },
+  // Platform — the invisible FREE base every org sits on. Seats/workspaces beyond
+  // this, and roles/SSO/proof/residency, are add-ons (no Platform plan, no contact-us).
+  { id: "pf_solo", wing: "platform", name: "Base", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: [], trialDays: 0, seats: BASE_SEATS, workspaceLimit: BASE_WORKSPACES },
 ];
 
 /** The tiers for one wing, in rank order. */

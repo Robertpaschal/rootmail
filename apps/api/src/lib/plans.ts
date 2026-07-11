@@ -3,6 +3,7 @@ import {
   ADD_ONS,
   type AddOnId,
   AI_CREDITS,
+  BASE_AI_CREDITS,
   PLAN_IDS,
   PLANS,
   type PlanDef,
@@ -16,10 +17,23 @@ import {
   type CustomPlan,
   customPlans as customPlansTable,
   db,
+  orgAddons as orgAddonsTable,
   type Plan,
   plans as plansTable,
 } from "@rootmail/db";
-import { synthesizePlan, wingAiCredits, type WingOrg } from "./wings";
+import { synthesizePlan, type WingOrg } from "./wings";
+
+/** An org's current add-on quantities (only those > 0). Shared by AI-credit,
+ * feature-gate, and billing resolution — add-ons are wing-agnostic now. */
+export async function orgAddonQuantities(orgId: string): Promise<Partial<Record<AddOnId, number>>> {
+  const rows = await db
+    .select({ addonId: orgAddonsTable.addonId, quantity: orgAddonsTable.quantity })
+    .from(orgAddonsTable)
+    .where(eq(orgAddonsTable.organizationId, orgId));
+  const out: Partial<Record<AddOnId, number>> = {};
+  for (const r of rows) if (r.quantity > 0) out[r.addonId as AddOnId] = r.quantity;
+  return out;
+}
 
 // Admin-editable plan economics live in the `plans` table. Reads happen on every
 // send (quota), so we keep a small in-memory cache refreshed on boot, on a short
@@ -210,11 +224,16 @@ export function planForOrg(org: WingOrg & { id: string }): PlanDef {
   return custom ? custom.def : synthesizePlan(org);
 }
 
-/** Effective monthly AI credits for an org (custom plan wins; -1 = unlimited). */
-export function aiCreditsForOrg(org: WingOrg & { id: string }): number {
+/** Effective monthly AI credits for an org: a custom plan wins (−1 = unlimited);
+ * otherwise the org-level base + any `ai_credit_pack` add-ons (carried across both
+ * wings — AI is not a per-tier grant). Async because it reads the org's add-ons. */
+export async function aiCreditsForOrg(org: WingOrg & { id: string }): Promise<number> {
   maybeRefresh();
   const custom = customPlanCache.get(org.id);
-  return custom ? custom.aiCredits : wingAiCredits(org);
+  if (custom) return custom.aiCredits;
+  const qty = await orgAddonQuantities(org.id);
+  const packs = qty.ai_credit_pack ?? 0;
+  return BASE_AI_CREDITS + packs * ADD_ONS.ai_credit_pack.grant;
 }
 
 /** Effective included live workspaces for an org (custom plan wins; -1 = unlimited). */

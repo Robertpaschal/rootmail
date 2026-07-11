@@ -6,9 +6,14 @@ import {
   type AddOnId,
   BILLING_INTERVALS,
   BILLING_MODE,
+  ADD_ONS,
   BLOCK_BRACKETS,
   BLOCK_SIZE,
   blocksMonthlyPrice,
+  CONTACT_STEPS,
+  CONTACT_UNIT,
+  FREE_MK_CONTACTS,
+  MAX_SELF_SERVE_CONTACTS,
   Errors,
   FREE_TX_SENDS,
   MAX_SELF_SERVE_BLOCKS,
@@ -27,11 +32,12 @@ import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { getAddon, getAiCredits, getSale, getTrialDays, listAddons, listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
-import { getTier, tiersForWing } from "../lib/wings";
+import { getTier, marketingPriceForOrg, tiersForWing } from "../lib/wings";
 import {
   assignWingTier,
   cancelWingSubscription,
   createWingCheckout,
+  listInvoices,
   reportOverage,
   syncAddonItems,
   syncDedicatedIpProvisioning,
@@ -85,6 +91,10 @@ function serializeTier(t: TierDef) {
     overage_per_1000: t.overagePer1000 ?? 0,
     included_sub_tenants: t.includedSubTenants ?? null,
     included_contacts: t.includedContacts ?? null,
+    // Marketing: the contact-size multipliers (price/sends/daily = contacts × these).
+    per_thousand_cents: t.perThousandCents ?? null,
+    sends_per_contact: t.sendsPerContact ?? null,
+    daily_per_contact: t.dailyPerContact ?? null,
     seats: t.seats ?? null,
     workspace_limit: t.workspaceLimit ?? null,
   };
@@ -104,11 +114,12 @@ function wingsPayload(org: Organization) {
     },
     marketing: {
       current_tier_id: org.marketingTier ?? null,
+      // The contact-size model — the selector needs the steps + free ceiling.
+      contacts: org.marketingContacts,
+      free_contacts: FREE_MK_CONTACTS,
+      contact_steps: CONTACT_STEPS,
+      max_contacts: MAX_SELF_SERVE_CONTACTS,
       tiers: tiersForWing("marketing").map(serializeTier),
-    },
-    platform: {
-      current_tier_id: org.platformTier ?? null,
-      tiers: tiersForWing("platform").map(serializeTier),
     },
   };
 }
@@ -120,10 +131,12 @@ function wingsPayload(org: Organization) {
  */
 function billingSummary(org: Organization, usage: QuotaState, seats: SeatState, addons: OrgAddon[]) {
   const plan = usage.plan;
-  // The bill reads per wing — each side priced on its own axis (two-wings doctrine).
+  // The bill reads per wing — transactional by blocks, marketing by contact size ×
+  // tier. Platform is the free base (no line); its extras appear as add-ons below.
   const blocks = org.transactionalBlocks ?? 0;
   const mkTier = getTier(org.marketingTier ?? "mk_free");
-  const pfTier = getTier(org.platformTier ?? "pf_solo");
+  const contacts = org.marketingContacts ?? 0;
+  const mkAmount = marketingPriceForOrg(org);
   const lines: Array<{ label: string; kind: string; amount: number }> = [
     {
       label:
@@ -134,14 +147,12 @@ function billingSummary(org: Organization, usage: QuotaState, seats: SeatState, 
       amount: blocks > 0 ? blocksMonthlyPrice(blocks) : 0,
     },
     {
-      label: `Marketing · ${mkTier?.name ?? "Free"}`,
+      label:
+        mkAmount > 0
+          ? `Marketing · ${mkTier?.name} (${contacts.toLocaleString()} contacts)`
+          : "Marketing · Free",
       kind: "base",
-      amount: mkTier?.priceMonthly ?? 0,
-    },
-    {
-      label: `Platform · ${pfTier?.name ?? "Solo"}`,
-      kind: "base",
-      amount: pfTier?.priceMonthly ?? 0,
+      amount: mkAmount,
     },
   ];
   if (usage.overage_cost > 0) {
@@ -229,8 +240,11 @@ async function billingPayload(org: Organization, usage: QuotaState) {
       overage: usage.overage,
       overage_cost: usage.overage_cost,
       over_limit: usage.over_limit,
-      // Per-wing: marketing volume is priced by contacts, not blocks.
+      // Marketing volume is metered against the contact-scaled monthly + daily caps.
       marketing_sent: usage.marketing_sent,
+      marketing_allowance: usage.marketing_allowance,
+      marketing_sent_today: usage.marketing_sent_today,
+      marketing_daily_limit: usage.marketing_daily_limit,
       contacts_used: usage.contacts_used,
       contacts_limit: usage.contacts_limit,
     },
@@ -243,10 +257,16 @@ async function billingPayload(org: Organization, usage: QuotaState) {
       .filter((a) => a.active)
       .map((a) => {
         const onSale = saleActive({ percentOff: a.salePercentOff ?? 0, endsAt: a.saleEndsAt });
+        const def = ADD_ONS[a.id];
         return {
           id: a.id,
           name: a.name,
           unit: a.unit,
+          // Plain-English "what is one unit" + grouping + toggle-ness for the UI.
+          unit_note: def.unitNote,
+          grants_feature: def.grantsFeature ?? null,
+          max: def.max ?? null,
+          group: def.wing, // "transactional" folds into blocks; "platform" = everywhere
           description: a.description,
           unit_amount: a.unitAmount,
           unit_amount_yearly: a.unitAmount * (12 - YEARLY_MONTHS_FREE),
@@ -340,6 +360,13 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     return billingPayload(org, await quotaState(org));
   });
 
+  // Past invoices for the financial dashboard — downloadable (hosted URL + PDF).
+  app.get("/v1/billing/invoices", async (req) => {
+    const org = await loadOrg(req);
+    await requirePermission(req, "billing.manage");
+    return { object: "list", data: await listInvoices(org) };
+  });
+
   // Choose a per-wing tier — THE plan-change endpoint (PRICING-WINGS-SPEC.md).
   // Custom → contact sales; a paid tier → hosted Stripe checkout (the webhook
   // applies it; blocks ride as the subscription quantity); Free → assigned
@@ -353,6 +380,8 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
         interval: z.enum(BILLING_INTERVALS).optional(),
         // Transactional blocks (quantity × 25k sends/mo); ignored on other tiers.
         blocks: z.coerce.number().int().min(1).max(MAX_SELF_SERVE_BLOCKS).optional(),
+        // Marketing CONTACT SIZE (the base the tier multiplies); ignored elsewhere.
+        contacts: z.coerce.number().int().min(1).max(MAX_SELF_SERVE_CONTACTS).optional(),
       }),
       req.body,
     );
@@ -365,12 +394,17 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     }
     const interval = body.interval ?? "month";
     const blocks = body.tier_id === "tx_blocks" ? (body.blocks ?? 1) : 0;
+    const isMktPaid = body.wing === "marketing" && (tier.perThousandCents ?? 0) > 0;
+    const contacts = isMktPaid ? (body.contacts ?? CONTACT_UNIT) : 0;
+    const opts = { blocks, contacts };
+    // Paid = blocks tier, a per-contact marketing tier, or a flat-priced tier.
+    const isPaid = body.tier_id === "tx_blocks" || isMktPaid || (tier.priceMonthly ?? 0) > 0;
 
-    if (tier.priceMonthly === null) {
+    if (tier.priceMonthly === null && !isMktPaid && body.tier_id !== "tx_blocks") {
       return { object: "wing_checkout", mode: "contact_sales", wing: body.wing };
     }
-    if (tier.priceMonthly > 0) {
-      const res = await createWingCheckout(org, tier.id, interval, blocks);
+    if (isPaid) {
+      const res = await createWingCheckout(org, tier.id, interval, opts);
       if (res.mode === "stripe") {
         return { object: "wing_checkout", mode: "stripe", url: res.url };
       }
@@ -384,13 +418,14 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     }
     // Free tier, or local-mode paid: assign directly + cancel any existing paid sub.
     await cancelWingSubscription(org, body.wing);
-    await assignWingTier(org.id, body.wing, tier.id, blocks);
+    await assignWingTier(org.id, body.wing, tier.id, opts);
     return {
       object: "wing_checkout",
       mode: "assigned",
       wing: body.wing,
       tier_id: tier.id,
       ...(blocks ? { blocks } : {}),
+      ...(contacts ? { contacts } : {}),
     };
   });
 }

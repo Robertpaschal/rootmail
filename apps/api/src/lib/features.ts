@@ -1,8 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import type { FastifyRequest } from "fastify";
-import { env, Errors, type PlanFeature } from "@rootmail/core";
+import { addonForFeature, env, Errors, type PlanFeature } from "@rootmail/core";
 import { db, memberships, type Organization, organizations } from "@rootmail/db";
-import { requiredTierFor, wingFeatureUnlocked } from "./wings";
+import { getAddon, orgAddonQuantities } from "./plans";
+import { effectiveFeatures, requiredTierFor } from "./wings";
 
 /** Load the org behind the authenticated request's workspace. */
 export async function loadOrg(req: FastifyRequest): Promise<Organization> {
@@ -45,10 +46,27 @@ export async function requireFeature(
   feature: PlanFeature,
 ): Promise<Organization> {
   const org = await loadOrg(req);
-  if (wingFeatureUnlocked(org, feature)) return org;
+  const qty = await orgAddonQuantities(org.id);
+  if (effectiveFeatures(org, qty).includes(feature)) return org;
 
-  // Locked → say exactly which WING TIER unlocks it, and send them to the per-wing
-  // pricing page (the only pricing there is).
+  const base = env.DASHBOARD_URL.replace(/\/$/, "");
+  // A feature comes EITHER from an add-on (roles/SSO/proof/residency/client
+  // domains/dedicated IP) or a wing tier. Point the 402 at whichever unlocks it —
+  // add-ons show on their group's page, tiers on their wing's page.
+  const addon = addonForFeature(feature);
+  if (addon) {
+    const live = getAddon(addon.id);
+    throw Errors.featureLocked(feature, {
+      current_plan: org.plan,
+      required_plan: addon.id,
+      required_plan_name: addon.name,
+      required_wing: addon.wing,
+      price: live.unitAmount,
+      upgrade_url: `${base}/billing/${addon.wing}`,
+      checkout_endpoint: "POST /v1/billing/addons",
+      docs_url: `https://${env.ROOTMAIL_DOMAIN}/pricing`,
+    });
+  }
   const tier = requiredTierFor(feature);
   throw Errors.featureLocked(feature, {
     current_plan: org.plan,
@@ -56,7 +74,7 @@ export async function requireFeature(
     required_plan_name: tier ? `${tier.name} (${tier.wing})` : null,
     required_wing: tier?.wing ?? null,
     price: tier?.priceMonthly ?? null,
-    upgrade_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/billing/${tier?.wing ?? "transactional"}`,
+    upgrade_url: `${base}/billing/${tier?.wing ?? "transactional"}`,
     checkout_endpoint: "POST /v1/billing/wing/checkout",
     docs_url: `https://${env.ROOTMAIL_DOMAIN}/pricing`,
   });

@@ -28,7 +28,16 @@ import {
   type Workspace,
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
-import { assertEmailVerified, planFor, recordSend, sendKindOf, tryConsumeQuota } from "../lib/billing";
+import {
+  assertEmailVerified,
+  assertMarketingSendCapacity,
+  planFor,
+  recordMarketingSend,
+  recordSend,
+  sendKindOf,
+  tryConsumeMarketing,
+  tryConsumeQuota,
+} from "../lib/billing";
 import { requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { verifiedSenderFor } from "../lib/senders";
@@ -182,8 +191,9 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
             { quota: plan.monthlyQuota, wing: "transactional", upgrade_url: "/billing/transactional" },
           );
         }
-      } else {
-        await recordSend(org.id, 1, "marketing");
+      } else if (!(await tryConsumeMarketing(org))) {
+        // Marketing volume is metered against the contact-scaled monthly + daily caps.
+        await assertMarketingSendCapacity(org, 1); // throws the specific 402 (monthly vs daily)
       }
     }
 
@@ -311,7 +321,10 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       if (!existing) throw Errors.internal("Insert conflict could not be resolved");
       // This request reserved quota above but produced no new send (the winner
       // did) — refund the reservation so the duplicate doesn't over-count.
-      if (mode === "live" && org) await recordSend(org.id, -1, sendKind);
+      if (mode === "live" && org) {
+        if (sendKind === "marketing") await recordMarketingSend(org.id, -1);
+        else await recordSend(org.id, -1, sendKind);
+      }
       void reply.header("Idempotent-Replayed", "true");
       return reply.status(200).send(serializeMessage(existing));
     }

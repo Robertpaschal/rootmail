@@ -4,6 +4,7 @@ import {
   db,
   listContacts,
   lists,
+  marketingDailyUsage,
   memberships,
   type Organization,
   usageRecords,
@@ -11,7 +12,13 @@ import {
   workspaces,
 } from "@rootmail/db";
 import { planForOrg } from "./plans";
-import { contactLimitForOrg, mkTierFor, type WingOrg } from "./wings";
+import {
+  contactLimitForOrg,
+  marketingDailyLimitForOrg,
+  marketingSendAllowanceForOrg,
+  mkTierFor,
+  type WingOrg,
+} from "./wings";
 
 /** The org fields the pricing resolvers need — always the wing columns now. */
 export type BillableOrg = WingOrg & { id: string };
@@ -69,7 +76,8 @@ export async function recordSend(
     });
 }
 
-/** Marketing/sales sends this calendar month (informational — priced by contacts). */
+/** Marketing/sales sends this calendar month (metered against the contact-scaled
+ * monthly allowance). */
 export async function getMarketingUsage(
   organizationId: string,
   period = currentPeriod(),
@@ -80,6 +88,121 @@ export async function getMarketingUsage(
     .where(and(eq(usageRecords.organizationId, organizationId), eq(usageRecords.period, period)))
     .limit(1);
   return row?.n ?? 0;
+}
+
+/** UTC day key "YYYY-MM-DD" for the per-day marketing cap. */
+export function currentDay(d = new Date()): string {
+  return d.toISOString().slice(0, 10);
+}
+
+/** Marketing sends TODAY (against the contact-scaled daily cap). */
+export async function getMarketingDaily(organizationId: string, day = currentDay()): Promise<number> {
+  const [row] = await db
+    .select({ n: marketingDailyUsage.sent })
+    .from(marketingDailyUsage)
+    .where(and(eq(marketingDailyUsage.organizationId, organizationId), eq(marketingDailyUsage.day, day)))
+    .limit(1);
+  return row?.n ?? 0;
+}
+
+/** Record `n` marketing sends against BOTH the monthly and the daily counters
+ * (bulk campaign/sequence path — capacity is asserted up front, this just meters). */
+export async function recordMarketingSend(organizationId: string, n = 1): Promise<void> {
+  const period = currentPeriod();
+  const day = currentDay();
+  await db
+    .insert(usageRecords)
+    .values({ id: newId("usage"), organizationId, period, marketingSent: n })
+    .onConflictDoUpdate({
+      target: [usageRecords.organizationId, usageRecords.period],
+      set: { marketingSent: sql`${usageRecords.marketingSent} + ${n}`, updatedAt: new Date() },
+    });
+  await db
+    .insert(marketingDailyUsage)
+    .values({ id: newId("usage"), organizationId, day, sent: n })
+    .onConflictDoUpdate({
+      target: [marketingDailyUsage.organizationId, marketingDailyUsage.day],
+      set: { sent: sql`${marketingDailyUsage.sent} + ${n}`, updatedAt: new Date() },
+    });
+}
+
+/**
+ * Atomically reserve ONE marketing send against BOTH the monthly and the daily
+ * cap (the API single-send path). Both caps scale with the chosen contact size ×
+ * the tier's multipliers. Returns false (nothing consumed) if either cap is hit.
+ */
+export async function tryConsumeMarketing(org: BillableOrg, n = 1): Promise<boolean> {
+  const monthly = marketingSendAllowanceForOrg(org);
+  const daily = marketingDailyLimitForOrg(org);
+  const period = currentPeriod();
+  const day = currentDay();
+
+  await db
+    .insert(usageRecords)
+    .values({ id: newId("usage"), organizationId: org.id, period, marketingSent: 0 })
+    .onConflictDoNothing({ target: [usageRecords.organizationId, usageRecords.period] });
+  const m = await db
+    .update(usageRecords)
+    .set({ marketingSent: sql`${usageRecords.marketingSent} + ${n}`, updatedAt: new Date() })
+    .where(
+      and(
+        eq(usageRecords.organizationId, org.id),
+        eq(usageRecords.period, period),
+        sql`${usageRecords.marketingSent} + ${n} <= ${monthly}`,
+      ),
+    )
+    .returning({ id: usageRecords.id });
+  if (m.length === 0) return false;
+
+  await db
+    .insert(marketingDailyUsage)
+    .values({ id: newId("usage"), organizationId: org.id, day, sent: 0 })
+    .onConflictDoNothing({ target: [marketingDailyUsage.organizationId, marketingDailyUsage.day] });
+  const d = await db
+    .update(marketingDailyUsage)
+    .set({ sent: sql`${marketingDailyUsage.sent} + ${n}`, updatedAt: new Date() })
+    .where(
+      and(
+        eq(marketingDailyUsage.organizationId, org.id),
+        eq(marketingDailyUsage.day, day),
+        sql`${marketingDailyUsage.sent} + ${n} <= ${daily}`,
+      ),
+    )
+    .returning({ id: marketingDailyUsage.id });
+  if (d.length === 0) {
+    // Daily cap hit → give the monthly reservation back.
+    await db
+      .update(usageRecords)
+      .set({ marketingSent: sql`${usageRecords.marketingSent} - ${n}`, updatedAt: new Date() })
+      .where(and(eq(usageRecords.organizationId, org.id), eq(usageRecords.period, period)));
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Assert the org can send `n` marketing emails now — enough monthly allowance AND
+ * daily headroom (the bulk campaign/sequence path checks the batch up front, then
+ * meters via recordMarketingSend). 402 with the marketing-wing upgrade otherwise.
+ */
+export async function assertMarketingSendCapacity(org: BillableOrg, n: number): Promise<void> {
+  if (n <= 0) return;
+  const monthly = marketingSendAllowanceForOrg(org);
+  const daily = marketingDailyLimitForOrg(org);
+  const [used, usedToday] = await Promise.all([getMarketingUsage(org.id), getMarketingDaily(org.id)]);
+  const tier = mkTierFor(org);
+  if (used + n > monthly) {
+    throw Errors.quotaExceeded(
+      `This send needs ${n.toLocaleString()} marketing emails but only ${(monthly - used).toLocaleString()} of your ${monthly.toLocaleString()}/mo allowance is left on Marketing ${tier.name}. Grow your contact size or upgrade the Marketing wing.`,
+      { marketing_used: used, marketing_allowance: monthly, wing: "marketing", upgrade_url: "/billing/marketing" },
+    );
+  }
+  if (usedToday + n > daily) {
+    throw Errors.quotaExceeded(
+      `This send needs ${n.toLocaleString()} marketing emails but your daily cap on Marketing ${tier.name} is ${daily.toLocaleString()}/day (${(daily - usedToday).toLocaleString()} left today). It resets tomorrow, or grow your contact size.`,
+      { marketing_daily_used: usedToday, marketing_daily_limit: daily, wing: "marketing", upgrade_url: "/billing/marketing" },
+    );
+  }
 }
 
 /**
@@ -240,18 +363,22 @@ export interface QuotaState {
   overage: number;
   overage_cost: number;
   over_limit: boolean;
-  /** Marketing sends this period — informational (priced by contacts, not blocks). */
+  /** Marketing sends this period vs the contact-scaled monthly allowance. */
   marketing_sent: number;
-  /** Billable contacts (audience memberships) vs the marketing bracket. */
+  marketing_allowance: number;
+  marketing_sent_today: number;
+  marketing_daily_limit: number;
+  /** Billable contacts (audience memberships) vs the chosen contact size. */
   contacts_used: number;
   contacts_limit: number;
 }
 
 export async function quotaState(org: Organization): Promise<QuotaState> {
   const plan = planFor(org);
-  const [used, marketingSent, contactsUsed] = await Promise.all([
+  const [used, marketingSent, marketingToday, contactsUsed] = await Promise.all([
     getUsage(org.id),
     getMarketingUsage(org.id),
+    getMarketingDaily(org.id),
     billableContacts(org.id),
   ]);
   const overage = Math.max(0, used - plan.monthlyQuota);
@@ -265,6 +392,9 @@ export async function quotaState(org: Organization): Promise<QuotaState> {
     overage_cost: Math.ceil(overage / 1000) * plan.overagePer1000,
     over_limit: used >= plan.monthlyQuota,
     marketing_sent: marketingSent,
+    marketing_allowance: marketingSendAllowanceForOrg(org),
+    marketing_sent_today: marketingToday,
+    marketing_daily_limit: marketingDailyLimitForOrg(org),
     contacts_used: contactsUsed,
     contacts_limit: contactLimitForOrg(org),
   };

@@ -7,6 +7,8 @@ import {
   type BillingInterval,
   BILLING_MODE,
   BLOCK_BRACKETS,
+  CONTACT_UNIT,
+  contactUnits,
   defaultTierId,
   env,
   newId,
@@ -242,6 +244,42 @@ export async function ensureCustomer(org: Organization): Promise<string> {
   return customer.id;
 }
 
+export interface InvoiceSummary {
+  id: string;
+  number: string | null;
+  created: number; // unix seconds
+  amount_paid: number; // dollars
+  amount_due: number; // dollars
+  currency: string;
+  status: string | null;
+  hosted_invoice_url: string | null;
+  invoice_pdf: string | null;
+}
+
+/** Past invoices for an org's financial dashboard — most recent first, downloadable
+ * (hosted URL + PDF). Empty when Stripe is off or the org has no customer yet. */
+export async function listInvoices(org: Organization, limit = 24): Promise<InvoiceSummary[]> {
+  const stripe = getStripe();
+  if (!stripe || !org.stripeCustomerId) return [];
+  try {
+    const res = await stripe.invoices.list({ customer: org.stripeCustomerId, limit });
+    return res.data.map((i) => ({
+      id: i.id,
+      number: i.number ?? null,
+      created: i.created,
+      amount_paid: (i.amount_paid ?? 0) / 100,
+      amount_due: (i.amount_due ?? 0) / 100,
+      currency: i.currency ?? "usd",
+      status: i.status ?? null,
+      hosted_invoice_url: i.hosted_invoice_url ?? null,
+      invoice_pdf: i.invoice_pdf ?? null,
+    }));
+  } catch (err) {
+    console.warn(`[stripe] invoice list failed for ${org.id}: ${String(err)}`);
+    return [];
+  }
+}
+
 /** The org owner's contact (email + name) for a Stripe customer, or null — used to
  * address billing lifecycle emails (payment failed, trial ending). */
 export async function ownerContactForCustomer(
@@ -286,6 +324,21 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
   // The dedicated monthly overage sub (for yearly plans) is bookkeeping, not the plan
   // subscription — its events must not overwrite the org's plan/subscription id or add-ons.
   if (sub.metadata?.kind === "overage") return;
+  // The org-level ADD-ONS subscription → reconcile entitlements from what it bills
+  // (covers Stripe-side edits), then stop; it never drives the plan/wings.
+  if (sub.metadata?.kind === "addons") {
+    const cid = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+    const [o] =
+      (await db.select().from(organizations).where(eq(organizations.stripeCustomerId, cid)).limit(1)) ??
+      [];
+    const org2 =
+      o ??
+      (sub.metadata?.organizationId
+        ? (await db.select().from(organizations).where(eq(organizations.id, sub.metadata.organizationId)).limit(1))[0]
+        : undefined);
+    if (org2) await reconcileAddonsFromSubscription(org2.id, sub);
+    return;
+  }
   // Per-wing subscriptions carry a `wing` — route to the wing resolver, never the
   // legacy single-plan one (which would clobber org.plan / the shared subscription id).
   if (sub.metadata?.wing) {
@@ -353,67 +406,100 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
 }
 
 /**
- * Reconcile an org's add-on subscription items with its `org_addons` rows —
- * add, change the quantity of, or remove add-on items so Stripe matches the DB.
- * No-op without a Stripe subscription (a free org has none → upgrade first).
- */
-/**
- * Reconcile an org's add-on items with its `org_addons` rows — PER WING: each
- * add-on bills as a quantity item on ITS wing's subscription (ADD_ONS[id].wing,
- * spec §6b). Throws when a wanted add-on's wing has no active subscription — the
- * route rolls the entitlement back and surfaces the message, so an add-on is never
- * granted un-billed. Wings with a sub but no wanted add-ons get their add-on items
- * removed (plan + overage items are never touched).
+ * Reconcile an org's add-ons with its `org_addons` rows on ONE org-level add-ons
+ * subscription (`stripePlatformSubscriptionId`). Add-ons are wing-agnostic now
+ * (there is no Platform plan) — seats, workspaces, client domains, dedicated IPs,
+ * AI packs, roles, SSO, proof, residency all bill here. Creates the subscription on
+ * first add-on, cancels it when the last one is removed. No wing gating — any org
+ * can buy an add-on. No-op without Stripe (local mode applies org_addons directly).
  */
 export async function syncAddonItems(org: Organization): Promise<void> {
   const stripe = getStripe();
   if (!stripe) return;
 
   const addonPrices = addOnPriceIds();
-  const wanted = await loadAddonQuantities(org.id);
-
-  // wing → (priceId → qty) wanted on that wing's subscription.
-  const wantByWing = new Map<Wing, Map<string, number>>();
-  for (const a of wanted) {
-    const wing = ADD_ONS[a.id].wing;
+  const want = new Map<string, number>();
+  for (const a of await loadAddonQuantities(org.id)) {
     const price = priceForAddOn(a.id, "month");
-    if (!price) continue;
-    const m = wantByWing.get(wing) ?? new Map<string, number>();
-    m.set(price, a.quantity);
-    wantByWing.set(wing, m);
+    if (price && a.quantity > 0) want.set(price, a.quantity);
   }
 
-  // A wanted add-on whose wing has no subscription → fail (rolled back upstream).
-  for (const [wing, m] of wantByWing) {
-    if ([...m.values()].some((q) => q > 0) && !wingSubscriptionId(org, wing)) {
-      const label = wing === "platform" ? "Platform" : wing === "transactional" ? "Transactional" : "Marketing";
-      throw new Error(`Add-ons on the ${label} wing need a paid ${label} plan first — choose one under Plans.`);
+  const subId = org.stripePlatformSubscriptionId;
+
+  // Nothing wanted → cancel the add-ons subscription if one exists.
+  if (want.size === 0) {
+    if (subId) {
+      await stripe.subscriptions.cancel(subId).catch(() => {});
+      await db
+        .update(organizations)
+        .set({ stripePlatformSubscriptionId: null, updatedAt: new Date() })
+        .where(eq(organizations.id, org.id));
     }
+    return;
   }
 
-  // Reconcile every wing subscription the org has.
-  for (const wing of WINGS) {
-    const subId = wingSubscriptionId(org, wing);
-    if (!subId) continue;
-    const want = new Map(wantByWing.get(wing) ?? []);
-    const sub = await stripe.subscriptions.retrieve(subId).catch(() => null);
-    if (!sub) continue;
-    for (const item of sub.items.data) {
-      const priceId = item.price.id;
-      if (!addonPrices.has(priceId)) continue; // leave the tier + overage items alone
-      const qty = want.get(priceId);
-      if (qty && qty > 0) {
-        if (item.quantity !== qty) await stripe.subscriptionItems.update(item.id, { quantity: qty });
-        want.delete(priceId);
-      } else {
-        await stripe.subscriptionItems.del(item.id);
-      }
+  // Billing is FAIL-SOFT: the entitlement (org_addons rows) is already set by the
+  // caller, so a Stripe hiccup — no card on a Free-on-both org, a transient error —
+  // must never strip the add-on. We attempt to bill; if we can't, the add-on stays
+  // granted and billing reconciles once a payment method exists (e.g. after a wing
+  // checkout) or an admin acts. Mirrors the module's overall fail-soft contract.
+  try {
+    await syncAddonSubscription(stripe, org, want, subId, addonPrices);
+  } catch (err) {
+    console.warn(`[stripe] add-on billing deferred for ${org.id}: ${String(err)}`);
+  }
+}
+
+async function syncAddonSubscription(
+  stripe: Stripe,
+  org: Organization,
+  want: Map<string, number>,
+  subId: string | null,
+  addonPrices: Set<string>,
+): Promise<void> {
+  const customer = await ensureCustomer(org);
+  const sub = subId ? await stripe.subscriptions.retrieve(subId).catch(() => null) : null;
+
+  // No live sub → create one carrying all wanted add-ons. Add-ons are wing-agnostic
+  // and any org can buy them (including Free-on-both), which may have no card on
+  // file — so this sub is invoiced (`send_invoice`) rather than auto-charged, which
+  // also surfaces cleanly in the financial dashboard's downloadable invoices.
+  if (!sub) {
+    // An invoiced subscription must have a customer email — set it from the org owner.
+    const owner = await ownerContactForCustomer(customer);
+    if (owner?.email) {
+      await stripe.customers.update(customer, { email: owner.email }).catch(() => {});
     }
-    for (const [priceId, qty] of want) {
-      if (qty > 0) {
-        await stripe.subscriptionItems.create({ subscription: sub.id, price: priceId, quantity: qty });
-      }
+    const items = [...want].map(([price, quantity]) => ({ price, quantity }));
+    const created = await stripe.subscriptions.create({
+      customer,
+      items,
+      collection_method: "send_invoice",
+      days_until_due: 14,
+      metadata: { organizationId: org.id, kind: "addons" },
+    });
+    await db
+      .update(organizations)
+      .set({ stripePlatformSubscriptionId: created.id, updatedAt: new Date() })
+      .where(eq(organizations.id, org.id));
+    return;
+  }
+
+  // Reconcile the existing add-ons sub's items to the wanted set.
+  const remaining = new Map(want);
+  for (const item of sub.items.data) {
+    const priceId = item.price.id;
+    if (!addonPrices.has(priceId)) continue;
+    const qty = remaining.get(priceId);
+    if (qty && qty > 0) {
+      if (item.quantity !== qty) await stripe.subscriptionItems.update(item.id, { quantity: qty });
+      remaining.delete(priceId);
+    } else {
+      await stripe.subscriptionItems.del(item.id);
     }
+  }
+  for (const [priceId, qty] of remaining) {
+    if (qty > 0) await stripe.subscriptionItems.create({ subscription: sub.id, price: priceId, quantity: qty });
   }
 }
 
@@ -564,7 +650,13 @@ export async function syncPlanPrice(plan: Plan): Promise<{ month: string; year: 
  */
 export async function syncTierPrice(tier: PricingTier): Promise<{ month: string; year: string } | null> {
   const stripe = getStripe();
-  if (!stripe || tier.priceMonthly == null || tier.priceMonthly <= 0) return null;
+  const isBlocks = tier.id === "tx_blocks";
+  // Marketing paid tiers bill by CONTACT SIZE — a per-CONTACT_UNIT quantity price
+  // (unit = 100 contacts), so a bigger audience on the same tier costs more.
+  const isMarketingPaid = tier.wing === "marketing" && (tier.perThousandCents ?? 0) > 0;
+  const mkUnitCents = Math.round(((tier.perThousandCents ?? 0) * CONTACT_UNIT) / 1000);
+  const flatPaid = tier.priceMonthly != null && tier.priceMonthly > 0;
+  if (!stripe || (!isBlocks && !isMarketingPaid && !flatPaid)) return null;
 
   const existing = tier.stripePriceMonthId;
   let productId: string;
@@ -579,33 +671,34 @@ export async function syncTierPrice(tier: PricingTier): Promise<{ month: string;
     productId = product.id;
   }
 
-  // The transactional Blocks tier bills quantity × per-block with VOLUME discounts
-  // (the whole quantity at its bracket's rate) — Stripe's tiered billing scheme.
-  // Everything else is a flat monthly/yearly price.
+  // Blocks bill quantity × per-block with VOLUME discounts (Stripe tiered scheme);
+  // marketing bills quantity (contacts/100) × a flat per-unit rate; everything else
+  // is a flat monthly/yearly price.
   const volumeTiers = (multiplier: number): Stripe.PriceCreateParams.Tier[] =>
     BLOCK_BRACKETS.map((b, i) => ({
       up_to: i === BLOCK_BRACKETS.length - 1 ? ("inf" as const) : b.upToBlocks,
       unit_amount: Math.round(b.perBlock * multiplier * 100),
     }));
-  const isBlocks = tier.id === "tx_blocks";
+  const priceShape = (multiplier: number): Record<string, unknown> =>
+    isBlocks
+      ? { billing_scheme: "tiered", tiers_mode: "volume", tiers: volumeTiers(multiplier) }
+      : isMarketingPaid
+        ? { unit_amount: mkUnitCents * multiplier }
+        : { unit_amount: (multiplier === 1 ? tier.priceMonthly! : (tier.priceYearly ?? tier.priceMonthly! * 10)) * 100 };
 
   const month = await stripe.prices.create({
     product: productId,
     currency: "usd",
     recurring: { interval: "month" },
     metadata: { tierId: tier.id, wing: tier.wing, interval: "month" },
-    ...(isBlocks
-      ? { billing_scheme: "tiered", tiers_mode: "volume", tiers: volumeTiers(1) }
-      : { unit_amount: tier.priceMonthly * 100 }),
+    ...priceShape(1),
   });
   const year = await stripe.prices.create({
     product: productId,
     currency: "usd",
     recurring: { interval: "year" },
     metadata: { tierId: tier.id, wing: tier.wing, interval: "year" },
-    ...(isBlocks
-      ? { billing_scheme: "tiered", tiers_mode: "volume", tiers: volumeTiers(10) } // 2 months free
-      : { unit_amount: (tier.priceYearly ?? tier.priceMonthly * 10) * 100 }),
+    ...priceShape(10), // 2 months free
   });
   await stripe.products.update(productId, { default_price: month.id });
 
@@ -661,7 +754,11 @@ export async function syncAllTierPrices(): Promise<{ synced: number }> {
   const rows = await db.select().from(pricingTiers);
   let synced = 0;
   for (const t of rows) {
-    if (t.priceMonthly != null && t.priceMonthly > 0) {
+    const paid =
+      t.id === "tx_blocks" ||
+      (t.wing === "marketing" && (t.perThousandCents ?? 0) > 0) ||
+      (t.priceMonthly != null && t.priceMonthly > 0);
+    if (paid) {
       await syncTierPrice(t);
       synced++;
     }
@@ -675,14 +772,28 @@ export async function syncAllTierPrices(): Promise<{ synced: number }> {
 
 /** The org columns to write for a wing — its tier id + its Stripe subscription id
  * (+ the purchased block count on the transactional wing). */
-function wingUpdate(wing: Wing, tierId: string | null, subId: string | null, blocks = 0) {
+function wingUpdate(
+  wing: Wing,
+  tierId: string | null,
+  subId: string | null,
+  opts: { blocks?: number; contacts?: number } = {},
+) {
   switch (wing) {
     case "transactional":
-      return { transactionalTier: tierId, stripeTxSubscriptionId: subId, transactionalBlocks: blocks };
+      return {
+        transactionalTier: tierId,
+        stripeTxSubscriptionId: subId,
+        transactionalBlocks: opts.blocks ?? 0,
+      };
     case "marketing":
-      return { marketingTier: tierId, stripeMkSubscriptionId: subId };
+      return {
+        marketingTier: tierId,
+        stripeMkSubscriptionId: subId,
+        marketingContacts: opts.contacts ?? 0,
+      };
     case "platform":
-      return { platformTier: tierId, stripePlatformSubscriptionId: subId };
+      // Platform-as-a-plan is gone; nothing to write here.
+      return { platformTier: tierId };
   }
 }
 
@@ -720,11 +831,11 @@ export async function assignWingTier(
   orgId: string,
   wing: Wing,
   tierId: string,
-  blocks = 0,
+  opts: { blocks?: number; contacts?: number } = {},
 ): Promise<void> {
   await db
     .update(organizations)
-    .set({ ...wingUpdate(wing, tierId, null, blocks), updatedAt: new Date() })
+    .set({ ...wingUpdate(wing, tierId, null, opts), updatedAt: new Date() })
     .where(eq(organizations.id, orgId));
 }
 
@@ -744,20 +855,32 @@ export async function createWingCheckout(
   org: Organization,
   tierId: string,
   interval: BillingInterval = "month",
-  blocks = 1,
+  opts: { blocks?: number; contacts?: number } = {},
 ): Promise<CheckoutResult> {
   const stripe = getStripe();
   const tier = getTier(tierId);
   const price = priceForWingTier(tierId, interval);
   if (!stripe || !tier || !price) return { mode: "local" };
 
-  // The blocks tier bills quantity × per-block (volume-tiered); other tiers qty 1.
-  const quantity = tierId === "tx_blocks" ? Math.max(1, blocks) : 1;
+  // Blocks bill quantity × per-block (volume-tiered); marketing bills quantity =
+  // contacts/CONTACT_UNIT; everything else is a single unit.
+  const quantity =
+    tierId === "tx_blocks"
+      ? Math.max(1, opts.blocks ?? 1)
+      : tier.wing === "marketing" && (tier.perThousandCents ?? 0) > 0
+        ? contactUnits(opts.contacts ?? CONTACT_UNIT)
+        : 1;
 
   try {
     const customer = await ensureCustomer(org);
     const base = env.DASHBOARD_URL.replace(/\/$/, "");
-    const meta = { organizationId: org.id, wing: tier.wing, tierId, interval };
+    const meta = {
+      organizationId: org.id,
+      wing: tier.wing,
+      tierId,
+      interval,
+      ...(opts.contacts ? { contacts: String(opts.contacts) } : {}),
+    };
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer,
@@ -809,31 +932,34 @@ export async function syncWingSubscription(sub: Stripe.Subscription): Promise<vo
       .set({ ...wingUpdate(wing, defaultTierId(wing), null), updatedAt: new Date() })
       .where(eq(organizations.id, org.id));
   } else {
-    // Which tier is billed — from the sub's price, else the metadata tierId — and,
-    // for the blocks tier, HOW MANY blocks (the subscription item quantity).
+    // Which tier is billed — from the sub's price, else the metadata tierId — plus the
+    // quantity: blocks (transactional) or contacts = quantity × CONTACT_UNIT (marketing).
     let tierId: string | null = null;
-    let blocks = 0;
+    let quantity = 0;
     for (const item of sub.items.data) {
       const match = item.price?.id ? tierForPrice(item.price.id) : null;
       if (match && match.wing === wing) {
         tierId = match.tierId;
-        if (match.tierId === "tx_blocks") blocks = item.quantity ?? 1;
+        quantity = item.quantity ?? 1;
         break;
       }
     }
     tierId ??= sub.metadata?.tierId ?? defaultTierId(wing);
-    if (tierId === "tx_blocks" && blocks === 0) blocks = 1;
+    const blocks = tierId === "tx_blocks" ? Math.max(1, quantity) : 0;
+    const contacts =
+      wing === "marketing" && tierId !== "mk_free"
+        ? Math.max(CONTACT_UNIT, quantity * CONTACT_UNIT)
+        : 0;
 
     await db
       .update(organizations)
-      .set({ ...wingUpdate(wing, tierId, sub.id, blocks), updatedAt: new Date() })
+      .set({ ...wingUpdate(wing, tierId, sub.id, { blocks, contacts }), updatedAt: new Date() })
       .where(eq(organizations.id, org.id));
   }
 
-  // Keep entitlements honest for THIS wing only: its add-on items (chosen at
-  // checkout or edited in Stripe) and, for transactional, the dedicated overage sub
-  // (created on first blocks purchase; cancelled when blocks go away).
-  await reconcileAddonsFromSubscription(org.id, sub, wing);
+  // For transactional, keep the dedicated overage sub in sync (created on first
+  // blocks purchase; cancelled when blocks go away). Add-ons bill on their own
+  // org-level subscription now, not on wing subs.
   const [fresh] = await db
     .select()
     .from(organizations)
@@ -915,6 +1041,23 @@ export async function syncAddonPrice(addon: Addon): Promise<string | null> {
     .set({ stripePriceId: price.id, updatedAt: new Date() })
     .where(eq(addonsTable.id, addon.id));
   return price.id;
+}
+
+/** Provision Stripe prices for every add-on — run once after seeding the catalog
+ * (add-ons are wing-agnostic and bill on the org-level add-ons subscription).
+ * Idempotent-safe (mints fresh prices + archives the old). Returns how many synced. */
+export async function syncAllAddonPrices(): Promise<{ synced: number }> {
+  const stripe = getStripe();
+  if (!stripe) return { synced: 0 };
+  const rows = await db.select().from(addonsTable);
+  let synced = 0;
+  for (const a of rows) {
+    if (a.unitAmount > 0) {
+      await syncAddonPrice(a);
+      synced++;
+    }
+  }
+  return { synced };
 }
 
 /**

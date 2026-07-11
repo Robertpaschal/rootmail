@@ -14,7 +14,7 @@ import {
   WEBHOOK_EVENTS,
   wingBrandingRequired,
 } from "@rootmail/core";
-import { auditEntries, contacts, db, messages, organizations, suppressions, usageRecords } from "@rootmail/db";
+import { auditEntries, contacts, db, marketingDailyUsage, messages, organizations, suppressions, usageRecords } from "@rootmail/db";
 
 // Shared send primitive for worker-driven automation (sequences + campaigns).
 // Mirrors the API's dispatchMessage (apps/api/src/lib/dispatch.ts) but lives in
@@ -176,8 +176,9 @@ export async function automationSend(
   });
 
   if (input.mode === "live" && input.organizationId) {
-    // Per-wing metering: marketing/sales volume is covered by the contact-priced
-    // marketing wing (informational counter); only transactional feeds the block meter.
+    // Per-wing metering (bulk path): transactional feeds the block meter; marketing/
+    // sales feed the CONTACT-scaled monthly AND daily marketing caps (capacity is
+    // asserted up front at the campaign/sequence entry — this just records).
     const isMarketing = input.type === "marketing" || input.type === "sales";
     await db
       .insert(usageRecords)
@@ -194,6 +195,16 @@ export async function automationSend(
           ? { marketingSent: sql`${usageRecords.marketingSent} + 1`, updatedAt: new Date() }
           : { emailsSent: sql`${usageRecords.emailsSent} + 1`, updatedAt: new Date() },
       });
+    if (isMarketing) {
+      const day = new Date().toISOString().slice(0, 10);
+      await db
+        .insert(marketingDailyUsage)
+        .values({ id: newId("usage"), organizationId: input.organizationId, day, sent: 1 })
+        .onConflictDoUpdate({
+          target: [marketingDailyUsage.organizationId, marketingDailyUsage.day],
+          set: { sent: sql`${marketingDailyUsage.sent} + 1`, updatedAt: new Date() },
+        });
+    }
   }
 
   await emitAudit(id, input.workspaceId, input.subTenantId, "queued");
