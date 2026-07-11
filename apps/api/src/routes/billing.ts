@@ -27,10 +27,10 @@ import {
   YEARLY_MONTHS_FREE,
 } from "@rootmail/core";
 import { db, type Organization, organizations, type OrgAddon, orgAddons } from "@rootmail/db";
-import { currentPeriod, type QuotaState, quotaState } from "../lib/billing";
+import { currentPeriod, getAiUsage, type QuotaState, quotaState } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { getAddon, getAiCredits, getSale, getTrialDays, listAddons, listPlans } from "../lib/plans";
+import { aiCreditsForOrg, getAddon, getAiCredits, getSale, getTrialDays, listAddons, listPlans } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
 import { getTier, marketingPriceForOrg, tiersForWing } from "../lib/wings";
 import {
@@ -223,8 +223,12 @@ function billingSummary(org: Organization, usage: QuotaState, seats: SeatState, 
 }
 
 async function billingPayload(org: Organization, usage: QuotaState) {
-  const seats = await seatState(org);
-  const addons = await db.select().from(orgAddons).where(eq(orgAddons.organizationId, org.id));
+  const [seats, addons, aiCredits, aiUsed] = await Promise.all([
+    seatState(org),
+    db.select().from(orgAddons).where(eq(orgAddons.organizationId, org.id)),
+    aiCreditsForOrg(org),
+    getAiUsage(org.id),
+  ]);
   return {
     object: "billing",
     organization_id: org.id,
@@ -240,6 +244,9 @@ async function billingPayload(org: Organization, usage: QuotaState) {
       overage: usage.overage,
       overage_cost: usage.overage_cost,
       over_limit: usage.over_limit,
+      // Org-level AI credits (base + packs, carried across both wings).
+      ai_credits: aiCredits,
+      ai_used: aiUsed,
       // Marketing volume is metered against the contact-scaled monthly + daily caps.
       marketing_sent: usage.marketing_sent,
       marketing_allowance: usage.marketing_allowance,

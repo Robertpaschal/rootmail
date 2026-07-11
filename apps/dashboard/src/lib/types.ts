@@ -294,6 +294,14 @@ export interface AddonCatalogItem {
   id: string;
   name: string;
   unit: string;
+  /** Plain-English "what one unit is" (kills pack confusion). */
+  unit_note: string;
+  /** The boolean capability this add-on unlocks (roles/sso/proof/residency), or null. */
+  grants_feature: string | null;
+  /** Max quantity (1 = a toggle); null = stackable. */
+  max: number | null;
+  /** Grouping: "transactional" folds into blocks; "platform" shows everywhere. */
+  group: WingId;
   description: string;
   unit_amount: number;
   unit_amount_yearly: number;
@@ -301,6 +309,18 @@ export interface AddonCatalogItem {
   sale_price: number | null;
   sale_price_yearly: number | null;
   sale_ends_at: string | null;
+}
+
+export interface Invoice {
+  id: string;
+  number: string | null;
+  created: number;
+  amount_paid: number;
+  amount_due: number;
+  currency: string;
+  status: string | null;
+  hosted_invoice_url: string | null;
+  invoice_pdf: string | null;
 }
 
 export interface BillingSummaryLine {
@@ -346,6 +366,10 @@ export interface WingTier {
   overage_per_1000: number;
   included_sub_tenants: number | null;
   included_contacts: number | null;
+  /** Marketing contact-size multipliers: price/sends/daily = contacts × these. */
+  per_thousand_cents: number | null;
+  sends_per_contact: number | null;
+  daily_per_contact: number | null;
   seats: number | null;
   workspace_limit: number | null;
 }
@@ -365,10 +389,18 @@ export interface TransactionalLadder extends WingLadder {
   max_blocks: number;
   brackets: BlockBracket[];
 }
+/** The marketing wing: the user chooses a CONTACT SIZE that the tier multiplies
+ * into price, monthly sends, and a daily cap. */
+export interface MarketingLadder extends WingLadder {
+  contacts: number;
+  free_contacts: number;
+  contact_steps: number[];
+  max_contacts: number;
+}
 export interface Wings {
   transactional: TransactionalLadder;
-  marketing: WingLadder;
-  platform: WingLadder;
+  marketing: MarketingLadder;
+  // Platform is no longer a sellable wing — its extras are add-ons (shown everywhere).
 }
 
 export interface WingCheckoutResult {
@@ -379,6 +411,7 @@ export interface WingCheckoutResult {
   wing?: WingId;
   tier_id?: string;
   blocks?: number;
+  contacts?: number;
 }
 
 export interface Billing {
@@ -396,8 +429,14 @@ export interface Billing {
     overage: number;
     overage_cost: number;
     over_limit: boolean;
-    /** Marketing volume is priced by contacts — these are informational/enforced separately. */
+    /** Org-level AI credits (base + packs, across both wings). */
+    ai_credits: number;
+    ai_used: number;
+    /** Marketing volume is metered against the contact-scaled monthly + daily caps. */
     marketing_sent: number;
+    marketing_allowance: number;
+    marketing_sent_today: number;
+    marketing_daily_limit: number;
     contacts_used: number;
     contacts_limit: number;
   };

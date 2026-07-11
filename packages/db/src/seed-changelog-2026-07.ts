@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Pricing you can actually reason about",
+    date: "2026-07-11",
+    changes: [
+      {
+        kind: "New",
+        text: "Marketing is now sized by your contact list: pick your audience size and each plan shows exactly what it gives you at that size — the monthly emails, the daily limit, and the price. 500 contacts and 5,000 contacts are genuinely different, so you never overpay for room you don't use.",
+      },
+      {
+        kind: "New",
+        text: "Plan & usage is now a proper billing dashboard: this month's estimated bill, live meters for transactional sends, marketing audience, and AI credits, an itemized breakdown of every charge, and your past invoices — each downloadable as a PDF.",
+      },
+      {
+        kind: "Improved",
+        text: "The separate Platform plan is gone. Seats, workspaces, custom roles, SSO, proof exports, residency, and AI credits are now simple add-ons priced per one — added wherever you need them, never a 'contact us'.",
+      },
+      {
+        kind: "Improved",
+        text: "Buying send blocks is clearer and friendlier: an emphasized yearly saving, transactional extras (dedicated IP, client domains) folded right in with plain-English explanations, and a 'not sure how many?' helper that sizes the blocks for you — only when you want it.",
+      },
+    ],
+  },
+  {
     title: "Each wing has its own pricing page now",
     date: "2026-07-09",
     changes: [

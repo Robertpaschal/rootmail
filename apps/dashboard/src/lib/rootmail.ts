@@ -56,6 +56,7 @@ import type {
   VerifyResult,
   WebhookDelivery,
   WebhookEndpoint,
+  Invoice,
   WingCheckoutResult,
   Workspace,
   WorkspacesResult,
@@ -324,11 +325,23 @@ export const api = {
   // Choose a per-wing tier. Paid + Stripe → hosted Checkout URL (webhook applies it);
   // Free or local mode → assigned directly; custom → contact sales. `blocks` is the
   // transactional block quantity (25k sends each).
-  wingCheckout: (wing: string, tier_id: string, interval: "month" | "year" = "month", blocks?: number) =>
+  wingCheckout: (
+    wing: string,
+    tier_id: string,
+    interval: "month" | "year" = "month",
+    opts: { blocks?: number; contacts?: number } = {},
+  ) =>
     rmFetch<WingCheckoutResult>("/v1/billing/wing/checkout", {
       method: "POST",
-      body: { wing, tier_id, interval, ...(blocks ? { blocks } : {}) },
+      body: {
+        wing,
+        tier_id,
+        interval,
+        ...(opts.blocks ? { blocks: opts.blocks } : {}),
+        ...(opts.contacts ? { contacts: opts.contacts } : {}),
+      },
     }),
+  getInvoices: () => rmFetch<{ object: "list"; data: Invoice[] }>("/v1/billing/invoices"),
 
   listSequences: () => rmFetch<ListResponse<Sequence>>("/v1/sequences"),
   getSequence: (id: string) => rmFetch<Sequence>(`/v1/sequences/${id}`),

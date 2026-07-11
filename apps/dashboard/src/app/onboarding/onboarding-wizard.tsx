@@ -364,7 +364,7 @@ function VolumePitch({
       ? `Marketing: a bracket for ${c.toLocaleString()} contacts`
       : "Marketing: Free (up to 500 contacts)",
   );
-  summary.push(t > 2 ? `Platform: Team (${t} people)` : "Platform: Solo (free)");
+  summary.push(t > 2 ? `Team: ${t} people — add ${t - 2} seat${t - 2 === 1 ? "" : "s"}` : "Team: 2 seats included, free");
 
   const handoff = () => {
     const q = new URLSearchParams();

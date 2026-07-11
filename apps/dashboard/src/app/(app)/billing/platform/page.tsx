@@ -1,21 +1,20 @@
-import { CheckCircle2, XCircle } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Layers, Megaphone, Zap } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { PageHeader } from "@/components/app/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Billing } from "@/lib/types";
 import { AddonManager } from "../addon-manager";
-import { PlatformBilling } from "./client";
 
-// Add-ons that belong to THIS wing (they bill on the platform subscription).
-const PF_ADDONS = new Set(["extra_seat", "workspace_pack", "ai_credit_pack"]);
+// Add-ons are wing-AGNOSTIC — the "platform" foundation is now just these, shown
+// everywhere. Transactional-flavoured ones (dedicated IP, client domains) live on
+// the Transactional page folded into blocks; everything else is here.
+const PLATFORM_GROUP = "platform";
 
-export default async function PlatformBillingPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ checkout?: string; team?: string }>;
-}) {
-  const params = await searchParams;
+const num = (n: number) => n.toLocaleString();
+
+export default async function AddonsPage() {
   let billing: Billing | null = null;
   let failed: string | null = null;
   try {
@@ -24,55 +23,76 @@ export default async function PlatformBillingPage({
     failed = err instanceof ApiError || err instanceof ConnectionError ? err.message : "Something went wrong.";
   }
 
-  if (failed || !billing?.wings) {
+  if (failed || !billing) {
     return (
       <>
-        <PageHeader title="Platform plan" backHref="/billing" backLabel="Plan & usage" />
-        <ConnectionErrorCard message={failed ?? "Pricing isn't available right now."} showReconnect />
+        <PageHeader title="Add-ons" backHref="/billing" backLabel="Plan & usage" />
+        <ConnectionErrorCard message={failed ?? "Add-ons aren't available right now."} showReconnect />
       </>
     );
   }
 
   const addonQty: Record<string, number> = {};
   for (const a of billing.summary.add_ons) addonQty[a.id] = a.quantity;
-  const pfCatalog = billing.addons_catalog.filter((a) => PF_ADDONS.has(a.id));
+  const platformAddons = billing.addons_catalog.filter((a) => a.group === PLATFORM_GROUP);
+  const seats = billing.summary.seats;
 
   return (
     <>
       <PageHeader
-        title="Platform plan"
-        description="The shared foundation under both wings — seats, workspaces, roles, and security. Sized by your team, billed on its own."
+        title="Add-ons"
+        description="Extras that work across both wings — seats, workspaces, team roles, SSO, proof exports, residency, and AI credits. Add exactly what you need; each is priced per one."
         backHref="/billing"
         backLabel="Plan & usage"
       />
 
-      {params.checkout === "success" ? (
-        <div className="mb-6 flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
-          <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
-          Payment complete — your platform plan updates the moment Stripe confirms it.
-        </div>
-      ) : params.checkout === "cancel" ? (
-        <div className="mb-6 flex items-center gap-2 rounded-lg border bg-muted/40 p-3 text-sm text-muted-foreground">
-          <XCircle className="size-4 shrink-0" />
-          Checkout canceled — nothing changed.
-        </div>
-      ) : null}
+      <Card className="mb-6">
+        <CardContent className="p-5">
+          <div className="flex items-center gap-2">
+            <span className="grid size-8 place-items-center rounded-lg bg-secondary">
+              <Layers className="size-4" />
+            </span>
+            <div>
+              <p className="text-sm font-medium">
+                {seats.capacity === -1
+                  ? `${num(seats.used)} seats in use · unlimited`
+                  : `${num(seats.used)} of ${num(seats.capacity)} seats in use`}
+                <span className="ml-1 font-normal text-muted-foreground">
+                  ({seats.included} included{seats.purchased ? ` + ${seats.purchased} added` : ""})
+                </span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                These are shared foundation features — buying one changes only your add-ons bill, never a wing&apos;s.
+              </p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-      <PlatformBilling billing={billing} prefillTeam={Number(params.team) || undefined} />
+      <AddonManager quantities={addonQty} catalog={platformAddons} />
 
-      {pfCatalog.length ? (
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="text-base">Platform add-ons</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-3 text-sm text-muted-foreground">
-              These extend the platform layer and bill on its subscription — a paid Platform plan comes first.
-            </p>
-            <AddonManager quantities={addonQty} catalog={pfCatalog} />
-          </CardContent>
-        </Card>
-      ) : null}
+      <div className="mt-8 grid gap-3 sm:grid-cols-2">
+        <Link href="/billing/transactional" className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">
+          <span className="flex items-center gap-2 text-sm">
+            <Zap className="size-4 text-muted-foreground" />
+            <span>
+              <span className="font-medium">Transactional</span>
+              <span className="ml-1 text-muted-foreground">— send blocks + dedicated IP &amp; client domains.</span>
+            </span>
+          </span>
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+        </Link>
+        <Link href="/billing/marketing" className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">
+          <span className="flex items-center gap-2 text-sm">
+            <Megaphone className="size-4 text-muted-foreground" />
+            <span>
+              <span className="font-medium">Marketing</span>
+              <span className="ml-1 text-muted-foreground">— audience email, priced by contact size.</span>
+            </span>
+          </span>
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+        </Link>
+      </div>
     </>
   );
 }

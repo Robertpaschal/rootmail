@@ -1,13 +1,11 @@
 import { CheckCircle2, XCircle } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { PageHeader } from "@/components/app/page-header";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Billing } from "@/lib/types";
-import { AddonManager } from "../addon-manager";
 import { TransactionalBilling } from "./client";
 
-// Add-ons that belong to THIS wing (they bill on the transactional subscription).
+// Add-ons that read as transactional concerns — folded INTO the blocks purchase.
 const TX_ADDONS = new Set(["dedicated_ip", "subtenant_pack"]);
 
 export default async function TransactionalBillingPage({
@@ -35,7 +33,7 @@ export default async function TransactionalBillingPage({
 
   const addonQty: Record<string, number> = {};
   for (const a of billing.summary.add_ons) addonQty[a.id] = a.quantity;
-  const txCatalog = billing.addons_catalog.filter((a) => TX_ADDONS.has(a.id));
+  const txAddons = billing.addons_catalog.filter((a) => TX_ADDONS.has(a.id));
 
   return (
     <>
@@ -61,25 +59,13 @@ export default async function TransactionalBillingPage({
       <TransactionalBilling
         billing={billing}
         prefillEmails={Number(params.emails) || undefined}
+        txAddons={txAddons}
+        addonQty={addonQty}
         stitch={{
           contacts: Number(params.contacts) || undefined,
           team: Number(params.team) || undefined,
         }}
       />
-
-      {txCatalog.length ? (
-        <Card className="mt-8">
-          <CardHeader>
-            <CardTitle className="text-base">Transactional add-ons</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="mb-3 text-sm text-muted-foreground">
-              These extend this wing and bill on its subscription — a paid transactional plan comes first.
-            </p>
-            <AddonManager quantities={addonQty} catalog={txCatalog} />
-          </CardContent>
-        </Card>
-      ) : null}
     </>
   );
 }

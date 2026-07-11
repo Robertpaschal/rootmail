@@ -11,23 +11,25 @@ export interface ChooseTierState {
 
 /** Choose a per-wing tier. Paid + Stripe → redirect to hosted Checkout (the webhook
  * applies it on completion); Free/local → applied immediately; custom → sales.
- * `blocks` = transactional block quantity (25k sends each). */
+ * `blocks` = transactional block quantity (25k each); `contacts` = marketing
+ * contact size (the base the tier multiplies). */
 export async function chooseWingTier(
   wing: string,
   tierId: string,
   interval: "month" | "year",
-  blocks?: number,
+  opts: { blocks?: number; contacts?: number } = {},
 ): Promise<ChooseTierState> {
   let url: string | null = null;
   try {
-    const res = await api.wingCheckout(wing, tierId, interval, blocks);
+    const res = await api.wingCheckout(wing, tierId, interval, opts);
     if (res.mode === "stripe" && res.url) {
       url = res.url; // redirect() throws, so call it outside the try
     } else if (res.mode === "contact_sales") {
       url = "/contact?topic=sales";
     } else {
       // assigned (free tier, or local mode) — entitlements now flow per wing.
-      revalidatePath("/billing/wings");
+      revalidatePath("/billing/transactional");
+      revalidatePath("/billing/marketing");
       revalidatePath("/billing");
       return { assigned: true };
     }
