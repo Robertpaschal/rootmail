@@ -348,7 +348,8 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
           .set({ stripePlatformSubscriptionId: nextSubId, updatedAt: new Date() })
           .where(eq(organizations.id, org2.id));
       }
-      await reconcileAddonsFromSubscription(org2.id, sub);
+      // Scoped to platform-group — transactional add-ons live on the tx sub.
+      await reconcileAddonsFromSubscription(org2.id, sub, "platform");
     }
     return;
   }
@@ -436,6 +437,9 @@ export async function syncAddonItems(org: Organization): Promise<void> {
   const addonPrices = addOnPriceIds();
   const want = new Map<string, number>();
   for (const a of await loadAddonQuantities(org.id)) {
+    // PLATFORM-group add-ons bill on this org-level sub; transactional-group add-ons
+    // (dedicated IP, client domains) ride the transactional subscription instead.
+    if (ADD_ONS[a.id].wing !== "platform") continue;
     const price = priceForAddOn(a.id, "month");
     if (price && a.quantity > 0) want.set(price, a.quantity);
   }
@@ -931,7 +935,7 @@ export async function createWingEmbeddedCheckout(
   org: Organization,
   tierId: string,
   interval: BillingInterval = "month",
-  opts: { blocks?: number; contacts?: number } = {},
+  opts: { blocks?: number; contacts?: number; addons?: Partial<Record<AddOnId, number>> } = {},
 ): Promise<EmbeddedResult> {
   const stripe = getStripe();
   const tier = getTier(tierId);
@@ -945,6 +949,15 @@ export async function createWingEmbeddedCheckout(
       : tier.wing === "marketing" && (tier.perThousandCents ?? 0) > 0
         ? contactUnits(opts.contacts ?? CONTACT_UNIT)
         : 1;
+  // Add-ons that belong to THIS wing ride the same subscription — so the plan and
+  // its extras "add up" to one checkout (blocks + a dedicated IP + client domains).
+  const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price, quantity }];
+  for (const id of ADD_ON_IDS) {
+    if (ADD_ONS[id].wing !== tier.wing) continue;
+    const q = Math.max(0, Math.floor(opts.addons?.[id] ?? 0));
+    const ap = priceForAddOn(id, "month");
+    if (q > 0 && ap) line_items.push({ price: ap, quantity: q });
+  }
   try {
     const customer = await ensureCustomer(org);
     const meta = {
@@ -960,7 +973,7 @@ export async function createWingEmbeddedCheckout(
       // (stable alias "embedded"); @stripe/react-stripe-js consumes the client_secret either way.
       ui_mode: "embedded_page",
       customer,
-      line_items: [{ price, quantity }],
+      line_items,
       return_url: embeddedReturn(env.DASHBOARD_URL.replace(/\/$/, "")),
       metadata: meta,
       subscription_data: { metadata: meta },
@@ -989,6 +1002,9 @@ export async function createAddonsEmbeddedCheckout(
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   for (const id of ADD_ON_IDS) {
+    // Only platform-group add-ons ride the org-level add-ons sub (transactional ones
+    // are folded into the transactional checkout).
+    if (ADD_ONS[id].wing !== "platform") continue;
     const qty = quantities[id] ?? 0;
     const price = priceForAddOn(id, "month");
     if (qty > 0 && price) lineItems.push({ price, quantity: qty });
@@ -1086,15 +1102,27 @@ export async function syncWingSubscription(sub: Stripe.Subscription): Promise<vo
         ? Math.max(CONTACT_UNIT, quantity * CONTACT_UNIT)
         : 0;
 
+    // A new checkout mints a NEW subscription — cancel the wing's PRIOR one so an
+    // upgrade/quantity change doesn't leave the customer double-billed.
+    const priorSubId = wingSubscriptionId(org, wing);
+    const stripe = getStripe();
+    if (stripe && priorSubId && priorSubId !== sub.id) {
+      await stripe.subscriptions.cancel(priorSubId).catch(() => {});
+    }
+
     await db
       .update(organizations)
       .set({ ...wingUpdate(wing, tierId, sub.id, { blocks, contacts }), updatedAt: new Date() })
       .where(eq(organizations.id, org.id));
+
+    // The wing's OWN add-ons (e.g. transactional's dedicated IP + client domains)
+    // ride this same subscription — reconcile them from it, scoped to this wing so
+    // the other wing / platform add-ons are never touched.
+    await reconcileAddonsFromSubscription(org.id, sub, wing);
   }
 
   // For transactional, keep the dedicated overage sub in sync (created on first
-  // blocks purchase; cancelled when blocks go away). Add-ons bill on their own
-  // org-level subscription now, not on wing subs.
+  // blocks purchase; cancelled when blocks go away).
   const [fresh] = await db
     .select()
     .from(organizations)

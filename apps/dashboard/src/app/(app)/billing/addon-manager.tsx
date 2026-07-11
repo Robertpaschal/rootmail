@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Loader2, Minus, Plus, ShoppingCart } from "lucide-react";
 import { useCheckout } from "./checkout-provider";
@@ -31,6 +31,17 @@ export function AddonManager({
     for (const a of catalog) d[a.id] = quantities[a.id] ?? 0;
     return d;
   });
+
+  // Resync the cart baseline when the server state changes (e.g. after a checkout
+  // completes and the page revalidates) so purchased add-ons actually show as
+  // selected instead of the cart looking untouched.
+  const qtySig = catalog.map((a) => `${a.id}:${quantities[a.id] ?? 0}`).join(",");
+  useEffect(() => {
+    const d: Record<string, number> = {};
+    for (const a of catalog) d[a.id] = quantities[a.id] ?? 0;
+    setDesired(d);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qtySig]);
 
   const price = (a: AddonCatalogItem) => a.sale_price ?? a.unit_amount;
   const set = (a: AddonCatalogItem, qty: number) => {

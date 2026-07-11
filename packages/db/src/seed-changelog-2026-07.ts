@@ -14,6 +14,20 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "One cart, one checkout",
+    date: "2026-07-11",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Building your plan now works like a normal cart: choose your send blocks, add a dedicated IP or client domains, and see an order summary on the right that adds everything up — then pay for it all in a single checkout, on one subscription.",
+      },
+      {
+        kind: "Fixed",
+        text: "Add-ons you choose while building a plan now stay part of that plan and show in your bill, instead of being a separate purchase that disappeared afterwards.",
+      },
+    ],
+  },
+  {
     title: "Checkout without leaving the page",
     date: "2026-07-11",
     changes: [

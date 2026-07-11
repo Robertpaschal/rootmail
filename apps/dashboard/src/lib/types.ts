@@ -313,7 +313,16 @@ export interface AddonCatalogItem {
 
 /** A wing tier or an add-on set to purchase via in-app (embedded) checkout. */
 export type CheckoutPayload =
-  | { kind: "wing"; wing: string; tier_id: string; interval?: "month" | "year"; blocks?: number; contacts?: number }
+  | {
+      kind: "wing";
+      wing: string;
+      tier_id: string;
+      interval?: "month" | "year";
+      blocks?: number;
+      contacts?: number;
+      /** This wing's own add-ons, folded into the same checkout (one subscription). */
+      addons?: Record<string, number>;
+    }
   | { kind: "addons"; addons: Record<string, number> };
 
 export interface EmbeddedCheckoutResponse {

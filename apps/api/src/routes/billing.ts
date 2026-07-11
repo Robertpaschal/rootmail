@@ -393,6 +393,8 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
           interval: z.enum(BILLING_INTERVALS).optional(),
           blocks: z.coerce.number().int().min(1).max(MAX_SELF_SERVE_BLOCKS).optional(),
           contacts: z.coerce.number().int().min(1).max(MAX_SELF_SERVE_CONTACTS).optional(),
+          // This wing's own add-ons, folded into the SAME checkout (one subscription).
+          addons: z.record(z.coerce.number().int().min(0).max(1000)).optional(),
         }),
         z.object({
           kind: z.literal("addons"),
@@ -411,6 +413,7 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       const opts = {
         blocks: body.tier_id === "tx_blocks" ? (body.blocks ?? 1) : 0,
         contacts: isMktPaid ? (body.contacts ?? CONTACT_UNIT) : 0,
+        addons: body.addons as Record<AddOnId, number> | undefined,
       };
       if (isPaid) {
         const res = await createWingEmbeddedCheckout(org, tier.id, interval, opts);

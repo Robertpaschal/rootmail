@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Check, Loader2, Megaphone, Minus, Plus, Sparkles, Users, Wand2, Zap } from "lucide-react";
 import { chooseWingTier } from "../wings/actions";
-import { AddonManager } from "../addon-manager";
 import { useCheckout } from "../checkout-provider";
 import { PillTabs } from "@/components/app/pill-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 import type { AddonCatalogItem, Billing, BlockBracket } from "@/lib/types";
 
 const num = (n: number) => n.toLocaleString();
+const money = (n: number) => `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
-// What every transactional plan includes — its own feature class (no marketing).
 const INCLUDED = [
   "The send API, templates & test sandbox",
   "Automatic suppression & bounce handling",
@@ -54,6 +54,12 @@ export function TransactionalBilling({
         ? tx.blocks
         : 4,
   );
+  // Transactional add-ons live in the SAME cart (local selection → one checkout).
+  const [addons, setAddons] = useState<Record<string, number>>(() => {
+    const d: Record<string, number> = {};
+    for (const a of txAddons) d[a.id] = addonQty[a.id] ?? 0;
+    return d;
+  });
   const [quizOpen, setQuizOpen] = useState(false);
   const [quizEmails, setQuizEmails] = useState(prefillEmails ? String(prefillEmails) : "");
   const { open, pending } = useCheckout();
@@ -61,18 +67,33 @@ export function TransactionalBilling({
   const clamped = Math.min(Math.max(1, blocks || 1), tx.max_blocks);
   const rate = rateFor(tx.brackets, clamped);
   const monthly = clamped * rate;
-  const shown = interval === "year" ? monthly * 10 : monthly;
-  const unit = interval === "year" ? "yr" : "mo";
+  const yr = interval === "year";
+  const blocksLine = yr ? monthly * 10 : monthly;
+  const unit = yr ? "yr" : "mo";
   const sends = clamped * tx.block_size;
   const baseRate = tx.brackets[0]?.per_block ?? rate;
   const discounted = rate < baseRate;
   const savePct = baseRate > 0 ? Math.round((1 - rate / baseRate) * 100) : 0;
-  const yearlySave = monthly * 2; // 2 months free
-  const isCurrent = tx.blocks > 0 && clamped === tx.blocks && interval === "month";
   const overagePer1000 = tx.tiers.find((t) => t.id === "tx_blocks")?.overage_per_1000 ?? 0;
+
+  const addonPrice = (a: AddonCatalogItem) => a.sale_price ?? a.unit_amount;
+  const addonLines = txAddons
+    .map((a) => ({ a, qty: addons[a.id] ?? 0 }))
+    .filter((x) => x.qty > 0)
+    .map((x) => ({ a: x.a, qty: x.qty, amount: x.qty * addonPrice(x.a) * (yr ? 10 : 1) }));
+  const addonsMonthly = txAddons.reduce((s, a) => s + (addons[a.id] ?? 0) * addonPrice(a), 0);
+  const total = blocksLine + addonsMonthly * (yr ? 10 : 1);
+  const yearlySave = (monthly + addonsMonthly) * 2;
+
+  // "Current" only when nothing in the cart differs from what's active.
+  const addonsUnchanged = txAddons.every((a) => (addons[a.id] ?? 0) === (addonQty[a.id] ?? 0));
+  const isCurrent = tx.blocks > 0 && clamped === tx.blocks && interval === "month" && addonsUnchanged;
 
   const pct = Math.min(100, Math.round((usage.used / Math.max(1, usage.quota)) * 100));
   const bar = usage.over_limit ? "bg-destructive" : pct > 80 ? "bg-amber-500" : "bg-primary";
+
+  const setAddon = (a: AddonCatalogItem, qty: number) =>
+    setAddons((d) => ({ ...d, [a.id]: Math.max(0, Math.min(a.max ?? 999, qty)) }));
 
   const applyQuiz = () => {
     const e = Number(quizEmails) || 0;
@@ -80,15 +101,15 @@ export function TransactionalBilling({
     setQuizOpen(false);
   };
 
-  const buy = () =>
+  const checkout = () =>
     open(
-      { kind: "wing", wing: "transactional", tier_id: "tx_blocks", interval, blocks: clamped },
-      `${clamped} send block${clamped === 1 ? "" : "s"}`,
+      { kind: "wing", wing: "transactional", tier_id: "tx_blocks", interval, blocks: clamped, addons },
+      `${clamped} send block${clamped === 1 ? "" : "s"}${addonLines.length ? " + add-ons" : ""}`,
     );
 
   return (
     <div className="space-y-8">
-      {/* Current transactional usage — this wing only. */}
+      {/* Current transactional usage. */}
       <Card>
         <CardContent className="p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -100,8 +121,8 @@ export function TransactionalBilling({
             <p className="text-sm text-muted-foreground">
               {usage.over_limit
                 ? tx.blocks > 0
-                  ? `${num(usage.overage)} over · ~$${usage.overage_cost.toFixed(2)} overage this month`
-                  : "Free allowance used — buy blocks below"
+                  ? `${num(usage.overage)} over · ~$${usage.overage_cost.toFixed(2)} overage`
+                  : "Free allowance used — build your plan below"
                 : `${num(usage.remaining)} sends left this month`}
             </p>
           </div>
@@ -111,7 +132,7 @@ export function TransactionalBilling({
         </CardContent>
       </Card>
 
-      {/* Interval — with the yearly benefit made loud. */}
+      {/* Interval — yearly benefit made loud. */}
       <div className="flex flex-col items-center gap-2">
         <PillTabs
           options={[
@@ -123,169 +144,168 @@ export function TransactionalBilling({
           layoutId="tx-interval"
         />
         <AnimatePresence mode="wait">
-          {interval === "year" ? (
-            <motion.p
-              key="y"
-              initial={{ opacity: 0, y: -4 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-600"
-            >
-              🎉 2 months free — you save ${num(yearlySave)}/yr at {num(clamped)} block{clamped === 1 ? "" : "s"}
+          {yr ? (
+            <motion.p key="y" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-600">
+              🎉 2 months free — you save {money(yearlySave)}/yr
             </motion.p>
           ) : (
-            <motion.button
-              key="m"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setInterval("year")}
-              className="text-xs text-muted-foreground hover:text-foreground"
-            >
-              Switch to yearly and get <span className="font-semibold text-emerald-600">2 months free</span>
+            <motion.button key="m" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setInterval("year")} className="text-xs text-muted-foreground hover:text-foreground">
+              Switch to yearly for <span className="font-semibold text-emerald-600">2 months free</span>
             </motion.button>
           )}
         </AnimatePresence>
       </div>
 
-      {/* The BLOCKS purchaser — the hero. Estimate → stepper → buy. */}
-      <Card className="overflow-hidden border-primary/40 ring-1 ring-primary/15">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-2">
-            <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
-              <Zap className="size-5" />
-            </span>
-            <div>
-              <h2 className="font-semibold leading-tight">Send blocks</h2>
-              <p className="text-xs text-muted-foreground">
-                1 block = {num(tx.block_size)} emails/mo. Buy exactly what you send — the rate drops as you grow.
-              </p>
-            </div>
-          </div>
-
-          <div className="mt-5 grid gap-6 md:grid-cols-[1fr_320px]">
-            {/* Left: the grand table of what a block gives + the quiz. */}
-            <div className="space-y-4">
+      {/* The builder (left) + the order summary (right) — one cart, one checkout. */}
+      <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+        {/* LEFT: choose blocks + add extras. */}
+        <div className="space-y-5">
+          <Card className="border-primary/40 ring-1 ring-primary/15">
+            <CardContent className="p-5">
               <div className="flex items-center gap-2">
+                <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <Zap className="size-5" />
+                </span>
+                <div>
+                  <h2 className="font-semibold leading-tight">Send blocks</h2>
+                  <p className="text-xs text-muted-foreground">
+                    1 block = {num(tx.block_size)} emails/mo. Rates drop as you grow.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-4 flex items-center gap-2">
                 <Button variant="outline" size="icon" className="size-9" onClick={() => setBlocks(Math.max(1, clamped - 1))} aria-label="Fewer blocks">
                   <Minus className="size-4" />
                 </Button>
-                <Input
-                  type="number"
-                  min={1}
-                  max={tx.max_blocks}
-                  value={blocks}
-                  onChange={(e) => setBlocks(Number(e.target.value))}
-                  className="h-9 w-24 text-center text-base font-semibold"
-                  aria-label="Number of blocks"
-                />
+                <Input type="number" min={1} max={tx.max_blocks} value={blocks} onChange={(e) => setBlocks(Number(e.target.value))}
+                  className="h-9 w-24 text-center text-base font-semibold" aria-label="Number of blocks" />
                 <Button variant="outline" size="icon" className="size-9" onClick={() => setBlocks(Math.min(tx.max_blocks, clamped + 1))} aria-label="More blocks">
                   <Plus className="size-4" />
                 </Button>
-                <span className="text-sm text-muted-foreground">
-                  block{clamped === 1 ? "" : "s"} · up to {tx.max_blocks}
-                </span>
+                <span className="text-sm text-muted-foreground">block{clamped === 1 ? "" : "s"} · {num(sends)} emails/mo</span>
               </div>
+              <p className="mt-2 text-xs text-muted-foreground">
+                ${rate}/block{discounted ? ` — ${savePct}% off the base rate` : ""} · past your blocks, ${overagePer1000}/1,000 (never stops).
+              </p>
 
-              <ul className="space-y-1.5 text-sm">
-                <li className="flex items-center gap-2">
-                  <Check className="size-4 shrink-0 text-primary" /> {num(sends)} emails every month
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="size-4 shrink-0 text-primary" /> ${rate}/block{discounted ? ` — ${savePct}% off the base rate` : ""}
-                </li>
-                <li className="flex items-center gap-2">
-                  <Check className="size-4 shrink-0 text-primary" /> Sending never stops — ${overagePer1000}/1,000 beyond
-                </li>
-              </ul>
-
-              {/* The quiz lives HERE — closed by default, opened when unsure. */}
-              <div className="rounded-lg border border-dashed p-3">
+              {/* Quiz — closed by default, where the contact-us card used to be. */}
+              <div className="mt-4 rounded-lg border border-dashed p-3">
                 {quizOpen ? (
                   <div className="space-y-2">
-                    <Label htmlFor="tx-quiz" className="text-xs font-medium">
-                      Roughly how many emails will you send each month?
-                    </Label>
+                    <Label htmlFor="tx-quiz" className="text-xs font-medium">Roughly how many emails per month?</Label>
                     <div className="flex gap-2">
-                      <Input
-                        id="tx-quiz"
-                        type="number"
-                        min={0}
-                        inputMode="numeric"
-                        placeholder="e.g. 120000"
-                        value={quizEmails}
-                        onChange={(e) => setQuizEmails(e.target.value)}
-                        className="h-8"
-                      />
-                      <Button size="sm" onClick={applyQuiz}>
-                        <Sparkles className="size-3.5" /> Size it
-                      </Button>
+                      <Input id="tx-quiz" type="number" min={0} inputMode="numeric" placeholder="e.g. 120000"
+                        value={quizEmails} onChange={(e) => setQuizEmails(e.target.value)} className="h-8" />
+                      <Button size="sm" onClick={applyQuiz}><Sparkles className="size-3.5" /> Size it</Button>
                     </div>
-                    <p className="text-[11px] text-muted-foreground">
-                      We&apos;ll set the block count that covers it — you can still adjust.
-                    </p>
                   </div>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => setQuizOpen(true)}
-                    className="flex w-full items-center gap-2 text-left text-sm"
-                  >
+                  <button type="button" onClick={() => setQuizOpen(true)} className="flex w-full items-center gap-2 text-left text-sm">
                     <Wand2 className="size-4 shrink-0 text-primary" />
                     <span>
                       <span className="font-medium">Not sure how many? We&apos;ve got your back.</span>{" "}
-                      <span className="text-muted-foreground">Tell us your volume and we&apos;ll pick the blocks.</span>
+                      <span className="text-muted-foreground">Tell us your volume; we&apos;ll pick the blocks.</span>
                     </span>
                   </button>
                 )}
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            {/* Right: the price + the buy. */}
-            <div className="flex flex-col rounded-xl border bg-muted/30 p-5">
-              <p className="text-xs font-medium text-muted-foreground">Your transactional plan</p>
-              <p className="mt-1">
-                <span className="text-3xl font-bold">${num(shown)}</span>
-                <span className="text-sm text-muted-foreground">/{unit}</span>
-              </p>
-              {interval === "year" ? (
-                <p className="text-xs font-medium text-emerald-600">2 months free vs monthly</p>
-              ) : (
-                <p className="text-xs text-muted-foreground">${num(monthly * 10)}/yr if paid yearly</p>
-              )}
-              <p className="mt-3 text-sm font-medium">{num(sends)} emails / mo</p>
-              <div className="mt-auto pt-4">
-                <Button className="w-full" size="lg" disabled={pending || isCurrent} onClick={buy}>
-                  {pending ? <Loader2 className="size-4 animate-spin" /> : null}
-                  {isCurrent
-                    ? "Current plan"
-                    : tx.blocks > 0
-                      ? `Update to ${num(clamped)} block${clamped === 1 ? "" : "s"}`
-                      : `Buy ${num(clamped)} block${clamped === 1 ? "" : "s"}`}
-                </Button>
-                {tx.blocks > 0 ? (
-                  <FreeButton />
-                ) : (
-                  <p className="mt-2 text-center text-[11px] text-muted-foreground">
-                    Or stay on Free — {num(tx.free_sends)} sends/mo, no card needed.
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Transactional add-ons FOLDED IN — priced per one, explained plainly. */}
+          {/* Transactional add-ons — selectable into the same cart. */}
           {txAddons.length ? (
-            <div className="mt-6 border-t pt-5">
-              <p className="text-sm font-semibold">Add to your sending</p>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Transactional extras, each priced per one — add only what you need.
-              </p>
-              <AddonManager quantities={addonQty} catalog={txAddons} />
-            </div>
+            <Card>
+              <CardContent className="p-5">
+                <p className="text-sm font-semibold">Add to your sending</p>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Priced per one — added to the same checkout as your blocks.
+                </p>
+                <div className="space-y-2">
+                  {txAddons.map((a) => {
+                    const qty = addons[a.id] ?? 0;
+                    return (
+                      <div key={a.id} className={cn("flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors", qty > 0 && "border-primary/40 bg-primary/5")}>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium">{a.name}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{a.description}</p>
+                          <p className="mt-1 text-xs">
+                            <span className="font-semibold text-foreground">${a.unit_amount}</span>
+                            <span className="text-muted-foreground">/mo per {a.unit} · {a.unit_note}</span>
+                          </p>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <Button type="button" variant="outline" size="icon" className="size-7" disabled={qty === 0} onClick={() => setAddon(a, qty - 1)} aria-label={`Remove one ${a.unit}`}>
+                            <Minus className="size-3.5" />
+                          </Button>
+                          <span className="w-6 text-center text-sm font-medium tabular-nums">{qty}</span>
+                          <Button type="button" variant="outline" size="icon" className="size-7" disabled={a.max != null && qty >= a.max} onClick={() => setAddon(a, qty + 1)} aria-label={`Add one ${a.unit}`}>
+                            <Plus className="size-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+
+        {/* RIGHT: order summary — accumulates until you check out. */}
+        <div className="lg:sticky lg:top-4 lg:self-start">
+          <Card className="border-primary/30">
+            <CardContent className="p-5">
+              <p className="text-sm font-semibold">Your order</p>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li className="flex items-baseline justify-between gap-2">
+                  <span className="text-muted-foreground">
+                    Send blocks ×{clamped}
+                    <span className="block text-xs">{num(sends)} emails/mo</span>
+                  </span>
+                  <span className="font-medium tabular-nums">{money(blocksLine)}</span>
+                </li>
+                <AnimatePresence>
+                  {addonLines.map(({ a, qty, amount }) => (
+                    <motion.li key={a.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
+                      className="flex items-baseline justify-between gap-2 overflow-hidden">
+                      <span className="text-muted-foreground">
+                        {a.name}
+                        {qty > 1 ? ` ×${qty}` : ""}
+                      </span>
+                      <span className="font-medium tabular-nums">{money(amount)}</span>
+                    </motion.li>
+                  ))}
+                </AnimatePresence>
+              </ul>
+              <div className="mt-3 flex items-baseline justify-between border-t pt-3">
+                <span className="font-semibold">Total</span>
+                <span className="text-lg font-bold tabular-nums">
+                  {money(total)}
+                  <span className="text-xs font-normal text-muted-foreground">/{unit}</span>
+                </span>
+              </div>
+              {yr ? (
+                <p className="mt-1 text-xs font-medium text-emerald-600">Includes 2 months free</p>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">{money(total * 10)}/yr if paid yearly</p>
+              )}
+
+              <Button className="mt-4 w-full" size="lg" disabled={pending || isCurrent} onClick={checkout}>
+                {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+                {isCurrent ? "Current plan" : tx.blocks > 0 ? "Review & update" : "Review & checkout"}
+              </Button>
+              {tx.blocks > 0 ? <FreeButton /> : (
+                <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                  Or stay on Free — {num(tx.free_sends)} sends/mo, no card.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       {/* What every transactional plan includes. */}
       <div>
@@ -300,12 +320,10 @@ export function TransactionalBilling({
         </div>
       </div>
 
-      {/* Deliberate stitches to the sibling wings — links, never folded in. */}
+      {/* Stitches to the sibling wings. */}
       <div className="grid gap-3 sm:grid-cols-2">
-        <Link
-          href={stitch?.contacts ? `/billing/marketing?contacts=${stitch.contacts}` : "/billing/marketing"}
-          className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40"
-        >
+        <Link href={stitch?.contacts ? `/billing/marketing?contacts=${stitch.contacts}` : "/billing/marketing"}
+          className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">
           <span className="flex items-center gap-2 text-sm">
             <Megaphone className="size-4 text-muted-foreground" />
             <span>
@@ -315,10 +333,7 @@ export function TransactionalBilling({
           </span>
           <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
         </Link>
-        <Link
-          href="/billing/platform"
-          className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40"
-        >
+        <Link href="/billing/platform" className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">
           <span className="flex items-center gap-2 text-sm">
             <Users className="size-4 text-muted-foreground" />
             <span>
