@@ -43,6 +43,7 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
   const [secret, setSecret] = useState<string | null>(null);
   const [stripePromise, setStripePromise] = useState<Promise<Stripe | null> | null>(null);
   const [label, setLabel] = useState<string>("your plan");
+  const [doneMsg, setDoneMsg] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const closedRef = useRef(false);
 
@@ -58,10 +59,16 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       if (!res.available) {
-        // Applied directly (free/local) — no payment; just refresh.
+        // Applied without a fresh checkout: a prorated add-on change ("updated") or
+        // a free/local switch ("assigned"). Say which, then refresh.
+        setDoneMsg(
+          res.mode === "updated"
+            ? "Updated — you're charged only for the change (prorated to your billing date)."
+            : `${lbl ?? "your plan"} is active.`,
+        );
         setPhase("done");
         router.refresh();
-        setTimeout(() => setPhase("idle"), 1200);
+        setTimeout(() => setPhase("idle"), 2200);
         return;
       }
       setStripePromise(stripeFor(res.publishable_key));
@@ -87,6 +94,7 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
       router.refresh();
       await new Promise((r) => setTimeout(r, 1500));
     }
+    setDoneMsg("Your payment is confirmed and applied.");
     setPhase("done");
     setSecret(null);
     setTimeout(() => setPhase("idle"), 1600);
@@ -152,7 +160,7 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
                 >
                   <CheckCircle2 className="size-8 text-emerald-500" />
                   <p className="text-sm font-medium">You&apos;re all set 🎉</p>
-                  <p className="text-xs text-muted-foreground">{label} is active.</p>
+                  <p className="text-xs text-muted-foreground">{doneMsg || `${label} is active.`}</p>
                 </motion.div>
               ) : phase === "checkout" && secret && stripePromise ? (
                 <div className="max-h-[80vh] overflow-y-auto p-1">

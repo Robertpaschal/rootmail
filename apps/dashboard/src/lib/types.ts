@@ -330,8 +330,9 @@ export interface EmbeddedCheckoutResponse {
   available: boolean;
   client_secret?: string;
   publishable_key?: string;
-  /** When available=false: "assigned" (free/local applied) — no payment needed. */
-  mode?: "assigned";
+  /** When available=false: "assigned" (free/local applied, no payment) or "updated"
+   * (an existing add-ons subscription was modified — only the delta is billed). */
+  mode?: "assigned" | "updated";
 }
 
 export interface Invoice {

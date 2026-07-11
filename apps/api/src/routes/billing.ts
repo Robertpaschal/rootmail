@@ -433,37 +433,44 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       return { object: "embedded_checkout", available: false, mode: "assigned", wing: body.wing, tier_id: tier.id };
     }
 
-    // Add-ons. A PURCHASE (any quantity goes UP) always opens the embedded checkout
-    // so the customer sees + confirms the charge — even if they already have an
-    // add-ons subscription (a fresh checkout is minted and the prior add-ons sub is
-    // cancelled by the webhook, so there's no double-bill). A pure REDUCTION/removal
-    // needs no payment, so it applies immediately.
+    // Add-ons. `body.addons` is the DESIRED TOTAL per add-on (what you'll have).
     const desired = body.addons;
     const current = await orgAddonQuantities(org.id);
     const isIncrease = ADD_ON_IDS.some((id) => Math.floor(desired[id] ?? 0) > (current[id] ?? 0));
 
+    const applyTotals = async () => {
+      for (const id of ADD_ON_IDS) {
+        const qty = Math.max(0, Math.floor(desired[id] ?? 0));
+        await db
+          .insert(orgAddons)
+          .values({ id: newId("orgAddon"), organizationId: org.id, addonId: id, quantity: qty })
+          .onConflictDoUpdate({ target: [orgAddons.organizationId, orgAddons.addonId], set: { quantity: qty, updatedAt: new Date() } });
+      }
+      try {
+        await syncAddonItems(org);
+      } catch (err) {
+        req.log.error({ err }, "addon sync failed");
+      }
+    };
+
+    // Already have an add-ons subscription → MODIFY it. Stripe prorates, so the
+    // customer is charged only for the DELTA — never re-billed for what they keep.
+    // (Card on file; no fresh checkout.) This covers increases AND reductions.
+    if (org.stripePlatformSubscriptionId) {
+      await applyTotals();
+      return { object: "embedded_checkout", available: false, mode: "updated" };
+    }
+
+    // No add-ons subscription yet: a first PURCHASE opens the embedded checkout so a
+    // card is collected; a reduction/local just applies.
     if (isIncrease && BILLING_MODE === "stripe") {
       const res = await createAddonsEmbeddedCheckout(org, desired as Record<AddOnId, number>);
       if (res.mode === "embedded") {
         return { object: "embedded_checkout", available: true, client_secret: res.client_secret, publishable_key: res.publishable_key };
       }
-      // Fail CLOSED — never silently grant an unpaid add-on in Stripe mode.
       throw Errors.badRequest("Couldn't start checkout right now — please try again in a moment.");
     }
-
-    // Reduction/removal, or local mode → apply directly.
-    for (const id of ADD_ON_IDS) {
-      const qty = Math.max(0, Math.floor(desired[id] ?? 0));
-      await db
-        .insert(orgAddons)
-        .values({ id: newId("orgAddon"), organizationId: org.id, addonId: id, quantity: qty })
-        .onConflictDoUpdate({ target: [orgAddons.organizationId, orgAddons.addonId], set: { quantity: qty, updatedAt: new Date() } });
-    }
-    try {
-      await syncAddonItems(org);
-    } catch (err) {
-      req.log.error({ err }, "addon sync failed");
-    }
+    await applyTotals();
     return { object: "embedded_checkout", available: false, mode: "assigned" };
   });
 
