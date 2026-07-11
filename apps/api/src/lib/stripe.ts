@@ -340,7 +340,14 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
       const st = toPlanStatus(sub.status);
       // A fresh unpaid add-ons checkout must not grant the add-ons — wait for payment.
       if (st === "incomplete" && org2.stripePlatformSubscriptionId !== sub.id) return;
-      // Track the add-ons sub id on first (embedded-checkout) completion; clear on cancel.
+      // A new add-ons checkout mints a NEW sub — cancel the prior one so the customer
+      // isn't double-billed for add-ons.
+      const priorAddonsSub = org2.stripePlatformSubscriptionId;
+      if (st !== "incomplete" && priorAddonsSub && priorAddonsSub !== sub.id) {
+        const stripe = getStripe();
+        if (stripe) await stripe.subscriptions.cancel(priorAddonsSub).catch(() => {});
+      }
+      // Track the add-ons sub id on completion; clear on cancel.
       const nextSubId = st === "canceled" ? null : sub.id;
       if (org2.stripePlatformSubscriptionId !== nextSubId) {
         await db
