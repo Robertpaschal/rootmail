@@ -36,7 +36,9 @@ import { getTier, marketingPriceForOrg, tiersForWing } from "../lib/wings";
 import {
   assignWingTier,
   cancelWingSubscription,
+  createAddonsEmbeddedCheckout,
   createWingCheckout,
+  createWingEmbeddedCheckout,
   listInvoices,
   reportOverage,
   syncAddonItems,
@@ -372,6 +374,96 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
     const org = await loadOrg(req);
     await requirePermission(req, "billing.manage");
     return { object: "list", data: await listInvoices(org) };
+  });
+
+  // In-app (embedded) checkout — a client_secret to mount Stripe Checkout inline,
+  // no redirect. Covers a wing tier OR a set of add-ons (which now "add up" to a
+  // real payment). Add-ons on an EXISTING paid add-ons sub apply immediately
+  // (card on file); a first purchase opens checkout. Falls back to `assigned`
+  // (free/local) so the flow always resolves.
+  app.post("/v1/billing/checkout/embedded", async (req) => {
+    const org = await orgForReq(req);
+    await requirePermission(req, "billing.manage");
+    const body = parse(
+      z.discriminatedUnion("kind", [
+        z.object({
+          kind: z.literal("wing"),
+          wing: z.enum(WINGS),
+          tier_id: z.string(),
+          interval: z.enum(BILLING_INTERVALS).optional(),
+          blocks: z.coerce.number().int().min(1).max(MAX_SELF_SERVE_BLOCKS).optional(),
+          contacts: z.coerce.number().int().min(1).max(MAX_SELF_SERVE_CONTACTS).optional(),
+        }),
+        z.object({
+          kind: z.literal("addons"),
+          addons: z.record(z.coerce.number().int().min(0).max(1000)),
+        }),
+      ]),
+      req.body,
+    );
+
+    if (body.kind === "wing") {
+      const tier = getTier(body.tier_id);
+      if (!tier || tier.wing !== body.wing) throw Errors.badRequest("Unknown tier for that wing.");
+      const interval = body.interval ?? "month";
+      const isMktPaid = body.wing === "marketing" && (tier.perThousandCents ?? 0) > 0;
+      const isPaid = body.tier_id === "tx_blocks" || isMktPaid || (tier.priceMonthly ?? 0) > 0;
+      const opts = {
+        blocks: body.tier_id === "tx_blocks" ? (body.blocks ?? 1) : 0,
+        contacts: isMktPaid ? (body.contacts ?? CONTACT_UNIT) : 0,
+      };
+      if (isPaid) {
+        const res = await createWingEmbeddedCheckout(org, tier.id, interval, opts);
+        if (res.mode === "embedded") {
+          return { object: "embedded_checkout", available: true, client_secret: res.client_secret, publishable_key: res.publishable_key };
+        }
+        if (BILLING_MODE === "stripe") {
+          throw Errors.badRequest("Couldn't start checkout right now — please try again in a moment.");
+        }
+      }
+      // Free tier or local mode → assign directly.
+      await cancelWingSubscription(org, body.wing);
+      await assignWingTier(org.id, body.wing, tier.id, opts);
+      return { object: "embedded_checkout", available: false, mode: "assigned", wing: body.wing, tier_id: tier.id };
+    }
+
+    // Add-ons: an existing paid add-ons sub applies immediately (card on file);
+    // otherwise open checkout to collect payment for the whole set.
+    const desired = body.addons;
+    if (org.stripePlatformSubscriptionId) {
+      for (const id of ADD_ON_IDS) {
+        const qty = Math.max(0, Math.floor(desired[id] ?? 0));
+        await db
+          .insert(orgAddons)
+          .values({ id: newId("orgAddon"), organizationId: org.id, addonId: id, quantity: qty })
+          .onConflictDoUpdate({ target: [orgAddons.organizationId, orgAddons.addonId], set: { quantity: qty, updatedAt: new Date() } });
+      }
+      try {
+        await syncAddonItems(org);
+      } catch (err) {
+        req.log.error({ err }, "addon sync failed");
+      }
+      return { object: "embedded_checkout", available: false, mode: "assigned" };
+    }
+    const res = await createAddonsEmbeddedCheckout(org, desired as Record<AddOnId, number>);
+    if (res.mode === "embedded") {
+      return { object: "embedded_checkout", available: true, client_secret: res.client_secret, publishable_key: res.publishable_key };
+    }
+    // Local mode / unavailable → apply directly (entitlement granted; billing is
+    // fail-soft, exactly like the stepper path).
+    for (const id of ADD_ON_IDS) {
+      const qty = Math.max(0, Math.floor(desired[id] ?? 0));
+      await db
+        .insert(orgAddons)
+        .values({ id: newId("orgAddon"), organizationId: org.id, addonId: id, quantity: qty })
+        .onConflictDoUpdate({ target: [orgAddons.organizationId, orgAddons.addonId], set: { quantity: qty, updatedAt: new Date() } });
+    }
+    try {
+      await syncAddonItems(org);
+    } catch (err) {
+      req.log.error({ err }, "addon sync failed");
+    }
+    return { object: "embedded_checkout", available: false, mode: "assigned" };
   });
 
   // Choose a per-wing tier — THE plan-change endpoint (PRICING-WINGS-SPEC.md).

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowRight, Check, Loader2, Sparkles, Users, Zap } from "lucide-react";
 import { chooseWingTier } from "../wings/actions";
+import { useCheckout } from "../checkout-provider";
 import { PillTabs } from "@/components/app/pill-tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -202,7 +203,8 @@ function MarketingTierCard({
   currentTierId: string | null;
   currentContacts: number;
 }) {
-  const [pending, start] = useTransition();
+  const { open, pending } = useCheckout();
+  const [freePending, startFree] = useTransition();
   const [error, setError] = useState<string | null>(null);
 
   const isFree = tier.id === "mk_free";
@@ -218,10 +220,19 @@ function MarketingTierCard({
 
   const choose = () => {
     setError(null);
-    start(async () => {
-      const res = await chooseWingTier("marketing", tier.id, interval, isFree ? {} : { contacts });
-      if (res?.error) setError(res.error);
-    });
+    if (isFree) {
+      // Downgrading to Free applies directly (no payment).
+      startFree(async () => {
+        const res = await chooseWingTier("marketing", tier.id, interval, {});
+        if (res?.error) setError(res.error);
+      });
+      return;
+    }
+    // Paid → in-app checkout for this contact size.
+    void open(
+      { kind: "wing", wing: "marketing", tier_id: tier.id, interval, contacts },
+      `Marketing ${tier.name} · ${contacts.toLocaleString()} contacts`,
+    );
   };
 
   return (
@@ -300,10 +311,10 @@ function MarketingTierCard({
               size="sm"
               variant={recommended && !isCurrent ? "default" : "outline"}
               className="w-full"
-              disabled={pending || isCurrent}
+              disabled={(isFree ? freePending : pending) || isCurrent}
               onClick={choose}
             >
-              {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+              {(isFree ? freePending : pending) ? <Loader2 className="size-4 animate-spin" /> : null}
               {isCurrent ? "Current plan" : isFree ? "Use Free" : `Choose ${tier.name}`}
             </Button>
           )}

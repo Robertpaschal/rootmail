@@ -56,6 +56,8 @@ import type {
   VerifyResult,
   WebhookDelivery,
   WebhookEndpoint,
+  CheckoutPayload,
+  EmbeddedCheckoutResponse,
   Invoice,
   WingCheckoutResult,
   Workspace,
@@ -342,6 +344,10 @@ export const api = {
       },
     }),
   getInvoices: () => rmFetch<{ object: "list"; data: Invoice[] }>("/v1/billing/invoices"),
+  // In-app (embedded) checkout for a wing tier or an add-on set — returns a
+  // client_secret to mount Stripe Checkout inline, or mode:"assigned" (free/local).
+  embeddedCheckout: (payload: CheckoutPayload) =>
+    rmFetch<EmbeddedCheckoutResponse>("/v1/billing/checkout/embedded", { method: "POST", body: payload }),
 
   listSequences: () => rmFetch<ListResponse<Sequence>>("/v1/sequences"),
   getSequence: (id: string) => rmFetch<Sequence>(`/v1/sequences/${id}`),

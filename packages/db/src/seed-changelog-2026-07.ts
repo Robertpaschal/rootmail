@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Checkout without leaving the page",
+    date: "2026-07-11",
+    changes: [
+      {
+        kind: "New",
+        text: "Upgrading now happens right inside rootmail — pick your blocks, contact size, or add-ons and pay in an in-app checkout, no redirect to a separate page. Change your mind and edit your selection freely before you pay.",
+      },
+      {
+        kind: "New",
+        text: "Add-ons now flow through checkout: build your set, see the running monthly total, and pay for them together — no more silent changes.",
+      },
+      {
+        kind: "Fixed",
+        text: "Cancelling a checkout no longer leaves your plan looking upgraded. Your plan reflects only what you've actually paid for, and Plan & usage refreshes itself — you never have to reload to see the real status.",
+      },
+    ],
+  },
+  {
     title: "Pricing you can actually reason about",
     date: "2026-07-11",
     changes: [

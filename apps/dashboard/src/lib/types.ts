@@ -311,6 +311,20 @@ export interface AddonCatalogItem {
   sale_ends_at: string | null;
 }
 
+/** A wing tier or an add-on set to purchase via in-app (embedded) checkout. */
+export type CheckoutPayload =
+  | { kind: "wing"; wing: string; tier_id: string; interval?: "month" | "year"; blocks?: number; contacts?: number }
+  | { kind: "addons"; addons: Record<string, number> };
+
+export interface EmbeddedCheckoutResponse {
+  object: "embedded_checkout";
+  available: boolean;
+  client_secret?: string;
+  publishable_key?: string;
+  /** When available=false: "assigned" (free/local applied) — no payment needed. */
+  mode?: "assigned";
+}
+
 export interface Invoice {
   id: string;
   number: string | null;

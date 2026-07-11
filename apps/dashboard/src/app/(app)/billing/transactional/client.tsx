@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Check, Loader2, Megaphone, Minus, Plus, Sparkles, Users, Wand2, Zap } from "lucide-react";
 import { chooseWingTier } from "../wings/actions";
 import { AddonManager } from "../addon-manager";
+import { useCheckout } from "../checkout-provider";
 import { PillTabs } from "@/components/app/pill-tabs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -55,8 +56,7 @@ export function TransactionalBilling({
   );
   const [quizOpen, setQuizOpen] = useState(false);
   const [quizEmails, setQuizEmails] = useState(prefillEmails ? String(prefillEmails) : "");
-  const [pending, start] = useTransition();
-  const [error, setError] = useState<string | null>(null);
+  const { open, pending } = useCheckout();
 
   const clamped = Math.min(Math.max(1, blocks || 1), tx.max_blocks);
   const rate = rateFor(tx.brackets, clamped);
@@ -80,13 +80,11 @@ export function TransactionalBilling({
     setQuizOpen(false);
   };
 
-  const buy = () => {
-    setError(null);
-    start(async () => {
-      const res = await chooseWingTier("transactional", "tx_blocks", interval, { blocks: clamped });
-      if (res?.error) setError(res.error);
-    });
-  };
+  const buy = () =>
+    open(
+      { kind: "wing", wing: "transactional", tier_id: "tx_blocks", interval, blocks: clamped },
+      `${clamped} send block${clamped === 1 ? "" : "s"}`,
+    );
 
   return (
     <div className="space-y-8">
@@ -265,7 +263,6 @@ export function TransactionalBilling({
                       ? `Update to ${num(clamped)} block${clamped === 1 ? "" : "s"}`
                       : `Buy ${num(clamped)} block${clamped === 1 ? "" : "s"}`}
                 </Button>
-                {error ? <p className="mt-2 text-xs text-destructive">{error}</p> : null}
                 {tx.blocks > 0 ? (
                   <FreeButton />
                 ) : (

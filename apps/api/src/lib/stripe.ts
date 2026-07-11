@@ -336,7 +336,20 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
       (sub.metadata?.organizationId
         ? (await db.select().from(organizations).where(eq(organizations.id, sub.metadata.organizationId)).limit(1))[0]
         : undefined);
-    if (org2) await reconcileAddonsFromSubscription(org2.id, sub);
+    if (org2) {
+      const st = toPlanStatus(sub.status);
+      // A fresh unpaid add-ons checkout must not grant the add-ons — wait for payment.
+      if (st === "incomplete" && org2.stripePlatformSubscriptionId !== sub.id) return;
+      // Track the add-ons sub id on first (embedded-checkout) completion; clear on cancel.
+      const nextSubId = st === "canceled" ? null : sub.id;
+      if (org2.stripePlatformSubscriptionId !== nextSubId) {
+        await db
+          .update(organizations)
+          .set({ stripePlatformSubscriptionId: nextSubId, updatedAt: new Date() })
+          .where(eq(organizations.id, org2.id));
+      }
+      await reconcileAddonsFromSubscription(org2.id, sub);
+    }
     return;
   }
   // Per-wing subscriptions carry a `wing` — route to the wing resolver, never the
@@ -377,6 +390,9 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
   }
 
   const status = toPlanStatus(sub.status);
+  // A fresh INCOMPLETE (unpaid/abandoned) checkout must not apply the plan — only a
+  // sub already tracked by the org may transition it (e.g. active → past_due).
+  if (status === "incomplete" && org.stripeSubscriptionId !== sub.id) return;
   // A canceled/ended subscription drops the org back to Free.
   const nextPlan: PlanId = status === "canceled" ? "free" : (planId ?? org.plan);
 
@@ -898,6 +914,110 @@ export async function createWingCheckout(
   return { mode: "local" };
 }
 
+export interface EmbeddedResult {
+  mode: "embedded" | "unavailable";
+  client_secret?: string;
+  publishable_key?: string;
+}
+
+const embeddedReturn = (base: string) =>
+  `${base}/billing?checkout=complete&session_id={CHECKOUT_SESSION_ID}`;
+
+/** In-app (embedded) checkout for a per-wing tier — same subscription/quantity as
+ * the hosted flow, but returns a client_secret to mount inline (no redirect), so
+ * users edit selections back and forth. `{ mode: "unavailable" }` when Stripe, the
+ * price, or the publishable key isn't configured (caller falls back). */
+export async function createWingEmbeddedCheckout(
+  org: Organization,
+  tierId: string,
+  interval: BillingInterval = "month",
+  opts: { blocks?: number; contacts?: number } = {},
+): Promise<EmbeddedResult> {
+  const stripe = getStripe();
+  const tier = getTier(tierId);
+  const price = priceForWingTier(tierId, interval);
+  const pk = env.STRIPE_PUBLISHABLE_KEY;
+  if (!stripe || !tier || !price || !pk) return { mode: "unavailable" };
+
+  const quantity =
+    tierId === "tx_blocks"
+      ? Math.max(1, opts.blocks ?? 1)
+      : tier.wing === "marketing" && (tier.perThousandCents ?? 0) > 0
+        ? contactUnits(opts.contacts ?? CONTACT_UNIT)
+        : 1;
+  try {
+    const customer = await ensureCustomer(org);
+    const meta = {
+      organizationId: org.id,
+      wing: tier.wing,
+      tierId,
+      interval,
+      ...(opts.contacts ? { contacts: String(opts.contacts) } : {}),
+    };
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      // This SDK pins an API version whose embedded UI mode is "embedded_page"
+      // (stable alias "embedded"); @stripe/react-stripe-js consumes the client_secret either way.
+      ui_mode: "embedded_page",
+      customer,
+      line_items: [{ price, quantity }],
+      return_url: embeddedReturn(env.DASHBOARD_URL.replace(/\/$/, "")),
+      metadata: meta,
+      subscription_data: { metadata: meta },
+    });
+    if (session.client_secret) {
+      return { mode: "embedded", client_secret: session.client_secret, publishable_key: pk };
+    }
+  } catch (err) {
+    console.warn(`[stripe] wing embedded checkout failed: ${String(err)}`);
+  }
+  return { mode: "unavailable" };
+}
+
+/** In-app (embedded) checkout for a set of ADD-ONS — creates the org-level add-ons
+ * subscription with a card collected (charge_automatically), so the selections
+ * "add up" to a real payment. `quantities` is the DESIRED full add-on set. The
+ * webhook (kind: "addons") reconciles org_addons + records the sub id on
+ * completion. Unavailable → caller falls back to the direct apply. */
+export async function createAddonsEmbeddedCheckout(
+  org: Organization,
+  quantities: Partial<Record<AddOnId, number>>,
+): Promise<EmbeddedResult> {
+  const stripe = getStripe();
+  const pk = env.STRIPE_PUBLISHABLE_KEY;
+  if (!stripe || !pk) return { mode: "unavailable" };
+
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+  for (const id of ADD_ON_IDS) {
+    const qty = quantities[id] ?? 0;
+    const price = priceForAddOn(id, "month");
+    if (qty > 0 && price) lineItems.push({ price, quantity: qty });
+  }
+  if (lineItems.length === 0) return { mode: "unavailable" };
+
+  try {
+    const customer = await ensureCustomer(org);
+    const meta = { organizationId: org.id, kind: "addons" };
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      // This SDK pins an API version whose embedded UI mode is "embedded_page"
+      // (stable alias "embedded"); @stripe/react-stripe-js consumes the client_secret either way.
+      ui_mode: "embedded_page",
+      customer,
+      line_items: lineItems,
+      return_url: embeddedReturn(env.DASHBOARD_URL.replace(/\/$/, "")),
+      metadata: meta,
+      subscription_data: { metadata: meta },
+    });
+    if (session.client_secret) {
+      return { mode: "embedded", client_secret: session.client_secret, publishable_key: pk };
+    }
+  } catch (err) {
+    console.warn(`[stripe] add-ons embedded checkout failed: ${String(err)}`);
+  }
+  return { mode: "unavailable" };
+}
+
 /** Webhook: apply a per-wing subscription to its org column. Recognized by the
  * `wing` metadata (syncSubscription delegates here). Canceled → that wing drops
  * back to its Free tier. */
@@ -925,6 +1045,21 @@ export async function syncWingSubscription(sub: Stripe.Subscription): Promise<vo
   if (!org) return;
 
   const status = toPlanStatus(sub.status);
+  // An INCOMPLETE subscription (checkout started but not yet paid — or abandoned,
+  // which Stripe lands in incomplete_expired) must NOT apply the tier: doing so
+  // showed users the upgrade after they cancelled checkout. Only a paid/committed
+  // status applies; canceled/expired drops the wing to Free.
+  if (status === "incomplete") {
+    // If this is the org's currently-tracked sub going bad, drop to Free; otherwise
+    // it's a fresh unpaid checkout — leave the org exactly as it was.
+    if (wingSubscriptionId(org, wing) === sub.id) {
+      await db
+        .update(organizations)
+        .set({ ...wingUpdate(wing, defaultTierId(wing), null), updatedAt: new Date() })
+        .where(eq(organizations.id, org.id));
+    }
+    return;
+  }
   if (status === "canceled") {
     // Drop this wing to its Free tier + detach the sub (the other wings are untouched).
     await db
