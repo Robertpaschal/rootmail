@@ -282,6 +282,9 @@ export const addons = pgTable("addons", {
   active: boolean("active").notNull().default(true),
   rank: integer("rank").notNull().default(0),
   stripePriceId: text("stripe_price_id"),
+  // Yearly (10× monthly — 2 months free) so add-ons can ride a yearly wing
+  // checkout as real line items (Stripe forbids mixing intervals on one sub).
+  stripePriceYearId: text("stripe_price_year_id"),
   // Public sale (like plans). Charged honestly via a discounted "sale price" used
   // in checkout + add-on sync while active (no coupon stacking with a plan sale).
   salePercentOff: integer("sale_percent_off"),

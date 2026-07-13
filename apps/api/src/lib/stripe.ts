@@ -7,6 +7,7 @@ import {
   type BillingInterval,
   BILLING_MODE,
   BLOCK_BRACKETS,
+  blocksMonthlyPrice,
   CONTACT_UNIT,
   contactUnits,
   defaultTierId,
@@ -89,10 +90,11 @@ function envAddOnPriceId(id: AddOnId, interval: BillingInterval = "month"): stri
   return typeof val === "string" && val ? val : null;
 }
 
-/** The NON-sale (regular) Stripe price id for an add-on. Monthly prefers the admin-synced
- * DB price (synced → env); yearly uses the env _YEAR price (admin sync is monthly-only). */
+/** The NON-sale (regular) Stripe price id for an add-on at an interval. Prefers the
+ * synced DB price (monthly via syncAddonPrice, yearly via ensureAddonYearlyPrices),
+ * falling back to the env-configured price. */
 function regularAddOnPriceId(id: AddOnId, interval: BillingInterval = "month"): string | null {
-  if (interval === "year") return envAddOnPriceId(id, "year");
+  if (interval === "year") return getAddon(id).stripePriceYearId ?? envAddOnPriceId(id, "year");
   return getAddon(id).stripePriceId ?? envAddOnPriceId(id, "month");
 }
 
@@ -157,27 +159,68 @@ function addOnForPrice(priceId: string): AddOnId | null {
   return null;
 }
 
-/**
- * Make an org's `org_addons` entitlements exactly match what a subscription bills —
- * the source of truth after a "configure at checkout" purchase (where add-ons are
- * chosen on the checkout page, not via /v1/billing/addons). Every catalog add-on is
- * set to its billed quantity (0 when absent / on a canceled sub).
- */
-export async function reconcileAddonsFromSubscription(
-  orgId: string,
-  sub: Stripe.Subscription,
-  /** When given, only add-ons homed to this wing are reconciled — a wing sub must
-   * never zero the OTHER wing's add-ons (they bill on their own subscription). */
-  wing?: Wing,
-): Promise<void> {
-  const billed = new Map<AddOnId, number>();
+/** Retrieve a subscription that can still bill, or null (missing/canceled). */
+async function liveSub(stripe: Stripe, subId: string | null | undefined): Promise<Stripe.Subscription | null> {
+  if (!subId) return null;
+  return stripe.subscriptions
+    .retrieve(subId)
+    .then((s) => (s.status === "canceled" ? null : s))
+    .catch(() => null);
+}
+
+/** The add-on quantities a subscription bills, keyed by add-on id. */
+function addonItemsOf(sub: Stripe.Subscription): Map<AddOnId, number> {
+  const out = new Map<AddOnId, number>();
   for (const item of sub.items.data) {
     const id = item.price?.id ? addOnForPrice(item.price.id) : null;
-    if (id) billed.set(id, (billed.get(id) ?? 0) + (item.quantity ?? 0));
+    if (id) out.set(id, (out.get(id) ?? 0) + (item.quantity ?? 0));
   }
-  const scope = wing ? ADD_ON_IDS.filter((id) => ADD_ONS[id].wing === wing) : ADD_ON_IDS;
-  for (const id of scope) {
-    const qty = sub.status === "canceled" ? 0 : (billed.get(id) ?? 0);
+  return out;
+}
+
+/**
+ * Add-ons an org is billed for on subscriptions OTHER than the org-level add-ons
+ * sub — i.e. riding a wing plan (bought in that cart) or a legacy plan sub. The
+ * org-level sub must never re-bill these, and standalone reductions can't shrink them.
+ */
+async function ridingAddonQuantities(stripe: Stripe, org: Organization): Promise<Map<AddOnId, number>> {
+  const riding = new Map<AddOnId, number>();
+  for (const subId of [org.stripeTxSubscriptionId, org.stripeMkSubscriptionId, org.stripeSubscriptionId]) {
+    const sub = await liveSub(stripe, subId);
+    if (!sub) continue;
+    for (const [id, qty] of addonItemsOf(sub)) riding.set(id, (riding.get(id) ?? 0) + qty);
+  }
+  return riding;
+}
+
+/**
+ * Recompute an org's `org_addons` entitlements as the SUM across every live
+ * subscription that can carry add-ons — the two wing subs (add-ons bought in a
+ * wing cart ride that wing's subscription), the org-level add-ons sub
+ * (standalone purchases), and the legacy plan sub. Called from every webhook
+ * path that touches any of them, so no single sub's event can clobber another's
+ * contribution. Every catalog add-on is written (0 when nothing bills it).
+ */
+export async function reconcileAllAddonEntitlements(orgId: string): Promise<void> {
+  const stripe = getStripe();
+  if (!stripe) return; // local mode: org_addons is edited directly
+  const [org] = await db.select().from(organizations).where(eq(organizations.id, orgId)).limit(1);
+  if (!org) return;
+
+  const total = new Map<AddOnId, number>();
+  for (const subId of [
+    org.stripeTxSubscriptionId,
+    org.stripeMkSubscriptionId,
+    org.stripePlatformSubscriptionId,
+    org.stripeSubscriptionId,
+  ]) {
+    const sub = await liveSub(stripe, subId);
+    if (!sub) continue;
+    for (const [id, qty] of addonItemsOf(sub)) total.set(id, (total.get(id) ?? 0) + qty);
+  }
+
+  for (const id of ADD_ON_IDS) {
+    const qty = total.get(id) ?? 0;
     await db
       .insert(orgAddons)
       .values({ id: newId("orgAddon"), organizationId: orgId, addonId: id, quantity: qty })
@@ -187,6 +230,46 @@ export async function reconcileAddonsFromSubscription(
       });
     if (id === "dedicated_ip") await syncDedicatedIpProvisioning(orgId, qty);
   }
+}
+
+/** How much of a subscription's already-paid period remains, 0..1. */
+function remainingFraction(sub: Stripe.Subscription): number {
+  const s = sub as unknown as { current_period_start?: number; current_period_end?: number };
+  const item = sub.items.data[0] as unknown as
+    | { current_period_start?: number; current_period_end?: number }
+    | undefined;
+  const start = s.current_period_start ?? item?.current_period_start;
+  const end = s.current_period_end ?? item?.current_period_end;
+  if (!start || !end || end <= start) return 0;
+  const now = Date.now() / 1000;
+  return Math.max(0, Math.min(1, (end - now) / (end - start)));
+}
+
+/** What one full cycle of a subscription item is worth, in cents — from our own
+ * price tables (the blocks price is volume-tiered, so Stripe's unit_amount can't
+ * be read off it; everything else is flat and self-describing). */
+function itemCycleValueCents(item: Stripe.SubscriptionItem): number {
+  const qty = item.quantity ?? 1;
+  const priceId = item.price?.id;
+  const yearly = item.price?.recurring?.interval === "year";
+  const tier = priceId ? tierForPrice(priceId) : null;
+  if (tier?.tierId === "tx_blocks") {
+    return Math.round(blocksMonthlyPrice(Math.max(1, qty)) * 100) * (yearly ? 10 : 1);
+  }
+  return (item.price?.unit_amount ?? 0) * qty;
+}
+
+/**
+ * The unused, already-paid value left on a subscription — what we credit when a
+ * new checkout replaces it (the webhook cancels it on completion), so switching
+ * plans or buying more never bills the same period twice.
+ */
+function subUnusedCreditCents(sub: Stripe.Subscription): number {
+  const f = remainingFraction(sub);
+  if (f <= 0) return 0;
+  let total = 0;
+  for (const item of sub.items.data) total += itemCycleValueCents(item);
+  return Math.floor(total * f);
 }
 
 /**
@@ -356,8 +439,8 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
           .set({ stripePlatformSubscriptionId: nextSubId, updatedAt: new Date() })
           .where(eq(organizations.id, org2.id));
       }
-      // The org-level add-ons sub bills ALL add-ons — reconcile them all.
-      await reconcileAddonsFromSubscription(org2.id, sub);
+      // Entitlements = the sum across every live sub that carries add-ons.
+      await reconcileAllAddonEntitlements(org2.id);
     }
     return;
   }
@@ -416,9 +499,8 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
     })
     .where(eq(organizations.id, org.id));
 
-  // Keep entitlements honest: match org_addons to what the subscription actually
-  // bills (covers add-ons chosen on the checkout page).
-  await reconcileAddonsFromSubscription(org.id, sub);
+  // Keep entitlements honest: recompute from every live sub that carries add-ons.
+  await reconcileAllAddonEntitlements(org.id);
 
   // A Stripe-side cancel or downgrade can strip a yearly org's overage eligibility —
   // bring the dedicated overage sub in line. Re-fetch so we see the writes just above.
@@ -443,11 +525,14 @@ export async function syncAddonItems(org: Organization): Promise<void> {
   if (!stripe) return;
 
   const addonPrices = addOnPriceIds();
+  // The org-level add-ons sub bills the entitlement MINUS whatever already rides
+  // a wing/legacy subscription (bought in that cart, billed there) — never both.
+  const riding = await ridingAddonQuantities(stripe, org);
   const want = new Map<string, number>();
   for (const a of await loadAddonQuantities(org.id)) {
-    // ALL add-ons bill (monthly) on this one org-level add-ons subscription.
     const price = priceForAddOn(a.id, "month");
-    if (price && a.quantity > 0) want.set(price, a.quantity);
+    const qty = a.quantity - (riding.get(a.id) ?? 0);
+    if (price && qty > 0) want.set(price, qty);
   }
 
   const subId = org.stripePlatformSubscriptionId;
@@ -981,10 +1066,26 @@ export interface EmbeddedResult {
 const embeddedReturn = (base: string) =>
   `${base}/billing?checkout=complete&session_id={CHECKOUT_SESSION_ID}`;
 
-/** In-app (embedded) checkout for a per-wing tier — same subscription/quantity as
- * the hosted flow, but returns a client_secret to mount inline (no redirect), so
- * users edit selections back and forth. `{ mode: "unavailable" }` when Stripe, the
- * price, or the publishable key isn't configured (caller falls back). */
+/** The effective per-unit cents of an add-on at an interval (sale-aware monthly;
+ * yearly = regular × 10 — sales are monthly-only). */
+function addonUnitCents(id: AddOnId, interval: BillingInterval): number {
+  const a = getAddon(id);
+  if (interval === "year") return Math.round(a.unitAmount * 10 * 100);
+  const onSale = saleActive({ percentOff: a.salePercentOff ?? 0, endsAt: a.saleEndsAt });
+  const unit = onSale ? salePrice(a.unitAmount, a.salePercentOff as number) : a.unitAmount;
+  return Math.round(unit * 100);
+}
+
+/** In-app (embedded) checkout for a per-wing tier — returns a client_secret to
+ * mount inline (no redirect). This is ONE BILL: add-ons chosen in the cart ride
+ * the same subscription as real line items at the same interval (yearly add-on
+ * prices exist for yearly plans), so the Stripe order summary shows exactly what
+ * is bought. `opts.addons` is the DELTA — how many MORE of each add-on. Add-ons
+ * already riding the wing's current subscription are CARRIED onto the new one at
+ * their current quantities, and the prior sub's unused paid value is credited
+ * (coupon on the first invoice; any excess becomes customer credit balance) —
+ * a plan change never bills the same period twice and never drops what you had.
+ * `{ mode: "unavailable" }` when Stripe/prices/publishable key are missing. */
 export async function createWingEmbeddedCheckout(
   org: Organization,
   tierId: string,
@@ -1003,27 +1104,74 @@ export async function createWingEmbeddedCheckout(
       : tier.wing === "marketing" && (tier.perThousandCents ?? 0) > 0
         ? contactUnits(opts.contacts ?? CONTACT_UNIT)
         : 1;
-  // Add-ons are inherently MONTHLY and bill on the org-level add-ons subscription —
-  // never on a wing sub (mixing monthly add-ons with a yearly plan on one Stripe
-  // subscription is rejected). So any add-ons chosen here are carried as PENDING in
-  // metadata and applied to the org-level add-ons sub once the plan is paid (the
-  // customer then has a card on file). For the user it's still one checkout: the
-  // order summary shows plan + add-ons, and everything lands together.
-  const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price, quantity }];
-  const pending: Partial<Record<AddOnId, number>> = {};
-  for (const id of ADD_ON_IDS) {
-    const q = Math.max(0, Math.floor(opts.addons?.[id] ?? 0));
-    if (q > 0) pending[id] = q;
-  }
+  const planCents =
+    (tierId === "tx_blocks"
+      ? Math.round(blocksMonthlyPrice(quantity) * 100)
+      : tier.wing === "marketing" && (tier.perThousandCents ?? 0) > 0
+        ? quantity * Math.round(((tier.perThousandCents ?? 0) * CONTACT_UNIT) / 1000)
+        : Math.round((tier.priceMonthly ?? 0) * 100)) * (interval === "year" ? 10 : 1);
+
   try {
+    // The wing's current subscription (if any): its riding add-ons carry over,
+    // and its unused paid value comes back as a credit.
+    const prior = await liveSub(stripe, wingSubscriptionId(org, tier.wing));
+    const carried = prior ? addonItemsOf(prior) : new Map<AddOnId, number>();
+
+    const line_items: Stripe.Checkout.SessionCreateParams.LineItem[] = [{ price, quantity }];
+    let addonsCents = 0;
+    for (const id of ADD_ON_IDS) {
+      const qty = (carried.get(id) ?? 0) + Math.max(0, Math.floor(opts.addons?.[id] ?? 0));
+      if (qty <= 0) continue;
+      const addonPrice = priceForAddOn(id, interval);
+      if (!addonPrice) {
+        // Fail closed: silently dropping a chosen/carried add-on would either
+        // under-deliver or (via reconcile) revoke an entitlement.
+        console.warn(`[stripe] no ${interval} price for add-on ${id} — wing checkout unavailable`);
+        return { mode: "unavailable" };
+      }
+      line_items.push({ price: addonPrice, quantity: qty });
+      addonsCents += addonUnitCents(id, interval) * qty;
+    }
+
     const customer = await ensureCustomer(org);
+
+    // Credit the prior sub's unused value: up to the new first invoice via a
+    // one-time coupon; anything beyond that lands on the customer's credit
+    // balance (consumed by future invoices) so no paid value is ever lost.
+    let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined;
+    const credit = prior ? subUnusedCreditCents(prior) : 0;
+    if (credit > 0) {
+      const firstInvoiceCents = planCents + addonsCents;
+      const couponCents = Math.min(credit, firstInvoiceCents);
+      const remainder = credit - couponCents;
+      if (couponCents > 0) {
+        // Stripe caps coupon names at 40 chars.
+        const coupon = await stripe.coupons.create({
+          amount_off: couponCents,
+          currency: "usd",
+          duration: "once",
+          name: "Unused time on your plan — credited",
+          metadata: { organizationId: org.id, kind: "wing_switch_credit" },
+        });
+        discounts = [{ coupon: coupon.id }];
+      }
+      if (remainder > 0) {
+        await stripe.customers
+          .createBalanceTransaction(customer, {
+            amount: -remainder,
+            currency: "usd",
+            description: "Unused value from your previous rootmail plan",
+          })
+          .catch((err) => console.warn(`[stripe] balance credit failed for ${org.id}: ${String(err)}`));
+      }
+    }
+
     const meta = {
       organizationId: org.id,
       wing: tier.wing,
       tierId,
       interval,
       ...(opts.contacts ? { contacts: String(opts.contacts) } : {}),
-      ...(Object.keys(pending).length ? { pendingAddons: JSON.stringify(pending) } : {}),
     };
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -1032,6 +1180,7 @@ export async function createWingEmbeddedCheckout(
       ui_mode: "embedded_page",
       customer,
       line_items,
+      ...(discounts ? { discounts } : {}),
       return_url: embeddedReturn(env.DASHBOARD_URL.replace(/\/$/, "")),
       metadata: meta,
       subscription_data: { metadata: meta },
@@ -1062,23 +1211,21 @@ export async function createAddonsEmbeddedCheckout(
   const pk = env.STRIPE_PUBLISHABLE_KEY;
   if (!stripe || !pk) return { mode: "unavailable" };
 
+  // Work net of what rides OTHER subscriptions (a wing cart's add-ons bill on
+  // that wing's sub and keep doing so) — this checkout replaces only the
+  // org-level add-ons subscription, so its lines are the org-level share.
+  const riding = await ridingAddonQuantities(stripe, org);
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
   let ownedCents = 0;
   for (const id of ADD_ON_IDS) {
-    const qty = quantities[id] ?? 0;
+    const ride = riding.get(id) ?? 0;
+    const qty = Math.max(0, Math.floor(quantities[id] ?? 0) - ride);
     const price = priceForAddOn(id, "month");
     if (qty > 0 && price) {
       lineItems.push({ price, quantity: qty });
-      // The already-owned part of this line, valued at the same effective
-      // (sale-aware) unit price the line bills — what the credit must cover.
-      const owned = Math.min(qty, Math.max(0, Math.floor(current[id] ?? 0)));
-      if (owned > 0) {
-        const a = getAddon(id);
-        const unit = saleActive({ percentOff: a.salePercentOff ?? 0, endsAt: a.saleEndsAt })
-          ? salePrice(a.unitAmount, a.salePercentOff as number)
-          : a.unitAmount;
-        ownedCents += Math.round(owned * unit * 100);
-      }
+      // The already-owned org-level part of this line — what the credit covers.
+      const owned = Math.min(qty, Math.max(0, Math.floor(current[id] ?? 0) - ride));
+      if (owned > 0) ownedCents += owned * addonUnitCents(id, "month");
     }
   }
   if (lineItems.length === 0) return { mode: "unavailable" };
@@ -1157,15 +1304,18 @@ export async function syncWingSubscription(sub: Stripe.Subscription): Promise<vo
         .update(organizations)
         .set({ ...wingUpdate(wing, defaultTierId(wing), null), updatedAt: new Date() })
         .where(eq(organizations.id, org.id));
+      await reconcileAllAddonEntitlements(org.id);
     }
     return;
   }
   if (status === "canceled") {
-    // Drop this wing to its Free tier + detach the sub (the other wings are untouched).
+    // Drop this wing to its Free tier + detach the sub (the other wings are
+    // untouched). Add-ons riding this sub end with it — entitlements recompute below.
     await db
       .update(organizations)
       .set({ ...wingUpdate(wing, defaultTierId(wing), null), updatedAt: new Date() })
       .where(eq(organizations.id, org.id));
+    await reconcileAllAddonEntitlements(org.id);
   } else {
     // Which tier is billed — from the sub's price, else the metadata tierId — plus the
     // quantity: blocks (transactional) or contacts = quantity × CONTACT_UNIT (marketing).
@@ -1199,10 +1349,9 @@ export async function syncWingSubscription(sub: Stripe.Subscription): Promise<vo
       .set({ ...wingUpdate(wing, tierId, sub.id, { blocks, contacts }), updatedAt: new Date() })
       .where(eq(organizations.id, org.id));
 
-    // Add-ons chosen during this purchase were carried as PENDING (they bill
-    // monthly on the org-level add-ons sub, never on a wing sub). Now that the plan
-    // is paid and a card is on file, apply them. Set to the chosen quantity, then
-    // reconcile the org-level add-ons subscription.
+    // LEGACY (pre one-bill checkout): sessions minted before the add-ons-as-line-items
+    // model carried chosen add-ons as PENDING metadata, applied to the org-level
+    // add-ons sub after payment. Keep honoring in-flight sessions.
     const pendingRaw = sub.metadata?.pendingAddons;
     if (pendingRaw) {
       try {
@@ -1222,6 +1371,10 @@ export async function syncWingSubscription(sub: Stripe.Subscription): Promise<vo
         console.warn(`[stripe] pending add-ons apply failed for ${org.id}: ${String(err)}`);
       }
     }
+
+    // Entitlements = the sum across every live sub (this new wing sub's riding
+    // add-ons included; the prior sub's contribution ends with its cancel above).
+    await reconcileAllAddonEntitlements(org.id);
   }
 
   // For transactional, keep the dedicated overage sub in sync (created on first
@@ -1298,15 +1451,59 @@ export async function syncAddonPrice(addon: Addon): Promise<string | null> {
     recurring: { interval: "month" },
     metadata: { addonId: addon.id },
   });
+  // Yearly rides yearly wing checkouts: 10× monthly (2 months free), same product.
+  const year = await stripe.prices.create({
+    product: productId,
+    currency: "usd",
+    unit_amount: addon.unitAmount * 10 * 100,
+    recurring: { interval: "year" },
+    metadata: { addonId: addon.id, interval: "year" },
+  });
   await stripe.products.update(productId, { default_price: price.id });
   if (addon.stripePriceId) {
     await stripe.prices.update(addon.stripePriceId, { active: false }).catch(() => {});
   }
+  if (addon.stripePriceYearId) {
+    await stripe.prices.update(addon.stripePriceYearId, { active: false }).catch(() => {});
+  }
   await db
     .update(addonsTable)
-    .set({ stripePriceId: price.id, updatedAt: new Date() })
+    .set({ stripePriceId: price.id, stripePriceYearId: year.id, updatedAt: new Date() })
     .where(eq(addonsTable.id, addon.id));
   return price.id;
+}
+
+/**
+ * Backfill YEARLY Stripe prices for add-ons that only have a monthly one — used
+ * once at rollout of the one-bill wing checkout. Deliberately does NOT re-mint
+ * monthly prices: live subscriptions sit on the current monthly ids, and price
+ * mapping (addOnForPrice) must keep recognizing them.
+ */
+export async function ensureAddonYearlyPrices(): Promise<{ minted: number }> {
+  const stripe = getStripe();
+  if (!stripe) return { minted: 0 };
+  const rows = await db.select().from(addonsTable);
+  let minted = 0;
+  for (const a of rows) {
+    if (a.unitAmount <= 0 || a.stripePriceYearId) continue;
+    const monthly = a.stripePriceId ?? envAddOnPriceId(a.id as AddOnId, "month");
+    if (!monthly) continue; // no product to hang it on — syncAddonPrice covers it later
+    const ep = await stripe.prices.retrieve(monthly);
+    const productId = typeof ep.product === "string" ? ep.product : ep.product.id;
+    const year = await stripe.prices.create({
+      product: productId,
+      currency: "usd",
+      unit_amount: a.unitAmount * 10 * 100,
+      recurring: { interval: "year" },
+      metadata: { addonId: a.id, interval: "year" },
+    });
+    await db
+      .update(addonsTable)
+      .set({ stripePriceYearId: year.id, updatedAt: new Date() })
+      .where(eq(addonsTable.id, a.id));
+    minted++;
+  }
+  return { minted };
 }
 
 /** Provision Stripe prices for every add-on — run once after seeding the catalog

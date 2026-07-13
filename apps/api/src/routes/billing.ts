@@ -396,7 +396,8 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
           interval: z.enum(BILLING_INTERVALS).optional(),
           blocks: z.coerce.number().int().min(1).max(MAX_SELF_SERVE_BLOCKS).optional(),
           contacts: z.coerce.number().int().min(1).max(MAX_SELF_SERVE_CONTACTS).optional(),
-          // This wing's own add-ons, folded into the SAME checkout (one subscription).
+          // Add-on DELTAS ("how many MORE") — they ride the SAME checkout as real
+          // line items (one bill); add-ons already on the wing's sub carry over.
           addons: z.record(z.coerce.number().int().min(0).max(1000)).optional(),
         }),
         z.object({

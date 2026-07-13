@@ -62,6 +62,7 @@ export interface AddOnInfo {
   grant: number;
   active: boolean;
   stripePriceId: string | null;
+  stripePriceYearId: string | null; // yearly (10× monthly) — rides yearly wing checkouts
   // Public sale (like plans): a % off + a discounted Stripe "sale price" used
   // while active. null = no sale.
   salePercentOff: number | null;
@@ -82,6 +83,7 @@ function addonFallback(): Record<AddOnId, AddOnInfo> {
       grant: a.grant,
       active: true,
       stripePriceId: null,
+      stripePriceYearId: null,
       salePercentOff: null,
       saleEndsAt: null,
       saleStripePriceId: null,
@@ -126,6 +128,7 @@ function toAddonInfo(r: Addon): AddOnInfo {
     grant: r.grant,
     active: r.active,
     stripePriceId: r.stripePriceId,
+    stripePriceYearId: r.stripePriceYearId,
     salePercentOff: r.salePercentOff,
     saleEndsAt: r.saleEndsAt,
     saleStripePriceId: r.saleStripePriceId,

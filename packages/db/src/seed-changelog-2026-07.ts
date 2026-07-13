@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "One bill at checkout, and a clearer way to buy send blocks",
+    date: "2026-07-13",
+    changes: [
+      {
+        kind: "New",
+        text: "Add-ons picked while buying a plan now appear inside the Stripe checkout itself — plan and add-ons together, one bill, monthly or yearly.",
+      },
+      {
+        kind: "Improved",
+        text: "Changing plans never double-charges: what you already own carries over automatically, and the unused time on your current plan is credited at checkout.",
+      },
+      {
+        kind: "Improved",
+        text: "The transactional page now shows how many blocks you're paying for versus what you're choosing (\"2 now → 4 after checkout\"), the full volume rate table, and what every plan includes.",
+      },
+      {
+        kind: "Improved",
+        text: "Add-on counters everywhere now count what you're adding — starting at zero — with \"you have N\" and \"you'll have N+X\" alongside.",
+      },
+      {
+        kind: "New",
+        text: "The sizing quiz got its own pop-up: type your monthly volume and it picks your blocks and shows the price before you commit.",
+      },
+    ],
+  },
+  {
     title: "Buying add-ons: a real checkout, charged immediately — only for what you add",
     date: "2026-07-13",
     changes: [

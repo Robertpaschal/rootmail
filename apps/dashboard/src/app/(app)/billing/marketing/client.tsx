@@ -59,12 +59,9 @@ export function MarketingBilling({
   const initial = mk.contacts > 0 ? mk.contacts : prefillContacts && prefillContacts > free ? prefillContacts : 5_000;
   const [contacts, setContacts] = useState<number>(initial);
   const [interval, setInterval] = useState<"month" | "year">("month");
-  // Add-ons fold into the marketing checkout too (configured here → order summary).
-  const [addons, setAddons] = useState<Record<string, number>>(() => {
-    const d: Record<string, number> = {};
-    for (const a of mkAddons) d[a.id] = addonQty[a.id] ?? 0;
-    return d;
-  });
+  // Add-on DELTAS — how many MORE of each (starts at 0). What you already have
+  // carries over automatically; the checkout is ONE bill (plan + add-ons together).
+  const [addons, setAddons] = useState<Record<string, number>>({});
 
   const clamped = Math.min(Math.max(1, contacts || 1), mk.max_contacts);
   const yr = interval === "year";
@@ -208,7 +205,7 @@ export function MarketingBilling({
           </span>
           <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
         </Link>
-        <Link href={stitch?.team ? `/billing/platform?team=${stitch.team}` : "/billing/platform"} className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">
+        <Link href={stitch?.team ? "/billing/addons?focus=extra_seat" : "/billing/addons"} className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">
           <span className="flex items-center gap-2 text-sm">
             <Users className="size-4 text-muted-foreground" />
             <span><span className="font-medium">Add-ons</span><span className="ml-1 text-muted-foreground">— seats, roles, SSO &amp; more, shared across both wings.</span></span>
@@ -296,7 +293,8 @@ function MarketingHeader({
   );
 }
 
-/** Configure platform add-ons that fold into the marketing checkout. */
+/** Configure add-ons that ride the marketing checkout — DELTAS only ("how many
+ * MORE"); what you already own carries over and is never re-billed. */
 function MarketingAddons({
   mkAddons,
   addonQty,
@@ -308,19 +306,25 @@ function MarketingAddons({
   addons: Record<string, number>;
   setAddons: (fn: (d: Record<string, number>) => Record<string, number>) => void;
 }) {
-  const set = (a: AddonCatalogItem, q: number) => setAddons((d) => ({ ...d, [a.id]: Math.max(0, Math.min(a.max ?? 999, q)) }));
+  const set = (a: AddonCatalogItem, q: number) => {
+    const have = addonQty[a.id] ?? 0;
+    setAddons((d) => ({ ...d, [a.id]: Math.max(0, Math.min((a.max ?? 999) - have, q)) }));
+  };
   return (
     <Card>
       <CardContent className="p-5">
         <p className="text-sm font-semibold">Add extras to your plan</p>
-        <p className="mb-3 text-xs text-muted-foreground">Optional — folded into the same checkout when you pick a plan above.</p>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Optional — one bill: they ride the same checkout when you pick a plan above. What you
+          already have carries over; pick only what you&apos;re adding.
+        </p>
         <div className="space-y-2">
           {mkAddons.map((a) => {
-            const qty = addons[a.id] ?? 0;
+            const d = addons[a.id] ?? 0;
             const have = addonQty[a.id] ?? 0;
             const isToggle = a.max === 1;
             return (
-              <div key={a.id} className={cn("flex items-center justify-between gap-3 rounded-lg border p-3", qty > 0 && "border-primary/40 bg-primary/5")}>
+              <div key={a.id} className={cn("flex items-center justify-between gap-3 rounded-lg border p-3", d > 0 && "border-primary/40 bg-primary/5")}>
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm font-medium">
                     {a.name}
@@ -330,14 +334,23 @@ function MarketingAddons({
                   <p className="mt-1 text-xs"><span className="font-semibold">${a.unit_amount}</span><span className="text-muted-foreground">/mo{isToggle ? "" : ` per ${a.unit}`} · {a.unit_note}</span></p>
                 </div>
                 {isToggle ? (
-                  <Button type="button" variant={qty > 0 ? "default" : "outline"} size="sm" onClick={() => set(a, qty > 0 ? 0 : 1)}>
-                    {qty > 0 ? <><Check className="size-3.5" /> Added</> : "Add"}
-                  </Button>
+                  have > 0 ? (
+                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-600">
+                      <Check className="size-3.5" /> Included
+                    </span>
+                  ) : (
+                    <Button type="button" variant={d > 0 ? "default" : "outline"} size="sm" onClick={() => set(a, d > 0 ? 0 : 1)}>
+                      {d > 0 ? <><Check className="size-3.5" /> Adding</> : "Add"}
+                    </Button>
+                  )
                 ) : (
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <Button type="button" variant="outline" size="icon" className="size-7" disabled={qty === 0} onClick={() => set(a, qty - 1)}><Minus className="size-3.5" /></Button>
-                    <span className="w-6 text-center text-sm font-medium tabular-nums">{qty}</span>
-                    <Button type="button" variant="outline" size="icon" className="size-7" disabled={a.max != null && qty >= a.max} onClick={() => set(a, qty + 1)}><Plus className="size-3.5" /></Button>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <div className="flex items-center gap-1.5">
+                      <Button type="button" variant="outline" size="icon" className="size-7" disabled={d === 0} onClick={() => set(a, d - 1)} aria-label={`Add fewer ${a.unit}`}><Minus className="size-3.5" /></Button>
+                      <span className="w-8 text-center text-sm font-medium tabular-nums">+{d}</span>
+                      <Button type="button" variant="outline" size="icon" className="size-7" disabled={a.max != null && have + d >= a.max} onClick={() => set(a, d + 1)} aria-label={`Add one more ${a.unit}`}><Plus className="size-3.5" /></Button>
+                    </div>
+                    <span className="h-3.5 text-[10px] text-muted-foreground">{d > 0 ? `you'll have ${have + d}` : ""}</span>
                   </div>
                 )}
               </div>

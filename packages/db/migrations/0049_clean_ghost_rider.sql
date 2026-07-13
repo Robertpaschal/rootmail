@@ -1,0 +1,1 @@
+ALTER TABLE "addons" ADD COLUMN "stripe_price_year_id" text;
