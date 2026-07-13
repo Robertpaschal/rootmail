@@ -6,6 +6,7 @@ import { api } from "@/lib/rootmail";
 import type { Workspace, WorkspaceLimit } from "@/lib/types";
 import { CommandTrigger } from "./command-menu";
 import { Logo } from "./logo";
+import { QuickCreate } from "./quick-create";
 import { ThemeToggle } from "./theme-toggle";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
@@ -47,6 +48,7 @@ export async function Topbar() {
       <div className="hidden md:block" />
 
       <div className="flex items-center gap-2 sm:gap-3">
+        <QuickCreate />
         <CommandTrigger />
         {workspaces.length > 0 ? (
           <WorkspaceSwitcher workspaces={workspaces} activeId={activeId} limit={limit} />

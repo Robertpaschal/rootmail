@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A smoother dashboard: fluid navigation and one-click actions",
+    date: "2026-07-13",
+    changes: [
+      {
+        kind: "Improved",
+        text: "The whole dashboard moves fluidly now — pages ease in as you navigate, the highlight glides to the section you open, and switching between Transactional and Marketing slides as one motion.",
+      },
+      {
+        kind: "Improved",
+        text: "The sidebar is wider, so Transactional, Marketing, and every section name show in full — no more cut-off labels on laptops.",
+      },
+      {
+        kind: "New",
+        text: "A “New” button in the top bar puts the six most common actions one click away from anywhere: send an email, start a campaign, design a template, import contacts, invite a teammate, create an API key.",
+      },
+    ],
+  },
+  {
     title: "One bill at checkout, and a clearer way to buy send blocks",
     date: "2026-07-13",
     changes: [

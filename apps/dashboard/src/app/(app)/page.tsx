@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { Greeting } from "@/components/app/greeting";
+import { Reveal } from "@/components/app/motion";
 import { OnboardingChecklist } from "@/components/app/onboarding-checklist";
 import { MessageStatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -121,7 +122,7 @@ export default async function OverviewPage() {
         <OnboardingChecklist />
       </Suspense>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <Reveal delay={0.03} className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">This month&apos;s sending</CardTitle>
@@ -233,12 +234,12 @@ export default async function OverviewPage() {
             ) : null}
           </CardContent>
         </Card>
-      </div>
+      </Reveal>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <Reveal delay={0.08} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {stats.map((s) => (
           <Link key={s.label} href="/analytics" className="group">
-            <Card className="p-5 transition-colors group-hover:border-primary/40">
+            <Card className="p-5 transition-[color,border-color,transform] duration-150 group-hover:-translate-y-0.5 group-hover:border-primary/40">
               <div className="flex items-center justify-between">
                 <span className="text-sm text-muted-foreground">{s.label}</span>
                 <s.icon className="size-4 text-muted-foreground" />
@@ -247,9 +248,9 @@ export default async function OverviewPage() {
             </Card>
           </Link>
         ))}
-      </div>
+      </Reveal>
 
-      <div>
+      <Reveal delay={0.13}>
         <p className="mb-2 text-sm font-medium text-muted-foreground">Quick actions</p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {quickActions.map((a) => (
@@ -265,9 +266,9 @@ export default async function OverviewPage() {
             </Link>
           ))}
         </div>
-      </div>
+      </Reveal>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <Reveal delay={0.18} className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Recent messages</CardTitle>
@@ -329,7 +330,7 @@ export default async function OverviewPage() {
             />
           </CardContent>
         </Card>
-      </div>
+      </Reveal>
     </div>
   );
 }

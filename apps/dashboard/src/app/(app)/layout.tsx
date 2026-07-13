@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen">
       <CommandMenu />
       <Sidebar />
-      <div className="md:pl-60">
+      <div className="md:pl-72">
         <Topbar />
         <MobileNav />
         {impersonating && me ? <ImpersonationBanner email={me.user.email} /> : null}
