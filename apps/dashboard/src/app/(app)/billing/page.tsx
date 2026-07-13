@@ -35,10 +35,12 @@ function Meter({ pct, tone }: { pct: number; tone: string }) {
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; wing?: string }>;
 }) {
-  const { tab } = await searchParams;
+  const { tab, wing } = await searchParams;
   const initialTab = tab === "plans" ? "plans" : "usage";
+  const initialSegment =
+    wing === "marketing" || wing === "addons" || wing === "transactional" ? wing : undefined;
 
   let billing: Billing | null = null;
   let invoices: Invoice[] = [];
@@ -160,7 +162,7 @@ export default async function BillingPage({
             </div>
             <Meter pct={usage.ai_credits === -1 ? 4 : aiPct} tone={aiPct > 80 ? "bg-amber-500" : "bg-primary"} />
             <p className="text-xs text-muted-foreground">Shared across both wings — top up with AI credit packs.</p>
-            <Link href="/billing/platform" className="inline-flex items-center text-xs font-medium text-primary hover:underline">
+            <Link href="/billing/addons?focus=ai_credit_pack" className="inline-flex items-center text-xs font-medium text-primary hover:underline">
               Add credits <ArrowRight className="ml-0.5 size-3" />
             </Link>
           </CardContent>
@@ -173,15 +175,18 @@ export default async function BillingPage({
           <CardTitle className="flex items-center gap-2 text-base">
             <Package className="size-4 text-muted-foreground" /> Your add-ons
           </CardTitle>
-          <Link href="/billing?tab=plans" className="inline-flex items-center text-sm font-medium text-primary hover:underline">
+          <Link href="/billing/addons" className="inline-flex items-center text-sm font-medium text-primary hover:underline">
             Manage <ArrowRight className="ml-0.5 size-3.5" />
           </Link>
         </CardHeader>
         <CardContent>
           {summary.add_ons.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No add-ons yet. Seats, roles, SSO, proof exports, AI credits and more are available under Compare
-              plans → Add-ons.
+              No add-ons yet. Seats, roles, SSO, proof exports, AI credits and more live on the{" "}
+              <Link href="/billing/addons" className="font-medium text-primary hover:underline">
+                Add-ons page
+              </Link>
+              .
             </p>
           ) : (
             <ul className="divide-y text-sm">
@@ -299,7 +304,7 @@ export default async function BillingPage({
   // ---- Compare plans (tab 2) — centered pill + add-ons everywhere.
   const plansSlot = (
     <div className="space-y-10">
-      <ComparePlans addonCatalog={allAddons} addonQty={addonQty} />
+      <ComparePlans addonCatalog={allAddons} addonQty={addonQty} initialSegment={initialSegment} />
 
       <div className="rounded-lg border bg-card p-4">
         <p className="text-xs font-semibold">Every account includes</p>

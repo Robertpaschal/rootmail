@@ -62,7 +62,13 @@ export async function requireFeature(
       required_plan_name: addon.name,
       required_wing: addon.wing,
       price: live.unitAmount,
-      upgrade_url: `${base}/billing/${addon.wing}`,
+      // Platform add-ons live on the dedicated add-ons page (deep-linked to the
+      // exact card); wing-homed ones (dedicated IP, client domains) are folded
+      // into their wing's purchase page.
+      upgrade_url:
+        addon.wing === "platform"
+          ? `${base}/billing/addons?focus=${addon.id}`
+          : `${base}/billing/${addon.wing}`,
       checkout_endpoint: "POST /v1/billing/addons",
       docs_url: `https://${env.ROOTMAIL_DOMAIN}/pricing`,
     });

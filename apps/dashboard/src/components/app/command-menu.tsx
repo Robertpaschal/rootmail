@@ -47,7 +47,7 @@ const WORKSPACE: Item[] = [
   { label: "Plan & usage", href: "/billing", kw: "billing subscription overage quota invoice" },
   { label: "Transactional pricing", href: "/billing/transactional", kw: "send blocks volume upgrade overage buy sends" },
   { label: "Marketing pricing", href: "/billing/marketing", kw: "contacts brackets audience upgrade" },
-  { label: "Platform pricing", href: "/billing/platform", kw: "seats workspaces roles sso team add-ons ai credits packs dedicated ip" },
+  { label: "Add-ons", href: "/billing/addons", kw: "seats workspaces roles sso team add-ons addons ai credits packs dedicated ip platform" },
   { label: "Team", href: "/members", kw: "members invite users seats people" },
   { label: "Roles", href: "/roles", kw: "permissions rbac access control" },
   { label: "Compliance", href: "/compliance", kw: "residency soc2 proof gdpr privacy" },

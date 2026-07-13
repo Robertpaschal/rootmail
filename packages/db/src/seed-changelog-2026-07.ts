@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Buying add-ons: a real checkout, charged immediately — only for what you add",
+    date: "2026-07-13",
+    changes: [
+      {
+        kind: "Fixed",
+        text: "Buying an add-on now always opens the in-app Stripe checkout and charges your card right away — no more silent “you're all set” with the bill arriving later by email.",
+      },
+      {
+        kind: "Improved",
+        text: "Buying more of an add-on you already own credits everything you have on the invoice, so the charge is exactly the new part — you're never billed twice.",
+      },
+      {
+        kind: "Improved",
+        text: "The add-ons cart expands into a full order summary: what you have, what you'll have, each line's price, and what's due today.",
+      },
+      {
+        kind: "New",
+        text: "Every pricing surface is now its own page you can link to — transactional, marketing, and add-ons — and upgrade prompts across the app land you on the exact thing to buy, card highlighted.",
+      },
+    ],
+  },
+  {
     title: "Add-ons on their own, clearer marketing plans",
     date: "2026-07-11",
     changes: [

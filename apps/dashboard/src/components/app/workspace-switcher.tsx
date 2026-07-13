@@ -299,13 +299,13 @@ export function WorkspaceSwitcher({
               </button>
             ) : (
               <Link
-                href="/billing?tab=plans"
+                href="/billing/addons?focus=workspace_pack"
                 onClick={reset}
                 className="flex flex-col gap-0.5 rounded-md px-2 py-2 text-sm transition-colors hover:bg-accent"
               >
                 <span className="font-medium text-foreground">At workspace limit</span>
                 <span className="text-xs text-muted-foreground">
-                  Upgrade your plan or add a workspace pack →
+                  Add a workspace pack — it applies instantly →
                 </span>
               </Link>
             )}

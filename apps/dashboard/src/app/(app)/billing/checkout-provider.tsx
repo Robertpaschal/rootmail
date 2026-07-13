@@ -59,11 +59,12 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       if (!res.available) {
-        // Applied without a fresh checkout: a prorated add-on change ("updated") or
-        // a free/local switch ("assigned"). Say which, then refresh.
+        // Applied without a fresh checkout: a reduction ("updated" — removing
+        // needs no payment; the difference is credited) or a free/local switch
+        // ("assigned"). Purchases always open the checkout instead.
         setDoneMsg(
           res.mode === "updated"
-            ? "Updated — you're charged only for the change (prorated to your billing date)."
+            ? "Updated — the change is applied, and any difference is credited on your next invoice."
             : `${lbl ?? "your plan"} is active.`,
         );
         setPhase("done");

@@ -63,11 +63,28 @@ const PITCH: Record<
 export function ComparePlans({
   addonCatalog,
   addonQty,
+  initialSegment,
 }: {
   addonCatalog: AddonCatalogItem[];
   addonQty: Record<string, number>;
+  /** From ?wing= — makes each pill's view a linkable URL. */
+  initialSegment?: Segment;
 }) {
-  const [seg, setSeg] = useState<Segment>("transactional");
+  const [seg, setSeg] = useState<Segment>(initialSegment ?? "transactional");
+
+  // Keep the URL in step with the pill so any view here can be shared/linked
+  // (?tab=plans&wing=…) without a router round-trip.
+  const select = (v: Segment) => {
+    setSeg(v);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", "plans");
+      url.searchParams.set("wing", v);
+      window.history.replaceState(null, "", url);
+    } catch {
+      // URL sync is a nicety — never let it break the tab switch.
+    }
+  };
 
   return (
     <div>
@@ -86,7 +103,7 @@ export function ComparePlans({
           { value: "addons", label: "Add-ons", icon: Package },
         ]}
         value={seg}
-        onChange={(v) => setSeg(v as Segment)}
+        onChange={(v) => select(v as Segment)}
         size="lg"
         layoutId="compare-seg"
         className="mb-6"

@@ -98,8 +98,22 @@ function fmtUsd(dollars: number | null | undefined): string | null {
 const WING_LABEL: Record<string, string> = {
   transactional: "Transactional wing",
   marketing: "Marketing wing",
-  platform: "Platform",
+  platform: "Add-ons",
 };
+
+// Features unlocked by an ADD-ON (the 402's required_plan is the add-on id) —
+// their CTA deep-links to that exact card on the add-ons page, not a plan ladder.
+const ADDON_IDS = new Set([
+  "extra_seat",
+  "workspace_pack",
+  "ai_credit_pack",
+  "custom_roles",
+  "sso_scim",
+  "proof_exports",
+  "data_residency",
+  "dedicated_ip",
+  "subtenant_pack",
+]);
 
 /** A locked section renders as a pitch: what it achieves, the capabilities that
  * deliver it, and the price of the WING TIER that unlocks it (per-wing pricing —
@@ -110,6 +124,13 @@ export function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?
   const base = fmtUsd(info.price);
   const extras = info.required_plan ? TIER_EXTRAS[info.required_plan] : undefined;
   const wingLabel = info.required_wing ? WING_LABEL[info.required_wing] : null;
+  // An add-on gate lands EXACTLY on its card; wing-homed ones (dedicated IP,
+  // client domains) live inside their wing's purchase page.
+  const isAddon = !!info.required_plan && ADDON_IDS.has(info.required_plan);
+  const unlockHref =
+    isAddon && (info.required_wing === "platform" || !info.required_wing)
+      ? `/billing/addons?focus=${info.required_plan}`
+      : `/billing/${info.required_wing ?? "transactional"}`;
 
   return (
     <Card className="overflow-hidden">
@@ -138,7 +159,7 @@ export function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?
         {/* The price — the wing tier that unlocks it. */}
         <div className="border-t bg-muted/30 p-8 md:col-span-2 md:border-l md:border-t-0">
           <p className="text-sm font-medium text-muted-foreground">
-            {wingLabel ? `Included in the ${wingLabel}` : "Included in"}
+            {isAddon ? "Available as an add-on" : wingLabel ? `Included in the ${wingLabel}` : "Included in"}
           </p>
           <p className="mt-1 text-xl font-bold">{planName}</p>
           {base ? (
@@ -151,15 +172,16 @@ export function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?
           ) : null}
           {base ? (
             <p className="mt-2 text-xs text-muted-foreground">
-              That unlocks this wing&apos;s whole tier — and only this wing&apos;s bill changes; the
-              rest of your account stays as it is.
+              {isAddon
+                ? "Billed monthly on its own — an add-on never changes a wing's bill, and you can buy it with no plan at all."
+                : "That unlocks this wing's whole tier — and only this wing's bill changes; the rest of your account stays as it is."}
             </p>
           ) : null}
           {extras ? <p className="mt-3 text-sm text-muted-foreground">{extras}</p> : null}
           <div className="mt-5 flex flex-col gap-2">
-            {/* Straight to the money page — comparing is the secondary path. */}
-            <Link href={`/billing/${info.required_wing ?? "transactional"}`} className={cn(buttonVariants({ size: "sm" }))}>
-              Unlock with {planName} <ArrowRight className="size-4" />
+            {/* Straight to the exact purchase spot — comparing is the secondary path. */}
+            <Link href={unlockHref} className={cn(buttonVariants({ size: "sm" }))}>
+              {isAddon ? `Add ${planName}` : `Unlock with ${planName}`} <ArrowRight className="size-4" />
             </Link>
             <Link
               href="/billing?tab=plans"

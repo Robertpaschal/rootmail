@@ -380,10 +380,10 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // In-app (embedded) checkout — a client_secret to mount Stripe Checkout inline,
-  // no redirect. Covers a wing tier OR a set of add-ons (which now "add up" to a
-  // real payment). Add-ons on an EXISTING paid add-ons sub apply immediately
-  // (card on file); a first purchase opens checkout. Falls back to `assigned`
-  // (free/local) so the flow always resolves.
+  // no redirect. Covers a wing tier OR a set of add-ons. Buying add-ons ALWAYS
+  // opens checkout (already-owned quantities are credited so only the delta is
+  // charged); reductions apply directly. Falls back to `assigned` (free/local)
+  // so the flow always resolves.
   app.post("/v1/billing/checkout/embedded", async (req) => {
     const org = await orgForReq(req);
     await requirePermission(req, "billing.manage");
@@ -453,25 +453,28 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       }
     };
 
-    // Already have an add-ons subscription → MODIFY it. Stripe prorates, so the
-    // customer is charged only for the DELTA — never re-billed for what they keep.
-    // (Card on file; no fresh checkout.) This covers increases AND reductions.
-    if (org.stripePlatformSubscriptionId) {
-      await applyTotals();
-      return { object: "embedded_checkout", available: false, mode: "updated" };
-    }
-
-    // No add-ons subscription yet: a first PURCHASE opens the embedded checkout so a
-    // card is collected; a reduction/local just applies.
+    // Buying MORE always goes through a real Stripe checkout: the order is shown,
+    // the card is charged immediately, and everything already owned is CREDITED on
+    // the first invoice — so the payment is exactly the delta, never a re-bill and
+    // never a silent "you're all set". (The completion webhook cancels the prior
+    // add-ons subscription and reconciles entitlements to the new one.) Fails
+    // CLOSED: a paid add-on is never granted without its payment moment.
     if (isIncrease && BILLING_MODE === "stripe") {
-      const res = await createAddonsEmbeddedCheckout(org, desired as Record<AddOnId, number>);
+      const res = await createAddonsEmbeddedCheckout(org, desired as Record<AddOnId, number>, current);
       if (res.mode === "embedded") {
         return { object: "embedded_checkout", available: true, client_secret: res.client_secret, publishable_key: res.publishable_key };
       }
       throw Errors.badRequest("Couldn't start checkout right now — please try again in a moment.");
     }
+
+    // Reductions (or local mode) apply directly — dropping add-ons needs no card;
+    // the sync prorates the existing subscription down (credit, not a charge).
     await applyTotals();
-    return { object: "embedded_checkout", available: false, mode: "assigned" };
+    return {
+      object: "embedded_checkout",
+      available: false,
+      mode: BILLING_MODE === "stripe" ? "updated" : "assigned",
+    };
   });
 
   // Choose a per-wing tier — THE plan-change endpoint (PRICING-WINGS-SPEC.md).

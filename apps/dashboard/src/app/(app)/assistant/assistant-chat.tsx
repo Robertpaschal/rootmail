@@ -390,8 +390,8 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
             {upgrade ? (
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2">
                 <p className="text-sm">You&apos;re out of AI credits this month.</p>
-                <Link href="/billing?tab=plans" className={cn(buttonVariants({ size: "sm" }))}>
-                  Compare plans <ArrowRight className="ml-1 size-3.5" />
+                <Link href="/billing/addons?focus=ai_credit_pack" className={cn(buttonVariants({ size: "sm" }))}>
+                  Get AI credits <ArrowRight className="ml-1 size-3.5" />
                 </Link>
               </div>
             ) : null}

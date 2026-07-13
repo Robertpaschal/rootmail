@@ -122,11 +122,11 @@ export default async function MembersPage() {
           <CardContent>
             <InviteForm customRoles={customRoles} />
             <p className="mt-3 text-xs text-muted-foreground">
-              Need more seats? Add them under{" "}
-              <a href="/billing" className="underline">
-                Plan &amp; usage
-              </a>
-              .
+              Need more seats?{" "}
+              <a href="/billing/addons?focus=extra_seat" className="underline">
+                Add seats
+              </a>{" "}
+              — they take effect immediately.
             </p>
           </CardContent>
         </Card>

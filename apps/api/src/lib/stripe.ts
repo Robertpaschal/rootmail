@@ -15,6 +15,7 @@ import {
   type PlanId,
   type PlanStatus,
   saleActive,
+  salePrice,
   TX_OVERAGE_METER_EVENT,
   type Wing,
   WINGS,
@@ -475,6 +476,32 @@ export async function syncAddonItems(org: Organization): Promise<void> {
   }
 }
 
+/** The customer's most recently attached payment method, or null (none saved). */
+async function cardOnFile(stripe: Stripe, customerId: string): Promise<string | null> {
+  try {
+    const pms = await stripe.customers.listPaymentMethods(customerId, { limit: 1 });
+    return pms.data[0]?.id ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** Collect a just-created proration invoice NOW on a card-backed sub — "buy more"
+ * must charge immediately, never accrue quietly until the next cycle. Best-effort:
+ * a decline leaves the invoice open for Stripe's normal retry/dunning. */
+async function payLatestInvoice(stripe: Stripe, subId: string): Promise<void> {
+  try {
+    const invs = await stripe.invoices.list({ subscription: subId, limit: 1 });
+    const inv = invs.data[0];
+    if (!inv?.id) return;
+    if (inv.status === "draft") await stripe.invoices.finalizeInvoice(inv.id);
+    const fresh = await stripe.invoices.retrieve(inv.id);
+    if (fresh.status === "open" && (fresh.amount_due ?? 0) > 0) await stripe.invoices.pay(inv.id);
+  } catch (err) {
+    console.warn(`[stripe] proration invoice collection deferred for ${subId}: ${String(err)}`);
+  }
+}
+
 async function syncAddonSubscription(
   stripe: Stripe,
   org: Organization,
@@ -483,12 +510,19 @@ async function syncAddonSubscription(
   addonPrices: Set<string>,
 ): Promise<void> {
   const customer = await ensureCustomer(org);
-  const sub = subId ? await stripe.subscriptions.retrieve(subId).catch(() => null) : null;
+  // A canceled sub can't take item updates — treat it as absent and mint a fresh one.
+  const sub = subId
+    ? await stripe.subscriptions
+        .retrieve(subId)
+        .then((s) => (s.status === "canceled" ? null : s))
+        .catch(() => null)
+    : null;
+  const pm = await cardOnFile(stripe, customer);
 
-  // No live sub → create one carrying all wanted add-ons. Add-ons are wing-agnostic
-  // and any org can buy them (including Free-on-both), which may have no card on
-  // file — so this sub is invoiced (`send_invoice`) rather than auto-charged, which
-  // also surfaces cleanly in the financial dashboard's downloadable invoices.
+  // No live sub → create one carrying all wanted add-ons. With a card on file it
+  // charges immediately (a real payment moment — e.g. add-ons bought inside a wing
+  // checkout, applied right after the plan is paid). Only a card-less org (nothing
+  // ever purchased) falls back to an emailed invoice.
   if (!sub) {
     // An invoiced subscription must have a customer email — set it from the org owner.
     const owner = await ownerContactForCustomer(customer);
@@ -499,8 +533,9 @@ async function syncAddonSubscription(
     const created = await stripe.subscriptions.create({
       customer,
       items,
-      collection_method: "send_invoice",
-      days_until_due: 14,
+      ...(pm
+        ? { collection_method: "charge_automatically" as const, default_payment_method: pm }
+        : { collection_method: "send_invoice" as const, days_until_due: 14 }),
       metadata: { organizationId: org.id, kind: "addons" },
     });
     await db
@@ -510,21 +545,35 @@ async function syncAddonSubscription(
     return;
   }
 
-  // Reconcile the existing add-ons sub's items to the wanted set.
+  // A legacy invoiced sub whose customer NOW has a card (e.g. saved by a later
+  // checkout) → flip it so changes charge the card instead of emailing an invoice.
+  if (sub.collection_method === "send_invoice" && pm) {
+    await stripe.subscriptions
+      .update(sub.id, { collection_method: "charge_automatically", default_payment_method: pm })
+      .catch((err) => console.warn(`[stripe] addons sub card flip failed for ${org.id}: ${String(err)}`));
+  }
+
+  // Reconcile the sub's items to the wanted set in ONE update, so the delta lands
+  // on a single proration invoice (`always_invoice`) — collected immediately below.
   const remaining = new Map(want);
+  const items: Stripe.SubscriptionUpdateParams.Item[] = [];
   for (const item of sub.items.data) {
     const priceId = item.price.id;
     if (!addonPrices.has(priceId)) continue;
     const qty = remaining.get(priceId);
     if (qty && qty > 0) {
-      if (item.quantity !== qty) await stripe.subscriptionItems.update(item.id, { quantity: qty });
+      if (item.quantity !== qty) items.push({ id: item.id, quantity: qty });
       remaining.delete(priceId);
     } else {
-      await stripe.subscriptionItems.del(item.id);
+      items.push({ id: item.id, deleted: true });
     }
   }
   for (const [priceId, qty] of remaining) {
-    if (qty > 0) await stripe.subscriptionItems.create({ subscription: sub.id, price: priceId, quantity: qty });
+    if (qty > 0) items.push({ price: priceId, quantity: qty });
+  }
+  if (items.length > 0) {
+    await stripe.subscriptions.update(sub.id, { items, proration_behavior: "always_invoice" });
+    if (pm) await payLatestInvoice(stripe, sub.id);
   }
 }
 
@@ -998,28 +1047,56 @@ export async function createWingEmbeddedCheckout(
 
 /** In-app (embedded) checkout for a set of ADD-ONS — creates the org-level add-ons
  * subscription with a card collected (charge_automatically), so the selections
- * "add up" to a real payment. `quantities` is the DESIRED full add-on set. The
- * webhook (kind: "addons") reconciles org_addons + records the sub id on
- * completion. Unavailable → caller falls back to the direct apply. */
+ * "add up" to a real payment. `quantities` is the DESIRED full add-on set; pass
+ * `current` (what the org already owns) and the overlap is CREDITED on the first
+ * invoice via a one-time coupon — the sub carries the full totals going forward
+ * (the completion webhook cancels the prior add-ons sub so nothing doubles), but
+ * the charge today is exactly the delta. The webhook (kind: "addons") reconciles
+ * org_addons + records the sub id on completion. Unavailable → caller falls back. */
 export async function createAddonsEmbeddedCheckout(
   org: Organization,
   quantities: Partial<Record<AddOnId, number>>,
+  current: Partial<Record<AddOnId, number>> = {},
 ): Promise<EmbeddedResult> {
   const stripe = getStripe();
   const pk = env.STRIPE_PUBLISHABLE_KEY;
   if (!stripe || !pk) return { mode: "unavailable" };
 
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [];
+  let ownedCents = 0;
   for (const id of ADD_ON_IDS) {
     const qty = quantities[id] ?? 0;
     const price = priceForAddOn(id, "month");
-    if (qty > 0 && price) lineItems.push({ price, quantity: qty });
+    if (qty > 0 && price) {
+      lineItems.push({ price, quantity: qty });
+      // The already-owned part of this line, valued at the same effective
+      // (sale-aware) unit price the line bills — what the credit must cover.
+      const owned = Math.min(qty, Math.max(0, Math.floor(current[id] ?? 0)));
+      if (owned > 0) {
+        const a = getAddon(id);
+        const unit = saleActive({ percentOff: a.salePercentOff ?? 0, endsAt: a.saleEndsAt })
+          ? salePrice(a.unitAmount, a.salePercentOff as number)
+          : a.unitAmount;
+        ownedCents += Math.round(owned * unit * 100);
+      }
+    }
   }
   if (lineItems.length === 0) return { mode: "unavailable" };
 
   try {
     const customer = await ensureCustomer(org);
     const meta = { organizationId: org.id, kind: "addons" };
+    let discounts: Stripe.Checkout.SessionCreateParams.Discount[] | undefined;
+    if (ownedCents > 0) {
+      const coupon = await stripe.coupons.create({
+        amount_off: ownedCents,
+        currency: "usd",
+        duration: "once",
+        name: "Add-ons you already have — credited",
+        metadata: { organizationId: org.id, kind: "addons_owned_credit" },
+      });
+      discounts = [{ coupon: coupon.id }];
+    }
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       // This SDK pins an API version whose embedded UI mode is "embedded_page"
@@ -1027,6 +1104,7 @@ export async function createAddonsEmbeddedCheckout(
       ui_mode: "embedded_page",
       customer,
       line_items: lineItems,
+      ...(discounts ? { discounts } : {}),
       return_url: embeddedReturn(env.DASHBOARD_URL.replace(/\/$/, "")),
       metadata: meta,
       subscription_data: { metadata: meta },
