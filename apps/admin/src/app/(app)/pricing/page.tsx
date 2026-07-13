@@ -7,13 +7,15 @@ import { AddonEditor } from "./addon-editor";
 import { CustomPlansCard } from "./custom-plans-card";
 import { PlanEditor } from "./plan-editor";
 import { RevenueSummary } from "./revenue-summary";
+import { TierEditor } from "./tier-editor";
 
 export const metadata: Metadata = { title: "Pricing" };
 
 export default async function PricingPage() {
-  const [{ data: plans }, { data: addons }, { data: customPlans }, billing, analytics] =
+  const [{ data: plans }, { data: tiers }, { data: addons }, { data: customPlans }, billing, analytics] =
     await Promise.all([
       adminApi.listPlans(),
+      adminApi.listPricingTiers().catch(() => ({ data: [] })),
       adminApi.listAddons(),
       adminApi.listCustomPlans(),
       adminApi.getBillingStatus().catch(() => null),
@@ -61,7 +63,24 @@ export default async function PricingPage() {
         </Card>
       ) : null}
 
-      {/* Plans */}
+      {/* THE pricing model — per-wing tiers (tx blocks / mk contact-size). */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Wing pricing — the live model</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {tiers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No pricing tiers in the database — run the pricing seed, then{" "}
+              <code className="rounded bg-muted px-1 py-0.5">sync-wing-prices</code>.
+            </p>
+          ) : (
+            <TierEditor tiers={tiers} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Legacy plans (pre-wing resolver fallback — rarely edited now). */}
       <div className="space-y-4">
         {plans.length === 0 ? (
           <Card>

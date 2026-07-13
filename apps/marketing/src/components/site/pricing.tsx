@@ -1,217 +1,106 @@
 import Link from "next/link";
-import { Check, Zap } from "lucide-react";
+import { Check, Receipt } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { signupUrl } from "@/lib/links";
 import { getPublicPricing } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import { BlocksCalculator, ContactPricer } from "./pricing-calculators";
 
-// Mirrors the plans the product actually enforces (see packages/core PLANS).
-// Each tier adds volume AND a capability, so the upgrade has a real trigger.
-const tiers = [
-  {
-    name: "Free",
-    id: "free",
-    price: "$0",
-    cadence: "forever",
-    blurb: "For solo devs and side projects.",
-    included: "3,000 emails / month",
-    overage: "Free forever — no card",
-    features: [
-      "Transactional + marketing sends",
-      "Full audit trail & suppression",
-      "3 AI assistant credits / month",
-      "1 workspace",
-      "Sandbox (test-mode) keys",
-      "Community support",
-    ],
-    cta: "Start free",
-    href: signupUrl,
-    featured: false,
-  },
-  {
-    name: "Pro",
-    id: "pro",
-    price: "$20",
-    cadence: "/ month",
-    blurb: "For startups shipping real product.",
-    included: "50,000 emails / month",
-    overage: "then $0.85 / 1,000",
-    features: [
-      "Everything in Free",
-      "Reply threads & shared inbox",
-      "Sequences & automation",
-      "Campaigns & lists",
-      "50 AI assistant credits / month",
-      "3 workspaces — one per product or brand",
-      "3 teammates · email support",
-    ],
-    cta: "Start sending",
-    href: signupUrl,
-    featured: true,
-  },
-  {
-    name: "Scale",
-    id: "scale",
-    price: "$80",
-    cadence: "/ month",
-    blurb: "For platforms onboarding their own customers.",
-    included: "250,000 emails / month",
-    overage: "then $0.70 / 1,000",
-    features: [
-      "Everything in Pro",
-      "Sub-tenants — their own domains",
-      "Per-tenant DKIM & SPF/DMARC/BIMI guidance",
-      "250 AI assistant credits / month",
-      "10 workspaces",
-      "Team roles (RBAC) · unlimited seats",
-    ],
-    cta: "Start scaling",
-    href: signupUrl,
-    featured: false,
-  },
-  {
-    name: "Enterprise",
-    id: "enterprise",
-    price: "Custom",
-    cadence: "",
-    blurb: "For scale, compliance & data residency.",
-    included: "1M+ emails — committed-use",
-    overage: "Volume discounts",
-    features: [
-      "Everything in Scale",
-      "Signed proof bundles & audit-grade exports",
-      "Data-retention (redact/delete) policies",
-      "Unlimited AI assistant credits",
-      "Unlimited workspaces",
-      "Dedicated IPs & warming",
-      "SSO / SAML · EU residency · SLA",
-    ],
-    cta: "Contact sales",
-    href: "/contact?topic=enterprise",
-    featured: false,
-  },
-];
-
-// The floor every plan shares — so each tier is about volume and advanced layers,
+// The floor every account shares — so the two wings are about what THEY do,
 // not table stakes.
 const baseline = [
   "The full REST API, Node SDK & CLI",
+  "The AI assistant — build, send & diagnose",
   "Deliverability score & engagement analytics",
   "Append-only audit trail",
   "Automatic suppression handling",
   "1-click migration from SendGrid / Postmark / Mailgun",
   "Webhooks & delivery events",
-  "Sandbox (test-mode) keys",
-  "Usage-based billing — pay only for what you send",
+  "Sandbox (test-mode) keys — always free",
 ];
 
+/**
+ * Pricing sells the REAL model: two independent wings (transactional = send
+ * volume, marketing = audience size) + wing-agnostic add-ons priced per one.
+ * Numbers come live from the public catalog (sales included), so this page and
+ * the in-app purchase flow can never disagree.
+ */
 export async function Pricing() {
   const pricing = await getPublicPricing();
+  const { addons } = pricing;
+
   return (
     <section id="pricing" className="border-t border-border/60 bg-secondary/30 py-20 md:py-28">
       <div className="container">
         <div className="mx-auto mb-14 max-w-2xl text-center">
           <Badge className="mb-4">Pricing</Badge>
           <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-            Start free. Pay when you scale.
+            Two products. Each priced by what it actually uses.
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
-            The same API at every tier — you only pay for the volume and the layers you switch on.
+            Transactional email is priced by send volume. Marketing email is priced by audience size.
+            Each is fully usable on its own — be free on one side and scale the other.
           </p>
         </div>
 
-        <div className="mx-auto grid max-w-6xl items-stretch gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {tiers.map((t) => {
-            const live = pricing[t.id];
-            // Narrowed: non-null only when there's a real sale (lets TS see the fields).
-            const sale = live && live.sale_price != null && live.price != null ? live : null;
-            return (
-            <div
-              key={t.name}
-              className={cn(
-                "relative flex h-full flex-col rounded-2xl border bg-card p-6 shadow-sm",
-                t.featured && "border-primary/60 shadow-md ring-1 ring-primary/20",
-              )}
-            >
-              {t.featured ? (
-                <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 shadow-sm">
-                  Most popular
-                </Badge>
-              ) : null}
-              {sale ? (
-                <Badge className="absolute -top-3 right-4 border-transparent bg-rose-600 text-white shadow-sm">
-                  {sale.sale_percent_off}% off
-                </Badge>
-              ) : null}
-
-              <h3 className="text-lg font-semibold">{t.name}</h3>
-              <p className="mt-1 min-h-[2.5rem] text-sm text-muted-foreground">{t.blurb}</p>
-
-              {sale ? (
-                <div className="mt-4">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-4xl font-bold tracking-tight">${sale.sale_price}</span>
-                    <span className="text-lg text-muted-foreground line-through">${sale.price}</span>
-                    {t.cadence ? (
-                      <span className="text-sm text-muted-foreground">{t.cadence}</span>
-                    ) : null}
-                  </div>
-                  {sale.sale_ends_at ? (
-                    <p className="mt-1 text-xs font-medium text-rose-600">
-                      Sale ends {new Date(sale.sale_ends_at).toLocaleDateString()}
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="mt-4 flex items-baseline gap-1">
-                  <span className="text-4xl font-bold tracking-tight">{t.price}</span>
-                  {t.cadence ? (
-                    <span className="text-sm text-muted-foreground">{t.cadence}</span>
-                  ) : null}
-                </div>
-              )}
-
-              <div className="mt-4 rounded-lg border bg-secondary/40 px-3 py-2.5">
-                <div className="text-sm font-medium">{t.included}</div>
-                <div className="mt-0.5 text-xs text-muted-foreground">{t.overage}</div>
-              </div>
-
-              <ul className="mt-6 flex-1 space-y-3">
-                {t.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2.5 text-sm">
-                    <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                    <span className="text-muted-foreground">{f}</span>
-                  </li>
-                ))}
-              </ul>
-
-              <Link
-                href={t.href}
-                className={cn(
-                  buttonVariants({ variant: t.featured ? "default" : "outline" }),
-                  "mt-6 w-full",
-                )}
-              >
-                {t.cta}
-              </Link>
-            </div>
-            );
-          })}
+        {/* The two wings, sized honestly with the product's own math. */}
+        <div className="mx-auto grid max-w-5xl items-stretch gap-6 lg:grid-cols-2">
+          <BlocksCalculator tx={pricing.wings.transactional} />
+          <ContactPricer mk={pricing.wings.marketing} />
         </div>
 
-        {/* Pay-as-you-go — for people who just want to send, no plan to pick. */}
-        <div className="mx-auto mt-6 flex max-w-6xl flex-col items-start justify-between gap-4 rounded-2xl border border-dashed bg-card p-6 sm:flex-row sm:items-center">
+        {/* Add-ons — wing-agnostic, per one, buyable with a plan or on their own. */}
+        <div className="mx-auto mt-10 max-w-5xl">
+          <div className="mb-5 text-center">
+            <h3 className="text-xl font-bold tracking-tight">Add-ons — priced per one, no plan required</h3>
+            <p className="mt-1 text-sm text-muted-foreground">
+              They work across both wings. Pick them at checkout (one bill) or buy them on their own —
+              and buying more never re-bills what you already have.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {addons.map((a) => {
+              const onSale = a.sale_price != null;
+              return (
+                <div key={a.id} className="flex flex-col rounded-xl border bg-card p-4">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="text-sm font-semibold">{a.name}</p>
+                    {onSale ? (
+                      <Badge className="border-transparent bg-rose-600 text-white">{a.sale_percent_off}% off</Badge>
+                    ) : null}
+                  </div>
+                  <p className="mt-1 flex-1 text-xs text-muted-foreground">{a.description}</p>
+                  <p className="mt-3 text-sm">
+                    {onSale ? (
+                      <>
+                        <span className="font-bold">${a.sale_price}</span>
+                        <span className="ml-1 text-muted-foreground line-through">${a.unit_amount}</span>
+                      </>
+                    ) : (
+                      <span className="font-bold">${a.unit_amount}</span>
+                    )}
+                    <span className="text-xs text-muted-foreground">/mo per {a.unit}</span>
+                  </p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* The billing promises, in one strip. */}
+        <div className="mx-auto mt-10 flex max-w-5xl flex-col items-start justify-between gap-4 rounded-2xl border border-dashed bg-card p-6 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-              <Zap className="size-5" />
+              <Receipt className="size-5" />
             </span>
             <div>
-              <p className="font-semibold">Only pay for what you send.</p>
+              <p className="font-semibold">One bill. Never billed twice. Yearly = 2 months free.</p>
               <p className="mt-1 text-sm text-muted-foreground">
-                Every plan includes a monthly volume; go over and it&apos;s just $0.85 / 1,000 on Pro,
-                dropping to $0.50 at Enterprise — so growth never gets cheaper to leave. Free stays
-                free and capped, and sandbox sends are always free.
+                Add-ons picked with a plan appear inside the same checkout. Changing plans carries
+                everything you own over and credits your unused time automatically. Go past your
+                transactional volume and sending never stops — overage is billed per 1,000, and the
+                free tiers simply pause at their cap.
               </p>
             </div>
           </div>
@@ -223,8 +112,8 @@ export async function Pricing() {
           </Link>
         </div>
 
-        <div className="mx-auto mt-10 max-w-6xl rounded-2xl border bg-card p-6">
-          <p className="text-sm font-semibold">Every plan includes</p>
+        <div className="mx-auto mt-10 max-w-5xl rounded-2xl border bg-card p-6">
+          <p className="text-sm font-semibold">Every account includes</p>
           <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-3">
             {baseline.map((f) => (
               <li key={f} className="flex items-start gap-2.5 text-sm">
@@ -233,6 +122,13 @@ export async function Pricing() {
               </li>
             ))}
           </ul>
+          <p className="mt-4 text-xs text-muted-foreground">
+            Need committed volume, invoicing, or bespoke terms?{" "}
+            <Link href="/contact?topic=enterprise" className="font-medium text-primary hover:underline">
+              Talk to us
+            </Link>
+            {" "}— custom plans ride the same platform.
+          </p>
         </div>
       </div>
     </section>

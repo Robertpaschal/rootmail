@@ -173,6 +173,66 @@ export interface OrgDetail {
   total_messages: number;
   sub_tenants: number;
   custom_plan: CustomPlan | null;
+  /** Per-wing billing topology — which Stripe subscription bills each piece. */
+  billing: {
+    interval: "month" | "year";
+    transactional_tier: string | null;
+    transactional_blocks: number;
+    marketing_tier: string | null;
+    marketing_contacts: number;
+    subscriptions: {
+      transactional: string | null;
+      marketing: string | null;
+      addons: string | null;
+      overage: string | null;
+      legacy: string | null;
+    };
+    addons: { addon_id: string; quantity: number }[];
+  };
+}
+
+/** A per-wing pricing tier row (raw drizzle shape — camelCase). THE pricing model. */
+export interface AdminTier {
+  id: string;
+  wing: "transactional" | "marketing" | "platform";
+  name: string;
+  rank: number;
+  priceMonthly: number | null;
+  priceYearly: number | null;
+  aiCredits: number;
+  includedSends: number | null;
+  blockSize: number | null;
+  allowOverage: boolean;
+  overagePer1000Cents: number;
+  includedSubTenants: number;
+  includedContacts: number | null;
+  perThousandCents: number | null;
+  sendsPerContact: number | null;
+  dailyPerContact: number | null;
+  includedAudiences: number | null;
+  seats: number | null;
+  workspaceLimit: number | null;
+  trialDays: number;
+  features: string[];
+  active: boolean;
+  stripePriceMonthId: string | null;
+  stripePriceYearId: string | null;
+}
+
+export interface TierPatch {
+  name?: string;
+  price_monthly?: number | null;
+  ai_credits?: number;
+  overage_per_1000_cents?: number;
+  per_thousand_cents?: number | null;
+  sends_per_contact?: number | null;
+  daily_per_contact?: number | null;
+  included_audiences?: number | null;
+  seats?: number | null;
+  workspace_limit?: number | null;
+  trial_days?: number;
+  features?: string[];
+  active?: boolean;
 }
 
 export interface ListResponse<T> {

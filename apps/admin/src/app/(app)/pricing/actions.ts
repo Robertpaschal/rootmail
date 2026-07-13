@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { adminApi, ApiError } from "@/lib/admin-api";
-import type { AddonPatch, PlanPatch } from "@/lib/types";
+import type { AddonPatch, PlanPatch, TierPatch } from "@/lib/types";
 
 export type PlanState = { ok?: boolean; error?: string; sync?: string };
 
@@ -37,6 +37,39 @@ export async function updatePlan(_prev: PlanState, formData: FormData): Promise<
   let sync: string | undefined;
   try {
     const res = await adminApi.updatePlan(id, patch);
+    sync = res.stripe_sync;
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 403) return { error: "Superadmins only." };
+    return { error: "Couldn't save — check the values." };
+  }
+  revalidatePath("/pricing");
+  return { ok: true, sync };
+}
+
+/** Edit a per-wing pricing tier — THE live model (blocks / contact-size). */
+export async function updateTier(_prev: PlanState, formData: FormData): Promise<PlanState> {
+  const id = String(formData.get("id") ?? "");
+  if (!id) return { error: "Missing tier." };
+
+  const patch: TierPatch = {
+    name: String(formData.get("name") ?? "").trim() || undefined,
+    ai_credits: intField(formData, "ai_credits"),
+    overage_per_1000_cents: intField(formData, "overage_per_1000_cents"),
+    per_thousand_cents: intField(formData, "per_thousand_cents"),
+    sends_per_contact: intField(formData, "sends_per_contact"),
+    daily_per_contact: intField(formData, "daily_per_contact"),
+    included_audiences: intField(formData, "included_audiences"),
+    seats: intField(formData, "seats"),
+    workspace_limit: intField(formData, "workspace_limit"),
+  };
+  const priceRaw = formData.get("price_monthly");
+  if (priceRaw !== null) {
+    patch.price_monthly = String(priceRaw).trim() === "" ? null : Math.trunc(Number(priceRaw));
+  }
+
+  let sync: string | undefined;
+  try {
+    const res = await adminApi.updatePricingTier(id, patch);
     sync = res.stripe_sync;
   } catch (err) {
     if (err instanceof ApiError && err.status === 403) return { error: "Superadmins only." };

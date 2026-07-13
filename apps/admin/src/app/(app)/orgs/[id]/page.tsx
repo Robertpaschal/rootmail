@@ -57,6 +57,52 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
         <StatCard label="Sub-tenants" value={formatNumber(org.sub_tenants)} icon={Network} tone="green" />
       </div>
 
+      {/* Per-wing billing topology — what they're on and which sub bills each piece. */}
+      {org.billing ? (
+        <div className="rounded-xl border bg-card p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            Wing billing · {org.billing.interval}ly
+          </p>
+          <div className="mt-2 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <p className="font-medium">
+                Transactional:{" "}
+                {org.billing.transactional_blocks > 0
+                  ? `${formatNumber(org.billing.transactional_blocks)} blocks (${formatNumber(org.billing.transactional_blocks * 25_000)} sends/mo)`
+                  : (org.billing.transactional_tier ?? "free allowance")}
+              </p>
+              <p className="font-mono text-[11px] text-muted-foreground">
+                sub: {org.billing.subscriptions.transactional ?? "—"}
+                {org.billing.subscriptions.overage ? ` · overage: ${org.billing.subscriptions.overage}` : ""}
+              </p>
+            </div>
+            <div>
+              <p className="font-medium">
+                Marketing:{" "}
+                {org.billing.marketing_contacts > 0
+                  ? `${org.billing.marketing_tier} · ${formatNumber(org.billing.marketing_contacts)} contacts`
+                  : (org.billing.marketing_tier ?? "free")}
+              </p>
+              <p className="font-mono text-[11px] text-muted-foreground">
+                sub: {org.billing.subscriptions.marketing ?? "—"}
+              </p>
+            </div>
+            <div>
+              <p className="font-medium">
+                Add-ons:{" "}
+                {org.billing.addons.length === 0
+                  ? "none"
+                  : org.billing.addons.map((a) => `${a.addon_id} ×${a.quantity}`).join(" · ")}
+              </p>
+              <p className="font-mono text-[11px] text-muted-foreground">
+                sub: {org.billing.subscriptions.addons ?? "—"}
+                {org.billing.subscriptions.legacy ? ` · legacy: ${org.billing.subscriptions.legacy}` : ""}
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <OrgTabs org={org} messages={messages} suppressions={suppressions} billing={billing} openLeads={openLeads} />
     </div>
   );

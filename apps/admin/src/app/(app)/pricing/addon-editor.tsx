@@ -56,6 +56,9 @@ function AddonSummary({ addon, onEdit }: { addon: AdminAddon; onEdit: () => void
           ) : (
             <span className="font-medium tabular-nums">${addon.unit_amount}/mo</span>
           )}
+          <span className="ml-1 text-xs text-muted-foreground">
+            · ${addon.unit_amount * 10}/yr on yearly checkouts
+          </span>
         </div>
         <div>
           <span className="text-xs text-muted-foreground">Grant/unit</span>{" "}

@@ -265,32 +265,38 @@ async function billingPayload(org: Organization, usage: QuotaState) {
     // The three independent per-wing ladders (read-only preview in the dashboard).
     wings: wingsPayload(org),
     // Live add-on catalog (with any active sale) so the dashboard shows real prices.
-    addons_catalog: listAddons()
-      .filter((a) => a.active)
-      .map((a) => {
-        const onSale = saleActive({ percentOff: a.salePercentOff ?? 0, endsAt: a.saleEndsAt });
-        const def = ADD_ONS[a.id];
-        return {
-          id: a.id,
-          name: a.name,
-          unit: a.unit,
-          // Plain-English "what is one unit" + grouping + toggle-ness for the UI.
-          unit_note: def.unitNote,
-          grants_feature: def.grantsFeature ?? null,
-          max: def.max ?? null,
-          group: def.wing, // "transactional" folds into blocks; "platform" = everywhere
-          description: a.description,
-          unit_amount: a.unitAmount,
-          unit_amount_yearly: a.unitAmount * (12 - YEARLY_MONTHS_FREE),
-          sale_percent_off: onSale ? a.salePercentOff : null,
-          sale_price: onSale ? salePrice(a.unitAmount, a.salePercentOff as number) : null,
-          sale_price_yearly: onSale
-            ? salePrice(a.unitAmount, a.salePercentOff as number) * (12 - YEARLY_MONTHS_FREE)
-            : null,
-          sale_ends_at: onSale ? a.saleEndsAt : null,
-        };
-      }),
+    addons_catalog: serializeAddonCatalog(),
   };
+}
+
+/** The live add-on catalog (sale-aware) — shared by the dashboard billing payload
+ * and the PUBLIC pricing endpoint, so the marketing site sells the same truth. */
+function serializeAddonCatalog() {
+  return listAddons()
+    .filter((a) => a.active)
+    .map((a) => {
+      const onSale = saleActive({ percentOff: a.salePercentOff ?? 0, endsAt: a.saleEndsAt });
+      const def = ADD_ONS[a.id];
+      return {
+        id: a.id,
+        name: a.name,
+        unit: a.unit,
+        // Plain-English "what is one unit" + grouping + toggle-ness for the UI.
+        unit_note: def.unitNote,
+        grants_feature: def.grantsFeature ?? null,
+        max: def.max ?? null,
+        group: def.wing, // "transactional" folds into blocks; "platform" = everywhere
+        description: a.description,
+        unit_amount: a.unitAmount,
+        unit_amount_yearly: a.unitAmount * (12 - YEARLY_MONTHS_FREE),
+        sale_percent_off: onSale ? a.salePercentOff : null,
+        sale_price: onSale ? salePrice(a.unitAmount, a.salePercentOff as number) : null,
+        sale_price_yearly: onSale
+          ? salePrice(a.unitAmount, a.salePercentOff as number) * (12 - YEARLY_MONTHS_FREE)
+          : null,
+        sale_ends_at: onSale ? a.saleEndsAt : null,
+      };
+    });
 }
 
 async function orgForReq(req: FastifyRequest): Promise<Organization> {
@@ -299,10 +305,32 @@ async function orgForReq(req: FastifyRequest): Promise<Organization> {
 
 export async function billingRoutes(app: FastifyInstance): Promise<void> {
   // Public pricing catalog (no auth — see PUBLIC_PREFIXES) so the marketing site
-  // can show live prices + any active sale. Org-agnostic: the same plan data the
-  // dashboard sees, with no usage/seat specifics.
+  // can show live prices + any active sale. Org-agnostic: the same wing tiers,
+  // block model, contact model, and add-on catalog the dashboard sells — one
+  // source of truth for what the product costs. `data` keeps the legacy plan
+  // array so older marketing builds keep rendering during a rollout.
   app.get("/v1/pricing", async () => {
-    return { object: "list", data: listPlans().map(serializePlan) };
+    return {
+      object: "pricing",
+      data: listPlans().map(serializePlan),
+      yearly_months_free: YEARLY_MONTHS_FREE,
+      wings: {
+        transactional: {
+          free_sends: FREE_TX_SENDS,
+          block_size: BLOCK_SIZE,
+          max_blocks: MAX_SELF_SERVE_BLOCKS,
+          brackets: BLOCK_BRACKETS.map((b) => ({ up_to_blocks: b.upToBlocks, per_block: b.perBlock })),
+          tiers: tiersForWing("transactional").map(serializeTier),
+        },
+        marketing: {
+          free_contacts: FREE_MK_CONTACTS,
+          contact_steps: CONTACT_STEPS,
+          max_contacts: MAX_SELF_SERVE_CONTACTS,
+          tiers: tiersForWing("marketing").map(serializeTier),
+        },
+      },
+      addons: serializeAddonCatalog(),
+    };
   });
 
   app.get("/v1/billing", async (req) => {

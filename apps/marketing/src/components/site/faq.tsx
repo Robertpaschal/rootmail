@@ -24,7 +24,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: "Start free with 3,000 emails a month — no credit card. Paid plans add volume and capabilities (reply threads, sequences, campaigns, sub-tenants, proof bundles), and you only pay overage for what you actually send beyond your plan. See the pricing page for the full breakdown; sandbox (test) sends are always free.",
+    a: "Each product is priced by what it actually uses. Transactional: 3,000 sends a month free, then blocks of 25,000 sends with rates that drop as you grow — and overage never stops your sending. Marketing: free up to 500 contacts, then your audience size sets the price and the plan turns it into monthly volume and daily capacity. Extras (seats, workspaces, SSO, AI credits, dedicated IPs) are add-ons priced per one — buy them with a plan in one bill, or on their own with no plan at all. Yearly is 2 months free; sandbox (test) sends are always free.",
   },
   {
     q: "Is there an API and an SDK for developers?",

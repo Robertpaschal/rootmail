@@ -562,6 +562,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(customPlans.organizationId, id))
       .limit(1);
 
+    // The add-on entitlements this org holds (sum across its subscriptions).
+    const addonRows = await db
+      .select({ addon_id: orgAddons.addonId, quantity: orgAddons.quantity })
+      .from(orgAddons)
+      .where(eq(orgAddons.organizationId, id));
+
     return {
       object: "org_detail",
       id: org.id,
@@ -582,6 +588,23 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       total_messages: msgCount?.n ?? 0,
       sub_tenants: tenantCount?.n ?? 0,
       custom_plan: customPlan ? serializeCustomPlan(customPlan) : null,
+      // Per-wing billing topology — what the org is on and which Stripe
+      // subscription bills each piece (support's first question).
+      billing: {
+        interval: org.billingInterval,
+        transactional_tier: org.transactionalTier ?? null,
+        transactional_blocks: org.transactionalBlocks ?? 0,
+        marketing_tier: org.marketingTier ?? null,
+        marketing_contacts: org.marketingContacts ?? 0,
+        subscriptions: {
+          transactional: org.stripeTxSubscriptionId ?? null,
+          marketing: org.stripeMkSubscriptionId ?? null,
+          addons: org.stripePlatformSubscriptionId ?? null,
+          overage: org.stripeOverageSubscriptionId ?? null,
+          legacy: org.stripeSubscriptionId ?? null,
+        },
+        addons: addonRows.filter((a) => a.quantity > 0),
+      },
     };
   });
 
@@ -1136,6 +1159,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     workspace_limit: z.coerce.number().int().min(-1).nullable().optional(),
     allow_overage: z.boolean().optional(),
     overage_per_1000_cents: z.coerce.number().int().min(0).max(100_000).optional(),
+    // Marketing contact-size model — the levers price = contacts × rate, volume =
+    // contacts × sends/contact, and the daily + audience caps.
+    per_thousand_cents: z.coerce.number().int().min(0).max(1_000_000).nullable().optional(),
+    sends_per_contact: z.coerce.number().int().min(0).max(1000).nullable().optional(),
+    daily_per_contact: z.coerce.number().int().min(0).max(100).nullable().optional(),
+    included_audiences: z.coerce.number().int().min(-1).nullable().optional(),
     trial_days: z.coerce.number().int().min(0).max(365).optional(),
     features: z.array(z.string()).optional(),
     active: z.boolean().optional(),
@@ -1164,6 +1193,10 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     if (body.workspace_limit !== undefined) set.workspaceLimit = body.workspace_limit;
     if (body.allow_overage !== undefined) set.allowOverage = body.allow_overage;
     if (body.overage_per_1000_cents !== undefined) set.overagePer1000Cents = body.overage_per_1000_cents;
+    if (body.per_thousand_cents !== undefined) set.perThousandCents = body.per_thousand_cents;
+    if (body.sends_per_contact !== undefined) set.sendsPerContact = body.sends_per_contact;
+    if (body.daily_per_contact !== undefined) set.dailyPerContact = body.daily_per_contact;
+    if (body.included_audiences !== undefined) set.includedAudiences = body.included_audiences;
     if (body.trial_days !== undefined) set.trialDays = body.trial_days;
     if (body.features !== undefined) set.features = body.features;
     if (body.active !== undefined) set.active = body.active;
@@ -1173,6 +1206,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 
     const priceChanged =
       (body.price_monthly !== undefined && body.price_monthly !== before.priceMonthly) ||
+      // The marketing per-contact rate IS the billed Stripe price — re-mint on change.
+      (body.per_thousand_cents !== undefined && body.per_thousand_cents !== before.perThousandCents) ||
       (body.overage_per_1000_cents !== undefined &&
         body.overage_per_1000_cents !== before.overagePer1000Cents);
     let stripeSync: "synced" | "skipped" | "failed" | "unchanged" = priceChanged ? "skipped" : "unchanged";

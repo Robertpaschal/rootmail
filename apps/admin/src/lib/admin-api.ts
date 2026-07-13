@@ -31,9 +31,11 @@ import type {
   MessageDetail,
   MessageSummary,
   CreatePromotion,
+  AdminTier,
   OrgDetail,
   OrgSummary,
   PlanPatch,
+  TierPatch,
   Promotion,
   StaffAuditEntry,
   StaffRole,
@@ -168,6 +170,14 @@ export const adminApi = {
     adminFetch<{ active: boolean }>(`/v1/admin/promotions/${id}/deactivate`, {
       method: "POST",
       body: {},
+    }),
+
+  // Per-wing pricing tiers — THE pricing model (tx blocks / mk contact-size).
+  listPricingTiers: () => adminFetch<ListResponse<AdminTier>>("/v1/admin/pricing-tiers"),
+  updatePricingTier: (id: string, patch: TierPatch) =>
+    adminFetch<AdminTier & { stripe_sync?: string }>(`/v1/admin/pricing-tiers/${id}`, {
+      method: "PATCH",
+      body: patch,
     }),
 
   listPlans: () => adminFetch<ListResponse<AdminPlan>>("/v1/admin/plans"),

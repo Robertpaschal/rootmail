@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "The website now shows real, live pricing — with calculators",
+    date: "2026-07-13",
+    changes: [
+      {
+        kind: "New",
+        text: "The public pricing page mirrors how rootmail actually bills: size your transactional volume in blocks or pick your audience size, and see the exact monthly and yearly price before you ever sign up.",
+      },
+      {
+        kind: "Improved",
+        text: "Every number on the pricing page is live — the same catalog the product bills from, sales included — so the website and your checkout can never disagree.",
+      },
+      {
+        kind: "New",
+        text: "All nine add-ons are listed publicly with per-one prices, and the billing promises are in writing: one bill, never billed twice, yearly is two months free.",
+      },
+    ],
+  },
+  {
     title: "A smoother dashboard: fluid navigation and one-click actions",
     date: "2026-07-13",
     changes: [
