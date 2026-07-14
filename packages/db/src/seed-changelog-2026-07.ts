@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A site for everyone — and a new home for developers",
+    date: "2026-07-14",
+    changes: [
+      {
+        kind: "New",
+        text: "Developers get their own site at developers.gateml.io: the full technical pitch — integrate once, change email behavior without redeploying, and everything the dashboard does, the API does.",
+      },
+      {
+        kind: "Improved",
+        text: "The main site now speaks to everyone: rootmail is a no-code product first — design emails visually, send campaigns, read replies — whether you're a clothing brand, a news desk, or a two-person startup.",
+      },
+      {
+        kind: "Improved",
+        text: "A new “Who it's for” section says it plainly: made for people, loved by developers — the same product from the dashboard, the API, or both.",
+      },
+    ],
+  },
+  {
     title: "The website now shows real, live pricing — with calculators",
     date: "2026-07-13",
     changes: [

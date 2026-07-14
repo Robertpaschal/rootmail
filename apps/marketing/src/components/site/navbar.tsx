@@ -12,7 +12,8 @@ import { cn } from "@/lib/utils";
 const links = [
   { href: "/#platform", label: "Platform" },
   { href: "/#features", label: "Features" },
-  { href: "/docs", label: "Developers" },
+  // Developers get their own site — the full pitch, code-first.
+  { href: "https://developers.gateml.io", label: "Developers" },
   { href: "/pricing", label: "Pricing" },
   // The freshness signal — the product ships weekly, so say so from the top nav.
   { href: "/changelog", label: "Changelog" },

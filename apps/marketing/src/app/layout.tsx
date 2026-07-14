@@ -2,31 +2,32 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 const description =
-  "One email-sending core: dead-simple for a solo developer, with built-in sub-tenancy, full audit trails, and legal-grade proof as you grow. One API. One data model.";
+  "The receipts your website sends, the newsletters your audience reads, and the replies they send back — designed, sent, and understood from one dashboard anyone can use. No code required; a full API when you want one.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://rootmail.io"),
   title: {
-    default: "rootmail — email infrastructure that scales with who's asking",
+    default: "rootmail — all your email. No code required.",
     template: "%s · rootmail",
   },
   description,
   applicationName: "rootmail",
   keywords: [
-    "email API",
+    "email marketing",
+    "newsletter software",
     "transactional email",
-    "email infrastructure",
-    "sub-tenancy",
-    "multi-tenant email",
-    "DKIM",
-    "audit trail",
-    "developer email platform",
+    "no-code email",
+    "email campaigns",
+    "email templates",
+    "shared inbox",
+    "email deliverability",
+    "email API",
   ],
   authors: [{ name: "rootmail" }],
   openGraph: {
     type: "website",
     siteName: "rootmail",
-    title: "rootmail — email infrastructure that scales with who's asking",
+    title: "rootmail — all your email. No code required.",
     description,
     url: "https://rootmail.io",
   },

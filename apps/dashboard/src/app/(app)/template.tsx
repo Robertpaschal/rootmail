@@ -1,24 +1,29 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 
 // Next remounts a template on every navigation — which is exactly what a page
 // transition needs. Entrance-only (App Router has no reliable exit phase) and
-// deliberately subtle: content settles in ~0.2s. Two guardrails:
+// deliberately subtle: content settles in ~0.2s. Guards:
+// • SSR always renders the hidden initial (server and client agree — no
+//   hydration mismatch); a tab that's HIDDEN at mount is unhidden by an effect,
+//   because rAF doesn't tick there and would hold the page at opacity 0.
 // • No will-change and y ends at 0, so framer drops the transform to `none` at
 //   rest — a lingering transform would re-anchor fixed modals (checkout) and
 //   sticky summaries inside.
-// • A page that mounts in a HIDDEN tab renders visible immediately (initial:
-//   false): rAF doesn't tick while hidden, so an entrance would hold the page
-//   at opacity 0 until the tab is focused.
 export default function AppTemplate({ children }: { children: React.ReactNode }) {
-  const [enter] = useState(
-    () => typeof document !== "undefined" && document.visibilityState === "visible",
-  );
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (document.visibilityState === "hidden" && ref.current) {
+      ref.current.style.opacity = "1";
+      ref.current.style.transform = "none";
+    }
+  }, []);
   return (
     <motion.div
-      initial={enter ? { opacity: 0, y: 8 } : false}
+      ref={ref}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
     >

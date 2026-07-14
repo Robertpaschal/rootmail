@@ -27,6 +27,13 @@
       "runtimeArgs": ["--filter", "@rootmail/admin", "dev"],
       "port": 3002,
       "autoPort": true
+    },
+    {
+      "name": "developers",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@rootmail/developers", "dev"],
+      "port": 3004,
+      "autoPort": true
     }
   ]
 }

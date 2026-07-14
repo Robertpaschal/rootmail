@@ -58,6 +58,21 @@ services:
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET:-} # validates the CMS on-publish /api/revalidate
     ports: ["3000:3000"]
 
+  # Developer-audience marketing (developers.gateml.io) — static pitch site,
+  # links back to the main site + dashboard; no backend deps.
+  developers:
+    image: ${REGISTRY:-pachal}/rootmail-developers:${TAG:-latest}
+    build:
+      context: .
+      dockerfile: apps/developers/Dockerfile
+      args:
+        NEXT_PUBLIC_DASHBOARD_URL: ${NEXT_PUBLIC_DASHBOARD_URL}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+    ports: ["3004:3000"]
+
   dashboard:
     image: ${REGISTRY:-pachal}/rootmail-dashboard:${TAG:-latest}
     build: { context: ., dockerfile: apps/dashboard/Dockerfile }

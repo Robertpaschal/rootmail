@@ -31,7 +31,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        app: [api, worker, marketing, dashboard, admin]
+        app: [api, worker, marketing, developers, dashboard, admin]
     steps:
       - uses: actions/checkout@v4
 
