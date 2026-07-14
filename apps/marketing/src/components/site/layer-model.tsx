@@ -1,55 +1,44 @@
-import { Check, Clock } from "lucide-react";
+import { Check } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { ReactiveCard, Reveal } from "./motion";
 
-type LayerStatus = "available" | "planned";
-
-interface Layer {
-  n: number;
-  title: string;
-  status: LayerStatus;
-  blurb: string;
-  points: string[];
-}
-
-const layers: Layer[] = [
+// The platform story in human terms: you start by sending, conversations come
+// back, and when it matters you can prove everything. Same product the whole way.
+const stages = [
   {
     n: 1,
-    title: "Identity & Sending",
-    status: "available",
+    title: "Send",
     blurb:
-      "Workspaces send mail. Spawn sub-tenants — each with their own verified domain, DKIM keys, reputation, and contacts, all reporting up to the parent.",
+      "Your everyday email, from your own address: the receipts and resets your website sends by itself, and the campaigns and newsletters you send on purpose.",
     points: [
-      "Transactional, marketing & sales sends",
-      "Per-sub-tenant domains, DKIM & SPF",
-      "Append-only audit trail",
-      "Suppression, contacts & idempotency",
+      "Receipts, resets & alerts — automatic",
+      "Campaigns & newsletters — on your schedule",
+      "From your own name and web address",
+      "People who opted out are never emailed",
     ],
   },
   {
     n: 2,
-    title: "Conversation",
-    status: "available",
+    title: "Converse",
     blurb:
-      "Every message is a thread. Inbound replies are parsed, attached, and routed back via webhook or a shared inbox.",
+      "Email isn't one-way. Replies come back into a shared inbox your team can actually answer — and automated series politely stop when someone writes back.",
     points: [
-      "Inbound parsing & threading",
-      "Shared inbox & reply routing",
-      "Sequence exit-on-reply",
-      "message.received webhooks",
+      "One inbox for every reply",
+      "Answer in-app, together",
+      "Welcome series stop on reply",
+      "Nothing lands in a no-reply void",
     ],
   },
   {
     n: 3,
-    title: "Proof",
-    status: "available",
+    title: "Prove",
     blurb:
-      "Cryptographically signed, exportable proof bundles of a message's entire lifecycle — built for compliance and disputes.",
+      "For the day a customer disputes, a regulator asks, or a partner audits: a sealed, verifiable record of exactly what you sent, to whom, and when.",
     points: [
-      "Ed25519-signed proof bundles",
-      "Full lifecycle attestation",
+      "Sealed records anyone can verify",
+      "The full story of every message",
       "One-click export",
-      "GDPR export & deletion",
+      "Your data, exportable or erasable",
     ],
   },
 ];
@@ -58,53 +47,34 @@ export function LayerModel() {
   return (
     <section id="platform" className="border-t border-border/60 bg-secondary/30 py-20 md:py-28">
       <div className="container">
-        <div className="mx-auto mb-14 max-w-2xl text-center">
+        <Reveal inView className="mx-auto mb-14 max-w-2xl text-center">
           <Badge className="mb-4">The platform</Badge>
           <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-            Three layers. One data model.
+            Send. Converse. Prove.
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
-            Send a single welcome email, give every customer their own sending domain, or prove
-            exactly what you sent — it&apos;s the same product, the same data model, the whole way up.
-            Switch on what you need; nothing to migrate as you grow.
+            Start with a single welcome email. Grow into conversations with your audience, and
+            records you can stand behind — without ever moving to another tool.
           </p>
-        </div>
+        </Reveal>
 
         <div className="mx-auto grid max-w-5xl gap-4">
-          {layers.map((l) => {
-            const live = l.status === "available";
-            return (
-              <div
-                key={l.n}
-                className={cn(
-                  "relative flex flex-col gap-5 rounded-2xl border p-6 transition-colors md:flex-row md:items-start md:gap-8 md:p-8",
-                  live ? "border-primary/30 bg-card shadow-sm" : "border-border bg-card/40",
-                )}
-              >
+          {stages.map((l, i) => (
+            <Reveal key={l.n} inView delay={i * 0.08}>
+              <ReactiveCard className="relative flex flex-col gap-5 rounded-2xl border border-primary/30 bg-card p-6 shadow-sm transition-shadow hover:shadow-lg md:flex-row md:items-start md:gap-8 md:p-8">
                 <div className="flex items-center gap-4 md:w-64 md:shrink-0 md:flex-col md:items-start">
-                  <div
-                    className={cn(
-                      "grid size-12 shrink-0 place-items-center rounded-xl text-lg font-bold",
-                      live ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground",
-                    )}
-                  >
+                  <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary text-lg font-bold text-primary-foreground">
                     {l.n}
                   </div>
                   <div>
                     <div className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-                      Layer {l.n}
+                      Step {l.n}
                     </div>
                     <h3 className="text-xl font-semibold">{l.title}</h3>
                     <div className="mt-2">
-                      {live ? (
-                        <Badge variant="success">
-                          <Check /> Available now
-                        </Badge>
-                      ) : (
-                        <Badge variant="muted">
-                          <Clock /> On the roadmap
-                        </Badge>
-                      )}
+                      <Badge variant="success">
+                        <Check /> Included today
+                      </Badge>
                     </div>
                   </div>
                 </div>
@@ -114,20 +84,15 @@ export function LayerModel() {
                   <ul className="mt-4 grid gap-2 sm:grid-cols-2">
                     {l.points.map((p) => (
                       <li key={p} className="flex items-start gap-2 text-sm">
-                        <Check
-                          className={cn(
-                            "mt-0.5 size-4 shrink-0",
-                            live ? "text-primary" : "text-muted-foreground/50",
-                          )}
-                        />
-                        <span className={live ? "" : "text-muted-foreground"}>{p}</span>
+                        <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                        <span>{p}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
-              </div>
-            );
-          })}
+              </ReactiveCard>
+            </Reveal>
+          ))}
         </div>
       </div>
     </section>

@@ -14,67 +14,70 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { ReactiveCard, Reveal } from "./motion";
 
+// Outcomes, not mechanisms — every card says what YOU get, in plain words.
+// (The mechanisms live on developers.gateml.io, where they're the point.)
 const features = [
   {
     icon: Send,
-    title: "Flexible Send API",
-    desc: "Transactional, marketing, and sales sends from one endpoint — Handlebars templates or inline HTML, scheduled delivery, and priority lanes.",
+    title: "Every kind of email",
+    desc: "Order confirmations, password resets, newsletters, launch announcements — write them once, send them when you want, from your own address.",
   },
   {
     icon: Fingerprint,
-    title: "Exactly-once delivery",
-    desc: "Pass an idempotency_key and rootmail guarantees a single send. Safe retries, no duplicate emails to your users.",
+    title: "Never sent twice",
+    desc: "Hiccups happen — a page reloads, a system retries. Your customer still gets exactly one copy. Always.",
   },
   {
     icon: Network,
-    title: "Built-in sub-tenancy",
-    desc: "Give every customer a verified sending domain — DKIM, SPF, and reputation isolated — without rebuilding your stack.",
+    title: "Send for your clients",
+    desc: "Agencies and platforms can send from each client's own name and web address, with every client's sending reputation kept separate.",
   },
   {
     icon: Gauge,
-    title: "Deliverability tools",
-    desc: "A 0–100 reputation score from real outcomes, plus SPF, DKIM, DMARC and BIMI setup guidance for every sending domain.",
+    title: "Land in the inbox",
+    desc: "A live 0–100 reputation score from your real results, and we prepare the technical records your domain needs — you just paste them in once.",
   },
   {
     icon: BarChart3,
-    title: "Engagement analytics",
-    desc: "The sent → delivered → opened → clicked funnel — platform-wide and per campaign or sequence, with per-step drop-off, daily trends, and top templates.",
+    title: "See what gets read",
+    desc: "Sent, delivered, opened, clicked — for everything you send, and for each campaign or welcome series on its own.",
   },
   {
     icon: Workflow,
-    title: "Sequences & campaigns",
-    desc: "Drip sequences with delays and exit-on-reply, plus list-based campaigns — metered against your plan, each with its own engagement funnel.",
+    title: "Welcomes on autopilot",
+    desc: "Greet every new subscriber with a series that sends itself over days — and stops the moment someone writes back.",
   },
   {
     icon: MessagesSquare,
-    title: "Threads & shared inbox",
-    desc: "Inbound replies are parsed, threaded, and routed back via webhook or a shared inbox — and sequences exit automatically on reply.",
+    title: "Replies come back to you",
+    desc: "Answers land in one shared inbox your whole team can see — not a no-reply void.",
   },
   {
     icon: ShieldCheck,
-    title: "Proof & compliance",
-    desc: "Ed25519-signed proof bundles and audit-grade exports anyone can verify, plus configurable redact/delete data-retention policies.",
+    title: "Prove what you sent",
+    desc: "When it matters — a dispute, an audit — export a sealed, verifiable record of exactly what went out and when.",
   },
   {
     icon: ScrollText,
-    title: "Append-only audit trail",
-    desc: "Every lifecycle event — queued, sent, delivered, opened, clicked, bounced — is logged immutably and queryable per message.",
+    title: "A full paper trail",
+    desc: "Every step of every email is recorded and can never be quietly edited. Look any message up, any time.",
   },
   {
     icon: ShieldOff,
-    title: "Suppression & contacts",
-    desc: "Bounces, complaints, and unsubscribes are checked before every send and scoped per workspace or sub-tenant.",
+    title: "Consent, handled",
+    desc: "Unsubscribes, bounces, and complaints are respected automatically before every send — you can't accidentally email someone who opted out.",
   },
   {
     icon: ArrowLeftRight,
-    title: "Migrate in minutes",
-    desc: "Import your suppression list and contacts straight from a SendGrid, Postmark, or Mailgun export — no reputation lost.",
+    title: "Switch without losing anything",
+    desc: "Bring your contacts and your do-not-email list straight over from Mailchimp-style exports — your history and reputation come with you.",
   },
   {
     icon: Sparkles,
-    title: "AI assistant",
-    desc: "An in-app agent that plans multi-step work, builds, operates, and diagnoses your email — “why did this bounce?” — then reports back a checklist of what it did.",
+    title: "An assistant that does the busywork",
+    desc: "Ask in plain English — “set up a welcome series”, “why did this bounce?” — and it builds, fixes, and reports back.",
   },
 ];
 
@@ -82,29 +85,32 @@ export function Features() {
   return (
     <section id="features" className="py-20 md:py-28">
       <div className="container">
-        <div className="mx-auto mb-14 max-w-2xl text-center">
-          <Badge className="mb-4">Capabilities</Badge>
+        <Reveal inView className="mx-auto mb-14 max-w-2xl text-center">
+          <Badge className="mb-4">What you get</Badge>
           <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-            Everything a production email system needs
+            Everything your email needs to just work
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
-            Reach for what you need today, with room to grow into the rest — every capability works
-            from the no-code dashboard and the API alike, so your team and your developers share one
-            source of truth.
+            Use what you need today; the rest is there the day you want it. No plugins, no add-on
+            tools, no “talk to IT”.
           </p>
-        </div>
+        </Reveal>
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {features.map((f) => (
-            <Card key={f.title} className="transition-colors hover:border-primary/40">
-              <CardContent className="p-6">
-                <div className="mb-4 grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
-                  <f.icon className="size-5" />
-                </div>
-                <h3 className="text-base font-semibold">{f.title}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{f.desc}</p>
-              </CardContent>
-            </Card>
+          {features.map((f, i) => (
+            <Reveal key={f.title} inView delay={(i % 3) * 0.07}>
+              <ReactiveCard>
+                <Card className="h-full transition-shadow hover:border-primary/40 hover:shadow-lg">
+                  <CardContent className="p-6">
+                    <div className="mb-4 grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
+                      <f.icon className="size-5" />
+                    </div>
+                    <h3 className="text-base font-semibold">{f.title}</h3>
+                    <p className="mt-2 text-sm text-muted-foreground">{f.desc}</p>
+                  </CardContent>
+                </Card>
+              </ReactiveCard>
+            </Reveal>
           ))}
         </div>
       </div>

@@ -8,15 +8,14 @@ import { ThemeToggle } from "./theme-toggle";
 
 const MAIN_SITE = "https://marketing.gateml.io";
 
-// The developer surface shares the brand but not the audience: its nav points
-// at docs, live pricing, and the changelog on the MAIN site — this site's only
-// job is the developer pitch.
+// The developer surface owns its own docs; pricing + changelog live on the MAIN
+// site (one source of truth). Home-section anchors use "/#id" so they also work
+// from /docs.
 const links = [
-  { href: "#why", label: "Why rootmail" },
-  { href: "#api", label: "The API" },
-  { href: "#surface", label: "Everything's an endpoint" },
+  { href: "/#why", label: "Why rootmail" },
+  { href: "/#api", label: "The API" },
+  { href: "/docs", label: "Docs" },
   { href: `${MAIN_SITE}/pricing`, label: "Pricing" },
-  { href: `${MAIN_SITE}/docs`, label: "Docs" },
   { href: `${MAIN_SITE}/changelog`, label: "Changelog" },
 ];
 

@@ -16,9 +16,7 @@ const columns = [
     title: "Developers",
     links: [
       { label: "developers.gateml.io", href: "https://developers.gateml.io" },
-      { label: "Documentation", href: "/docs" },
-      { label: "API reference", href: "/docs#api" },
-      { label: "Node SDK", href: "/docs#sdk" },
+      { label: "Documentation", href: "https://developers.gateml.io/docs" },
     ],
   },
   {

@@ -18,23 +18,33 @@ export function Cta() {
               Send your first email in minutes
             </h2>
             <p className="text-balance text-lg text-zinc-300">
-              Create an account, grab your API key from the dashboard, and send through the SDK or the
-              no-code studio. No install, no credit card to start.
+              Create an account, design your first email in the studio, and send it — all in one
+              sitting. Nothing to install, no credit card to start.
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row">
-              <Link href={signupUrl} className={cn(buttonVariants({ size: "lg" }))}>
+              <Link
+                href={signupUrl}
+                className={cn(buttonVariants({ size: "lg" }), "transition-transform hover:-translate-y-0.5 active:scale-[0.98]")}
+              >
                 Create your account <ArrowRight className="size-4" />
               </Link>
               <Link
-                href="/docs"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/20 px-6 text-base font-medium text-white transition-colors hover:bg-white/10"
+                href="/pricing"
+                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/20 px-6 text-base font-medium text-white transition-all hover:-translate-y-0.5 hover:bg-white/10 active:scale-[0.98]"
               >
-                Read the docs
+                See pricing
               </Link>
             </div>
-            <code className="mt-2 rounded-lg border border-white/10 bg-white/5 px-4 py-2 font-mono text-sm text-zinc-300">
-              pnpm add @rootmail/node
-            </code>
+            <p className="mt-2 text-sm text-zinc-400">
+              Building a product?{" "}
+              <Link
+                href="https://developers.gateml.io"
+                className="font-medium text-zinc-200 underline-offset-4 hover:underline"
+              >
+                developers.gateml.io
+              </Link>{" "}
+              has the technical pitch and docs.
+            </p>
           </div>
         </div>
       </div>

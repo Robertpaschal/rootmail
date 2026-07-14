@@ -14,6 +14,20 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A living homepage that speaks your language",
+    date: "2026-07-14",
+    changes: [
+      {
+        kind: "Improved",
+        text: "The whole marketing site was rewritten in plain, outcome-first language — no jargon, no code — with every feature framed as what you actually get. Sections rise into view as you scroll, cards react to your cursor, and buttons feel alive.",
+      },
+      {
+        kind: "Improved",
+        text: "Everything developer-focused — docs, install commands, the API tour — now lives entirely on developers.gateml.io, so the main site stays about the product, not the plumbing.",
+      },
+    ],
+  },
+  {
     title: "A site for everyone — and a new home for developers",
     date: "2026-07-14",
     changes: [

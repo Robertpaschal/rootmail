@@ -121,7 +121,7 @@ export default function DevelopersHome() {
                   Get an API key <ArrowRight className="size-4" />
                 </Link>
                 <Link
-                  href="https://marketing.gateml.io/docs"
+                  href="/docs"
                   className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
                 >
                   <BookOpen className="size-4" /> Read the docs
@@ -141,7 +141,7 @@ export default function DevelopersHome() {
         {/* WHY — the outsource-your-email-layer narrative. */}
         <section id="why" className="border-t border-border/60 bg-secondary/30 py-20 md:py-28">
           <div className="container">
-            <Reveal className="mx-auto mb-12 max-w-2xl text-center">
+            <Reveal inView className="mx-auto mb-12 max-w-2xl text-center">
               <Badge className="mb-4">Why outsource it</Badge>
               <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
                 Email is a product of its own. Don&apos;t maintain two.
@@ -151,7 +151,7 @@ export default function DevelopersHome() {
                 mysteries, compliance TODOs. rootmail is that service, finished.
               </p>
             </Reveal>
-            <Reveal delay={0.08} className="grid gap-4 sm:grid-cols-2">
+            <Reveal inView delay={0.08} className="grid gap-4 sm:grid-cols-2">
               {whyPoints.map((w) => (
                 <div key={w.title} className="rounded-2xl border bg-card p-6">
                   <span className="mb-3 grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
@@ -173,7 +173,7 @@ export default function DevelopersHome() {
         {/* SURFACE — entry-point agnostic, stated concretely. */}
         <section id="surface" className="border-t border-border/60 py-20 md:py-28">
           <div className="container">
-            <Reveal className="mx-auto mb-12 max-w-2xl text-center">
+            <Reveal inView className="mx-auto mb-12 max-w-2xl text-center">
               <Badge className="mb-4">Parity, not a subset</Badge>
               <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
                 Everything the dashboard does, the API does.
@@ -183,7 +183,7 @@ export default function DevelopersHome() {
                 whatever gets built no-code is yours to drive in code, and vice versa.
               </p>
             </Reveal>
-            <Reveal delay={0.08} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <Reveal inView delay={0.08} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {surface.map((s) => (
                 <div key={s.name} className="flex items-center gap-3 rounded-xl border bg-card p-4">
                   <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground">
@@ -202,9 +202,9 @@ export default function DevelopersHome() {
         {/* GUARANTEES + CTA */}
         <section className="border-t border-border/60 bg-secondary/30 py-20 md:py-28">
           <div className="container grid items-center gap-10 lg:grid-cols-2">
-            <Reveal>
+            <Reveal inView>
               <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-                The guarantees you&apos;d have to build yourself
+              The guarantees you&apos;d have to build yourself
               </h2>
               <ul className="mt-6 space-y-3">
                 {guarantees.map((g) => (
@@ -217,7 +217,7 @@ export default function DevelopersHome() {
                 ))}
               </ul>
             </Reveal>
-            <Reveal delay={0.1} className="rounded-2xl border bg-card p-8 text-center">
+            <Reveal inView delay={0.1} className="rounded-2xl border bg-card p-8 text-center">
               <h3 className="text-xl font-bold">3,000 sends a month, free. No card.</h3>
               <p className="mt-2 text-sm text-muted-foreground">
                 Then blocks of 25,000 sends priced to drop as you grow — and sandbox sends never

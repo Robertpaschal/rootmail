@@ -5,20 +5,20 @@ import { buttonVariants } from "@/components/ui/button";
 import { signupUrl } from "@/lib/links";
 import { getPublicPricing } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
-import { Reveal } from "./motion";
+import { ReactiveCard, Reveal } from "./motion";
 import { BlocksCalculator, ContactPricer } from "./pricing-calculators";
 
 // The floor every account shares — so the two wings are about what THEY do,
 // not table stakes.
 const baseline = [
-  "The full REST API, Node SDK & CLI",
-  "The AI assistant — build, send & diagnose",
-  "Deliverability score & engagement analytics",
-  "Append-only audit trail",
-  "Automatic suppression handling",
-  "1-click migration from SendGrid / Postmark / Mailgun",
-  "Webhooks & delivery events",
-  "Sandbox (test-mode) keys — always free",
+  "The AI assistant — builds, sends & explains",
+  "Delivery health score & full engagement stats",
+  "A complete, tamper-proof history of every email",
+  "Unsubscribes & bounces respected automatically",
+  "1-click move-in from Mailchimp-style exports",
+  "A free practice mode — test sends never cost anything",
+  "Design studio for emails — no code, ever",
+  "Full developer access included (developers.gateml.io)",
 ];
 
 /**
@@ -46,13 +46,13 @@ export async function Pricing() {
         </div>
 
         {/* The two wings, sized honestly with the product's own math. */}
-        <Reveal delay={0.05} className="mx-auto grid max-w-5xl items-stretch gap-6 lg:grid-cols-2">
+        <Reveal inView delay={0.05} className="mx-auto grid max-w-5xl items-stretch gap-6 lg:grid-cols-2">
           <BlocksCalculator tx={pricing.wings.transactional} />
           <ContactPricer mk={pricing.wings.marketing} />
         </Reveal>
 
         {/* Add-ons — wing-agnostic, per one, buyable with a plan or on their own. */}
-        <Reveal delay={0.12} className="mx-auto mt-10 max-w-5xl">
+        <Reveal inView delay={0.12} className="mx-auto mt-10 max-w-5xl">
           <div className="mb-5 text-center">
             <h3 className="text-xl font-bold tracking-tight">Add-ons — priced per one, no plan required</h3>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -64,7 +64,7 @@ export async function Pricing() {
             {addons.map((a) => {
               const onSale = a.sale_price != null;
               return (
-                <div key={a.id} className="flex flex-col rounded-xl border bg-card p-4">
+                <ReactiveCard key={a.id} className="flex h-full flex-col rounded-xl border bg-card p-4 transition-shadow hover:border-primary/40 hover:shadow-md">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-semibold">{a.name}</p>
                     {onSale ? (
@@ -83,14 +83,14 @@ export async function Pricing() {
                     )}
                     <span className="text-xs text-muted-foreground">/mo per {a.unit}</span>
                   </p>
-                </div>
+                </ReactiveCard>
               );
             })}
           </div>
         </Reveal>
 
         {/* The billing promises, in one strip. */}
-        <Reveal delay={0.16} className="mx-auto mt-10 flex max-w-5xl flex-col items-start justify-between gap-4 rounded-2xl border border-dashed bg-card p-6 sm:flex-row sm:items-center">
+        <Reveal inView delay={0.16} className="mx-auto mt-10 flex max-w-5xl flex-col items-start justify-between gap-4 rounded-2xl border border-dashed bg-card p-6 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
               <Receipt className="size-5" />
@@ -113,7 +113,7 @@ export async function Pricing() {
           </Link>
         </Reveal>
 
-        <Reveal delay={0.2} className="mx-auto mt-10 max-w-5xl rounded-2xl border bg-card p-6">
+        <Reveal inView delay={0.2} className="mx-auto mt-10 max-w-5xl rounded-2xl border bg-card p-6">
           <p className="text-sm font-semibold">Every account includes</p>
           <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-3">
             {baseline.map((f) => (

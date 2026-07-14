@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, Inbox, Megaphone, PenLine, Send, Sparkles, Terminal } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { Reveal } from "./motion";
+import { Parallax, ReactiveCard, Reveal } from "./motion";
 import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
@@ -23,10 +23,13 @@ export function Hero() {
         className="absolute inset-0 -z-10 bg-grid [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_55%,transparent_100%)]"
         aria-hidden="true"
       />
-      <div
-        className="absolute left-1/2 top-[-10%] -z-10 h-[420px] w-[720px] max-w-[90vw] -translate-x-1/2 rounded-full bg-primary/20 blur-[130px]"
-        aria-hidden="true"
-      />
+      {/* Decorative glows drift at different rates as you scroll — the parallax depth. */}
+      <Parallax range={90} className="absolute left-1/2 top-[-10%] -z-10 -translate-x-1/2">
+        <div className="h-[420px] w-[720px] max-w-[90vw] rounded-full bg-primary/20 blur-[130px]" aria-hidden="true" />
+      </Parallax>
+      <Parallax range={-70} className="absolute right-[8%] top-[30%] -z-10">
+        <div className="h-[260px] w-[260px] rounded-full bg-violet-500/10 blur-[100px]" aria-hidden="true" />
+      </Parallax>
 
       <div className="container flex flex-col items-center gap-10 py-20 text-center md:py-28">
         <Reveal className="flex max-w-3xl flex-col items-center gap-6">
@@ -52,10 +55,22 @@ export function Hero() {
           </p>
 
           <div className="flex flex-col items-center gap-3 sm:flex-row">
-            <Link href={signupUrl} className={cn(buttonVariants({ size: "lg" }))}>
+            <Link
+              href={signupUrl}
+              className={cn(
+                buttonVariants({ size: "lg" }),
+                "transition-transform hover:-translate-y-0.5 active:scale-[0.98]",
+              )}
+            >
               Start free — no card <ArrowRight className="size-4" />
             </Link>
-            <Link href="/pricing" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
+            <Link
+              href="/pricing"
+              className={cn(
+                buttonVariants({ variant: "outline", size: "lg" }),
+                "transition-transform hover:-translate-y-0.5 active:scale-[0.98]",
+              )}
+            >
               See pricing
             </Link>
           </div>
@@ -75,12 +90,15 @@ export function Hero() {
         <Reveal delay={0.12} className="w-full max-w-3xl">
           <div className="grid gap-3 rounded-2xl border bg-card/60 p-4 backdrop-blur sm:grid-cols-2 lg:grid-cols-5 lg:gap-2 lg:p-3">
             {proofs.map((p) => (
-              <div key={p.text} className="flex items-center gap-2.5 rounded-xl p-2 text-left lg:flex-col lg:items-center lg:gap-2 lg:p-3 lg:text-center">
+              <ReactiveCard
+                key={p.text}
+                className="flex items-center gap-2.5 rounded-xl p-2 text-left transition-colors hover:bg-secondary/60 lg:flex-col lg:items-center lg:gap-2 lg:p-3 lg:text-center"
+              >
                 <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
                   <p.icon className="size-4" />
                 </span>
                 <span className="text-xs font-medium leading-snug text-muted-foreground">{p.text}</span>
-              </div>
+              </ReactiveCard>
             ))}
           </div>
         </Reveal>

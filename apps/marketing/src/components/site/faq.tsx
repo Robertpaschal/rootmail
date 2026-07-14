@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 const faqs = [
   {
     q: "Do I need to know how to code to use rootmail?",
-    a: "No. The dashboard is a full no-code console: write and design templates in a visual editor, build contact lists, send campaigns, automate drip sequences, read replies in a shared inbox, and watch open and click rates — all without writing a line of code. An AI assistant can even draft a template or build a sequence for you. Developers get a REST API, a typed Node SDK, and a CLI for the exact same features.",
+    a: "No. The dashboard is a full no-code console: write and design templates in a visual editor, build contact lists, send campaigns, automate drip sequences, read replies in a shared inbox, and watch open and click rates — all without writing a line of code. An AI assistant can even draft a template or build a sequence for you — and if your team includes developers, they get the exact same product in code at developers.gateml.io.",
   },
   {
     q: "How do I send to my contacts or a mailing list?",
@@ -20,23 +20,23 @@ const faqs = [
   },
   {
     q: "Is my data safe?",
-    a: "Yes. Mail is encrypted in transit, API keys and passwords are only ever stored hashed, and optional two-factor sign-in, login lockout, and role-based permissions protect your account. Your data is strictly isolated to your organization — no other customer can ever see it. You can export everything or delete your account at any time, and we publish our privacy policy, security practices, and a DPA.",
+    a: "Yes. Mail is encrypted in transit, credentials are stored only in protected form, and optional two-factor sign-in, login lockout, and per-person permissions protect your account. Your data is strictly isolated to your organization — no other customer can ever see it. You can export everything or delete your account at any time, and we publish our privacy policy, security practices, and a DPA.",
   },
   {
     q: "What does it cost?",
     a: "Each product is priced by what it actually uses. Transactional: 3,000 sends a month free, then blocks of 25,000 sends with rates that drop as you grow — and overage never stops your sending. Marketing: free up to 500 contacts, then your audience size sets the price and the plan turns it into monthly volume and daily capacity. Extras (seats, workspaces, SSO, AI credits, dedicated IPs) are add-ons priced per one — buy them with a plan in one bill, or on their own with no plan at all. Yearly is 2 months free; sandbox (test) sends are always free.",
   },
   {
-    q: "Is there an API and an SDK for developers?",
-    a: "Yes. Everything in the product is available over a clean REST API (Bearer-token auth, snake_case JSON, idempotent by default), the typed @rootmail/node SDK, and a CLI. They cover sending, templates, sequences, lists, campaigns, threads, sub-tenants, webhooks, deliverability, analytics, proof exports, and the assistant.",
+    q: "My team has developers — can they plug into this?",
+    a: "Yes, fully. Everything you do in the dashboard, a developer can do in code — same product, same data. The whole technical story (and the docs) lives at developers.gateml.io, so your developers get their own front door while you never have to touch code.",
   },
   {
     q: "Can I get notified of deliveries, opens, and replies?",
     a: "Yes — point a webhook endpoint at your app and rootmail sends signed, idempotent events for the full lifecycle (delivered, opened, clicked, bounced, complained) plus inbound replies, with a per-endpoint delivery log you can inspect and replay.",
   },
   {
-    q: "What is a sub-tenant — and do I need one?",
-    a: "Only if you send on behalf of your own customers (you're building a platform). A sub-tenant is one of your customers sending under their own verified domain, with their reputation, contacts, and audit trail isolated but rolling up to you. Most senders never need this — but it's there the day you do, with no re-platforming.",
+    q: "Can I send email on behalf of my clients?",
+    a: "Yes — that's what client domains are for. Each client sends from their own name and web address, with their sending reputation, contacts, and history kept separate from everyone else's. Agencies run all their clients from one account; most other senders never need this, but it's there the day you do.",
   },
   {
     q: "How is this different from Resend or Mailchimp?",
