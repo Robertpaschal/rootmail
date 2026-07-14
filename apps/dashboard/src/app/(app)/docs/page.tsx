@@ -1,72 +1,49 @@
 import Link from "next/link";
-import { ArrowRight, KeyRound, Network, Terminal, Webhook } from "lucide-react";
+import { ArrowRight, ArrowUpRight, ExternalLink } from "lucide-react";
+import { DOCS } from "@rootmail/docs";
 import { PageHeader } from "@/components/app/page-header";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
-const CURL = `curl https://api.rootmail.dev/v1/messages \\
-  -H "Authorization: Bearer rm_live_…" \\
-  -H "Content-Type: application/json" \\
-  -d '{"to":"ada@example.com","subject":"Hi","html":"<p>Hello</p>"}'`;
-
-const SDK = `import { Rootmail } from "@rootmail/node";
-
-const rootmail = new Rootmail({ apiKey: process.env.ROOTMAIL_API_KEY });
-await rootmail.messages.send({
-  to: "ada@example.com",
-  subject: "Hi",
-  html: "<p>Hello</p>",
-});`;
-
-const CLI = `npx @rootmail/cli send \\
-  --to ada@example.com --subject "Hi" --html "<p>Hello</p>"`;
-
-const links = [
-  { href: "/api-keys", icon: KeyRound, title: "API keys", desc: "Create and manage keys." },
-  { href: "/webhooks", icon: Webhook, title: "Webhooks", desc: "Subscribe to lifecycle + inbound events." },
-  { href: "/sub-tenants", icon: Network, title: "Client domains", desc: "Send on behalf of your own customers." },
-];
-
-export default function DocsPage() {
+// The in-app docs index. Renders the SAME content tree as developers.gateml.io —
+// one source of truth — with the dashboard's chrome.
+export default function DocsIndex() {
   return (
     <>
       <PageHeader
         title="Developer docs"
-        description="Send through the REST API, the @rootmail/node SDK, or the CLI. Everyday work needs none of this — it's here for when you want to integrate."
+        description="Send through the REST API, the @rootmail/node SDK, or the CLI. Everyday work needs none of this — it's here for when you integrate. Everything the dashboard does, the API does."
+        actions={
+          <a
+            href="https://developers.gateml.io/docs"
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+          >
+            Full reference site <ExternalLink className="size-3.5" />
+          </a>
+        }
       />
       <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Quickstart</CardTitle>
-            <CardDescription>
-              Create a key under <Link href="/api-keys" className="text-primary hover:underline">API keys</Link>, set it
-              as <code className="font-mono text-xs">ROOTMAIL_API_KEY</code>, then send. The API is snake_case, idempotent,
-              and authenticated with a Bearer token.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Block label="REST (curl)" code={CURL} />
-            <Block label="Node SDK" code={SDK} />
-            <Block label="CLI" code={CLI} icon={Terminal} />
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4 sm:grid-cols-3">
-          {links.map((l) => (
-            <Link key={l.href} href={l.href} className="group block">
-              <Card className="h-full transition-colors group-hover:border-primary/40">
-                <CardContent className="flex items-start gap-3 p-5">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground">
-                    <l.icon className="size-4" />
-                  </span>
-                  <div>
-                    <p className="font-medium">{l.title}</p>
-                    <p className="text-sm text-muted-foreground">{l.desc}</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+        {DOCS.map((section) => (
+          <div key={section.label}>
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">{section.label}</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {section.pages.map((page) => (
+                <Link key={page.slug} href={`/docs/${page.slug}`} className="group block">
+                  <Card className="h-full transition-colors group-hover:border-primary/40">
+                    <CardContent className="p-4">
+                      <p className="flex items-center gap-1 font-medium">
+                        {page.title}
+                        <ArrowUpRight className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">{page.summary}</p>
+                    </CardContent>
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          </div>
+        ))}
 
         <p className="text-sm text-muted-foreground">
           Want the assistant to wire something up?{" "}
@@ -76,19 +53,5 @@ export default function DocsPage() {
         </p>
       </div>
     </>
-  );
-}
-
-function Block({ label, code, icon: Icon }: { label: string; code: string; icon?: typeof Terminal }) {
-  return (
-    <div>
-      <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-        {Icon ? <Icon className="size-3.5" /> : null}
-        {label}
-      </p>
-      <pre className="overflow-x-auto rounded-md border bg-muted/40 p-3 text-xs">
-        <code className="font-mono">{code}</code>
-      </pre>
-    </div>
   );
 }

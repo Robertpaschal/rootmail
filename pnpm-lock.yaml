@@ -154,6 +154,9 @@ importers:
       '@radix-ui/react-dialog':
         specifier: ^1.1.17
         version: 1.1.17(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@rootmail/docs':
+        specifier: workspace:*
+        version: link:../../packages/docs
       '@stripe/react-stripe-js':
         specifier: ^6.6.0
         version: 6.6.0(@stripe/stripe-js@9.8.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -257,6 +260,9 @@ importers:
 
   apps/developers:
     dependencies:
+      '@rootmail/docs':
+        specifier: workspace:*
+        version: link:../../packages/docs
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -464,6 +470,15 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.22.4
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  packages/docs:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.19.21
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

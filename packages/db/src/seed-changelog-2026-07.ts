@@ -14,6 +14,20 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Full developer docs — one reference, two places",
+    date: "2026-07-14",
+    changes: [
+      {
+        kind: "New",
+        text: "A complete developer reference now lives at developers.gateml.io/docs: getting started, core concepts (idempotency, pagination, errors, sandbox, rate limits), and a page for every resource — messages, templates, contacts, audiences, campaigns, sequences, replies, client domains, webhooks (with signature verification), deliverability, proof, and the assistant — plus the SDK, CLI, and a migration guide.",
+      },
+      {
+        kind: "Improved",
+        text: "The same docs are built into the dashboard under Docs, so you can read the exact reference without leaving your workspace — one source of truth, never out of sync.",
+      },
+    ],
+  },
+  {
     title: "A living homepage that speaks your language",
     date: "2026-07-14",
     changes: [
