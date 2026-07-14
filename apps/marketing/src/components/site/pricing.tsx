@@ -5,6 +5,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { signupUrl } from "@/lib/links";
 import { getPublicPricing } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import { Reveal } from "./motion";
 import { BlocksCalculator, ContactPricer } from "./pricing-calculators";
 
 // The floor every account shares — so the two wings are about what THEY do,
@@ -45,13 +46,13 @@ export async function Pricing() {
         </div>
 
         {/* The two wings, sized honestly with the product's own math. */}
-        <div className="mx-auto grid max-w-5xl items-stretch gap-6 lg:grid-cols-2">
+        <Reveal delay={0.05} className="mx-auto grid max-w-5xl items-stretch gap-6 lg:grid-cols-2">
           <BlocksCalculator tx={pricing.wings.transactional} />
           <ContactPricer mk={pricing.wings.marketing} />
-        </div>
+        </Reveal>
 
         {/* Add-ons — wing-agnostic, per one, buyable with a plan or on their own. */}
-        <div className="mx-auto mt-10 max-w-5xl">
+        <Reveal delay={0.12} className="mx-auto mt-10 max-w-5xl">
           <div className="mb-5 text-center">
             <h3 className="text-xl font-bold tracking-tight">Add-ons — priced per one, no plan required</h3>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -86,10 +87,10 @@ export async function Pricing() {
               );
             })}
           </div>
-        </div>
+        </Reveal>
 
         {/* The billing promises, in one strip. */}
-        <div className="mx-auto mt-10 flex max-w-5xl flex-col items-start justify-between gap-4 rounded-2xl border border-dashed bg-card p-6 sm:flex-row sm:items-center">
+        <Reveal delay={0.16} className="mx-auto mt-10 flex max-w-5xl flex-col items-start justify-between gap-4 rounded-2xl border border-dashed bg-card p-6 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
             <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
               <Receipt className="size-5" />
@@ -110,9 +111,9 @@ export async function Pricing() {
           >
             Start free
           </Link>
-        </div>
+        </Reveal>
 
-        <div className="mx-auto mt-10 max-w-5xl rounded-2xl border bg-card p-6">
+        <Reveal delay={0.2} className="mx-auto mt-10 max-w-5xl rounded-2xl border bg-card p-6">
           <p className="text-sm font-semibold">Every account includes</p>
           <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-3">
             {baseline.map((f) => (
@@ -129,7 +130,7 @@ export async function Pricing() {
             </Link>
             {" "}— custom plans ride the same platform.
           </p>
-        </div>
+        </Reveal>
       </div>
     </section>
   );

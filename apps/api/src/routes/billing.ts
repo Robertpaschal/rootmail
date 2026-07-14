@@ -30,7 +30,7 @@ import { db, type Organization, organizations, type OrgAddon, orgAddons } from "
 import { currentPeriod, getAiUsage, type QuotaState, quotaState } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { aiCreditsForOrg, getAddon, getAiCredits, getSale, getTrialDays, listAddons, listPlans, orgAddonQuantities } from "../lib/plans";
+import { aiCreditsForOrg, getAddon, getAiCredits, getSale, getTrialDays, listAddons, orgAddonQuantities } from "../lib/plans";
 import { type SeatState, seatState } from "../lib/seats";
 import { getTier, marketingPriceForOrg, tiersForWing } from "../lib/wings";
 import {
@@ -261,7 +261,6 @@ async function billingPayload(org: Organization, usage: QuotaState) {
       audiences_limit: usage.audiences_limit,
     },
     summary: billingSummary(org, usage, seats, addons),
-    plans: listPlans().map(serializePlan),
     // The three independent per-wing ladders (read-only preview in the dashboard).
     wings: wingsPayload(org),
     // Live add-on catalog (with any active sale) so the dashboard shows real prices.
@@ -307,12 +306,10 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
   // Public pricing catalog (no auth — see PUBLIC_PREFIXES) so the marketing site
   // can show live prices + any active sale. Org-agnostic: the same wing tiers,
   // block model, contact model, and add-on catalog the dashboard sells — one
-  // source of truth for what the product costs. `data` keeps the legacy plan
-  // array so older marketing builds keep rendering during a rollout.
+  // source of truth for what the product costs.
   app.get("/v1/pricing", async () => {
     return {
       object: "pricing",
-      data: listPlans().map(serializePlan),
       yearly_months_free: YEARLY_MONTHS_FREE,
       wings: {
         transactional: {

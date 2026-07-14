@@ -5,16 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { adminApi } from "@/lib/admin-api";
 import { AddonEditor } from "./addon-editor";
 import { CustomPlansCard } from "./custom-plans-card";
-import { PlanEditor } from "./plan-editor";
 import { RevenueSummary } from "./revenue-summary";
 import { TierEditor } from "./tier-editor";
 
 export const metadata: Metadata = { title: "Pricing" };
 
 export default async function PricingPage() {
-  const [{ data: plans }, { data: tiers }, { data: addons }, { data: customPlans }, billing, analytics] =
+  const [{ data: tiers }, { data: addons }, { data: customPlans }, billing, analytics] =
     await Promise.all([
-      adminApi.listPlans(),
       adminApi.listPricingTiers().catch(() => ({ data: [] })),
       adminApi.listAddons(),
       adminApi.listCustomPlans(),
@@ -27,9 +25,9 @@ export default async function PricingPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Pricing</h1>
         <p className="text-sm text-muted-foreground">
-          Your pricing control center — review every plan, add-on, sale, and custom sub at a glance,
-          then edit any one inline. Changes apply immediately; the billed Stripe price syncs
-          automatically, so you rarely need the Stripe dashboard. Superadmin only.
+          Your pricing control center — the per-wing model (send blocks, contact-size tiers),
+          every add-on, sale, and custom sub, editable inline. Changes apply immediately; the
+          billed Stripe price syncs automatically. Superadmin only.
         </p>
       </div>
 
@@ -53,8 +51,7 @@ export default async function PricingPage() {
               Embedded checkout: {billing.publishable_set ? "ready" : "no publishable key"}
             </span>
             <span className="text-muted-foreground">
-              Metered overage — Pro {billing.overage_meters.pro ? "✓" : "—"} · Scale{" "}
-              {billing.overage_meters.scale ? "✓" : "—"}
+              Metered overage (send blocks): {billing.overage_metered ? "✓ live" : "— not synced"}
             </span>
             <Link href="/promotions" className="ml-auto font-medium hover:underline">
               Promotions &amp; coupons →
@@ -79,35 +76,6 @@ export default async function PricingPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Legacy plans (pre-wing resolver fallback — rarely edited now). */}
-      <div className="space-y-4">
-        {plans.length === 0 ? (
-          <Card>
-            <CardContent className="py-6 text-sm text-muted-foreground">
-              No plans in the database yet. Run{" "}
-              <code className="rounded bg-muted px-1 py-0.5">pnpm db:seed:pricing</code> to populate
-              the catalog from the defaults, then refresh. (Customer-facing pricing still works off
-              the built-in defaults.)
-            </CardContent>
-          </Card>
-        ) : null}
-        {plans.map((p) => (
-          <Card key={p.id}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <span className="capitalize">{p.name}</span>
-                <Badge variant={p.active ? "success" : "muted"}>
-                  {p.active ? "active" : "inactive"}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <PlanEditor plan={p} />
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
       {/* Add-ons */}
       <Card>

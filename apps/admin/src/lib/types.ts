@@ -137,7 +137,8 @@ export interface BillingStatus {
   stripe_configured: boolean;
   live: boolean;
   publishable_set: boolean;
-  overage_meters: { pro: boolean; scale: boolean };
+  /** The blocks tier's metered overage price is synced (the wing model's only meter). */
+  overage_metered: boolean;
 }
 
 export interface CustomPlanInput {
@@ -267,42 +268,7 @@ export interface AdminBilling {
   }[];
 }
 
-export interface AdminPlan {
-  object: "plan";
-  id: string;
-  name: string;
-  price: number | null;
-  monthly_quota: number;
-  allow_overage: boolean;
-  overage_per_1000_cents: number;
-  included_sub_tenants: number;
-  seats: number;
-  workspace_limit: number;
-  ai_credits: number;
-  trial_days: number;
-  features: string[];
-  rank: number;
-  active: boolean;
-  stripe_price_month_id: string | null;
-  stripe_price_year_id: string | null;
-  sale_percent_off: number | null;
-  sale_ends_at: string | null;
-  sale_stripe_coupon_id: string | null;
-}
 
-export type PlanPatch = Partial<{
-  name: string;
-  price: number | null;
-  monthly_quota: number;
-  overage_per_1000_cents: number;
-  included_sub_tenants: number;
-  seats: number;
-  workspace_limit: number;
-  ai_credits: number;
-  trial_days: number;
-  active: boolean;
-  features: string[];
-}>;
 
 export interface AdminAddon {
   object: "addon";
@@ -434,11 +400,17 @@ export interface Announcement {
 export interface AdminAnalytics {
   object: "admin_analytics";
   period: string;
-  orgs: { total: number; paid: number; by_plan: Record<string, number> };
+  orgs: {
+    total: number;
+    paid: number;
+    /** Customer mix by what they actually hold (the wing model). */
+    mix: { free: number; transactional: number; marketing: number; both_wings: number; custom: number };
+  };
   revenue: {
     currency: string;
     mrr_estimate: number;
-    by_plan: Record<string, number>;
+    /** Revenue per product line: blocks, contact-size tiers, add-ons, custom subs. */
+    by_stream: { transactional: number; marketing: number; addons: number; custom: number };
     addon_mrr: number;
     overage: number;
     total_recurring: number;

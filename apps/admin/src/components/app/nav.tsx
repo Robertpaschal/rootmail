@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   BarChart3,
   Building2,
@@ -76,20 +77,33 @@ export function Nav() {
               {g.label}
             </p>
           ) : null}
-          {g.items.map((it) => (
-            <Link
-              key={it.href}
-              href={it.href}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                isActive(it.href, it.exact)
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
-              )}
-            >
-              <it.icon className="size-4 shrink-0" /> {it.label}
-            </Link>
-          ))}
+          {g.items.map((it) => {
+            const active = isActive(it.href, it.exact);
+            return (
+              <Link
+                key={it.href}
+                href={it.href}
+                className={cn(
+                  "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  active
+                    ? "text-primary-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+                )}
+              >
+                {/* The highlight GLIDES to the section you open (shared layoutId). */}
+                {active ? (
+                  <motion.span
+                    layoutId="admin-nav-active"
+                    className="absolute inset-0 rounded-md bg-primary"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  />
+                ) : null}
+                <span className="relative z-10 flex items-center gap-3">
+                  <it.icon className="size-4 shrink-0" /> {it.label}
+                </span>
+              </Link>
+            );
+          })}
         </div>
       ))}
     </nav>

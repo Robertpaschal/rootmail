@@ -5,33 +5,34 @@ import { StatCard } from "@/components/app/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { adminApi } from "@/lib/admin-api";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
-import type { AdminPlan, Lead, OrgSummary, SupportTicketListItem } from "@/lib/types";
+import type { Lead, OrgSummary, SupportTicketListItem } from "@/lib/types";
 
-const PLAN_ORDER = ["free", "pro", "scale", "enterprise"];
-const PLAN_COLOR: Record<string, string> = {
-  free: "bg-slate-400",
-  pro: "bg-blue-500",
-  scale: "bg-violet-500",
-  enterprise: "bg-amber-500",
-};
+// The wing-era customer mix — what orgs actually hold, not a retired plan ladder.
+const MIX_ROWS: { key: "free" | "transactional" | "marketing" | "both_wings" | "custom"; label: string; color: string }[] = [
+  { key: "free", label: "Free", color: "bg-slate-400" },
+  { key: "transactional", label: "Transactional", color: "bg-violet-500" },
+  { key: "marketing", label: "Marketing", color: "bg-blue-500" },
+  { key: "both_wings", label: "Both wings", color: "bg-emerald-500" },
+  { key: "custom", label: "Custom", color: "bg-amber-500" },
+];
 
 export default async function OverviewPage() {
-  const [orgsRes, plansRes, ticketsRes, leadsRes] = await Promise.all([
+  const [orgsRes, analytics, ticketsRes, leadsRes] = await Promise.all([
     adminApi.listOrgs().catch(() => ({ data: [] as OrgSummary[] })),
-    adminApi.listPlans().catch(() => ({ data: [] as AdminPlan[] })),
+    adminApi.analytics().catch(() => null),
     adminApi.listSupportTickets("open").catch(() => ({ data: [] as SupportTicketListItem[] })),
     adminApi.listLeads("new").catch(() => ({ data: [] as Lead[] })),
   ]);
   const orgs = orgsRes.data;
-  const priceById = new Map(plansRes.data.map((p) => [p.id, p.price ?? 0]));
   const openTickets = ticketsRes.data;
   const newLeads = leadsRes.data;
 
-  const paid = orgs.filter((o) => o.plan !== "free").length;
-  const mrr = orgs.reduce((sum, o) => sum + (priceById.get(o.plan) ?? 0), 0);
+  const paid = analytics?.orgs.paid ?? 0;
+  // Wing MRR + add-ons — computed by the API from what each org actually holds.
+  const mrr = analytics?.revenue.total_recurring ?? 0;
   const members = orgs.reduce((a, o) => a + o.members, 0);
   const usage = orgs.reduce((a, o) => a + o.usage_this_period, 0);
-  const planCounts = PLAN_ORDER.map((id) => ({ id, count: orgs.filter((o) => o.plan === id).length }));
+  const mix = analytics?.orgs.mix ?? { free: 0, transactional: 0, marketing: 0, both_wings: 0, custom: 0 };
   const recentOrgs = [...orgs].sort((a, b) => (a.created_at < b.created_at ? 1 : -1)).slice(0, 6);
 
   return (
@@ -51,7 +52,7 @@ export default async function OverviewPage() {
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard label="Organizations" value={formatNumber(orgs.length)} sub={`${paid} paid`} icon={Building2} href="/orgs" tone="blue" />
-        <StatCard label="Est. MRR" value={formatMoney(mrr * 100)} sub="listed plan prices" icon={CreditCard} href="/pricing" tone="green" />
+        <StatCard label="Est. MRR" value={formatMoney(mrr * 100)} sub="wings + add-ons" icon={CreditCard} href="/pricing" tone="green" />
         <StatCard label="Emails / period" value={formatNumber(usage)} icon={Mail} tone="violet" />
         <StatCard label="Members" value={formatNumber(members)} icon={Users} tone="slate" />
         <StatCard label="Open tickets" value={formatNumber(openTickets.length)} icon={LifeBuoy} href="/support" tone="amber" accent={openTickets.length > 0} />
@@ -60,18 +61,18 @@ export default async function OverviewPage() {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-xl border bg-card p-4">
-          <h2 className="text-sm font-semibold">Plan mix</h2>
+          <h2 className="text-sm font-semibold">Customer mix</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">By what each org holds — wings, both, or a custom sub.</p>
           <div className="mt-3 space-y-2.5">
-            {planCounts.map(({ id, count }) => {
-              const pct = orgs.length ? Math.round((count / orgs.length) * 100) : 0;
+            {MIX_ROWS.map(({ key, label, color }) => {
+              const count = mix[key] ?? 0;
+              const total = Object.values(mix).reduce((a, b) => a + b, 0);
+              const pct = total ? Math.round((count / total) * 100) : 0;
               return (
-                <div key={id} className="flex items-center gap-3 text-sm">
-                  <span className="w-20 shrink-0 capitalize text-muted-foreground">{id}</span>
+                <div key={key} className="flex items-center gap-3 text-sm">
+                  <span className="w-28 shrink-0 text-muted-foreground">{label}</span>
                   <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className={`h-full rounded-full ${PLAN_COLOR[id] ?? "bg-primary"}`}
-                      style={{ width: `${pct}%` }}
-                    />
+                    <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
                   </div>
                   <span className="w-8 shrink-0 text-right tabular-nums">{count}</span>
                 </div>

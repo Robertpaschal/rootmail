@@ -7,6 +7,7 @@ import {
   announcementUnsubscribeUrl,
   BILLING_INTERVALS,
   BILLING_MODE,
+  blocksMonthlyPrice,
   env,
   Errors,
   generateSessionToken,
@@ -63,8 +64,8 @@ import {
   writeStaffAudit,
 } from "../lib/admin-auth";
 import { currentPeriod } from "../lib/billing";
-import { getPlan, refreshPlanCache } from "../lib/plans";
-import { refreshTierCache } from "../lib/wings";
+import { refreshPlanCache } from "../lib/plans";
+import { getTier, marketingPriceForOrg, refreshTierCache } from "../lib/wings";
 import {
   cancelCustomSubscription,
   deleteAddonSalePrice,
@@ -762,32 +763,42 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     await requireStaff(req);
     const period = currentPeriod();
 
-    // Plan mix + MRR estimate (active paid orgs × list price; Enterprise = custom).
-    const planRows = await db
-      .select({
-        plan: organizations.plan,
-        status: organizations.planStatus,
-        n: sql<number>`count(*)::int`,
-      })
-      .from(organizations)
-      .groupBy(organizations.plan, organizations.planStatus);
+    // Revenue is computed from the LIVE wing model — blocks × bracket price,
+    // contacts × tier rate, active custom plans (monthly-ized) — never from the
+    // retired plan column. What an org holds IS what it pays.
+    const orgRows = await db.select().from(organizations);
+    const activeCustom = await db.select().from(customPlans).where(eq(customPlans.active, true));
+    const customByOrg = new Map(activeCustom.map((c) => [c.organizationId, c]));
 
-    const byPlan: Record<string, number> = { free: 0, pro: 0, scale: 0, enterprise: 0 };
-    const revenueByPlan: Record<string, number> = { pro: 0, scale: 0 };
+    const wingMrrOf = (o: (typeof orgRows)[number]) => {
+      const tx = (o.transactionalBlocks ?? 0) > 0 ? blocksMonthlyPrice(o.transactionalBlocks) : 0;
+      const mk = marketingPriceForOrg(o);
+      const c = customByOrg.get(o.id);
+      const custom = c ? (c.interval === "year" ? c.priceCents / 12 : c.priceCents) / 100 : 0;
+      return { tx, mk, custom, total: tx + mk + custom };
+    };
+
     let totalOrgs = 0;
     let paidOrgs = 0;
     let mrr = 0;
-    for (const r of planRows) {
-      byPlan[r.plan] = (byPlan[r.plan] ?? 0) + r.n;
-      totalOrgs += r.n;
-      const price = getPlan(r.plan).price;
-      if (price && price > 0) {
-        paidOrgs += r.n;
-        if (r.status === "active") {
-          mrr += price * r.n;
-          revenueByPlan[r.plan] = (revenueByPlan[r.plan] ?? 0) + price * r.n;
-        }
-      }
+    let txMrr = 0;
+    let mkMrr = 0;
+    let customMrr = 0;
+    // Customer mix by what they actually hold — the wing-era read of the base.
+    const mix = { free: 0, transactional: 0, marketing: 0, both_wings: 0, custom: 0 };
+    for (const o of orgRows) {
+      totalOrgs++;
+      const w = wingMrrOf(o);
+      if (w.total > 0) paidOrgs++;
+      mrr += w.total;
+      txMrr += w.tx;
+      mkMrr += w.mk;
+      customMrr += w.custom;
+      if (w.custom > 0) mix.custom++;
+      else if (w.tx > 0 && w.mk > 0) mix.both_wings++;
+      else if (w.tx > 0) mix.transactional++;
+      else if (w.mk > 0) mix.marketing++;
+      else mix.free++;
     }
 
     // Add-on MRR — active org add-on quantities × list price.
@@ -800,25 +811,18 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     let addonMrr = 0;
     for (const r of addonRows) addonMrr += (addonPrice.get(r.addonId) ?? 0) * r.qty;
 
-    // Overage revenue this period — reported overage units × each plan's rate.
-    const overageRows = await db
-      .select({ plan: organizations.plan, units: usageRecords.overageReportedUnits })
+    // Overage revenue this period — reported units × the blocks tier's live rate
+    // (transactional is the only metered wing; free allowances hard-cap instead).
+    const overRate = getTier("tx_blocks")?.overagePer1000 ?? 0;
+    const [overageAgg] = await db
+      .select({ units: sql<number>`coalesce(sum(${usageRecords.overageReportedUnits}),0)::int` })
       .from(usageRecords)
-      .innerJoin(organizations, eq(organizations.id, usageRecords.organizationId))
       .where(and(eq(usageRecords.period, period), gt(usageRecords.overageReportedUnits, 0)));
-    let overageRevenue = 0;
-    for (const r of overageRows) overageRevenue += r.units * getPlan(r.plan).overagePer1000;
+    const overageRevenue = (overageAgg?.units ?? 0) * overRate;
 
-    // MRR trend (estimate) — current active paid subscribers' list MRR accumulated by
-    // signup month, last 6 months. Approximate (uses current plan, excludes churned
-    // orgs) but shows the growth trajectory without historical snapshots.
-    const paidOrgRows = await db
-      .select({
-        plan: organizations.plan,
-        status: organizations.planStatus,
-        createdAt: organizations.createdAt,
-      })
-      .from(organizations);
+    // MRR trend (estimate) — current wing MRR accumulated by signup month, last 6
+    // months. Approximate (uses today's holdings, excludes churn) but shows the
+    // growth trajectory without historical snapshots.
     const nowD = new Date();
     const mrrTrend: { period: string; mrr: number }[] = [];
     for (let i = 5; i >= 0; i--) {
@@ -826,12 +830,10 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       const nextMonth = new Date(Date.UTC(m.getUTCFullYear(), m.getUTCMonth() + 1, 1));
       const key = `${m.getUTCFullYear()}-${String(m.getUTCMonth() + 1).padStart(2, "0")}`;
       let sum = 0;
-      for (const o of paidOrgRows) {
-        if (o.status !== "active") continue;
-        const price = getPlan(o.plan).price;
-        if (price && price > 0 && o.createdAt < nextMonth) sum += price;
+      for (const o of orgRows) {
+        if (o.createdAt < nextMonth) sum += wingMrrOf(o).total;
       }
-      mrrTrend.push({ period: key, mrr: sum });
+      mrrTrend.push({ period: key, mrr: Math.round(sum) });
     }
     const arpa = paidOrgs > 0 ? Math.round(mrr / paidOrgs) : 0;
 
@@ -887,15 +889,21 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return {
       object: "admin_analytics",
       period,
-      orgs: { total: totalOrgs, paid: paidOrgs, by_plan: byPlan },
+      orgs: { total: totalOrgs, paid: paidOrgs, mix },
       revenue: {
         currency: "usd",
-        mrr_estimate: mrr,
-        by_plan: revenueByPlan,
+        mrr_estimate: Math.round(mrr),
+        // Wing-era revenue streams — what each product line actually earns.
+        by_stream: {
+          transactional: Math.round(txMrr),
+          marketing: Math.round(mkMrr),
+          addons: addonMrr,
+          custom: Math.round(customMrr),
+        },
         addon_mrr: addonMrr,
         overage: Math.round(overageRevenue),
-        total_recurring: mrr + addonMrr,
-        arr: (mrr + addonMrr) * 12,
+        total_recurring: Math.round(mrr) + addonMrr,
+        arr: (Math.round(mrr) + addonMrr) * 12,
         arpa,
         trend: mrrTrend,
       },
@@ -1769,10 +1777,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       stripe_configured: BILLING_MODE === "stripe" && secret.length > 0,
       live: secret.startsWith("sk_live"),
       publishable_set: Boolean(env.STRIPE_PUBLISHABLE_KEY),
-      overage_meters: {
-        pro: Boolean(env.STRIPE_PRICE_OVERAGE_PRO && env.STRIPE_METER_OVERAGE_PRO),
-        scale: Boolean(env.STRIPE_PRICE_OVERAGE_SCALE && env.STRIPE_METER_OVERAGE_SCALE),
-      },
+      // The blocks tier's metered overage price — the wing model's only meter.
+      overage_metered: Boolean(getTier("tx_blocks")?.stripeOveragePriceId),
     };
   });
 

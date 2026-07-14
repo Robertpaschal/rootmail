@@ -7,13 +7,14 @@ import { formatNumber } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Analytics" };
 
-const PLAN_ORDER = ["free", "pro", "scale", "enterprise"];
-const PLAN_COLOR: Record<string, string> = {
-  free: "bg-slate-400",
-  pro: "bg-blue-500",
-  scale: "bg-violet-500",
-  enterprise: "bg-amber-500",
-};
+// Customer mix + revenue read in wing-era terms (what orgs actually hold/pay).
+const MIX_ROWS: { key: "free" | "transactional" | "marketing" | "both_wings" | "custom"; label: string; color: string; stream?: "transactional" | "marketing" | "custom" }[] = [
+  { key: "free", label: "Free", color: "bg-slate-400" },
+  { key: "transactional", label: "Transactional", color: "bg-violet-500", stream: "transactional" },
+  { key: "marketing", label: "Marketing", color: "bg-blue-500", stream: "marketing" },
+  { key: "both_wings", label: "Both wings", color: "bg-emerald-500" },
+  { key: "custom", label: "Custom", color: "bg-amber-500", stream: "custom" },
+];
 // Deliverability outcomes read by color: good = green, bad = rose/amber, in-flight = blue.
 const STATUS_COLOR: Record<string, string> = {
   delivered: "bg-emerald-500",
@@ -39,7 +40,7 @@ export default async function AnalyticsPage() {
     { label: "Delivered rate", value: `${a.deliverability.delivered_rate}%`, icon: Gauge, tone: "green" },
   ];
 
-  const planMax = Math.max(1, ...PLAN_ORDER.map((p) => a.orgs.by_plan[p] ?? 0));
+  const mixMax = Math.max(1, ...MIX_ROWS.map((m) => a.orgs.mix[m.key] ?? 0));
   const trendMax = Math.max(1, ...a.volume.trend.map((t) => t.emails));
   const statusEntries = Object.entries(a.deliverability.by_status).sort((x, y) => y[1] - x[1]);
   const statusMax = Math.max(1, ...statusEntries.map(([, n]) => n));
@@ -60,17 +61,17 @@ export default async function AnalyticsPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Plan mix</CardTitle>
+            <CardTitle>Customer mix</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {PLAN_ORDER.map((p) => (
+            {MIX_ROWS.map((m) => (
               <BarRow
-                key={p}
-                label={p}
-                value={a.orgs.by_plan[p] ?? 0}
-                max={planMax}
-                barClass={PLAN_COLOR[p]}
-                suffix={a.revenue.by_plan[p] ? `$${a.revenue.by_plan[p]}/mo` : undefined}
+                key={m.key}
+                label={m.label}
+                value={a.orgs.mix[m.key] ?? 0}
+                max={mixMax}
+                barClass={m.color}
+                suffix={m.stream && a.revenue.by_stream[m.stream] ? `$${a.revenue.by_stream[m.stream]}/mo` : undefined}
               />
             ))}
           </CardContent>

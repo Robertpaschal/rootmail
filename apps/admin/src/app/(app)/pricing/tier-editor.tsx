@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { Megaphone, Pencil, Users, Zap } from "lucide-react";
 import { SubmitButton } from "@/components/app/submit-button";
 import { Badge } from "@/components/ui/badge";
@@ -63,7 +64,21 @@ export function TierEditor({ tiers }: { tiers: AdminTier[] }) {
 
 function TierRow({ tier }: { tier: AdminTier }) {
   const [editing, setEditing] = useState(false);
-  if (editing) return <TierForm tier={tier} onClose={() => setEditing(false)} />;
+  if (editing) {
+    return (
+      <AnimatePresence initial={false}>
+        <motion.div
+          key="form"
+          initial={{ height: 0, opacity: 0 }}
+          animate={{ height: "auto", opacity: 1 }}
+          transition={{ type: "spring", stiffness: 320, damping: 32 }}
+          className="overflow-hidden"
+        >
+          <TierForm tier={tier} onClose={() => setEditing(false)} />
+        </motion.div>
+      </AnimatePresence>
+    );
+  }
 
   const isBlocks = tier.id === "tx_blocks";
   const isMkPaid = tier.wing === "marketing" && (tier.perThousandCents ?? 0) > 0;

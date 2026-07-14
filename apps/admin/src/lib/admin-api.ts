@@ -5,7 +5,7 @@ import type {
   AdminBilling,
   AdminBlogPost,
   AdminChangelogEntry,
-  AdminPlan,
+
   AddonPatch,
   Announcement,
   AnnouncementRecipients,
@@ -34,7 +34,6 @@ import type {
   AdminTier,
   OrgDetail,
   OrgSummary,
-  PlanPatch,
   TierPatch,
   Promotion,
   StaffAuditEntry,
@@ -179,20 +178,6 @@ export const adminApi = {
       method: "PATCH",
       body: patch,
     }),
-
-  listPlans: () => adminFetch<ListResponse<AdminPlan>>("/v1/admin/plans"),
-  updatePlan: (id: string, patch: PlanPatch) =>
-    adminFetch<AdminPlan & { stripe_sync?: string }>(`/v1/admin/plans/${id}`, {
-      method: "PATCH",
-      body: patch,
-    }),
-  setPlanSale: (id: string, body: { percent_off: number; ends_at?: string }) =>
-    adminFetch<AdminPlan & { stripe_sync?: string }>(`/v1/admin/plans/${id}/sale`, {
-      method: "POST",
-      body,
-    }),
-  clearPlanSale: (id: string) =>
-    adminFetch<AdminPlan>(`/v1/admin/plans/${id}/sale`, { method: "DELETE" }),
 
   listAddons: () => adminFetch<ListResponse<AdminAddon>>("/v1/admin/addons"),
   updateAddon: (id: string, patch: AddonPatch) =>

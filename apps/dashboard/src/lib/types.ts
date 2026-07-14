@@ -468,7 +468,6 @@ export interface Billing {
     audiences_limit: number;
   };
   summary: BillingSummary;
-  plans: Plan[];
   addons_catalog: AddonCatalogItem[];
   // The three independent per-wing ladders (optional — absent on older API).
   wings?: Wings;

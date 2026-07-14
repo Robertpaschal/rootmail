@@ -3,26 +3,27 @@ import { StatCard } from "@/components/app/stat-card";
 import { formatNumber } from "@/lib/format";
 import type { AdminAnalytics } from "@/lib/types";
 
-const PAID_PLANS = ["pro", "scale", "enterprise"] as const;
-const PLAN_COLOR: Record<string, string> = {
-  pro: "bg-blue-500",
-  scale: "bg-violet-500",
-  enterprise: "bg-amber-500",
-};
+// The wing-era revenue streams — each product line's contribution.
+const STREAMS: { key: "transactional" | "marketing" | "addons" | "custom"; label: string; color: string; note: string }[] = [
+  { key: "transactional", label: "Transactional", color: "bg-violet-500", note: "send blocks" },
+  { key: "marketing", label: "Marketing", color: "bg-blue-500", note: "contact-size tiers" },
+  { key: "addons", label: "Add-ons", color: "bg-emerald-500", note: "seats, packs, IPs…" },
+  { key: "custom", label: "Custom", color: "bg-amber-500", note: "bespoke subs" },
+];
 
-/** Revenue at a glance on the pricing page — recurring revenue (plan + add-ons),
- * overage, subscribers, ARPA, a per-plan contribution breakdown, and an MRR trend —
- * so pricing reads as revenue management, not just a catalog of editable forms. */
+/** Revenue at a glance on the pricing page — recurring revenue by product line
+ * (wings + add-ons + custom), overage, subscribers, ARPA, and an MRR trend — so
+ * pricing reads as revenue management, not just a catalog of editable forms. */
 export function RevenueSummary({ analytics }: { analytics: AdminAnalytics }) {
   const r = analytics.revenue;
   const paid = analytics.orgs.paid;
-  const countByPlan = analytics.orgs.by_plan;
-  const maxRev = Math.max(1, ...PAID_PLANS.map((p) => r.by_plan[p] ?? 0));
+  const streams = STREAMS.map((s) => ({ ...s, rev: r.by_stream?.[s.key] ?? 0 }));
+  const maxRev = Math.max(1, ...streams.map((s) => s.rev));
   const trend = r.trend ?? [];
   const trendMax = Math.max(1, ...trend.map((t) => t.mrr));
 
   const tiles: { label: string; value: string; sub?: string; icon: typeof CreditCard; tone: "green" | "blue" | "violet" }[] = [
-    { label: "Plan MRR", value: `$${formatNumber(r.mrr_estimate)}`, sub: "active paid subs", icon: CreditCard, tone: "green" },
+    { label: "Wing MRR", value: `$${formatNumber(r.mrr_estimate)}`, sub: "blocks + contact tiers + custom", icon: CreditCard, tone: "green" },
     { label: "Add-on MRR", value: `$${formatNumber(r.addon_mrr)}`, sub: "seats, packs, IPs", icon: Package, tone: "green" },
     { label: "Overage", value: `$${formatNumber(r.overage)}`, sub: `this period`, icon: Zap, tone: "green" },
     { label: "ARR (run-rate)", value: `$${formatNumber(r.arr)}`, sub: "recurring × 12", icon: TrendingUp, tone: "green" },
@@ -40,30 +41,26 @@ export function RevenueSummary({ analytics }: { analytics: AdminAnalytics }) {
 
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-xl border bg-card p-4">
-          <h3 className="text-sm font-semibold">Revenue by plan · {analytics.period}</h3>
+          <h3 className="text-sm font-semibold">Revenue by stream · {analytics.period}</h3>
           <div className="mt-3 space-y-3">
-            {PAID_PLANS.map((p) => {
-              const rev = r.by_plan[p] ?? 0;
-              const count = countByPlan[p] ?? 0;
-              const custom = p === "enterprise";
-              const share = r.mrr_estimate > 0 ? Math.round((rev / r.mrr_estimate) * 100) : 0;
+            {streams.map((s) => {
+              const total = r.total_recurring > 0 ? r.total_recurring : 1;
+              const share = Math.round((s.rev / total) * 100);
               return (
-                <div key={p}>
+                <div key={s.key}>
                   <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="font-medium capitalize">
-                      {p}
-                      <span className="ml-1.5 font-normal text-muted-foreground">
-                        {count} sub{count === 1 ? "" : "s"}
-                      </span>
+                    <span className="font-medium">
+                      {s.label}
+                      <span className="ml-1.5 font-normal text-muted-foreground">{s.note}</span>
                     </span>
                     <span className="tabular-nums text-muted-foreground">
-                      {custom ? "custom pricing" : `$${formatNumber(rev)}/mo${r.mrr_estimate > 0 ? ` · ${share}%` : ""}`}
+                      ${formatNumber(s.rev)}/mo · {share}%
                     </span>
                   </div>
                   <div className="h-2 w-full overflow-hidden rounded-full bg-secondary">
                     <div
-                      className={`h-full rounded-full ${PLAN_COLOR[p]}`}
-                      style={{ width: `${custom ? 0 : Math.round((rev / maxRev) * 100)}%` }}
+                      className={`h-full rounded-full ${s.color}`}
+                      style={{ width: `${Math.round((s.rev / maxRev) * 100)}%` }}
                     />
                   </div>
                 </div>

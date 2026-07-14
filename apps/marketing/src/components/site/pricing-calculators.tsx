@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import { Megaphone, Minus, Plus, Users, Zap } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { signupUrl } from "@/lib/links";
@@ -78,7 +79,10 @@ export function BlocksCalculator({ tx }: { tx: PublicPricing["wings"]["transacti
           </span>
         </div>
         <p className="mt-3 text-3xl font-bold tracking-tight">
-          {money(monthly)}
+          {/* Remounts per value — a subtle tick as the price recalculates. */}
+          <motion.span key={monthly} initial={{ opacity: 0.35, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="inline-block">
+            {money(monthly)}
+          </motion.span>
           <span className="text-base font-normal text-muted-foreground">/mo</span>
           <span className="ml-2 align-middle text-xs font-medium text-muted-foreground">
             at ${rate}/block · {money(monthly * 10)}/yr (2 months free)
@@ -215,10 +219,16 @@ export function ContactPricer({ mk }: { mk: PublicPricing["wings"]["marketing"] 
                   {t.included_audiences === -1 ? "unlimited" : t.included_audiences} audience{t.included_audiences === 1 ? "" : "s"}
                 </p>
               </div>
-              <p className="shrink-0 text-right text-lg font-bold tabular-nums">
+              <motion.p
+                key={p}
+                initial={{ opacity: 0.35, y: 3 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.18 }}
+                className="shrink-0 text-right text-lg font-bold tabular-nums"
+              >
                 {money(p)}
                 <span className="block text-[10px] font-normal text-muted-foreground">/mo · {money(p * 10)}/yr</span>
-              </p>
+              </motion.p>
             </div>
           );
         })}

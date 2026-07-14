@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { CodeBlock } from "./code-block";
+import { Reveal } from "./motion";
 import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +31,7 @@ export function Hero() {
       />
 
       <div className="container flex flex-col items-center gap-10 py-20 text-center md:py-28">
-        <div className="flex max-w-3xl flex-col items-center gap-6">
+        <Reveal className="flex max-w-3xl flex-col items-center gap-6">
           <Link href="#platform">
             <Badge variant="muted" className="py-1 pl-2.5 pr-2.5">
               Send, reply, and prove — from one place
@@ -64,9 +65,11 @@ export function Hero() {
             No-code dashboard · typed SDK &amp; CLI · works without writing code · no credit card to
             start
           </p>
-        </div>
+        </Reveal>
 
-        <CodeBlock code={snippet} filename="send.ts" className="w-full max-w-2xl text-left" />
+        <Reveal delay={0.12} className="w-full max-w-2xl">
+          <CodeBlock code={snippet} filename="send.ts" className="w-full text-left" />
+        </Reveal>
       </div>
     </section>
   );
