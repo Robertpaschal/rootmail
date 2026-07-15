@@ -1,6 +1,11 @@
 // Serialize a TipTap / ProseMirror JSON document into email-safe HTML. The doc
 // is the source of truth for the writing editor; this renderer feeds both the
 // live preview and the html stored at send time, so the two never diverge.
+//
+// A doc carries an optional design `theme` on `doc.attrs.theme` (brand color,
+// backgrounds, font, corner radius, content width). The theme is baked into the
+// stored html at save time, so the send path — which uses the stored html —
+// gets the same look with no backend change.
 
 export interface DocNode {
   type: string;
@@ -11,6 +16,71 @@ export interface DocNode {
 }
 
 export const BRAND = "#4f46e5";
+
+// --- Theme ------------------------------------------------------------------
+
+export interface EmailTheme {
+  brand: string; // buttons + links
+  bg: string; // page background (outside the card)
+  canvas: string; // the email card
+  text: string; // body copy
+  heading: string; // headings
+  font: FontKey; // one of FONT_STACKS
+  radius: number; // card + button corner radius, px
+  width: number; // content width, px
+}
+
+export type FontKey = "sans" | "serif" | "rounded" | "mono";
+
+// Font families are chosen from a fixed set (never free-typed) so the value is
+// safe to drop straight into an inline style with no injection surface.
+export const FONT_STACKS: Record<FontKey, { label: string; stack: string }> = {
+  sans: { label: "Sans", stack: "-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif" },
+  serif: { label: "Serif", stack: "Georgia,'Times New Roman',Times,serif" },
+  rounded: { label: "Rounded", stack: "'Trebuchet MS',Verdana,Geneva,Tahoma,sans-serif" },
+  mono: { label: "Mono", stack: "'SFMono-Regular',Menlo,Consolas,'Liberation Mono',monospace" },
+};
+
+export const DEFAULT_THEME: EmailTheme = {
+  brand: BRAND,
+  bg: "#f4f4f7",
+  canvas: "#ffffff",
+  text: "#374151",
+  heading: "#111827",
+  font: "sans",
+  radius: 8,
+  width: 600,
+};
+
+function clamp(n: unknown, lo: number, hi: number, fallback: number): number {
+  const v = typeof n === "number" ? n : Number(n);
+  return Number.isFinite(v) ? Math.min(hi, Math.max(lo, Math.round(v))) : fallback;
+}
+
+/** Coerce arbitrary stored/edited theme data into a safe, complete theme. */
+export function resolveTheme(raw: unknown): EmailTheme {
+  const t = (raw && typeof raw === "object" ? raw : {}) as Partial<Record<keyof EmailTheme, unknown>>;
+  const font = (typeof t.font === "string" && t.font in FONT_STACKS ? t.font : DEFAULT_THEME.font) as FontKey;
+  return {
+    brand: safeColor(t.brand) ?? DEFAULT_THEME.brand,
+    bg: safeColor(t.bg) ?? DEFAULT_THEME.bg,
+    canvas: safeColor(t.canvas) ?? DEFAULT_THEME.canvas,
+    text: safeColor(t.text) ?? DEFAULT_THEME.text,
+    heading: safeColor(t.heading) ?? DEFAULT_THEME.heading,
+    font,
+    radius: clamp(t.radius, 0, 28, DEFAULT_THEME.radius),
+    width: clamp(t.width, 480, 720, DEFAULT_THEME.width),
+  };
+}
+
+export function themeOf(doc: DocNode | null | undefined): EmailTheme {
+  return resolveTheme((doc?.attrs as { theme?: unknown } | undefined)?.theme);
+}
+
+/** Return a copy of the doc with the theme written onto doc.attrs.theme. */
+export function withTheme(doc: DocNode, theme: EmailTheme): DocNode {
+  return { ...doc, attrs: { ...(doc.attrs ?? {}), theme } };
+}
 
 export function isDoc(value: unknown): value is DocNode {
   return (
@@ -94,7 +164,7 @@ export function safeColor(raw: unknown): string | null {
   return null;
 }
 
-function renderText(n: DocNode): string {
+function renderText(n: DocNode, t: EmailTheme): string {
   if (n.type === "hardBreak") return "<br/>";
   if (n.type !== "text") return "";
   let out = esc(n.text ?? "");
@@ -128,12 +198,12 @@ function renderText(n: DocNode): string {
     }
   }
   if (color) out = `<span style="${color}">${out}</span>`;
-  if (href) out = `<a href="${esc(safeUrl(href))}" style="color:${BRAND};">${out}</a>`;
+  if (href) out = `<a href="${esc(safeUrl(href))}" style="color:${t.brand};">${out}</a>`;
   return out;
 }
 
-function inline(nodes: DocNode[] | undefined): string {
-  return (nodes ?? []).map(renderText).join("");
+function inline(nodes: DocNode[] | undefined, t: EmailTheme): string {
+  return (nodes ?? []).map((n) => renderText(n, t)).join("");
 }
 
 function alignStyle(attrs: Record<string, unknown> | undefined): string {
@@ -141,49 +211,59 @@ function alignStyle(attrs: Record<string, unknown> | undefined): string {
   return a === "center" || a === "right" ? `text-align:${a};` : "";
 }
 
-function renderBlock(n: DocNode): string {
+function renderBlock(n: DocNode, t: EmailTheme): string {
   switch (n.type) {
     case "paragraph": {
-      const inner = inline(n.content);
-      return `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#374151;${alignStyle(n.attrs)}">${inner || "&nbsp;"}</p>`;
+      const inner = inline(n.content, t);
+      return `<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:${t.text};${alignStyle(n.attrs)}">${inner || "&nbsp;"}</p>`;
     }
     case "heading": {
       const level = Number(n.attrs?.level ?? 1);
       const size = level === 1 ? 28 : level === 2 ? 22 : 18;
-      return `<h${level} style="margin:0 0 12px;font-size:${size}px;line-height:1.3;font-weight:700;color:#111827;${alignStyle(n.attrs)}">${inline(n.content)}</h${level}>`;
+      return `<h${level} style="margin:0 0 12px;font-size:${size}px;line-height:1.3;font-weight:700;color:${t.heading};${alignStyle(n.attrs)}">${inline(n.content, t)}</h${level}>`;
     }
     case "bulletList":
-      return `<ul style="margin:0 0 16px;padding-left:22px;color:#374151;font-size:15px;line-height:1.6;">${(n.content ?? []).map(renderBlock).join("")}</ul>`;
+      return `<ul style="margin:0 0 16px;padding-left:22px;color:${t.text};font-size:15px;line-height:1.6;">${(n.content ?? []).map((c) => renderBlock(c, t)).join("")}</ul>`;
     case "orderedList":
-      return `<ol style="margin:0 0 16px;padding-left:22px;color:#374151;font-size:15px;line-height:1.6;">${(n.content ?? []).map(renderBlock).join("")}</ol>`;
+      return `<ol style="margin:0 0 16px;padding-left:22px;color:${t.text};font-size:15px;line-height:1.6;">${(n.content ?? []).map((c) => renderBlock(c, t)).join("")}</ol>`;
     case "listItem":
       return `<li style="margin:0 0 6px;">${(n.content ?? [])
-        .map((c) => (c.type === "paragraph" ? inline(c.content) : renderBlock(c)))
+        .map((c) => (c.type === "paragraph" ? inline(c.content, t) : renderBlock(c, t)))
         .join("")}</li>`;
     case "blockquote":
-      return `<blockquote style="margin:0 0 16px;padding:4px 16px;border-left:3px solid #e5e7eb;color:#6b7280;font-style:italic;">${(n.content ?? []).map(renderBlock).join("")}</blockquote>`;
+      return `<blockquote style="margin:0 0 16px;padding:4px 16px;border-left:3px solid #e5e7eb;color:#6b7280;font-style:italic;">${(n.content ?? []).map((c) => renderBlock(c, t)).join("")}</blockquote>`;
     case "horizontalRule":
       return `<hr style="border:none;border-top:1px solid #e5e7eb;margin:8px 0 24px;"/>`;
+    case "spacer": {
+      const h = clamp(n.attrs?.size, 4, 120, 24);
+      return `<div style="height:${h}px;line-height:${h}px;font-size:0;">&nbsp;</div>`;
+    }
     case "image": {
       const src = safeImageSrc(n.attrs?.src);
       if (!src) return "";
-      return `<img src="${esc(src)}" alt="${esc(String(n.attrs?.alt ?? ""))}" style="display:block;max-width:100%;height:auto;border:0;border-radius:6px;margin:0 0 16px;"/>`;
+      const align = n.attrs?.align === "center" ? "center" : n.attrs?.align === "right" ? "right" : "left";
+      const widthPct = clamp(n.attrs?.width, 20, 100, 100);
+      const img = `<img src="${esc(src)}" alt="${esc(String(n.attrs?.alt ?? ""))}" style="display:block;width:${widthPct}%;max-width:100%;height:auto;border:0;border-radius:6px;margin:${align === "center" ? "0 auto" : "0"};"/>`;
+      const link = safeUrl(n.attrs?.href);
+      const wrapped = link !== "#" ? `<a href="${esc(link)}">${img}</a>` : img;
+      return `<div style="margin:0 0 16px;text-align:${align};">${wrapped}</div>`;
     }
     case "button": {
       const label = esc(String(n.attrs?.label ?? "Button"));
       const href = esc(safeUrl(n.attrs?.href));
-      const bg = safeColor(n.attrs?.bg) ?? BRAND;
+      const bg = safeColor(n.attrs?.bg) ?? t.brand;
       const fg = isLight(bg) ? "#111827" : "#ffffff";
-      return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;"><tr><td style="border-radius:6px;background:${bg};"><a href="${href}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:${fg};text-decoration:none;">${label}</a></td></tr></table>`;
+      const align = n.attrs?.align === "center" ? "center" : n.attrs?.align === "right" ? "right" : "left";
+      return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;${align === "left" ? "" : `margin-${align === "center" ? "left:auto;margin-right:auto" : "left:auto"};`}"><tr><td style="border-radius:${t.radius}px;background:${bg};"><a href="${href}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:${fg};text-decoration:none;">${label}</a></td></tr></table>`;
     }
     case "header":
-      return renderHeader(n);
+      return renderHeader(n, t);
     case "footer":
       return renderFooter(n);
     case "embed":
-      return renderEmbed(n);
+      return renderEmbed(n, t);
     default:
-      return n.content ? n.content.map(renderBlock).join("") : "";
+      return n.content ? n.content.map((c) => renderBlock(c, t)).join("") : "";
   }
 }
 
@@ -204,16 +284,16 @@ const SOCIAL_LABELS: Record<string, string> = {
   website: "Website",
 };
 
-function renderHeader(n: DocNode): string {
+function renderHeader(n: DocNode, t: EmailTheme): string {
   const a = n.attrs ?? {};
   const logo = safeImageSrc(a.logo);
-  const align = a.align === "left" ? "left" : "center";
+  const align = a.align === "left" ? "left" : a.align === "right" ? "right" : "center";
   const bg = safeColor(a.bg);
-  const fg = bg && isLight(bg) ? "#111827" : bg ? "#ffffff" : "#111827";
+  const fg = bg && isLight(bg) ? "#111827" : bg ? "#ffffff" : t.heading;
   const inner = logo
     ? `<img src="${esc(logo)}" alt="${esc(String(a.alt ?? "Logo"))}" style="display:inline-block;max-height:44px;height:auto;border:0;"/>`
     : `<span style="font-size:20px;font-weight:700;color:${fg};">${esc(String(a.brandName ?? ""))}</span>`;
-  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${bg ? `background:${bg};` : ""}margin:0 0 24px;border-radius:6px;"><tr><td align="${align}" style="padding:${bg ? "16px" : "4px 0 16px"};">${inner}</td></tr></table>`;
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="${bg ? `background:${bg};` : ""}margin:0 0 24px;border-radius:${t.radius}px;"><tr><td align="${align}" style="padding:${bg ? "16px" : "4px 0 16px"};">${inner}</td></tr></table>`;
 }
 
 function renderFooter(n: DocNode): string {
@@ -252,7 +332,7 @@ function renderFooter(n: DocNode): string {
   return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0 0;border-top:1px solid #e5e7eb;"><tr><td align="center" style="padding:20px 8px 0;font-size:12px;line-height:1.6;color:#9ca3af;">${parts.join("")}</td></tr></table>`;
 }
 
-function renderEmbed(n: DocNode): string {
+function renderEmbed(n: DocNode, t: EmailTheme): string {
   const a = n.attrs ?? {};
   const href = safeUrl(a.url);
   if (href === "#") return "";
@@ -266,24 +346,26 @@ function renderEmbed(n: DocNode): string {
   return (
     `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;"><tr><td>` +
     `<a href="${esc(href)}" style="display:block;text-decoration:none;">${poster}` +
-    `<span style="display:block;margin:8px 0 0;color:${BRAND};font-size:13px;font-weight:600;">▶ ${title}</span>` +
+    `<span style="display:block;margin:8px 0 0;color:${t.brand};font-size:13px;font-weight:600;">▶ ${title}</span>` +
     `</a></td></tr></table>`
   );
 }
 
 export function docToHtml(doc: DocNode | null | undefined): string {
+  const t = themeOf(doc);
+  const fontStack = FONT_STACKS[t.font].stack;
   const body =
     doc?.content && doc.content.length
-      ? doc.content.map(renderBlock).join("\n          ")
+      ? doc.content.map((n) => renderBlock(n, t)).join("\n          ")
       : `<p style="color:#9ca3af;">Start writing…</p>`;
 
   return `<!doctype html>
 <html>
-  <body style="margin:0;padding:0;background:#f4f4f7;">
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f7;">
+  <body style="margin:0;padding:0;background:${t.bg};">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${t.bg};">
       <tr>
         <td align="center" style="padding:24px;">
-          <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border-radius:8px;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+          <table role="presentation" width="${t.width}" cellpadding="0" cellspacing="0" style="width:100%;max-width:${t.width}px;background:${t.canvas};border-radius:${t.radius}px;font-family:${fontStack};">
             <tr>
               <td style="padding:32px;">
           ${body}

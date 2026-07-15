@@ -781,6 +781,14 @@ export const campaigns = pgTable(
 // ---------------------------------------------------------------------------
 // Messages — the atomic unit
 // ---------------------------------------------------------------------------
+/** A file attached to a message — a reference to an uploaded asset. */
+export interface MessageAttachment {
+  url: string;
+  filename: string;
+  content_type: string;
+  size: number;
+}
+
 export const messages = pgTable(
   "messages",
   {
@@ -807,6 +815,9 @@ export const messages = pgTable(
     priority: priorityEnum("priority").notNull().default("normal"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    // File attachments carried on the send — each references an uploaded asset by
+    // its public URL (the worker fetches the bytes at send time and MIME-attaches).
+    attachments: jsonb("attachments").$type<MessageAttachment[]>().notNull().default([]),
     campaignId: text("campaign_id"),
     sequenceId: text("sequence_id"),
     sequenceStep: integer("sequence_step"),

@@ -351,6 +351,13 @@
       "when": 1783929419193,
       "tag": "0049_clean_ghost_rider",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1784116484346,
+      "tag": "0050_medical_silverclaw",
+      "breakpoints": true
     }
   ]
 }

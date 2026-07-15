@@ -130,7 +130,7 @@ const EnvSchema = z.object({
   // (AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY); AWS_REGION sets the client region.
   ASSET_STORAGE_DIR: z.string().default(".assets"),
   ASSET_PUBLIC_URL: z.string().url().default("http://localhost:4000/assets"),
-  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(5 * 1024 * 1024),
+  UPLOAD_MAX_BYTES: z.coerce.number().int().positive().default(15 * 1024 * 1024),
   ASSET_S3_BUCKET: z.string().optional(),
   AWS_REGION: z.string().optional(),
 });

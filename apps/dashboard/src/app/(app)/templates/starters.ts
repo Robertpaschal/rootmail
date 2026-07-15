@@ -25,6 +25,14 @@ export interface Starter {
   doc: DocNode;
 }
 
+/** A structural skeleton — the bones of a layout to fill in, not a finished design. */
+export interface BasicLayout {
+  id: string;
+  title: string;
+  blurb: string;
+  doc: DocNode;
+}
+
 // --- tiny DocNode builders (keep the catalog below readable) ----------------
 const h = (level: 1 | 2 | 3, text: string): DocNode => ({
   type: "heading",
@@ -177,3 +185,59 @@ export const STARTERS: Starter[] = [
 export function startersForWing(wing: StarterWing): Starter[] {
   return STARTERS.filter((s) => s.wing === wing);
 }
+
+// --- Basic layouts: neutral skeletons shown on either wing -------------------
+// Structure only — a scaffold you flesh out. No wing-specific copy or compliance
+// footer (those are added at send time for marketing).
+export const BASIC_LAYOUTS: BasicLayout[] = [
+  {
+    id: "blank-framed",
+    title: "Header & footer",
+    blurb: "A branded shell — logo on top, footer below, your content between.",
+    doc: doc(
+      header("Your brand"),
+      h(1, "A clear headline"),
+      p("Write your message here. Add blocks from the palette to build it out."),
+      footer({}),
+    ),
+  },
+  {
+    id: "one-cta",
+    title: "One clear action",
+    blurb: "A headline, a short paragraph, and a single button. Nothing to distract.",
+    doc: doc(h(1, "A clear headline"), p("One or two sentences that lead to the action below."), btn("Do the thing", "{{action_url}}")),
+  },
+  {
+    id: "hero-cta",
+    title: "Hero image + button",
+    blurb: "Lead with a picture, then a headline and a call to action.",
+    doc: doc(
+      header("Your brand"),
+      h(1, "Say it with a picture"),
+      p("Add an image block above, then tell them why it matters."),
+      btn("Learn more", "{{action_url}}"),
+      footer({}),
+    ),
+  },
+  {
+    id: "two-sections",
+    title: "Two sections",
+    blurb: "Two stacked stories with a divider — the bones of a newsletter.",
+    doc: doc(
+      header("Your brand"),
+      h(1, "{{headline}}"),
+      p("Hi {{name}}, here's the first thing."),
+      btn("Read more", "{{article_url}}"),
+      hr(),
+      h(2, "The second thing"),
+      p("And a little more here to round it out."),
+      footer({}),
+    ),
+  },
+  {
+    id: "plain",
+    title: "Plain text",
+    blurb: "Just words — the personal, high-deliverability look.",
+    doc: doc(h(2, "Hi {{name}},"), p("A simple, personal note. Sometimes the most effective email looks like it came from a person, not a design team."), p("— Your name")),
+  },
+];

@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
@@ -18,10 +18,12 @@ import {
   unsubscribeUrl,
 } from "@rootmail/core";
 import {
+  assets,
   auditEntries,
   db,
   messages,
   type Message,
+  type MessageAttachment,
   organizations,
   subTenants,
   type SubTenant,
@@ -65,7 +67,13 @@ const sendBody = z.object({
   metadata: z.record(z.unknown()).default({}),
   idempotency_key: z.string().min(1).optional(),
   sub_tenant_id: z.string().optional(),
+  // File attachments — each references an uploaded asset (POST /v1/assets) by id.
+  attachments: z.array(z.object({ id: z.string() })).max(10).optional(),
 });
+
+// Email attachments are constrained by inbox size caps — SES rejects over ~40MB
+// and most providers strip past 25MB, so we hold the per-email total to 20MB.
+const MAX_ATTACHMENT_TOTAL_BYTES = 20 * 1024 * 1024;
 
 const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -273,6 +281,30 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     const contact = await findContact(workspace.id, subTenantId, toEmail);
     const suppressed = await isSuppressed(workspace.id, subTenantId, toEmail);
 
+    // Resolve attachment references to owned assets (scoped to the workspace),
+    // preserving the caller's order. The worker fetches the bytes at send time.
+    let messageAttachments: MessageAttachment[] = [];
+    if (body.attachments?.length) {
+      const ids = [...new Set(body.attachments.map((a) => a.id))];
+      const rows = await db
+        .select()
+        .from(assets)
+        .where(and(eq(assets.workspaceId, workspace.id), inArray(assets.id, ids)));
+      const byId = new Map(rows.map((r) => [r.id, r]));
+      const missing = ids.filter((i) => !byId.has(i));
+      if (missing.length) throw Errors.notFound(`Attachment not found: ${missing.join(", ")}`);
+      messageAttachments = body.attachments.map((a) => {
+        const r = byId.get(a.id)!;
+        return { url: r.url, filename: r.filename, content_type: r.contentType, size: r.size };
+      });
+      const total = messageAttachments.reduce((s, a) => s + a.size, 0);
+      if (total > MAX_ATTACHMENT_TOTAL_BYTES) {
+        throw Errors.validation(
+          `Attachments total ${(total / 1048576).toFixed(1)}MB — the limit is 20MB per email.`,
+        );
+      }
+    }
+
     const id = newId("message");
     const sendAt = body.send_at ? new Date(body.send_at) : null;
 
@@ -299,6 +331,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         priority: body.priority,
         tags: body.tags,
         metadata: body.metadata,
+        attachments: messageAttachments,
         idempotencyKey: body.idempotency_key ?? null,
         status: suppressed ? "suppressed" : "queued",
         sandbox: mode === "test",

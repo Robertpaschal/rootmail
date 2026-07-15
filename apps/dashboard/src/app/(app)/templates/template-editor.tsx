@@ -16,15 +16,25 @@ import {
 } from "lucide-react";
 import { createTemplate, deleteTemplate, updateTemplate, type TemplateFormState } from "./actions";
 import { StarterGallery } from "./starter-gallery";
-import type { Starter, StarterWing } from "./starters";
-import { WritingEditor } from "./writing-editor";
+import type { BasicLayout, Starter, StarterWing } from "./starters";
+import { EmailCanvas, StudioPanel, useEmailEditor, useSelectedBlock } from "./email-studio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { docToHtml, docToText, emptyDoc, isDoc, type DocNode } from "@/lib/email-doc";
+import {
+  DEFAULT_THEME,
+  docToHtml,
+  docToText,
+  emptyDoc,
+  isDoc,
+  themeOf,
+  withTheme,
+  type DocNode,
+  type EmailTheme,
+} from "@/lib/email-doc";
 import type { Template, TemplateType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -86,23 +96,26 @@ function detectVars(...texts: string[]): string[] {
 export function TemplateEditor({ template }: { template?: Template }) {
   const editing = template != null;
   const action = editing ? updateTemplate : createTemplate;
-  const [state, formAction, pending] = useActionState<TemplateFormState | null, FormData>(
-    action,
-    null,
-  );
+  const [state, formAction, pending] = useActionState<TemplateFormState | null, FormData>(action, null);
 
-  const initialDoc: DocNode = isDoc(template?.blocks)
-    ? (template!.blocks as unknown as DocNode)
-    : emptyDoc();
+  const initialDoc: DocNode = isDoc(template?.blocks) ? (template!.blocks as unknown as DocNode) : emptyDoc();
+
   const [mode, setMode] = useState<"write" | "code">(
     isDoc(template?.blocks) ? "write" : editing ? "code" : "write",
   );
   const [doc, setDoc] = useState<DocNode>(initialDoc);
-  // Remount the writing editor when we drop in a new starter (it only seeds from
-  // initialDoc on mount), so the chosen layout actually replaces the canvas.
-  const [editorKey, setEditorKey] = useState(0);
+  const [theme, setTheme] = useState<EmailTheme>(isDoc(template?.blocks) ? themeOf(initialDoc) : { ...DEFAULT_THEME });
 
-  // New templates open on the studio gallery; picking a layout reveals the editor.
+  // The studio editor is owned here so the palette/inspector can act on it.
+  const editor = useEmailEditor(initialDoc, setDoc);
+  const selected = useSelectedBlock(editor);
+  const [studioTab, setStudioTab] = useState<"blocks" | "design" | "inspect">("blocks");
+  // Clicking a block in the canvas jumps the panel to its settings.
+  useEffect(() => {
+    if (selected?.isAtom) setStudioTab("inspect");
+  }, [selected?.pos, selected?.isAtom]);
+
+  // New templates open on the launcher; picking a path reveals the studio.
   const [picked, setPicked] = useState(editing);
 
   const [name, setName] = useState(template?.name ?? "");
@@ -116,7 +129,7 @@ export function TemplateEditor({ template }: { template?: Template }) {
   const [text, setText] = useState(template?.text ?? "");
   const [device, setDevice] = useState<Device>("Desktop");
 
-  // Default the gallery + type to the wing the user is working in (rm_wing cookie).
+  // Default the launcher + type to the wing the user is working in (rm_wing cookie).
   const [wing, setWing] = useState<StarterWing>("transactional");
   useEffect(() => {
     const c = document.cookie.split("; ").find((x) => x.startsWith("rm_wing="))?.split("=")[1];
@@ -128,9 +141,10 @@ export function TemplateEditor({ template }: { template?: Template }) {
 
   const deviceWidth = DEVICES.find((d) => d.name === device)?.width ?? "100%";
 
+  const themedDoc = useMemo(() => withTheme(doc, theme), [doc, theme]);
   const effectiveHtml = useMemo(
-    () => (mode === "write" ? docToHtml(doc) : html),
-    [mode, doc, html],
+    () => (mode === "write" ? docToHtml(themedDoc) : html),
+    [mode, themedDoc, html],
   );
   const vars = detectVars(subject, mode === "write" ? docToText(doc) : html, text);
   const activeType = TYPES.find((t) => t.id === type);
@@ -140,295 +154,212 @@ export function TemplateEditor({ template }: { template?: Template }) {
     if (!slugEdited) setSlug(slugify(value));
   }
 
-  function applyStarter(s: Starter) {
-    setDoc(s.doc);
-    setSubject(s.subject);
-    setType(s.wing);
-    if (!name) onName(s.name);
+  // Load a document into the studio and reveal it.
+  function loadDoc(next: DocNode, opts: { subject?: string; type?: TemplateType; name?: string; theme?: EmailTheme }) {
+    if (editor) {
+      editor.commands.setContent(next);
+      setDoc(editor.getJSON() as DocNode);
+    } else {
+      setDoc(next);
+    }
+    setTheme(opts.theme ?? { ...DEFAULT_THEME });
+    if (opts.subject !== undefined) setSubject(opts.subject);
+    if (opts.type) setType(opts.type);
+    if (opts.name && !name) onName(opts.name);
     setMode("write");
     setText("");
-    setEditorKey((k) => k + 1);
+    setStudioTab("blocks");
     setPicked(true);
   }
 
-  function applyBlank(w: StarterWing) {
-    setDoc(emptyDoc());
-    setSubject("");
+  const applyStarter = (s: Starter) => loadDoc(s.doc, { subject: s.subject, type: s.wing, name: s.name });
+  const applyBasic = (b: BasicLayout, w: StarterWing) => loadDoc(b.doc, { type: w, name: b.title });
+  const applyBlank = (w: StarterWing) => loadDoc(emptyDoc(), { subject: "", type: w });
+  const applyHtml = (w: StarterWing) => {
     setType(w);
-    setMode("write");
-    setEditorKey((k) => k + 1);
+    setHtml(NEW_HTML);
+    setMode("code");
     setPicked(true);
-  }
+  };
 
-  // Studio gallery — the entry point for a new template.
+  const previewCard = () => (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+        <CardTitle className="text-base">Preview</CardTitle>
+        <div className="flex gap-1 rounded-md border p-0.5">
+          {DEVICES.map((d) => (
+            <button key={d.name} type="button" onClick={() => setDevice(d.name)} aria-label={d.name} aria-pressed={device === d.name} title={d.name}
+              className={cn("rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground", device === d.name && "bg-secondary text-foreground")}>
+              <d.icon className="size-4" />
+            </button>
+          ))}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+          <span className="text-muted-foreground">Subject: </span>
+          <span className="font-medium">{subject || "—"}</span>
+        </div>
+        <div className="flex justify-center overflow-hidden rounded-md border bg-muted/30 p-3">
+          {/* sandbox="" strips scripts — safe to render the draft HTML. */}
+          <iframe title="Template preview" sandbox="" srcDoc={effectiveHtml} style={{ width: deviceWidth }} className="h-[420px] max-w-full rounded-sm border bg-white transition-[width] duration-200" />
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Variables show as <span className="font-mono">{"{{name}}"}</span> here — they&apos;re filled in at send time.
+        </p>
+      </CardContent>
+    </Card>
+  );
+
+  const variablesCard = () => (
+    <Card>
+      <CardHeader className="pb-3"><CardTitle className="text-base">Variables detected</CardTitle></CardHeader>
+      <CardContent>
+        {vars.length === 0 ? (
+          <p className="text-sm text-muted-foreground">None yet. Add <span className="font-mono">{"{{placeholders}}"}</span> to the subject or body.</p>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {vars.map((v) => (
+              <Badge key={v} variant="secondary" className="font-mono">{v}</Badge>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+  // Launcher — the entry point for a new template.
   if (!picked) {
-    return <StarterGallery key={wing} defaultWing={wing} onPick={applyStarter} onBlank={applyBlank} />;
+    return <StarterGallery key={wing} defaultWing={wing} onPick={applyStarter} onBasic={applyBasic} onBlank={applyBlank} onHtml={applyHtml} />;
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <form action={formAction} className="space-y-5">
+      {editing ? <input type="hidden" name="id" value={template.id} /> : null}
+      <input type="hidden" name="type" value={type} />
+      <input type="hidden" name="html" value={effectiveHtml} />
+      <input type="hidden" name="blocks" value={mode === "write" ? JSON.stringify(themedDoc) : ""} />
+
+      {/* Meta bar — the essentials, always visible above the studio. */}
       <Card>
-        <CardContent className="p-6">
-          {!editing ? (
-            <button
-              type="button"
-              onClick={() => setPicked(false)}
-              className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <ChevronLeft className="size-4" /> Choose a different layout
-            </button>
-          ) : null}
-
-          <form action={formAction} className="space-y-5">
-            {editing ? <input type="hidden" name="id" value={template.id} /> : null}
-
-            <div className="grid gap-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                name="name"
-                value={name}
-                onChange={(e) => onName(e.target.value)}
-                placeholder="Welcome"
-                required
-              />
+        <CardContent className="space-y-4 p-5">
+          <div className="flex items-center justify-between">
+            {!editing ? (
+              <button type="button" onClick={() => setPicked(false)} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+                <ChevronLeft className="size-4" /> Change how you start
+              </button>
+            ) : (
+              <p className="text-xs text-muted-foreground">Version {template.current_version} · editing the subject or body bumps it.</p>
+            )}
+            <div className="flex items-center gap-3">
+              {state?.saved ? (
+                <span className="flex items-center gap-1.5 text-sm text-emerald-600"><Check className="size-4" /> Saved</span>
+              ) : null}
+              <Button type="submit" disabled={pending} size="sm">
+                {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                {pending ? "Saving…" : editing ? "Save changes" : "Create template"}
+              </Button>
             </div>
+          </div>
 
-            <div className="grid gap-2">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="grid gap-1.5">
+              <Label htmlFor="name">Name</Label>
+              <Input id="name" name="name" value={name} onChange={(e) => onName(e.target.value)} placeholder="Welcome" required />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="subject">Subject line</Label>
+              <Input id="subject" name="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="Welcome to {{product}}, {{name}}!" required />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="grid gap-1.5">
               <Label>What&apos;s this for?</Label>
-              <input type="hidden" name="type" value={type} />
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="flex flex-wrap gap-1.5">
                 {TYPES.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setType(t.id)}
-                    aria-pressed={type === t.id}
-                    className={cn(
-                      "rounded-md border px-3 py-2 text-sm font-medium transition-colors",
-                      type === t.id
-                        ? "border-primary bg-primary/5 text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
+                  <button key={t.id} type="button" onClick={() => setType(t.id)} aria-pressed={type === t.id}
+                    className={cn("rounded-md border px-3 py-1.5 text-sm font-medium transition-colors", type === t.id ? "border-primary bg-primary/5 text-foreground" : "text-muted-foreground hover:text-foreground")}>
                     {t.label}
                   </button>
                 ))}
               </div>
-              {activeType ? <p className="text-xs text-muted-foreground">{activeType.desc}</p> : null}
             </div>
-
-            <div className="grid gap-2">
-              <Label htmlFor="subject">Subject</Label>
-              <Input
-                id="subject"
-                name="subject"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="Welcome to {{product}}, {{name}}!"
-                required
-              />
-            </div>
-
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <Label>Body</Label>
-                <div className="flex gap-1 rounded-md border p-0.5 text-sm">
-                  <button
-                    type="button"
-                    onClick={() => setMode("write")}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors",
-                      mode === "write"
-                        ? "bg-secondary text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <PenLine className="size-3.5" /> Write
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      // Eject to HTML with the current document rendered out.
-                      if (mode === "write") setHtml(docToHtml(doc));
-                      setMode("code");
-                    }}
-                    className={cn(
-                      "flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors",
-                      mode === "code"
-                        ? "bg-secondary text-foreground"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    <Code2 className="size-3.5" /> HTML
-                  </button>
-                </div>
-              </div>
-
-              {mode === "write" ? (
-                <>
-                  <WritingEditor key={editorKey} initialDoc={doc} onChange={setDoc} onSubject={setSubject} />
-                  <input type="hidden" name="html" value={effectiveHtml} />
-                  <input type="hidden" name="blocks" value={JSON.stringify(doc)} />
-                  <p className="text-xs text-muted-foreground">
-                    Write naturally and format with the toolbar. Use{" "}
-                    <span className="font-mono">{"{{variables}}"}</span> for per-send values.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <Textarea
-                    id="html"
-                    name="html"
-                    rows={14}
-                    value={html}
-                    onChange={(e) => setHtml(e.target.value)}
-                    className="font-mono text-xs"
-                  />
-                  <input type="hidden" name="blocks" value="" />
-                </>
-              )}
-            </div>
-
-            {/* Developer details — the slug is an API identifier, not a first-run
-                concern, so it's auto-generated and tucked away. */}
-            <div>
-              <button
-                type="button"
-                onClick={() => setShowAdvanced((v) => !v)}
-                className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-              >
-                <Settings2 className="size-3.5" /> Developer details
+            {/* Write (studio) vs HTML — HTML stays for those who want to hand-code. */}
+            <div className="flex gap-1 self-start rounded-md border p-0.5 text-sm sm:self-end">
+              <button type="button" onClick={() => setMode("write")}
+                className={cn("flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors", mode === "write" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                <PenLine className="size-3.5" /> Design
               </button>
-              <div className={cn("mt-3 space-y-4", !showAdvanced && "hidden")}>
-                <div className="grid gap-2">
-                  <Label htmlFor="slug">Slug</Label>
-                  <Input
-                    id="slug"
-                    name="slug"
-                    value={slug}
-                    onChange={(e) => {
-                      setSlug(e.target.value);
-                      setSlugEdited(true);
-                    }}
-                    placeholder="welcome"
-                    className="font-mono"
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    How you reference this template from the API. Auto-generated from the name — change
-                    it only if you send by slug.
-                  </p>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="text">Plain-text body (optional)</Label>
-                  <Textarea
-                    id="text"
-                    name="text"
-                    rows={4}
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    className="font-mono text-xs"
-                    placeholder="Plain-text fallback for clients that don't render HTML."
-                  />
-                </div>
-              </div>
+              <button type="button" onClick={() => { if (mode === "write") setHtml(docToHtml(themedDoc)); setMode("code"); }}
+                className={cn("flex items-center gap-1.5 rounded px-2.5 py-1 font-medium transition-colors", mode === "code" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground")}>
+                <Code2 className="size-3.5" /> HTML
+              </button>
             </div>
-
-            {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
-
-            <div className="flex items-center gap-3">
-              <Button type="submit" disabled={pending}>
-                {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
-                {pending ? "Saving…" : editing ? "Save changes" : "Create template"}
-              </Button>
-              {state?.saved ? (
-                <span className="flex items-center gap-1.5 text-sm text-emerald-600">
-                  <Check className="size-4" /> Saved
-                </span>
-              ) : null}
-            </div>
-          </form>
-
-          {editing ? (
-            <div className="mt-6 flex items-center justify-between border-t pt-4">
-              <p className="text-xs text-muted-foreground">
-                Version {template.current_version} · editing the subject or body bumps it.
-              </p>
-              <DeleteTemplate id={template.id} name={template.name} />
-            </div>
-          ) : null}
+          </div>
+          {activeType ? <p className="text-xs text-muted-foreground">{activeType.desc}</p> : null}
         </CardContent>
       </Card>
 
-      <div className="space-y-4">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Preview</CardTitle>
-            <div className="flex gap-1 rounded-md border p-0.5">
-              {DEVICES.map((d) => (
-                <button
-                  key={d.name}
-                  type="button"
-                  onClick={() => setDevice(d.name)}
-                  aria-label={d.name}
-                  aria-pressed={device === d.name}
-                  title={d.name}
-                  className={cn(
-                    "rounded p-1.5 text-muted-foreground transition-colors hover:text-foreground",
-                    device === d.name && "bg-secondary text-foreground",
-                  )}
-                >
-                  <d.icon className="size-4" />
-                </button>
-              ))}
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-              <span className="text-muted-foreground">Subject: </span>
-              <span className="font-medium">{subject || "—"}</span>
-            </div>
-            <div className="flex justify-center overflow-hidden rounded-md border bg-muted/30 p-3">
-              {/* sandbox="" strips scripts — safe to render the draft HTML. */}
-              <iframe
-                title="Template preview"
-                sandbox=""
-                srcDoc={effectiveHtml}
-                style={{ width: deviceWidth }}
-                className="h-[420px] max-w-full rounded-sm border bg-white transition-[width] duration-200"
-              />
-            </div>
+      {/* The studio: canvas + right rail (Blocks / Design / Inspect + preview). */}
+      {mode === "write" ? (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
+          <div className="space-y-2">
+            <EmailCanvas editor={editor} theme={theme} />
             <p className="text-xs text-muted-foreground">
-              Variables show as <span className="font-mono">{"{{name}}"}</span> here — they&apos;re
-              filled in at send time. Switch device sizes to check responsiveness.
+              Click any block to edit it in <span className="font-medium">Inspect</span>. Type <span className="font-mono">/</span> for a quick block menu. Use{" "}
+              <span className="font-mono">{"{{variables}}"}</span> for per-send values.
             </p>
-          </CardContent>
-        </Card>
+          </div>
+          <div className="space-y-5">
+            <StudioPanel editor={editor} theme={theme} setTheme={setTheme} selected={selected} tab={studioTab} setTab={setStudioTab} onAiSubject={setSubject} />
+            {previewCard()}
+            {variablesCard()}
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-5 lg:grid-cols-2">
+          <Card>
+            <CardHeader className="pb-2"><CardTitle className="text-base">HTML</CardTitle></CardHeader>
+            <CardContent className="space-y-3">
+              <Textarea id="html-src" rows={20} value={html} onChange={(e) => setHtml(e.target.value)} className="font-mono text-xs" placeholder="<p>Your HTML…</p>" />
+              <p className="text-xs text-muted-foreground">Sent exactly as written. Use <span className="font-mono">{"{{variables}}"}</span> for per-send values.</p>
+            </CardContent>
+          </Card>
+          <div className="space-y-5">
+            {previewCard()}
+            {variablesCard()}
+          </div>
+        </div>
+      )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Variables detected</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {vars.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                None yet. Add <span className="font-mono">{"{{placeholders}}"}</span> to the subject
-                or body.
-              </p>
-            ) : (
-              <div className="flex flex-wrap gap-2">
-                {vars.map((v) => (
-                  <Badge key={v} variant="secondary" className="font-mono">
-                    {v}
-                  </Badge>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Developer details — the slug is an API identifier, tucked away. */}
+      <div>
+        <button type="button" onClick={() => setShowAdvanced((v) => !v)} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <Settings2 className="size-3.5" /> Developer details
+        </button>
+        <div className={cn("mt-3 grid gap-4 md:grid-cols-2", !showAdvanced && "hidden")}>
+          <div className="grid gap-1.5">
+            <Label htmlFor="slug">Slug</Label>
+            <Input id="slug" name="slug" value={slug} onChange={(e) => { setSlug(e.target.value); setSlugEdited(true); }} placeholder="welcome" className="font-mono" required />
+            <p className="text-xs text-muted-foreground">How you reference this template from the API. Auto-generated from the name.</p>
+          </div>
+          <div className="grid gap-1.5">
+            <Label htmlFor="text">Plain-text body (optional)</Label>
+            <Textarea id="text" name="text" rows={4} value={text} onChange={(e) => setText(e.target.value)} className="font-mono text-xs" placeholder="Plain-text fallback for clients that don't render HTML." />
+          </div>
+        </div>
       </div>
-    </div>
+
+      {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
+
+      {editing ? (
+        <div className="flex items-center justify-between border-t pt-4">
+          <p className="text-xs text-muted-foreground">Deleting keeps already-sent mail intact.</p>
+          <DeleteTemplate id={template.id} name={template.name} />
+        </div>
+      ) : null}
+    </form>
   );
 }
 

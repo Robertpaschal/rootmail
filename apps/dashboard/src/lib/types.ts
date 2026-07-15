@@ -26,6 +26,13 @@ export interface Address {
   name?: string;
 }
 
+export interface MessageAttachment {
+  url: string;
+  filename: string;
+  content_type: string;
+  size: number;
+}
+
 export interface Message {
   id: string;
   object: "message";
@@ -41,6 +48,7 @@ export interface Message {
   priority: Priority;
   tags: string[];
   metadata: Record<string, unknown>;
+  attachments: MessageAttachment[];
   idempotency_key: string | null;
   provider: string | null;
   provider_message_id: string | null;

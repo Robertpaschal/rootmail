@@ -1,5 +1,6 @@
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 import { env } from "@rootmail/core";
+import { buildMimeMessage } from "./mime";
 import type { MailProvider, OutboundEmail, SendResult } from "./types";
 
 function formatAddress(email: string, name?: string | null): string {
@@ -12,6 +13,10 @@ function formatAddress(email: string, name?: string | null): string {
  * pass our own DKIM material here. Async delivery/bounce/complaint events arrive
  * separately via SNS (wired in Phase 1.5), not from this call.
  *
+ * When a message carries attachments, SES's Simple content can't express them,
+ * so we build the full MIME ourselves and send it as Raw content (Easy DKIM
+ * still signs it). Everything else stays on the Simple path.
+ *
  * Region + credentials resolve through the SDK's default chain (AWS_REGION,
  * AWS_ACCESS_KEY_ID/SECRET, or an instance role in prod).
  */
@@ -20,26 +25,35 @@ export class SesProvider implements MailProvider {
   private readonly client = new SESv2Client(env.AWS_REGION ? { region: env.AWS_REGION } : {});
 
   async send(email: OutboundEmail): Promise<SendResult> {
-    const res = await this.client.send(
-      new SendEmailCommand({
-        FromEmailAddress: formatAddress(email.from.email, email.from.name),
-        Destination: { ToAddresses: [email.to] },
-        ReplyToAddresses: email.replyTo ? [email.replyTo] : undefined,
-        Content: {
-          Simple: {
-            Subject: { Data: email.subject, Charset: "UTF-8" },
-            Body: {
-              Html: { Data: email.html, Charset: "UTF-8" },
-              Text: { Data: email.text, Charset: "UTF-8" },
+    const hasAttachments = (email.attachments?.length ?? 0) > 0;
+
+    const command = hasAttachments
+      ? new SendEmailCommand({
+          FromEmailAddress: formatAddress(email.from.email, email.from.name),
+          Destination: { ToAddresses: [email.to] },
+          ReplyToAddresses: email.replyTo ? [email.replyTo] : undefined,
+          Content: { Raw: { Data: Buffer.from(buildMimeMessage(email), "utf8") } },
+        })
+      : new SendEmailCommand({
+          FromEmailAddress: formatAddress(email.from.email, email.from.name),
+          Destination: { ToAddresses: [email.to] },
+          ReplyToAddresses: email.replyTo ? [email.replyTo] : undefined,
+          Content: {
+            Simple: {
+              Subject: { Data: email.subject, Charset: "UTF-8" },
+              Body: {
+                Html: { Data: email.html, Charset: "UTF-8" },
+                Text: { Data: email.text, Charset: "UTF-8" },
+              },
+              // e.g. List-Unsubscribe / List-Unsubscribe-Post on marketing sends.
+              Headers: email.headers?.length
+                ? email.headers.map((h) => ({ Name: h.name, Value: h.value }))
+                : undefined,
             },
-            // e.g. List-Unsubscribe / List-Unsubscribe-Post on marketing sends.
-            Headers: email.headers?.length
-              ? email.headers.map((h) => ({ Name: h.name, Value: h.value }))
-              : undefined,
           },
-        },
-      }),
-    );
+        });
+
+    const res = await this.client.send(command);
     return { provider: this.name, providerMessageId: res.MessageId ?? "" };
   }
 }

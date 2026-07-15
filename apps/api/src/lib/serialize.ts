@@ -82,6 +82,7 @@ export function serializeMessage(m: Message) {
     priority: m.priority,
     tags: m.tags,
     metadata: m.metadata,
+    attachments: m.attachments,
     idempotency_key: m.idempotencyKey,
     provider: m.provider,
     provider_message_id: m.providerMessageId,

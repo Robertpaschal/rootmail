@@ -6,8 +6,26 @@ import {
   type SendJobData,
   WEBHOOK_EVENTS,
 } from "@rootmail/core";
-import { auditEntries, db, type Message, messages, subTenants, suppressions } from "@rootmail/db";
+import { auditEntries, db, type Message, type MessageAttachment, messages, subTenants, suppressions } from "@rootmail/db";
 import { getProviderFor } from "./providers";
+import type { OutboundAttachment } from "./providers/types";
+
+/** Fetch each attachment's bytes from its public asset URL (host-independent). */
+async function loadAttachments(list: MessageAttachment[]): Promise<OutboundAttachment[]> {
+  const out: OutboundAttachment[] = [];
+  for (const a of list) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 20_000);
+    try {
+      const res = await fetch(a.url, { signal: controller.signal });
+      if (!res.ok) throw new Error(`attachment ${a.filename} fetch failed (${res.status})`);
+      out.push({ filename: a.filename, contentType: a.content_type, content: Buffer.from(await res.arrayBuffer()) });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+  return out;
+}
 
 interface AuditExtra {
   provider?: string | null;
@@ -105,6 +123,8 @@ export async function processSend(data: SendJobData): Promise<void> {
         ]
       : undefined;
 
+  const attachments = message.attachments?.length ? await loadAttachments(message.attachments) : undefined;
+
   const provider = getProviderFor(message.sandbox);
   try {
     const result = await provider.send({
@@ -118,6 +138,7 @@ export async function processSend(data: SendJobData): Promise<void> {
       dkim,
       sandbox: message.sandbox,
       headers,
+      attachments,
     });
 
     await db

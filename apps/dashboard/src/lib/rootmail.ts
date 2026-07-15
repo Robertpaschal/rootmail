@@ -167,6 +167,7 @@ export interface SendBody {
   tags?: string[];
   idempotency_key?: string;
   sub_tenant_id?: string;
+  attachments?: { id: string }[];
 }
 
 export type SimulatableEvent = "delivered" | "opened" | "clicked" | "bounced" | "complained";

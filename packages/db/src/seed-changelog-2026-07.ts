@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A design studio for your emails — and a composer anyone can use",
+    date: "2026-07-15",
+    changes: [
+      {
+        kind: "New",
+        text: "Templates are now a full design studio. Start from scratch, a basic layout, a ready-made template, or your own HTML — then build with a blocks palette (headings, text, images, buttons, video, dividers, spacers, headers and footers), arrange and restyle each block in an inspector, and set the whole email's look — brand color, backgrounds, fonts, corners, width — with no code. What you design is exactly what sends.",
+      },
+      {
+        kind: "Improved",
+        text: "Writing a message now feels like a normal email composer: rich formatting, a live preview of what your recipient sees, and attachments — add a PDF, image, or short video right from the composer. Press / to have AI draft the whole email from a sentence, or start from any of your templates.",
+      },
+      {
+        kind: "Improved",
+        text: "We took the developer-only controls out of the composer (the raw-HTML toggle and the idempotency-key field). Your sends are still protected from accidental double-clicks automatically, and the key is shown in each message's details when you need it.",
+      },
+    ],
+  },
+  {
     title: "Full developer docs — one reference, two places",
     date: "2026-07-14",
     changes: [

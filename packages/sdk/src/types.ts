@@ -24,6 +24,8 @@ export interface SendParams {
   sendAt?: string | Date;
   idempotencyKey?: string;
   subTenantId?: string;
+  /** Files to attach — each references an asset uploaded via POST /v1/assets. */
+  attachments?: { id: string }[];
 }
 
 export interface Message {

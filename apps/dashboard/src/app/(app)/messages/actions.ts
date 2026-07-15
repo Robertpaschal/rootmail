@@ -22,6 +22,7 @@ export async function sendMessage(
   const fromEmail = String(formData.get("from_email") ?? "").trim();
   const idempotencyKey = String(formData.get("idempotency_key") ?? "").trim();
   const variablesRaw = String(formData.get("variables") ?? "").trim();
+  const attachmentsRaw = String(formData.get("attachments") ?? "").trim();
 
   if (!to) return { error: "A recipient email is required." };
   if (!template && (!subject || !html)) {
@@ -54,6 +55,17 @@ export async function sendMessage(
   if (idempotencyKey) body.idempotency_key = idempotencyKey;
   if (variables) body.variables = variables;
 
+  if (attachmentsRaw) {
+    try {
+      const ids = JSON.parse(attachmentsRaw);
+      if (Array.isArray(ids) && ids.every((x) => typeof x === "string") && ids.length) {
+        body.attachments = ids.map((id: string) => ({ id }));
+      }
+    } catch {
+      /* no attachments */
+    }
+  }
+
   let id: string;
   try {
     const msg = await api.send(body);
@@ -81,6 +93,21 @@ export async function getProofAction(
     }
     if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
     return { error: "Failed to generate the proof bundle." };
+  }
+}
+
+/** Upload a file to attach to a compose, returning its asset reference. */
+export async function uploadAttachmentAction(
+  formData: FormData,
+): Promise<{ id?: string; filename?: string; size?: number; content_type?: string; error?: string }> {
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) return { error: "No file selected." };
+  try {
+    const a = await api.uploadAsset(file);
+    return { id: a.id, filename: a.filename, size: a.size, content_type: a.content_type };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Upload failed." };
   }
 }
 

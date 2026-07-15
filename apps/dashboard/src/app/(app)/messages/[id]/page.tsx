@@ -9,6 +9,7 @@ import {
   Flag,
   Inbox,
   MousePointerClick,
+  Paperclip,
   RotateCw,
   Send,
   ShieldOff,
@@ -62,6 +63,12 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
       <dd className="min-w-0 break-words text-right text-sm font-medium">{children}</dd>
     </div>
   );
+}
+
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 function metaSuffix(meta: AuditEntry["metadata"]): string {
@@ -139,6 +146,29 @@ export default async function MessageDetailPage({
               <MessageContent html={message.rendered_html} text={message.rendered_text} />
             </CardContent>
           </Card>
+
+          {message.attachments.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Attachments</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-wrap gap-2">
+                {message.attachments.map((a) => (
+                  <a
+                    key={a.url}
+                    href={a.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-accent"
+                  >
+                    <Paperclip className="size-4 text-muted-foreground" />
+                    <span className="font-medium">{a.filename}</span>
+                    <span className="text-xs text-muted-foreground">{fmtSize(a.size)}</span>
+                  </a>
+                ))}
+              </CardContent>
+            </Card>
+          ) : null}
 
           <Card>
             <CardHeader>

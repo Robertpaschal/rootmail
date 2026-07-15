@@ -10,6 +10,14 @@ export interface OutboundEmail {
   sandbox?: boolean;
   /** Extra top-level headers, e.g. RFC 8058 one-click unsubscribe on bulk mail. */
   headers?: { name: string; value: string }[];
+  /** File attachments (bytes already fetched), MIME-attached to the message. */
+  attachments?: OutboundAttachment[];
+}
+
+export interface OutboundAttachment {
+  filename: string;
+  contentType: string;
+  content: Buffer;
 }
 
 export interface SendResult {

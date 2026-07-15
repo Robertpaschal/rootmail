@@ -7,7 +7,7 @@ const description =
 export const metadata: Metadata = {
   metadataBase: new URL("https://developers.gateml.io"),
   title: {
-    default: "rootmail for developers — outsource your email layer",
+    default: "Rootmail for developers — outsource your email layer",
     template: "%s · rootmail developers",
   },
   description,
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "rootmail developers",
-    title: "rootmail for developers — outsource your email layer",
+    title: "Rootmail for developers — outsource your email layer",
     description,
   },
   twitter: { card: "summary_large_image", title: "rootmail for developers", description },

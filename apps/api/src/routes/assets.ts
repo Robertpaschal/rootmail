@@ -17,6 +17,9 @@ const ALLOWED: Array<{ mime: string; ext: string; sniff: (b: Buffer) => boolean 
     sniff: (b) => b.length > 12 && b.subarray(0, 4).toString("ascii") === "RIFF" && b.subarray(8, 12).toString("ascii") === "WEBP",
   },
   { mime: "application/pdf", ext: "pdf", sniff: (b) => b.subarray(0, 4).toString("ascii") === "%PDF" },
+  // MP4 video (ISO base media): bytes 4-8 are the "ftyp" box type. Covers short
+  // clips people attach; large videos are better shared as a link (email size caps).
+  { mime: "video/mp4", ext: "mp4", sniff: (b) => b.length > 12 && b.subarray(4, 8).toString("ascii") === "ftyp" },
 ];
 
 const EXT_TYPES: Record<string, string> = {
@@ -25,6 +28,7 @@ const EXT_TYPES: Record<string, string> = {
   gif: "image/gif",
   webp: "image/webp",
   pdf: "application/pdf",
+  mp4: "video/mp4",
 };
 
 export async function assetRoutes(app: FastifyInstance): Promise<void> {
