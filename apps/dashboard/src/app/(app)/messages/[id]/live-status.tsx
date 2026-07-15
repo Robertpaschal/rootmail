@@ -33,7 +33,7 @@ type Tone = "progress" | "success" | "error" | "warn" | "muted";
 const STATUS_META: Record<string, { label: string; tone: Tone; blurb: string }> = {
   queued: { label: "Queued", tone: "progress", blurb: "Your email is in line to send." },
   sending: { label: "Sending", tone: "progress", blurb: "Handing your email to the mail servers…" },
-  sent: { label: "Sent", tone: "progress", blurb: "On its way — waiting for the inbox to confirm delivery." },
+  sent: { label: "Sent", tone: "progress", blurb: "Accepted by the mail provider — we'll show delivery here once it confirms." },
   delivered: { label: "Delivered", tone: "success", blurb: "It landed in the recipient's inbox." },
   opened: { label: "Opened", tone: "success", blurb: "The recipient opened your email." },
   clicked: { label: "Clicked", tone: "success", blurb: "The recipient clicked a link in your email." },
@@ -60,8 +60,11 @@ const EVENT_ICON: Record<string, typeof Inbox> = {
   retried: Loader2,
 };
 
-// Still moving → keep polling. Settled → stop (the tracker has reached a resting state).
-const INFLIGHT = new Set(["queued", "sending", "sent", "retried"]);
+// Spinner + "live" pulse only while the send is genuinely in motion. "sent" is a
+// SUCCESSFUL hand-off to the provider (a resting milestone), not a spinning state —
+// otherwise it reads as "stuck" while awaiting an async delivery receipt.
+const INFLIGHT = new Set(["queued", "sending", "retried"]);
+// We keep polling through "sent" (to catch a delivery receipt) but stop once settled.
 const SETTLED = new Set(["delivered", "opened", "clicked", "bounced", "complained", "failed", "suppressed", "unsubscribed"]);
 
 const TONE_TEXT: Record<Tone, string> = {
@@ -211,6 +214,12 @@ export function LiveStatus({
 
         {/* Stage tracker */}
         <Tracker stages={stages} />
+
+        {message.status === "sent" ? (
+          <p className="text-xs text-muted-foreground">
+            Delivery, opens, and bounces appear here automatically as your mail provider reports them back.
+          </p>
+        ) : null}
 
         {/* Diagnose (only when something went wrong) */}
         {errorish ? (

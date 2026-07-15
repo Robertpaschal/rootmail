@@ -8,9 +8,9 @@ import { PageHeader } from "@/components/app/page-header";
 import { LiveStatus } from "./live-status";
 import { MessageContent } from "./message-content";
 import { DownloadProof } from "./download-proof";
+import { LocalTime } from "@/components/app/local-time";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { AuditEntry, Message } from "@/lib/types";
 
@@ -107,9 +107,9 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
               <DetailRow label="To"><span>{message.to}</span></DetailRow>
               <DetailRow label="From"><span>{fromLabel}</span></DetailRow>
               {message.reply_to ? <DetailRow label="Replies to"><span>{message.reply_to}</span></DetailRow> : null}
-              <DetailRow label="Sent">{formatDateTime(sentAt)}</DetailRow>
-              {deliveredAt ? <DetailRow label="Delivered">{formatDateTime(deliveredAt)}</DetailRow> : null}
-              {message.scheduled_at ? <DetailRow label="Scheduled">{formatDateTime(message.scheduled_at)}</DetailRow> : null}
+              <DetailRow label="Sent"><LocalTime iso={sentAt} /></DetailRow>
+              {deliveredAt ? <DetailRow label="Delivered"><LocalTime iso={deliveredAt} /></DetailRow> : null}
+              {message.scheduled_at ? <DetailRow label="Scheduled"><LocalTime iso={message.scheduled_at} /></DetailRow> : null}
               {message.attachments.length > 0 ? <DetailRow label="Attachments">{message.attachments.length}</DetailRow> : null}
               {message.sandbox ? <DetailRow label="Environment"><Badge variant="warning">Test</Badge></DetailRow> : null}
             </CardContent>
