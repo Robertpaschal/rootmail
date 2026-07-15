@@ -12,6 +12,7 @@ import {
   Zap,
 } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
+import { LocalTime } from "@/components/app/local-time";
 import { PageHeader } from "@/components/app/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -258,7 +259,7 @@ export default async function BillingPage({
                   {invoices.map((inv) => (
                     <tr key={inv.id}>
                       <td className="py-2 text-muted-foreground">
-                        {new Date(inv.created * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                        <LocalTime iso={new Date(inv.created * 1000).toISOString()} mode="date" />
                       </td>
                       <td className="py-2 font-medium">{inv.number ?? inv.id.slice(0, 12)}</td>
                       <td className="py-2 text-right tabular-nums">{money(inv.amount_paid || inv.amount_due)}</td>

@@ -26,18 +26,24 @@ export class SesProvider implements MailProvider {
 
   async send(email: OutboundEmail): Promise<SendResult> {
     const hasAttachments = (email.attachments?.length ?? 0) > 0;
+    // A configuration set is what makes SES publish DELIVERY / OPEN / CLICK events
+    // (bounce/complaint can come off the identity, but delivered/opened do not).
+    // Without it, a message that truly landed never advances past "sent".
+    const ConfigurationSetName = env.SES_CONFIGURATION_SET || undefined;
 
     const command = hasAttachments
       ? new SendEmailCommand({
           FromEmailAddress: formatAddress(email.from.email, email.from.name),
           Destination: { ToAddresses: [email.to] },
           ReplyToAddresses: email.replyTo ? [email.replyTo] : undefined,
+          ConfigurationSetName,
           Content: { Raw: { Data: Buffer.from(buildMimeMessage(email), "utf8") } },
         })
       : new SendEmailCommand({
           FromEmailAddress: formatAddress(email.from.email, email.from.name),
           Destination: { ToAddresses: [email.to] },
           ReplyToAddresses: email.replyTo ? [email.replyTo] : undefined,
+          ConfigurationSetName,
           Content: {
             Simple: {
               Subject: { Data: email.subject, Charset: "UTF-8" },

@@ -70,6 +70,10 @@ const EnvSchema = z.object({
   DNS_VERIFY_MODE: z.enum(["mock", "live"]).default("mock"),
   MAIL_PROVIDER: z.enum(["mock", "ses", "sendgrid"]).default("mock"),
   MAILDIR: z.string().default(".maildir"),
+  // SES configuration set attached to every send — REQUIRED for delivery/open/click
+  // events to be published to SNS (→ /v1/webhooks/ses). Without it, messages that
+  // truly delivered never advance past "sent". Unset → no config set (events off).
+  SES_CONFIGURATION_SET: z.string().optional(),
 
   // Subdomain whose MX points at SES inbound, for reply capture. Outbound thread
   // sends set Reply-To to reply+<threadId>@<INBOUND_DOMAIN>; the SES inbound

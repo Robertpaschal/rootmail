@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { formatDateTime } from "@/lib/format";
+import { LocalTime } from "@/components/app/local-time";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Contact } from "@/lib/types";
 import { UpsertContactForm } from "./upsert-form";
@@ -126,7 +126,7 @@ export default async function ContactsPage({
                         <span className="font-mono text-xs">{contact.sub_tenant_id}</span>
                       </DetailRow>
                     ) : null}
-                    <DetailRow label="Created">{formatDateTime(contact.created_at)}</DetailRow>
+                    <DetailRow label="Created"><LocalTime iso={contact.created_at} /></DetailRow>
                     <div className="flex items-center justify-between gap-4 py-2.5">
                       <span className="text-sm text-muted-foreground">Subscription</span>
                       {contact.status === "unsubscribed" ? (

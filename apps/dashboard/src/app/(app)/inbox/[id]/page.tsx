@@ -4,7 +4,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { ThreadStatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { formatDateTime } from "@/lib/format";
+import { LocalTime } from "@/components/app/local-time";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Thread, ThreadMessage } from "@/lib/types";
 import { ReplyBox } from "../reply-box";
@@ -17,7 +17,7 @@ function Bubble({ m }: { m: ThreadMessage }) {
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <span className="font-medium">{outbound ? "You" : m.from}</span>
           <span>·</span>
-          <span>{formatDateTime(m.created_at)}</span>
+          <LocalTime iso={m.created_at} />
         </div>
         <div
           className={cn(

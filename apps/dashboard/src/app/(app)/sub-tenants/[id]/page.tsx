@@ -9,7 +9,7 @@ import { SubTenantStatusBadge } from "@/components/app/status-badge";
 import { SubmitButton } from "@/components/app/submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateTime } from "@/lib/format";
+import { LocalTime } from "@/components/app/local-time";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { EmailAuthReport, SubTenant } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -189,12 +189,12 @@ export default async function SubTenantDetailPage({
               <span className="font-mono text-xs">{st.dkim_selector}</span>
             </DetailRow>
             <DetailRow label="Inherits templates">{st.inherits_templates ? "Yes" : "No"}</DetailRow>
-            <DetailRow label="Created">{formatDateTime(st.created_at)}</DetailRow>
+            <DetailRow label="Created"><LocalTime iso={st.created_at} /></DetailRow>
             {st.verified_at ? (
-              <DetailRow label="Verified">{formatDateTime(st.verified_at)}</DetailRow>
+              <DetailRow label="Verified"><LocalTime iso={st.verified_at} /></DetailRow>
             ) : null}
             {st.last_checked_at ? (
-              <DetailRow label="Last checked">{formatDateTime(st.last_checked_at)}</DetailRow>
+              <DetailRow label="Last checked"><LocalTime iso={st.last_checked_at} /></DetailRow>
             ) : null}
           </CardContent>
         </Card>
