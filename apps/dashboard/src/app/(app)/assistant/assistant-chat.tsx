@@ -13,13 +13,44 @@ import {
   type AssistantChatMessage,
 } from "./actions";
 import { ConversationOutline } from "./conversation-outline";
-import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+// What the assistant did, in plain language — honest about the steps it took to
+// answer, without the raw tool names or HTTP status codes an end user doesn't need.
+const ACTION_VERB: Record<string, string> = {
+  get: "Looked up",
+  list: "Reviewed",
+  create: "Created",
+  send: "Sent",
+  check: "Checked",
+  update: "Updated",
+  draft: "Drafted",
+  record: "Recorded",
+  delete: "Removed",
+  search: "Searched",
+};
+const ACTION_OVERRIDE: Record<string, string> = {
+  get_message: "Looked up the message",
+  get_message_audit: "Checked the delivery history",
+  get_billing: "Checked plan & usage",
+  get_analytics: "Pulled up analytics",
+  get_deliverability: "Checked deliverability",
+  check_suppression: "Checked the suppression list",
+  check_domain_auth: "Checked domain setup",
+  list_sub_tenants: "Reviewed your clients",
+  send_test_message: "Sent a test email",
+};
+function friendlyAction(tool: string): string {
+  if (ACTION_OVERRIDE[tool]) return ACTION_OVERRIDE[tool];
+  const [verb, ...rest] = tool.split("_");
+  const v = ACTION_VERB[verb];
+  return v ? `${v} ${rest.join(" ")}` : tool.replace(/_/g, " ");
+}
 
 // Grouped so the assistant's range — it builds, operates, AND diagnoses — is
 // obvious the moment the page opens, not hidden behind a blank prompt box.
@@ -355,11 +386,14 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
                         <Markdown>{t.content}</Markdown>
                       )}
                       {t.actions && t.actions.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap gap-1">
+                        <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                          <Sparkles className="size-3 shrink-0 opacity-70" />
                           {t.actions.map((a, j) => (
-                            <Badge key={j} variant={a.status < 400 ? "success" : "warning"} className="font-mono text-[10px]">
-                              {a.tool} · {a.status}
-                            </Badge>
+                            <span key={j} className={cn("inline-flex items-center gap-1.5", a.status >= 400 && "text-amber-600 dark:text-amber-500")}>
+                              {j > 0 ? <span className="opacity-40">·</span> : null}
+                              {friendlyAction(a.tool)}
+                              {a.status >= 400 ? " (couldn't complete)" : ""}
+                            </span>
                           ))}
                         </div>
                       ) : null}

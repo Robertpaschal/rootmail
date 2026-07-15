@@ -18,8 +18,11 @@ async function loadAttachments(list: MessageAttachment[]): Promise<OutboundAttac
     const timer = setTimeout(() => controller.abort(), 20_000);
     try {
       const res = await fetch(a.url, { signal: controller.signal });
-      if (!res.ok) throw new Error(`attachment ${a.filename} fetch failed (${res.status})`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       out.push({ filename: a.filename, contentType: a.content_type, content: Buffer.from(await res.arrayBuffer()) });
+    } catch (err) {
+      // Surface a clear, recorded reason instead of an opaque "fetch failed".
+      throw new Error(`Couldn't load attachment "${a.filename}": ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       clearTimeout(timer);
     }
@@ -123,10 +126,12 @@ export async function processSend(data: SendJobData): Promise<void> {
         ]
       : undefined;
 
-  const attachments = message.attachments?.length ? await loadAttachments(message.attachments) : undefined;
-
   const provider = getProviderFor(message.sandbox);
   try {
+    // Inside the try: if an attachment can't be fetched, the send fails cleanly
+    // (status "failed" + reason) instead of throwing past the catch and leaving
+    // the message stuck on "sending" while BullMQ retries forever.
+    const attachments = message.attachments?.length ? await loadAttachments(message.attachments) : undefined;
     const result = await provider.send({
       messageId: message.id,
       from: { email: message.fromEmail, name: message.fromName },

@@ -4,9 +4,15 @@ import { db, type Message, type Thread, threadMessages, threads } from "@rootmai
 
 /** Reply-To that routes a recipient's reply back to this thread via the SES
  * inbound webhook (`reply+<threadId>@<INBOUND_DOMAIN>`). Null when no inbound
- * domain is configured, so reply capture stays off until it's set. */
+ * domain is configured, so reply capture stays off until it's set.
+ *
+ * The domain is validated as a clean hostname: a misconfigured env (e.g. another
+ * var bleeding in without a newline) must NEVER produce a malformed address that
+ * a provider rejects — better to skip reply capture than to send a bad header. */
 export function threadReplyAddress(threadId: string): string | null {
-  return env.INBOUND_DOMAIN ? `reply+${threadId}@${env.INBOUND_DOMAIN}` : null;
+  const domain = env.INBOUND_DOMAIN?.trim();
+  if (!domain || !/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(domain)) return null;
+  return `reply+${threadId}@${domain}`;
 }
 
 /** Every outbound send opens a thread with its first (outbound) message. */
