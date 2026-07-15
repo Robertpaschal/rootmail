@@ -3,9 +3,34 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ApiError, ConnectionError, api, type SendBody, type SimulatableEvent } from "@/lib/rootmail";
+import type { AuditEntry, Message } from "@/lib/types";
 
 export interface SendState {
   error?: string;
+}
+
+export type MessageSnapshot = { message: Message; trail: AuditEntry[] } | { error: string };
+
+/** Re-fetch a message + its trail — polled client-side so the send status
+ * advances on its own (no manual refresh). */
+export async function refreshMessage(id: string): Promise<MessageSnapshot> {
+  try {
+    const [message, audit] = await Promise.all([api.getMessage(id), api.getAudit(id)]);
+    return { message, trail: audit.trail };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't refresh the status." };
+  }
+}
+
+/** Sandbox only: record a simulated provider event, then return the fresh snapshot. */
+export async function simulateEvent(id: string, event: SimulatableEvent): Promise<MessageSnapshot> {
+  try {
+    await api.recordEvent(id, { event });
+  } catch {
+    // best-effort — the refresh below reflects whatever actually changed
+  }
+  return refreshMessage(id);
 }
 
 export async function sendMessage(
@@ -111,16 +136,3 @@ export async function uploadAttachmentAction(
   }
 }
 
-export async function recordEvent(formData: FormData): Promise<void> {
-  const id = String(formData.get("messageId") ?? "");
-  const event = String(formData.get("event") ?? "") as SimulatableEvent;
-  if (!id || !event) return;
-
-  try {
-    await api.recordEvent(id, { event });
-  } catch {
-    // The simulate buttons are best-effort; on failure the page simply doesn't change.
-  }
-  revalidatePath(`/messages/${id}`);
-  revalidatePath("/messages");
-}

@@ -1,60 +1,28 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Circle,
-  Eye,
-  Flag,
-  Inbox,
-  MousePointerClick,
-  Paperclip,
-  RotateCw,
-  Send,
-  ShieldOff,
-  Sparkles,
-  UserX,
-  XCircle,
-} from "lucide-react";
-import { recordEvent } from "../actions";
+import { ChevronDown, Paperclip } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { CopyButton } from "@/components/app/copy-button";
 import { PageHeader } from "@/components/app/page-header";
-import { MessageStatusBadge } from "@/components/app/status-badge";
-import { SubmitButton } from "@/components/app/submit-button";
+import { LiveStatus } from "./live-status";
 import { MessageContent } from "./message-content";
 import { DownloadProof } from "./download-proof";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateTime, titleCase } from "@/lib/format";
-import { cn } from "@/lib/utils";
+import { formatDateTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { AuditEntry, Message } from "@/lib/types";
 
-const eventIcons: Record<string, typeof Circle> = {
-  queued: Inbox,
-  sending: Send,
-  sent: Send,
-  delivered: CheckCircle2,
-  opened: Eye,
-  clicked: MousePointerClick,
-  bounced: AlertTriangle,
-  complained: Flag,
-  unsubscribed: UserX,
-  failed: XCircle,
-  suppressed: ShieldOff,
-  retried: RotateCw,
-};
+function fmtSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
-const SIMULATE = [
-  { event: "delivered", label: "Delivered" },
-  { event: "opened", label: "Opened" },
-  { event: "clicked", label: "Clicked" },
-  { event: "bounced", label: "Bounced" },
-  { event: "complained", label: "Complained" },
-];
+function timeOf(trail: AuditEntry[], event: string): string | undefined {
+  return trail.find((e) => e.event === event)?.timestamp;
+}
 
 function DetailRow({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -65,26 +33,7 @@ function DetailRow({ label, children }: { label: string; children: ReactNode }) 
   );
 }
 
-function fmtSize(bytes: number): string {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-function metaSuffix(meta: AuditEntry["metadata"]): string {
-  if (!meta || typeof meta !== "object") return "";
-  const m = meta as Record<string, unknown>;
-  const parts: string[] = [];
-  if (typeof m.reason === "string") parts.push(m.reason);
-  if (typeof m.url === "string") parts.push(m.url);
-  return parts.length ? ` · ${parts.join(" · ")}` : "";
-}
-
-export default async function MessageDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function MessageDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
   let message: Message;
@@ -99,42 +48,25 @@ export default async function MessageDetailPage({
       <>
         <PageHeader title="Message" backHref="/messages" backLabel="Messages" />
         <ConnectionErrorCard
-          message={
-            err instanceof ConnectionError || err instanceof ApiError
-              ? err.message
-              : "An unexpected error occurred."
-          }
+          message={err instanceof ConnectionError || err instanceof ApiError ? err.message : "An unexpected error occurred."}
           showReconnect={err instanceof ApiError}
         />
       </>
     );
   }
 
+  const sentAt = timeOf(trail, "sent") ?? message.created_at;
+  const deliveredAt = timeOf(trail, "delivered");
+  const fromLabel = message.from.name ? `${message.from.name} · ${message.from.email}` : message.from.email;
+
   return (
     <>
-      <PageHeader
-        title={message.subject || "(no subject)"}
-        description={`To ${message.to}`}
-        backHref="/messages"
-        backLabel="Messages"
-        actions={
-          <div className="flex items-center gap-2">
-            {["bounced", "complained", "failed"].includes(message.status) ? (
-              <Link
-                href={`/assistant?prompt=${encodeURIComponent(
-                  `Why did the message to ${message.to} ${message.status}? (message id ${message.id}) Explain the cause and how to fix it.`,
-                )}`}
-                className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-              >
-                <Sparkles className="mr-1.5 size-4" />
-                Diagnose with assistant
-              </Link>
-            ) : null}
-            <DownloadProof messageId={message.id} />
-            <MessageStatusBadge status={message.status} />
-          </div>
-        }
-      />
+      <PageHeader title={message.subject || "(no subject)"} description={`To ${message.to}`} backHref="/messages" backLabel="Messages" />
+
+      {/* The send tracker — advances on its own; sandbox gets its own treatment. */}
+      <div className="mb-6">
+        <LiveStatus id={message.id} initialMessage={message} initialTrail={trail} />
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
@@ -154,13 +86,7 @@ export default async function MessageDetailPage({
               </CardHeader>
               <CardContent className="flex flex-wrap gap-2">
                 {message.attachments.map((a) => (
-                  <a
-                    key={a.url}
-                    href={a.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-accent"
-                  >
+                  <a key={a.url} href={a.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm transition-colors hover:bg-accent">
                     <Paperclip className="size-4 text-muted-foreground" />
                     <span className="font-medium">{a.filename}</span>
                     <span className="text-xs text-muted-foreground">{fmtSize(a.size)}</span>
@@ -169,136 +95,65 @@ export default async function MessageDetailPage({
               </CardContent>
             </Card>
           ) : null}
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Audit trail</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {trail.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No events recorded yet.</p>
-              ) : (
-                <ol className="relative space-y-5 before:absolute before:left-[15px] before:top-2 before:h-[calc(100%-1.5rem)] before:w-px before:bg-border">
-                  {trail.map((e, i) => {
-                    const Icon = eventIcons[e.event] ?? Circle;
-                    return (
-                      <li key={`${e.event}-${i}`} className="relative flex gap-4">
-                        <span className="z-10 grid size-8 shrink-0 place-items-center rounded-full border bg-card text-muted-foreground">
-                          <Icon className="size-4" />
-                        </span>
-                        <div className="min-w-0 pt-1">
-                          <div className="flex flex-wrap items-center gap-x-2">
-                            <span className="font-medium">{titleCase(e.event)}</span>
-                            <span className="text-xs text-muted-foreground">
-                              {formatDateTime(e.timestamp)}
-                            </span>
-                          </div>
-                          <div className="mt-0.5 truncate text-sm text-muted-foreground">
-                            {e.actor}
-                            {metaSuffix(e.metadata)}
-                          </div>
-                        </div>
-                      </li>
-                    );
-                  })}
-                </ol>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Simulate a provider event</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Record a lifecycle event as if it came from the email provider. Bounces and
-                complaints also add the recipient to the suppression list.
-              </p>
-              <form action={recordEvent} className="flex flex-wrap gap-2">
-                <input type="hidden" name="messageId" value={message.id} />
-                {SIMULATE.map((s) => (
-                  <SubmitButton
-                    key={s.event}
-                    name="event"
-                    value={s.event}
-                    variant="outline"
-                    size="sm"
-                    pendingLabel="Recording…"
-                  >
-                    {s.label}
-                  </SubmitButton>
-                ))}
-              </form>
-            </CardContent>
-          </Card>
         </div>
 
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle className="text-base">Details</CardTitle>
-          </CardHeader>
-          <CardContent className="divide-y pt-0">
-            <DetailRow label="Message ID">
-              <span className="inline-flex items-center gap-1">
-                <span className="font-mono text-xs">{message.id}</span>
-                <CopyButton value={message.id} />
-              </span>
-            </DetailRow>
-            <DetailRow label="Status">
-              <MessageStatusBadge status={message.status} />
-            </DetailRow>
-            <DetailRow label="Type">
-              <span className="capitalize">{message.type}</span>
-            </DetailRow>
-            <DetailRow label="Priority">
-              <span className="capitalize">{message.priority}</span>
-            </DetailRow>
-            <DetailRow label="From">
-              <span className="font-mono text-xs">{message.from.email}</span>
-            </DetailRow>
-            <DetailRow label="To">
-              <span className="font-mono text-xs">{message.to}</span>
-            </DetailRow>
-            {message.sub_tenant_id ? (
-              <DetailRow label="Sub-tenant">
-                <Link
-                  href={`/sub-tenants/${message.sub_tenant_id}`}
-                  className="font-mono text-xs text-primary hover:underline"
-                >
-                  {message.sub_tenant_id}
-                </Link>
+        {/* Details a normal sender cares about. */}
+        <div className="space-y-4">
+          <Card className="h-fit">
+            <CardHeader>
+              <CardTitle className="text-base">Details</CardTitle>
+            </CardHeader>
+            <CardContent className="divide-y pt-0">
+              <DetailRow label="To"><span>{message.to}</span></DetailRow>
+              <DetailRow label="From"><span>{fromLabel}</span></DetailRow>
+              {message.reply_to ? <DetailRow label="Replies to"><span>{message.reply_to}</span></DetailRow> : null}
+              <DetailRow label="Sent">{formatDateTime(sentAt)}</DetailRow>
+              {deliveredAt ? <DetailRow label="Delivered">{formatDateTime(deliveredAt)}</DetailRow> : null}
+              {message.scheduled_at ? <DetailRow label="Scheduled">{formatDateTime(message.scheduled_at)}</DetailRow> : null}
+              {message.attachments.length > 0 ? <DetailRow label="Attachments">{message.attachments.length}</DetailRow> : null}
+              {message.sandbox ? <DetailRow label="Environment"><Badge variant="warning">Test</Badge></DetailRow> : null}
+            </CardContent>
+          </Card>
+
+          {/* Developer identifiers — for the API/CLI/SDK, out of the everyday view. */}
+          <details className="group rounded-xl border bg-card">
+            <summary className="flex cursor-pointer list-none items-center justify-between px-6 py-4 text-sm font-medium">
+              Developer details
+              <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="divide-y px-6 pb-2">
+              <DetailRow label="Message ID">
+                <span className="inline-flex items-center gap-1">
+                  <span className="font-mono text-xs">{message.id}</span>
+                  <CopyButton value={message.id} />
+                </span>
               </DetailRow>
-            ) : null}
-            <DetailRow label="Sandbox">
-              {message.sandbox ? <Badge variant="warning">test</Badge> : <Badge variant="muted">no</Badge>}
-            </DetailRow>
-            {message.provider ? (
-              <DetailRow label="Provider">
-                <span className="capitalize">{message.provider}</span>
-              </DetailRow>
-            ) : null}
-            {message.idempotency_key ? (
-              <DetailRow label="Idempotency key">
-                <span className="font-mono text-xs">{message.idempotency_key}</span>
-              </DetailRow>
-            ) : null}
-            {message.tags.length > 0 ? (
-              <DetailRow label="Tags">
-                <span className="font-mono text-xs">{message.tags.join(", ")}</span>
-              </DetailRow>
-            ) : null}
-            <DetailRow label="Created">{formatDateTime(message.created_at)}</DetailRow>
-            {message.scheduled_at ? (
-              <DetailRow label="Scheduled">{formatDateTime(message.scheduled_at)}</DetailRow>
-            ) : null}
-            {message.error ? (
-              <DetailRow label="Error">
-                <span className="text-destructive">{message.error}</span>
-              </DetailRow>
-            ) : null}
-          </CardContent>
-        </Card>
+              {message.idempotency_key ? (
+                <DetailRow label="Idempotency key"><span className="font-mono text-xs">{message.idempotency_key}</span></DetailRow>
+              ) : null}
+              <DetailRow label="Type"><span className="capitalize">{message.type}</span></DetailRow>
+              <DetailRow label="Priority"><span className="capitalize">{message.priority}</span></DetailRow>
+              {message.template_id ? (
+                <DetailRow label="Template"><span className="font-mono text-xs">{message.template_id}{message.template_version ? ` · v${message.template_version}` : ""}</span></DetailRow>
+              ) : null}
+              {message.sub_tenant_id ? (
+                <DetailRow label="Client (sub-tenant)"><Link href={`/sub-tenants/${message.sub_tenant_id}`} className="font-mono text-xs text-primary hover:underline">{message.sub_tenant_id}</Link></DetailRow>
+              ) : null}
+              {message.provider ? <DetailRow label="Provider"><span className="capitalize">{message.provider}</span></DetailRow> : null}
+              {message.provider_message_id ? <DetailRow label="Provider message ID"><span className="font-mono text-xs">{message.provider_message_id}</span></DetailRow> : null}
+              {message.content_hash ? <DetailRow label="Content hash"><span className="font-mono text-xs">{message.content_hash.slice(0, 16)}…</span></DetailRow> : null}
+              {message.tags.length > 0 ? <DetailRow label="Tags"><span className="font-mono text-xs">{message.tags.join(", ")}</span></DetailRow> : null}
+              <div className="flex items-center justify-between gap-4 py-3">
+                <span className="text-sm text-muted-foreground">Signed proof</span>
+                <DownloadProof messageId={message.id} />
+              </div>
+              <p className="py-3 text-xs text-muted-foreground">
+                These identifiers are for the API, CLI, and SDK.{" "}
+                <Link href="/docs" className="text-primary hover:underline">See the developer docs</Link>.
+              </p>
+            </div>
+          </details>
+        </div>
       </div>
     </>
   );
