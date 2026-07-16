@@ -46,6 +46,8 @@ export const Errors = {
       /** Which wing the unlocking tier belongs to (per-wing pricing). */
       required_wing?: string | null;
       price?: number | null;
+      /** How `price` is charged: flat monthly, per send block, or per 1,000 contacts. */
+      price_unit?: "flat" | "per_block" | "per_1k_contacts" | null;
       upgrade_url?: string | null;
       checkout_endpoint?: string | null;
       docs_url?: string | null;
@@ -63,6 +65,7 @@ export const Errors = {
       required_plan_name: opts.required_plan_name ?? null,
       required_wing: opts.required_wing ?? null,
       price: opts.price ?? null,
+      price_unit: opts.price_unit ?? null,
       upgrade_url: opts.upgrade_url ?? null,
       checkout_endpoint: opts.checkout_endpoint ?? null,
       docs_url: opts.docs_url ?? null,

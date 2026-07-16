@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Check, Loader2, Minus, Plus, ShoppingCart, Sparkles, Users, X, Zap } from "lucide-react";
+import { ArrowRight, Check, ChevronUp, Loader2, Minus, Plus, ShoppingCart, Sparkles, Users, X, Zap } from "lucide-react";
 import { chooseWingTier } from "../wings/actions";
 import { useCheckout } from "../checkout-provider";
 import { PillTabs } from "@/components/app/pill-tabs";
@@ -232,7 +232,9 @@ export function MarketingBilling({
         contacts={clamped}
         interval={interval}
         addons={addons}
+        addonQty={addonQty}
         mkAddons={mkAddons}
+        currentContacts={mk.contacts}
         onClear={() => {
           setChosenId(null);
           setAddons(() => ({}));
@@ -243,23 +245,31 @@ export function MarketingBilling({
 }
 
 /** The one-order bar: the chosen plan + any extras, itemized, ONE checkout.
- * This is what makes "tier + add-ons = one bill" visible before paying. */
+ * This is what makes "tier + add-ons = one bill" visible before paying.
+ * Collapsed = a one-line summary; expand for the full itemized order (per-line
+ * math, what you already own, the credit note) so it stays uncramped however
+ * many extras join. Centered against the CONTENT column (md:pl-72 = sidebar). */
 function OrderBar({
   chosen,
   contacts,
   interval,
   addons,
+  addonQty,
   mkAddons,
+  currentContacts,
   onClear,
 }: {
   chosen: WingTier | null;
   contacts: number;
   interval: "month" | "year";
   addons: Record<string, number>;
+  addonQty: Record<string, number>;
   mkAddons: AddonCatalogItem[];
+  currentContacts: number;
   onClear: () => void;
 }) {
   const { open, pending } = useCheckout();
+  const [expanded, setExpanded] = useState(false);
   const yr = interval === "year";
   const unit = yr ? "yr" : "mo";
   // Add-ons ride the same checkout at the SAME interval (yearly = 10×, 2 mo free).
@@ -269,6 +279,7 @@ function OrderBar({
     .map((l) => ({ ...l, amount: l.a.unit_amount * l.qty * (yr ? 10 : 1) }));
   const addonsAmount = addonLines.reduce((s, l) => s + l.amount, 0);
   const planAmount = chosen ? priceFor(chosen, contacts) * (yr ? 10 : 1) : 0;
+  const per1k = chosen?.per_thousand_cents ? chosen.per_thousand_cents / 100 : 0;
   const visible = chosen !== null || addonLines.length > 0;
 
   const checkout = () => {
@@ -287,40 +298,102 @@ function OrderBar({
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 24 }}
           transition={{ duration: 0.22, ease: "easeOut" }}
-          className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4"
+          className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 md:pl-[19rem] md:pr-6"
         >
-          <div className="pointer-events-auto w-full max-w-3xl rounded-xl border bg-card p-4 shadow-lg">
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+          <div className="pointer-events-auto w-full max-w-3xl overflow-hidden rounded-xl border bg-card shadow-lg">
+            {/* Expanded: the full order, itemized — everything worth knowing before checkout. */}
+            <AnimatePresence initial={false}>
+              {expanded ? (
+                <motion.div
+                  key="details"
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                >
+                  <div className="space-y-2.5 border-b px-4 pb-3 pt-4 text-sm">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground/70">Your order</p>
+                    {chosen ? (
+                      <div className="flex items-baseline justify-between gap-3">
+                        <div>
+                          <p className="font-medium">Marketing {chosen.name} — {num(contacts)} contacts</p>
+                          <p className="text-xs text-muted-foreground">
+                            {money(per1k)} per 1,000 contacts
+                            {currentContacts > 0 ? ` · replaces your current ${num(currentContacts)}-contact plan` : ""}
+                            {yr ? " · billed yearly (2 months free)" : ""}
+                          </p>
+                        </div>
+                        <span className="shrink-0 font-semibold tabular-nums">{money(planAmount)}/{unit}</span>
+                      </div>
+                    ) : null}
+                    {addonLines.map((l) => {
+                      const have = addonQty[l.a.id] ?? 0;
+                      return (
+                        <div key={l.a.id} className="flex items-baseline justify-between gap-3">
+                          <div>
+                            <p className="font-medium">{l.qty}× {l.a.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {money(l.a.unit_amount)}/mo per {l.a.unit}
+                              {have > 0 ? ` · you have ${have} — you'll have ${have + l.qty}` : ""}
+                            </p>
+                          </div>
+                          <span className="shrink-0 font-semibold tabular-nums">{money(l.amount)}/{unit}</span>
+                        </div>
+                      );
+                    })}
+                    <div className="flex items-baseline justify-between gap-3 border-t pt-2.5">
+                      <p className="font-semibold">Total{yr ? " (yearly)" : " per month"}</p>
+                      <span className="shrink-0 text-base font-bold tabular-nums">{money(planAmount + addonsAmount)}/{unit}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      One bill, one checkout. Anything you already own carries over and is never re-billed —
+                      and unused time on your current plan is credited automatically.
+                    </p>
+                  </div>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
+
+            {/* Collapsed row — always visible, stays uncramped at any order size. */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-4">
               <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
                 <ShoppingCart className="size-4" />
               </span>
               <div className="min-w-0 flex-1">
                 {chosen ? (
-                  <p className="text-sm font-semibold">
+                  <p className="truncate text-sm font-semibold">
                     Marketing {chosen.name} · {num(contacts)} contacts
-                    <span className="ml-2 font-normal text-muted-foreground">{money(planAmount)}/{unit}</span>
+                    {addonLines.length > 0 ? (
+                      <span className="ml-1.5 font-normal text-muted-foreground">
+                        + {addonLines.length} extra{addonLines.length > 1 ? "s" : ""}
+                      </span>
+                    ) : null}
                   </p>
                 ) : (
-                  <p className="text-sm font-semibold">
+                  <p className="truncate text-sm font-semibold">
                     {addonLines.length} extra{addonLines.length > 1 ? "s" : ""} selected
-                    <span className="ml-2 font-normal text-muted-foreground">pick a plan above to check out together</span>
+                    <span className="ml-1.5 font-normal text-muted-foreground">pick a plan to check out together</span>
                   </p>
                 )}
-                {addonLines.length > 0 ? (
+                {chosen && addonLines.length === 0 ? (
                   <p className="truncate text-xs text-muted-foreground">
-                    {chosen ? "+ " : ""}
-                    {addonLines.map((l) => `${l.qty}× ${l.a.name} (${money(l.amount)}/${unit})`).join(" · ")}
-                  </p>
-                ) : chosen ? (
-                  <p className="text-xs text-muted-foreground">
                     <Sparkles className="mr-1 inline size-3" />
                     Want seats, workspaces, or AI credits with it? Add extras above — same bill.
                   </p>
                 ) : null}
               </div>
-              <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setExpanded((v) => !v)}
+                className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                aria-expanded={expanded}
+              >
+                {expanded ? "Hide" : "Details"}
+                <ChevronUp className={cn("size-3.5 transition-transform", expanded && "rotate-180")} />
+              </button>
+              <div className="flex shrink-0 items-center gap-2">
                 <div className="text-right">
-                  <p className="text-lg font-bold leading-tight">
+                  <p className="text-lg font-bold leading-tight tabular-nums">
                     {money(planAmount + addonsAmount)}
                     <span className="text-xs font-normal text-muted-foreground">/{unit}</span>
                   </p>

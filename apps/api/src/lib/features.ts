@@ -74,12 +74,17 @@ export async function requireFeature(
     });
   }
   const tier = requiredTierFor(feature);
+  // Marketing tiers are priced per 1,000 contacts (their flat priceMonthly is 0
+  // by design) — send the per-1k rate + a unit hint so lock screens can price
+  // them honestly instead of showing a bogus $0/mo.
+  const perThousand = tier?.perThousandCents ? Math.round(tier.perThousandCents) / 100 : null;
   throw Errors.featureLocked(feature, {
     current_plan: org.plan,
     required_plan: tier?.id ?? null,
-    required_plan_name: tier ? `${tier.name} (${tier.wing})` : null,
+    required_plan_name: tier?.name ?? null,
     required_wing: tier?.wing ?? null,
-    price: tier?.priceMonthly ?? null,
+    price: perThousand ?? (tier?.priceMonthly || null),
+    price_unit: perThousand ? "per_1k_contacts" : tier?.id === "tx_blocks" ? "per_block" : "flat",
     upgrade_url: `${base}/billing/${tier?.wing ?? "transactional"}`,
     checkout_endpoint: "POST /v1/billing/wing/checkout",
     docs_url: `https://${env.ROOTMAIL_DOMAIN}/pricing`,

@@ -13,6 +13,8 @@ export interface FeatureLockedInfo {
   /** Which wing the unlocking tier belongs to (per-wing pricing). */
   required_wing?: string | null;
   price?: number | null;
+  /** How `price` is charged: flat monthly, per send block, or per 1,000 contacts. */
+  price_unit?: "flat" | "per_block" | "per_1k_contacts" | string | null;
 }
 
 /** Extract feature-locked details from an unknown caught error's `details`. */
@@ -90,9 +92,11 @@ const TIER_EXTRAS: Record<string, string> = {
 };
 
 // Tier prices are whole monthly USD — the tier's real price, shown to market the
-// whole wing tier, never a confusing per-feature micro-fee.
+// whole wing tier, never a confusing per-feature micro-fee. A missing/zero price
+// renders NOTHING (a paid tier must never read "$0/mo"; contact-priced tiers send
+// their per-1k rate instead).
 function fmtUsd(dollars: number | null | undefined): string | null {
-  return dollars == null ? null : `$${dollars.toLocaleString()}`;
+  return !dollars ? null : `$${dollars.toLocaleString()}`;
 }
 
 const WING_LABEL: Record<string, string> = {
@@ -164,9 +168,17 @@ export function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?
           <p className="mt-1 text-xl font-bold">{planName}</p>
           {base ? (
             <p className="mt-1">
+              {info.price_unit === "per_1k_contacts" ? (
+                <span className="mr-1 text-sm text-muted-foreground">from</span>
+              ) : null}
               <span className="text-2xl font-bold">{base}</span>
               <span className="text-sm text-muted-foreground">
-                /mo{info.required_plan === "tx_blocks" ? " per block" : ""}
+                /mo
+                {info.price_unit === "per_1k_contacts"
+                  ? " per 1,000 contacts"
+                  : info.price_unit === "per_block" || info.required_plan === "tx_blocks"
+                    ? " per block"
+                    : ""}
               </span>
             </p>
           ) : null}
@@ -174,7 +186,9 @@ export function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?
             <p className="mt-2 text-xs text-muted-foreground">
               {isAddon
                 ? "Billed monthly on its own — an add-on never changes a wing's bill, and you can buy it with no plan at all."
-                : "That unlocks this wing's whole tier — and only this wing's bill changes; the rest of your account stays as it is."}
+                : info.price_unit === "per_1k_contacts"
+                  ? "Your audience size sets the exact monthly price — and it unlocks this wing's whole tier; the rest of your account stays as it is."
+                  : "That unlocks this wing's whole tier — and only this wing's bill changes; the rest of your account stays as it is."}
             </p>
           ) : null}
           {extras ? <p className="mt-3 text-sm text-muted-foreground">{extras}</p> : null}
