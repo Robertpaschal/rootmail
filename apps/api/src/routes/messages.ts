@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
@@ -426,13 +426,47 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       .where(and(...conditions))
       .orderBy(desc(messages.createdAt))
       .limit(q.limit);
-    return { object: "list", data: rows.map(serializeMessage) };
+    // Engagement (first open/click) lives on the audit trail, not the message
+    // row — join it in one grouped query so each row can show how far it got.
+    const engagement = new Map<string, { openedAt?: Date; clickedAt?: Date }>();
+    if (rows.length) {
+      const ev = await db
+        .select({
+          messageId: auditEntries.messageId,
+          event: auditEntries.event,
+          at: sql<Date>`min(${auditEntries.occurredAt})`,
+        })
+        .from(auditEntries)
+        .where(
+          and(
+            inArray(auditEntries.messageId, rows.map((r) => r.id)),
+            inArray(auditEntries.event, ["opened", "clicked"]),
+          ),
+        )
+        .groupBy(auditEntries.messageId, auditEntries.event);
+      for (const e of ev) {
+        if (!e.messageId) continue;
+        const cur = engagement.get(e.messageId) ?? {};
+        if (e.event === "opened") cur.openedAt = e.at;
+        else cur.clickedAt = e.at;
+        engagement.set(e.messageId, cur);
+      }
+    }
+    return { object: "list", data: rows.map((m) => serializeMessage(m, engagement.get(m.id))) };
   });
 
   // --- Retrieve -----------------------------------------------------------
   app.get("/v1/messages/:id", async (req) => {
     const { id } = req.params as { id: string };
-    return serializeMessage(await getScopedMessage(req, id));
+    const message = await getScopedMessage(req, id);
+    const [ev] = await db
+      .select({
+        openedAt: sql<Date | null>`min(${auditEntries.occurredAt}) filter (where ${auditEntries.event} = 'opened')`,
+        clickedAt: sql<Date | null>`min(${auditEntries.occurredAt}) filter (where ${auditEntries.event} = 'clicked')`,
+      })
+      .from(auditEntries)
+      .where(eq(auditEntries.messageId, message.id));
+    return serializeMessage(message, ev ?? undefined);
   });
 
   // --- Audit trail --------------------------------------------------------

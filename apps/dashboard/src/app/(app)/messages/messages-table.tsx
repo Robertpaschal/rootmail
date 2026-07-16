@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { SearchX } from "lucide-react";
-import { MessageStatusBadge } from "@/components/app/status-badge";
+import { MessageFlow } from "@/components/app/message-flow";
 import { Pager, SortHead, type Sort } from "@/components/app/data-table";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -102,7 +102,7 @@ export function MessagesTable({ messages }: { messages: Message[] }) {
                 pageRows.map((m) => (
                   <TableRow key={m.id}>
                     <TableCell>
-                      <MessageStatusBadge status={m.status} />
+                      <MessageFlow message={m} />
                     </TableCell>
                     <TableCell className="font-medium">
                       <Link href={`/messages/${m.id}`} className="hover:underline">

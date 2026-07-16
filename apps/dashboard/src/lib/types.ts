@@ -49,6 +49,9 @@ export interface Message {
   tags: string[];
   metadata: Record<string, unknown>;
   attachments: MessageAttachment[];
+  /** First open/click (from the audit trail) — how far the email actually got. */
+  opened_at: string | null;
+  clicked_at: string | null;
   idempotency_key: string | null;
   provider: string | null;
   provider_message_id: string | null;
@@ -805,7 +808,7 @@ export interface Analytics {
   window_days: number;
   scope: { sub_tenant_id: string | null };
   funnel: { sent: number; delivered: number; opened: number; clicked: number };
-  rates: { delivery: number; open: number; click: number; click_to_open: number };
+  rates: { delivery: number; open: number; click: number; click_to_open: number; bounce: number };
   series: { date: string; sent: number }[];
   top_templates: {
     template_id: string | null;

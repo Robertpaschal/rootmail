@@ -100,6 +100,9 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
         open: pct(opened, delivered),
         click: pct(clicked, delivered),
         click_to_open: pct(clicked, opened),
+        // Bounces + spam complaints as a share of everything that left — the
+        // "watch this" number for sender health.
+        bounce: pct(bounced + complained, sent),
       },
       series,
       top_templates,

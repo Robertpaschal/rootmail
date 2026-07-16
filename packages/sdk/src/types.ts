@@ -38,6 +38,9 @@ export interface Message {
   subject: string;
   provider_message_id: string | null;
   content_hash: string | null;
+  /** First open/click (from the delivery events), null until they happen. */
+  opened_at: string | null;
+  clicked_at: string | null;
   created_at: string;
   [key: string]: unknown;
 }

@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Watch your email's whole journey — sent, delivered, opened, clicked",
+    date: "2026-07-16",
+    changes: [
+      {
+        kind: "New",
+        text: "Every send now reports back in real time: the message page advances on its own from Queued to Sent to Delivered — and shows Opened and Clicked the moment they happen. No refreshing, no guessing.",
+      },
+      {
+        kind: "New",
+        text: "Your messages list shows how far each email actually got with a compact progress trail, and the overview turns your last 30 days into a connected funnel — sent → delivered → opened → clicked, with every rate and a bounce-health check alongside.",
+      },
+      {
+        kind: "Improved",
+        text: "Test sends are clearly separated from live mail (with their own lifecycle simulator), times everywhere show in your local timezone, and message details read plainly — developer identifiers now live in their own collapsed section.",
+      },
+    ],
+  },
+  {
     title: "A design studio for your emails — and a composer anyone can use",
     date: "2026-07-15",
     changes: [

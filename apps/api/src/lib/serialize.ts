@@ -66,10 +66,19 @@ export function serializeWorkspace(w: Workspace) {
   };
 }
 
-export function serializeMessage(m: Message) {
+/** First-open / first-click timestamps (from the audit trail) — engagement lives
+ * there, not on the message row, so list callers pass it in when they've joined it. */
+export interface MessageEngagement {
+  openedAt?: Date | null;
+  clickedAt?: Date | null;
+}
+
+export function serializeMessage(m: Message, engagement?: MessageEngagement) {
   return {
     id: m.id,
     object: "message",
+    opened_at: engagement?.openedAt ?? null,
+    clicked_at: engagement?.clickedAt ?? null,
     type: m.type,
     status: m.status,
     to: m.toEmail,

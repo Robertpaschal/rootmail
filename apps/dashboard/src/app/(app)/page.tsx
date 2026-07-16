@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Fragment, Suspense } from "react";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import {
@@ -16,8 +16,8 @@ import {
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { Greeting } from "@/components/app/greeting";
 import { Reveal } from "@/components/app/motion";
+import { MessageFlow } from "@/components/app/message-flow";
 import { OnboardingChecklist } from "@/components/app/onboarding-checklist";
-import { MessageStatusBadge } from "@/components/app/status-badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -81,12 +81,17 @@ export default async function OverviewPage() {
   const recent = messages.slice(0, 6);
   const problems = messages.filter((m) => ["bounced", "complained", "failed"].includes(m.status)).length;
 
-  const stats = [
-    { label: "Sent (30d)", value: analytics ? fmt(analytics.funnel.sent) : "—", icon: Send },
-    { label: "Delivery rate", value: analytics ? pct(analytics.rates.delivery) : "—", icon: CheckCircle2 },
-    { label: "Open rate", value: analytics ? pct(analytics.rates.open) : "—", icon: Mail },
-    { label: "Click rate", value: analytics ? pct(analytics.rates.click) : "—", icon: MousePointerClick },
-  ];
+  // The 30-day journey of your email, as a connected flow — each stage carries
+  // its count AND the rate from the stage before, ending in a sender-health chip.
+  const funnel = analytics
+    ? [
+        { label: "Sent", value: fmt(analytics.funnel.sent), hint: "last 30 days", icon: Send },
+        { label: "Delivered", value: fmt(analytics.funnel.delivered), hint: `${pct(analytics.rates.delivery)} of sent`, icon: CheckCircle2 },
+        { label: "Opened", value: fmt(analytics.funnel.opened), hint: `${pct(analytics.rates.open)} open rate`, icon: Mail },
+        { label: "Clicked", value: fmt(analytics.funnel.clicked), hint: `${pct(analytics.rates.click)} click rate`, icon: MousePointerClick },
+      ]
+    : null;
+  const bounceRate = analytics?.rates.bounce ?? 0;
 
   const quickActions = [
     { href: "/messages/new", label: "Compose", icon: Send },
@@ -236,18 +241,47 @@ export default async function OverviewPage() {
         </Card>
       </Reveal>
 
-      <Reveal delay={0.08} className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {stats.map((s) => (
-          <Link key={s.label} href="/analytics" className="group">
-            <Card className="p-5 transition-[color,border-color,transform] duration-150 group-hover:-translate-y-0.5 group-hover:border-primary/40">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">{s.label}</span>
-                <s.icon className="size-4 text-muted-foreground" />
+      <Reveal delay={0.08}>
+        <Card>
+          <CardContent className="p-5">
+            {funnel ? (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-4">
+                {funnel.map((s, i) => (
+                  <Fragment key={s.label}>
+                    {i > 0 ? <ArrowRight className="size-4 shrink-0 text-muted-foreground/40" /> : null}
+                    <Link href="/analytics" className="group min-w-[118px] flex-1">
+                      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                        <s.icon className="size-4" /> {s.label}
+                      </span>
+                      <span className="mt-1 block text-2xl font-bold tracking-tight transition-colors group-hover:text-primary">
+                        {s.value}
+                      </span>
+                      <span className="block text-xs text-muted-foreground">{s.hint}</span>
+                    </Link>
+                  </Fragment>
+                ))}
+                <Link
+                  href="/messages?status=bounced"
+                  className={cn(
+                    "ml-auto inline-flex items-center gap-1.5 self-start rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                    bounceRate > 5
+                      ? "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400"
+                      : bounceRate > 2
+                        ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        : "text-muted-foreground hover:text-foreground",
+                  )}
+                  title="Bounces + spam complaints as a share of everything sent"
+                >
+                  <TriangleAlert className="size-3.5" /> {pct(bounceRate)} bounced / spam
+                </Link>
               </div>
-              <div className="mt-2 text-2xl font-bold tracking-tight">{s.value}</div>
-            </Card>
-          </Link>
-        ))}
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Send a few emails and your journey — sent, delivered, opened, clicked — shows up here.
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </Reveal>
 
       <Reveal delay={0.13}>
@@ -295,7 +329,7 @@ export default async function OverviewPage() {
                   {recent.map((m) => (
                     <TableRow key={m.id}>
                       <TableCell>
-                        <MessageStatusBadge status={m.status} />
+                        <MessageFlow message={m} />
                       </TableCell>
                       <TableCell className="font-medium">
                         <Link href={`/messages/${m.id}`} className="hover:underline">
