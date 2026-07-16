@@ -127,18 +127,21 @@ function stagesFor(message: Message, trail: AuditEntry[]): Stage[] {
   if (s === "bounced") return [Q, Sent, { key: "bounced", label: "Bounced", icon: AlertTriangle, state: "error", at: t("bounced") }];
   if (s === "complained") return [Q, Sent, Del, { key: "complained", label: "Marked as spam", icon: AlertTriangle, state: "warn", at: t("complained") }];
 
-  // Happy path: Queued → Sent → Delivered → Opened. Opened/clicked live in the
-  // audit trail (engagement, not a message status), so read them from there.
+  // Happy path: Queued → Sent → Delivered → Opened → Clicked. Opened/clicked
+  // live in the audit trail (engagement, not a message status), so read them
+  // from there. A click implies an open even when the open pixel was blocked.
   const openedAt = t("opened");
   const clickedAt = t("clicked");
   let reached = { queued: 1, sending: 1, sent: 2, delivered: 3, retried: 1 }[s] ?? 1;
-  if (openedAt || clickedAt) reached = 4;
+  if (clickedAt) reached = 5;
+  else if (openedAt) reached = 4;
   const inflight = INFLIGHT.has(s);
   const happy: Omit<Stage, "state">[] = [
     { key: "queued", label: "Queued", icon: Inbox, at: t("queued") ?? message.created_at },
     { key: "sent", label: "Sent", icon: Send, at: t("sent") },
     { key: "delivered", label: "Delivered", icon: CheckCircle2, at: t("delivered") },
-    { key: "opened", label: "Opened", icon: Eye, at: openedAt ?? clickedAt },
+    { key: "opened", label: "Opened", icon: Eye, at: openedAt },
+    { key: "clicked", label: "Clicked", icon: MousePointerClick, at: clickedAt },
   ];
   return happy.map((st, i) => ({
     ...st,
@@ -249,7 +252,13 @@ export function LiveStatus({
               {timeline.map((e, i) => {
                 const m = STATUS_META[e.event];
                 const Icon = EVENT_ICON[e.event] ?? Inbox;
-                const reason = typeof e.metadata?.reason === "string" ? e.metadata.reason : undefined;
+                // Bounces carry a reason; clicks carry the link that was clicked.
+                const reason =
+                  typeof e.metadata?.reason === "string"
+                    ? e.metadata.reason
+                    : typeof e.metadata?.url === "string"
+                      ? e.metadata.url
+                      : undefined;
                 return (
                   <li key={`${e.event}-${i}`} className="flex items-center gap-2.5 text-sm">
                     <Icon className={cn("size-4 shrink-0", TONE_TEXT[m.tone])} />
@@ -273,7 +282,7 @@ function Tracker({ stages }: { stages: Stage[] }) {
   return (
     <div className="flex items-start">
       {stages.map((st, i) => {
-        const tone: Tone = st.state === "done" || st.state === "active" ? (st.key === "delivered" || st.key === "opened" ? "success" : "progress") : st.state === "error" ? "error" : st.state === "warn" ? "warn" : "muted";
+        const tone: Tone = st.state === "done" || st.state === "active" ? (["delivered", "opened", "clicked"].includes(st.key) ? "success" : "progress") : st.state === "error" ? "error" : st.state === "warn" ? "warn" : "muted";
         const filled = st.state === "done" || st.state === "active" || st.state === "error" || st.state === "warn";
         return (
           <div key={st.key} className="flex flex-1 flex-col items-center text-center">
