@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { simpleParser } from "mailparser";
 import {
   type AuditEvent,
@@ -37,12 +37,15 @@ export interface SesNotification {
   bounce?: { bounceType?: string; bounceSubType?: string; bouncedRecipients?: SesRecipient[] };
   complaint?: { complainedRecipients?: SesRecipient[]; complaintFeedbackType?: string };
   delivery?: { recipients?: string[] };
+  // Open/Click tracking (configuration-set event destinations only).
+  open?: { ipAddress?: string; userAgent?: string };
+  click?: { link?: string; ipAddress?: string; userAgent?: string };
   // Inbound ("Received") via an SES receipt rule's SNS action.
   receipt?: { recipients?: string[] };
   content?: string; // base64 raw MIME (SNS action, ≤150KB)
 }
 
-export type SesKind = "bounce" | "complaint" | "delivery" | "received" | "ignored";
+export type SesKind = "bounce" | "complaint" | "delivery" | "open" | "click" | "received" | "ignored";
 
 export function parseSesNotification(json: string): SesNotification | null {
   try {
@@ -57,6 +60,8 @@ export function classify(n: SesNotification): SesKind {
   if (t === "bounce") return "bounce";
   if (t === "complaint") return "complaint";
   if (t === "delivery") return "delivery";
+  if (t === "open") return "open";
+  if (t === "click") return "click";
   if (t === "received") return "received";
   return "ignored";
 }
@@ -137,6 +142,18 @@ async function setStatus(message: Message, status: Message["status"], error?: st
     .where(eq(messages.id, message.id));
 }
 
+/** True if this message already has an audit entry for `event` — used to dedupe
+ * repeated provider notifications (SES can report the same delivery via both an
+ * identity notification AND a config-set event, and fires an Open per render). */
+async function hasAudit(messageId: string, event: AuditEvent): Promise<boolean> {
+  const [row] = await db
+    .select({ id: auditEntries.id })
+    .from(auditEntries)
+    .where(and(eq(auditEntries.messageId, messageId), eq(auditEntries.event, event)))
+    .limit(1);
+  return row != null;
+}
+
 /**
  * Apply one SES notification. Returns the action taken (useful for logging/tests).
  * Unknown event types or notifications for a message we don't have are ignored.
@@ -154,9 +171,31 @@ export async function applySesNotification(n: SesNotification): Promise<SesKind>
   if (!message) return "ignored";
 
   if (kind === "delivery") {
-    await setStatus(message, "delivered");
+    // Dedup (identity notification + config-set event both report delivery) and
+    // never regress a terminal state a parallel event already set.
+    if (await hasAudit(message.id, "delivered")) return "delivery";
+    if (["queued", "sending", "sent"].includes(message.status)) {
+      await setStatus(message, "delivered");
+    }
     await audit(message, "delivered");
     return "delivery";
+  }
+
+  // Opens/clicks are engagement, not status — the status stays "delivered"; the
+  // audit trail carries them (and the dashboard tracker reads them from there).
+  // Only the FIRST open/click is recorded: SES fires an event per pixel render.
+  if (kind === "open") {
+    if (!(await hasAudit(message.id, "opened"))) {
+      await audit(message, "opened", n.open?.userAgent ? { userAgent: n.open.userAgent } : {});
+    }
+    return "open";
+  }
+
+  if (kind === "click") {
+    if (!(await hasAudit(message.id, "clicked"))) {
+      await audit(message, "clicked", n.click?.link ? { url: n.click.link } : {});
+    }
+    return "click";
   }
 
   if (kind === "complaint") {

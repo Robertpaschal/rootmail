@@ -64,8 +64,10 @@ const EVENT_ICON: Record<string, typeof Inbox> = {
 // SUCCESSFUL hand-off to the provider (a resting milestone), not a spinning state —
 // otherwise it reads as "stuck" while awaiting an async delivery receipt.
 const INFLIGHT = new Set(["queued", "sending", "retried"]);
-// We keep polling through "sent" (to catch a delivery receipt) but stop once settled.
-const SETTLED = new Set(["delivered", "opened", "clicked", "bounced", "complained", "failed", "suppressed", "unsubscribed"]);
+// Polling stops only on a bad terminal state; through sent/delivered it keeps
+// going (until the time cap) so the delivery receipt and the first open/click
+// light up on their own.
+const STOP = new Set(["bounced", "complained", "failed", "suppressed", "unsubscribed"]);
 
 const TONE_TEXT: Record<Tone, string> = {
   progress: "text-blue-600 dark:text-blue-400",
@@ -125,14 +127,18 @@ function stagesFor(message: Message, trail: AuditEntry[]): Stage[] {
   if (s === "bounced") return [Q, Sent, { key: "bounced", label: "Bounced", icon: AlertTriangle, state: "error", at: t("bounced") }];
   if (s === "complained") return [Q, Sent, Del, { key: "complained", label: "Marked as spam", icon: AlertTriangle, state: "warn", at: t("complained") }];
 
-  // Happy path: Queued → Sent → Delivered → Opened.
-  const reached = { queued: 1, sending: 1, sent: 2, delivered: 3, opened: 4, clicked: 4, retried: 1 }[s] ?? 1;
+  // Happy path: Queued → Sent → Delivered → Opened. Opened/clicked live in the
+  // audit trail (engagement, not a message status), so read them from there.
+  const openedAt = t("opened");
+  const clickedAt = t("clicked");
+  let reached = { queued: 1, sending: 1, sent: 2, delivered: 3, retried: 1 }[s] ?? 1;
+  if (openedAt || clickedAt) reached = 4;
   const inflight = INFLIGHT.has(s);
   const happy: Omit<Stage, "state">[] = [
     { key: "queued", label: "Queued", icon: Inbox, at: t("queued") ?? message.created_at },
     { key: "sent", label: "Sent", icon: Send, at: t("sent") },
     { key: "delivered", label: "Delivered", icon: CheckCircle2, at: t("delivered") },
-    { key: "opened", label: "Opened", icon: Eye, at: t("opened") },
+    { key: "opened", label: "Opened", icon: Eye, at: openedAt ?? clickedAt },
   ];
   return happy.map((st, i) => ({
     ...st,
@@ -162,25 +168,29 @@ export function LiveStatus({
     return undefined;
   }, []);
 
-  // Poll while the send is still moving; stop once it settles or after ~6 minutes.
+  // Poll while more can still happen (delivery receipt, first open/click); stop
+  // on a bad terminal state or after the ~6 minute cap.
   useEffect(() => {
-    if (SETTLED.has(message.status)) return;
+    if (STOP.has(message.status)) return;
     const iv = setInterval(async () => {
       if (document.hidden) return; // don't poll a backgrounded tab
       if (Date.now() - startedAt.current > 6 * 60_000) return void clearInterval(iv);
       const next = apply(await refreshMessage(id));
-      if (next && SETTLED.has(next)) clearInterval(iv);
+      if (next && STOP.has(next)) clearInterval(iv);
     }, 4000);
     return () => clearInterval(iv);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  const meta = STATUS_META[message.status] ?? STATUS_META.queued;
+  // The headline reflects the furthest thing that happened: engagement (from the
+  // trail) outranks the stored status, which caps at "delivered".
+  const displayStatus = timeOf(trail, "clicked") ? "clicked" : timeOf(trail, "opened") ? "opened" : message.status;
+  const meta = STATUS_META[displayStatus] ?? STATUS_META.queued;
   const stages = stagesFor(message, trail);
   const live = INFLIGHT.has(message.status);
   const sandbox = message.sandbox;
   const errorish = meta.tone === "error" || meta.tone === "warn";
-  const HeadIcon = EVENT_ICON[message.status] ?? Inbox;
+  const HeadIcon = EVENT_ICON[displayStatus] ?? Inbox;
 
   // A concise, human timeline (no actor ids / provider metadata).
   const timeline = trail.filter((e) => STATUS_META[e.event] && e.event !== "sending");
