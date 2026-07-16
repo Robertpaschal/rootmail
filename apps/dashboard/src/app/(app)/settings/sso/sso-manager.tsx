@@ -2,7 +2,9 @@
 
 import { useActionState, useState, useTransition } from "react";
 import { useFormStatus } from "react-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { Check, Copy, KeyRound, Loader2, Pencil, Trash2 } from "lucide-react";
+import { Reveal } from "@/components/app/motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,24 +52,31 @@ export function SsoManager({ connection }: { connection: SsoConnection | null })
   return (
     <div className="space-y-6">
       {connection ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Service provider details</CardTitle>
-            <CardDescription>
-              Paste these into your identity provider (Okta, Entra ID, Google Workspace, …) when you
-              create the rootmail SAML app.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <CopyRow label="SP entity ID (audience)" value={connection.sp_entity_id} />
-            <CopyRow label="ACS / reply URL" value={connection.acs_url} />
-            <CopyRow label="SP metadata URL" value={connection.metadata_url} />
-          </CardContent>
-        </Card>
+        <Reveal>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Service provider details</CardTitle>
+              <CardDescription>
+                Paste these into your identity provider (Okta, Entra ID, Google Workspace, …) when you
+                create the rootmail SAML app.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <CopyRow label="SP entity ID (audience)" value={connection.sp_entity_id} />
+              <CopyRow label="ACS / reply URL" value={connection.acs_url} />
+              <CopyRow label="SP metadata URL" value={connection.metadata_url} />
+            </CardContent>
+          </Card>
+        </Reveal>
       ) : null}
 
-      {connection ? <ScimCard connection={connection} /> : null}
+      {connection ? (
+        <Reveal delay={0.06}>
+          <ScimCard connection={connection} />
+        </Reveal>
+      ) : null}
 
+      <Reveal delay={connection ? 0.12 : 0}>
       <Card>
         <CardHeader className="flex-row items-start justify-between space-y-0">
           <div>
@@ -85,6 +94,14 @@ export function SsoManager({ connection }: { connection: SsoConnection | null })
           ) : null}
         </CardHeader>
         <CardContent>
+          <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={connection && !editing ? "view" : "edit"}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
+          >
           {connection && !editing ? (
             <div className="space-y-4">
               <dl className="grid gap-4 sm:grid-cols-2">
@@ -229,8 +246,11 @@ export function SsoManager({ connection }: { connection: SsoConnection | null })
               </div>
             </form>
           )}
+          </motion.div>
+          </AnimatePresence>
         </CardContent>
       </Card>
+      </Reveal>
     </div>
   );
 }
@@ -280,13 +300,18 @@ function ScimCard({ connection }: { connection: SsoConnection }) {
         {enabled ? <CopyRow label="SCIM base URL" value={connection.scim_base_url} /> : null}
 
         {token ? (
-          <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-50 p-3 dark:bg-amber-950/40">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98, y: 4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-50 p-3 dark:bg-amber-950/40"
+          >
             <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
               Copy this bearer token now — it&apos;s shown only once. Paste it into your IdP&apos;s
               SCIM configuration.
             </p>
             <CopyRow label="SCIM token" value={token} />
-          </div>
+          </motion.div>
         ) : null}
 
         {error ? <p className="text-sm text-destructive">{error}</p> : null}

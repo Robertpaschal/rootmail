@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useState, useTransition } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Check, Loader2, Minus, Plus, Users, Zap } from "lucide-react";
+import { ArrowRight, Check, Loader2, Minus, Plus, ShoppingCart, Sparkles, Users, X, Zap } from "lucide-react";
 import { chooseWingTier } from "../wings/actions";
 import { useCheckout } from "../checkout-provider";
 import { PillTabs } from "@/components/app/pill-tabs";
@@ -65,6 +65,11 @@ export function MarketingBilling({
 
   const clamped = Math.min(Math.max(1, contacts || 1), mk.max_contacts);
   const yr = interval === "year";
+  // The tier the user has CHOSEN (staged, not yet checked out) — choosing a plan
+  // and adding extras build ONE order, reviewed in the bar before checkout.
+  const [chosenId, setChosenId] = useState<string | null>(null);
+  const chosen = tiers.find((t) => t.id === chosenId && t.id !== "mk_free") ?? null;
+  const addonCount = Object.values(addons).reduce((s, n) => s + n, 0);
 
   const rows: Row[] = [
     { label: "Emails / month", hint: "Sends allowed at your contact size", value: (t) => `${num(sendsFor(t, clamped, free))}` },
@@ -149,9 +154,13 @@ export function MarketingBilling({
         </AnimatePresence>
       </div>
 
-      {/* STEP 2 — the comparison table. Sticky tier headers + CTAs while you scroll. */}
+      {/* STEP 2 — compare + CHOOSE. Choosing stages the plan into one order (the
+          bar below) so extras can ride the same checkout — one bill. */}
       <div>
-        <h2 className="mb-3 text-sm font-semibold">2. Compare plans for {num(clamped)} contacts</h2>
+        <h2 className="mb-1 text-sm font-semibold">2. Choose your plan for {num(clamped)} contacts</h2>
+        <p className="mb-3 text-xs text-muted-foreground">
+          Choosing doesn&apos;t charge anything yet — you&apos;ll review the full order (plan + any extras) before checkout.
+        </p>
         <div className="overflow-x-auto rounded-xl border">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
@@ -159,7 +168,8 @@ export function MarketingBilling({
                 <th className="w-48 border-b p-3 text-left align-bottom" />
                 {tiers.map((t) => (
                   <MarketingHeader key={t.id} tier={t} contacts={clamped} free={free} interval={interval}
-                    currentTierId={mk.current_tier_id} currentContacts={mk.contacts} addons={addons} />
+                    currentTierId={mk.current_tier_id} currentContacts={mk.contacts}
+                    chosenId={chosenId} onChoose={(id) => setChosenId((c) => (c === id ? null : id))} />
                 ))}
               </tr>
             </thead>
@@ -173,7 +183,7 @@ export function MarketingBilling({
                   {tiers.map((t) => {
                     const v = row.value(t);
                     return (
-                      <td key={t.id} className={cn("p-3 text-center", t.id === RECOMMENDED && "bg-emerald-500/[0.04]")}>
+                      <td key={t.id} className={cn("p-3 text-center", t.id === RECOMMENDED && "bg-emerald-500/[0.04]", t.id === chosenId && "bg-primary/[0.06]")}>
                         {v === true ? (
                           <Check className="mx-auto size-4 text-emerald-600" />
                         ) : v === false ? (
@@ -191,9 +201,9 @@ export function MarketingBilling({
         </div>
       </div>
 
-      {/* Add-ons fold into the marketing checkout too. */}
+      {/* STEP 3 — extras ride the SAME order as the plan chosen above. */}
       {mkAddons.length ? (
-        <MarketingAddons mkAddons={mkAddons} addonQty={addonQty} addons={addons} setAddons={setAddons} />
+        <MarketingAddons mkAddons={mkAddons} addonQty={addonQty} addons={addons} setAddons={setAddons} chosen={chosen} />
       ) : null}
 
       {/* Stitches. */}
@@ -213,7 +223,133 @@ export function MarketingBilling({
           <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
         </Link>
       </div>
+
+      {/* Breathing room so the order bar never covers the last section. */}
+      {chosen || addonCount > 0 ? <div className="h-24" aria-hidden /> : null}
+
+      <OrderBar
+        chosen={chosen}
+        contacts={clamped}
+        interval={interval}
+        addons={addons}
+        mkAddons={mkAddons}
+        onClear={() => {
+          setChosenId(null);
+          setAddons(() => ({}));
+        }}
+      />
     </div>
+  );
+}
+
+/** The one-order bar: the chosen plan + any extras, itemized, ONE checkout.
+ * This is what makes "tier + add-ons = one bill" visible before paying. */
+function OrderBar({
+  chosen,
+  contacts,
+  interval,
+  addons,
+  mkAddons,
+  onClear,
+}: {
+  chosen: WingTier | null;
+  contacts: number;
+  interval: "month" | "year";
+  addons: Record<string, number>;
+  mkAddons: AddonCatalogItem[];
+  onClear: () => void;
+}) {
+  const { open, pending } = useCheckout();
+  const yr = interval === "year";
+  const unit = yr ? "yr" : "mo";
+  // Add-ons ride the same checkout at the SAME interval (yearly = 10×, 2 mo free).
+  const addonLines = mkAddons
+    .map((a) => ({ a, qty: addons[a.id] ?? 0 }))
+    .filter((l) => l.qty > 0)
+    .map((l) => ({ ...l, amount: l.a.unit_amount * l.qty * (yr ? 10 : 1) }));
+  const addonsAmount = addonLines.reduce((s, l) => s + l.amount, 0);
+  const planAmount = chosen ? priceFor(chosen, contacts) * (yr ? 10 : 1) : 0;
+  const visible = chosen !== null || addonLines.length > 0;
+
+  const checkout = () => {
+    if (!chosen) return;
+    void open(
+      { kind: "wing", wing: "marketing", tier_id: chosen.id, interval, contacts, addons },
+      `Marketing ${chosen.name} · ${contacts.toLocaleString()} contacts${addonLines.length ? ` + ${addonLines.length} extra${addonLines.length > 1 ? "s" : ""}` : ""}`,
+    );
+  };
+
+  return (
+    <AnimatePresence>
+      {visible ? (
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 24 }}
+          transition={{ duration: 0.22, ease: "easeOut" }}
+          className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4"
+        >
+          <div className="pointer-events-auto w-full max-w-3xl rounded-xl border bg-card p-4 shadow-lg">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <ShoppingCart className="size-4" />
+              </span>
+              <div className="min-w-0 flex-1">
+                {chosen ? (
+                  <p className="text-sm font-semibold">
+                    Marketing {chosen.name} · {num(contacts)} contacts
+                    <span className="ml-2 font-normal text-muted-foreground">{money(planAmount)}/{unit}</span>
+                  </p>
+                ) : (
+                  <p className="text-sm font-semibold">
+                    {addonLines.length} extra{addonLines.length > 1 ? "s" : ""} selected
+                    <span className="ml-2 font-normal text-muted-foreground">pick a plan above to check out together</span>
+                  </p>
+                )}
+                {addonLines.length > 0 ? (
+                  <p className="truncate text-xs text-muted-foreground">
+                    {chosen ? "+ " : ""}
+                    {addonLines.map((l) => `${l.qty}× ${l.a.name} (${money(l.amount)}/${unit})`).join(" · ")}
+                  </p>
+                ) : chosen ? (
+                  <p className="text-xs text-muted-foreground">
+                    <Sparkles className="mr-1 inline size-3" />
+                    Want seats, workspaces, or AI credits with it? Add extras above — same bill.
+                  </p>
+                ) : null}
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <p className="text-lg font-bold leading-tight">
+                    {money(planAmount + addonsAmount)}
+                    <span className="text-xs font-normal text-muted-foreground">/{unit}</span>
+                  </p>
+                  <p className="text-[10px] text-muted-foreground">one bill{yr ? " · 2 mo free" : ""}</p>
+                </div>
+                {chosen ? (
+                  <Button size="sm" disabled={pending} onClick={checkout}>
+                    {pending ? <Loader2 className="size-4 animate-spin" /> : null}
+                    Review &amp; checkout
+                  </Button>
+                ) : (
+                  <Link href="/billing/addons" className="text-xs font-medium text-primary hover:underline">
+                    or buy extras alone
+                  </Link>
+                )}
+                <button
+                  type="button"
+                  onClick={onClear}
+                  aria-label="Clear selection"
+                  className="rounded p-1.5 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <X className="size-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -224,7 +360,8 @@ function MarketingHeader({
   interval,
   currentTierId,
   currentContacts,
-  addons,
+  chosenId,
+  onChoose,
 }: {
   tier: WingTier;
   contacts: number;
@@ -232,9 +369,9 @@ function MarketingHeader({
   interval: "month" | "year";
   currentTierId: string | null;
   currentContacts: number;
-  addons: Record<string, number>;
+  chosenId: string | null;
+  onChoose: (id: string) => void;
 }) {
-  const { open, pending } = useCheckout();
   const [freePending, startFree] = useTransition();
   const isFree = tier.id === "mk_free";
   const freeEligible = contacts <= free;
@@ -242,7 +379,10 @@ function MarketingHeader({
   const shown = interval === "year" ? monthly * 10 : monthly;
   const isCurrent = currentTierId === tier.id && (isFree ? currentContacts === 0 : currentContacts === contacts);
   const recommended = tier.id === RECOMMENDED;
+  const isChosen = chosenId === tier.id;
 
+  // Paid tiers STAGE into the order bar (so extras can join the same bill);
+  // Free applies directly — there's nothing to pay.
   const cta = () => {
     if (isFree) {
       startFree(async () => {
@@ -250,14 +390,11 @@ function MarketingHeader({
       });
       return;
     }
-    void open(
-      { kind: "wing", wing: "marketing", tier_id: tier.id, interval, contacts, addons },
-      `Marketing ${tier.name} · ${contacts.toLocaleString()} contacts`,
-    );
+    onChoose(tier.id);
   };
 
   return (
-    <th className={cn("min-w-[150px] border-b p-3 text-center align-top", recommended && "bg-emerald-500/[0.06]")}>
+    <th className={cn("min-w-[150px] border-b p-3 text-center align-top", recommended && "bg-emerald-500/[0.06]", isChosen && "bg-primary/[0.06]")}>
       {recommended ? (
         <Badge className="mb-1 bg-emerald-500 hover:bg-emerald-500">Recommended</Badge>
       ) : (
@@ -283,10 +420,10 @@ function MarketingHeader({
       {isFree && !freeEligible ? (
         <p className="text-[11px] text-muted-foreground">Free ≤ {free.toLocaleString()}</p>
       ) : (
-        <Button size="sm" variant={recommended && !isCurrent ? "default" : "outline"} className="w-full"
-          disabled={(isFree ? freePending : pending) || isCurrent} onClick={cta}>
-          {(isFree ? freePending : pending) ? <Loader2 className="size-3.5 animate-spin" /> : null}
-          {isCurrent ? "Current" : isFree ? "Use Free" : `Get ${tier.name}`}
+        <Button size="sm" variant={isChosen || (recommended && !isCurrent) ? "default" : "outline"} className="w-full"
+          disabled={freePending || isCurrent} onClick={cta}>
+          {freePending ? <Loader2 className="size-3.5 animate-spin" /> : isChosen ? <Check className="size-3.5" /> : null}
+          {isCurrent ? "Current" : isFree ? "Use Free" : isChosen ? "Chosen" : `Choose ${tier.name}`}
         </Button>
       )}
     </th>
@@ -300,11 +437,13 @@ function MarketingAddons({
   addonQty,
   addons,
   setAddons,
+  chosen,
 }: {
   mkAddons: AddonCatalogItem[];
   addonQty: Record<string, number>;
   addons: Record<string, number>;
   setAddons: (fn: (d: Record<string, number>) => Record<string, number>) => void;
+  chosen: WingTier | null;
 }) {
   const set = (a: AddonCatalogItem, q: number) => {
     const have = addonQty[a.id] ?? 0;
@@ -313,11 +452,21 @@ function MarketingAddons({
   return (
     <Card>
       <CardContent className="p-5">
-        <p className="text-sm font-semibold">Add extras to your plan</p>
-        <p className="mb-3 text-xs text-muted-foreground">
-          Optional — one bill: they ride the same checkout when you pick a plan above. What you
-          already have carries over; pick only what you&apos;re adding.
-        </p>
+        <div className="flex items-center gap-2">
+          <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+            <Plus className="size-4" />
+          </span>
+          <div>
+            <h2 className="text-sm font-semibold">3. Add extras — optional, same bill</h2>
+            <p className="text-xs text-muted-foreground">
+              {chosen
+                ? `They'll join your Marketing ${chosen.name} checkout as one bill.`
+                : "Choose a plan above and these ride the same checkout — one bill."}{" "}
+              What you already have carries over; pick only what you&apos;re adding.
+            </p>
+          </div>
+        </div>
+        <div className="mb-3 mt-4" />
         <div className="space-y-2">
           {mkAddons.map((a) => {
             const d = addons[a.id] ?? 0;
