@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { type RoleFormState, createRole } from "./actions";
+import { useRevealClose } from "@/components/app/reveal-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,9 +24,13 @@ const LABELS: Record<string, string> = {
 export function RoleForm({ permissions }: { permissions: string[] }) {
   const [state, action, pending] = useActionState<RoleFormState | null, FormData>(createRole, null);
   const ref = useRef<HTMLFormElement>(null);
+  const closeReveal = useRevealClose();
   useEffect(() => {
-    if (state?.ok) ref.current?.reset();
-  }, [state]);
+    if (state?.ok) {
+      ref.current?.reset();
+      closeReveal();
+    }
+  }, [state, closeReveal]);
 
   return (
     <form ref={ref} action={action} className="space-y-4">
