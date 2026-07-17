@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Contact, CreditCard, LifeBuoy, Mail, Users } from "lucide-react";
+import { ArrowRight, Building2, Contact, CreditCard, LifeBuoy, Mail, Server, Users } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { adminApi } from "@/lib/admin-api";
 import { formatDate, formatMoney, formatNumber } from "@/lib/format";
-import type { Lead, OrgSummary, SupportTicketListItem } from "@/lib/types";
+import type { Lead, OrgSummary, ProvisioningQueue, SupportTicketListItem } from "@/lib/types";
 
 // The wing-era customer mix — what orgs actually hold, not a retired plan ladder.
 const MIX_ROWS: { key: "free" | "transactional" | "marketing" | "both_wings" | "custom"; label: string; color: string }[] = [
@@ -17,15 +17,17 @@ const MIX_ROWS: { key: "free" | "transactional" | "marketing" | "both_wings" | "
 ];
 
 export default async function OverviewPage() {
-  const [orgsRes, analytics, ticketsRes, leadsRes] = await Promise.all([
+  const [orgsRes, analytics, ticketsRes, leadsRes, provisioning] = await Promise.all([
     adminApi.listOrgs().catch(() => ({ data: [] as OrgSummary[] })),
     adminApi.analytics().catch(() => null),
     adminApi.listSupportTickets("open").catch(() => ({ data: [] as SupportTicketListItem[] })),
     adminApi.listLeads("new").catch(() => ({ data: [] as Lead[] })),
+    adminApi.provisioningQueue().catch(() => ({ dedicated_ip: [] } as unknown as ProvisioningQueue)),
   ]);
   const orgs = orgsRes.data;
   const openTickets = ticketsRes.data;
   const newLeads = leadsRes.data;
+  const ipQueue = provisioning.dedicated_ip ?? [];
 
   const paid = analytics?.orgs.paid ?? 0;
   // Wing MRR + add-ons — computed by the API from what each org actually holds.
@@ -58,6 +60,36 @@ export default async function OverviewPage() {
         <StatCard label="Open tickets" value={formatNumber(openTickets.length)} icon={LifeBuoy} href="/support" tone="amber" accent={openTickets.length > 0} />
         <StatCard label="New leads" value={formatNumber(newLeads.length)} icon={Contact} href="/leads" tone="rose" accent={newLeads.length > 0} />
       </div>
+
+      {/* Fulfillment: purchases that wait on staff to set up (dedicated IPs). Only
+          shows when there's something to do — click through to activate it. */}
+      {ipQueue.length > 0 ? (
+        <section className="rounded-xl border border-amber-500/40 bg-amber-50 p-4 dark:bg-amber-950/20">
+          <div className="flex items-center gap-2">
+            <Server className="size-4 text-amber-600 dark:text-amber-400" />
+            <h2 className="text-sm font-semibold">Awaiting dedicated-IP provisioning</h2>
+            <Badge variant="warning">{ipQueue.length}</Badge>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            These orgs bought a Dedicated IP. Assign the real SES IP on the org page, then flip it to active.
+          </p>
+          <ul className="mt-3 divide-y">
+            {ipQueue.map((q) => (
+              <li key={q.org_id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                <Link href={`/orgs/${q.org_id}`} className="min-w-0 truncate font-medium hover:underline">
+                  {q.org_name}
+                </Link>
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs text-muted-foreground">requested {formatDate(q.since)}</span>
+                  <Link href={`/orgs/${q.org_id}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-accent">
+                    Provision <ArrowRight className="size-3" />
+                  </Link>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-xl border bg-card p-4">

@@ -1025,6 +1025,24 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { object: "credit", amount_cents, applied: true };
   });
 
+  // Fulfillment queue: things a customer bought that need staff to set up by
+  // hand. Today that's dedicated IPs (bought → "requested" → staff assign the
+  // real SES IP + flip to active). Surfaced on the admin overview so requests
+  // don't sit unseen inside one org's detail page.
+  app.get("/v1/admin/provisioning", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "staff.read");
+    const rows = await db
+      .select({ id: organizations.id, name: organizations.name, since: organizations.updatedAt })
+      .from(organizations)
+      .where(eq(organizations.dedicatedIpStatus, "requested"))
+      .orderBy(asc(organizations.updatedAt));
+    return {
+      object: "provisioning_queue",
+      dedicated_ip: rows.map((r) => ({ org_id: r.id, org_name: r.name, since: r.since.toISOString() })),
+    };
+  });
+
   // Dedicated-IP provisioning: staff move an org through requested → active once
   // the real SES dedicated IP exists, recording the address.
   app.patch("/v1/admin/orgs/:id/dedicated-ip", async (req) => {

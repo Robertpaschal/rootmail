@@ -2,6 +2,7 @@ import { getStaffToken } from "./session";
 import type {
   AdminAddon,
   AdminAnalytics,
+  ProvisioningQueue,
   AdminBilling,
   AdminBlogPost,
   AdminChangelogEntry,
@@ -155,6 +156,7 @@ export const adminApi = {
     }),
 
   analytics: () => adminFetch<AdminAnalytics>("/v1/admin/analytics"),
+  provisioningQueue: () => adminFetch<ProvisioningQueue>("/v1/admin/provisioning"),
 
   announcementRecipients: () =>
     adminFetch<AnnouncementRecipients>("/v1/admin/announcements/recipients"),

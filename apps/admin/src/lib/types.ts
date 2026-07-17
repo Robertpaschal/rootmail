@@ -81,6 +81,12 @@ export interface LoginResult {
   session_expires_at: string;
 }
 
+/** Customer purchases that need staff to set up by hand (dedicated IPs today). */
+export interface ProvisioningQueue {
+  object: "provisioning_queue";
+  dedicated_ip: { org_id: string; org_name: string; since: string }[];
+}
+
 export interface OrgSummary {
   object: "org_summary";
   id: string;
