@@ -69,7 +69,15 @@ function Step({
   );
 }
 
-export function CampaignComposer({ lists, templates }: { lists: ComposerList[]; templates: ComposerTemplate[] }) {
+export function CampaignComposer({
+  lists,
+  templates,
+  sendsFrom,
+}: {
+  lists: ComposerList[];
+  templates: ComposerTemplate[];
+  sendsFrom?: string | null;
+}) {
   const [state, action, pending] = useActionState<CampaignFormState | null, FormData>(createCampaign, null);
 
   const [listId, setListId] = useState("");
@@ -329,16 +337,32 @@ export function CampaignComposer({ lists, templates }: { lists: ComposerList[]; 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.24, delay: 0.15 }}
-        className="flex flex-wrap items-center gap-3 border-t pt-5"
+        className="space-y-3 border-t pt-5"
       >
-        <Button type="submit" disabled={pending || !ready}>
-          {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-          {pending ? "Creating…" : "Create campaign"}
-        </Button>
+        {/* Make the From explicit: their own verified address, or the rootmail
+            fallback with a nudge to set one up. */}
         <p className="text-xs text-muted-foreground">
-          Creates a draft — you review it and press send (or schedule) on the next screen.
-          {reach !== null && ready ? ` Reaching ${reach.toLocaleString()} recipient${reach === 1 ? "" : "s"}.` : ""}
+          Sends from{" "}
+          {sendsFrom ? (
+            <span className="font-medium text-foreground">{sendsFrom}</span>
+          ) : (
+            <>
+              rootmail&apos;s address —{" "}
+              <Link href="/settings/sender" className="text-primary hover:underline">verify your own</Link> to send as you
+            </>
+          )}
+          .
         </p>
+        <div className="flex flex-wrap items-center gap-3">
+          <Button type="submit" disabled={pending || !ready}>
+            {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+            {pending ? "Creating…" : "Create campaign"}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Creates a draft — you review it and press send (or schedule) on the next screen.
+            {reach !== null && ready ? ` Reaching ${reach.toLocaleString()} recipient${reach === 1 ? "" : "s"}.` : ""}
+          </p>
+        </div>
         {state?.error ? <p className="w-full text-sm text-destructive">{state.error}</p> : null}
       </motion.div>
     </form>

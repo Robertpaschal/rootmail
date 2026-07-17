@@ -52,6 +52,17 @@ export async function checkSenderAction(id: string): Promise<{ status?: string; 
   }
 }
 
+export async function setDefaultSenderAction(id: string): Promise<{ error?: string }> {
+  try {
+    await api.setDefaultSender(id);
+    revalidatePath("/settings/sender");
+    return {};
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't set the default sender." };
+  }
+}
+
 export async function deleteSenderAction(id: string): Promise<{ error?: string }> {
   try {
     await api.deleteSender(id);

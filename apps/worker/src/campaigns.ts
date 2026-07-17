@@ -1,6 +1,6 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { type CampaignJob, env } from "@rootmail/core";
-import { campaigns, contacts, db, listContacts, subTenants, templates, workspaces, type Template } from "@rootmail/db";
+import { campaigns, contacts, db, listContacts, senderIdentities, subTenants, templates, workspaces, type Template } from "@rootmail/db";
 import { automationSend } from "./send";
 
 /** Fan a campaign out to every contact on its list, metered + suppression-aware.
@@ -37,6 +37,20 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
     if (st) {
       if (!c.fromEmail) fromEmail = `no-reply@${st.sendingDomain}`;
       fromName = st.name;
+    }
+  } else if (!c.fromEmail) {
+    // No address named + not a client-domain send → use the org's own verified
+    // sender if it set one up (default first, else earliest verified), so campaigns
+    // go out from the customer's address, not rootmail's no-reply.
+    const [own] = await db
+      .select()
+      .from(senderIdentities)
+      .where(and(eq(senderIdentities.organizationId, ws.organizationId), eq(senderIdentities.status, "verified")))
+      .orderBy(desc(senderIdentities.isDefault), asc(senderIdentities.createdAt))
+      .limit(1);
+    if (own) {
+      fromEmail = own.email;
+      fromName = own.displayName ?? ws.name;
     }
   }
 

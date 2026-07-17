@@ -12,6 +12,7 @@ export const metadata: Metadata = { title: "New campaign" };
 export default async function NewCampaignPage() {
   let lists: ComposerList[] = [];
   let templates: ComposerTemplate[] = [];
+  let sendsFrom: string | null = null;
   let locked: FeatureLockedInfo | null = null;
   let failed: string | null = null;
   let isApiErr = false;
@@ -25,6 +26,11 @@ export default async function NewCampaignPage() {
     templates = (await api.listTemplates()).data
       .sort((a, b) => (a.type === b.type ? 0 : a.type === "marketing" ? -1 : 1))
       .map((t) => ({ id: t.id, name: t.name, subject: t.subject, type: t.type }));
+    // The verified default address the campaign will send FROM (so it's explicit
+    // that mail goes out as the customer, not rootmail).
+    const senders = (await api.listSenders().catch(() => ({ data: [] }))).data;
+    const sender = senders.find((s) => s.status === "verified" && s.is_default) ?? senders.find((s) => s.status === "verified");
+    sendsFrom = sender ? (sender.display_name ? `${sender.display_name} <${sender.email}>` : sender.email) : null;
   } catch (err) {
     if (err instanceof ApiError && err.code === "feature_locked") locked = asFeatureLocked(err.details);
     else if (err instanceof ConnectionError || err instanceof ApiError) {
@@ -59,7 +65,7 @@ export default async function NewCampaignPage() {
         backHref="/campaigns"
         backLabel="Campaigns"
       />
-      <CampaignComposer lists={lists} templates={templates} />
+      <CampaignComposer lists={lists} templates={templates} sendsFrom={sendsFrom} />
     </>
   );
 }

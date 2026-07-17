@@ -173,6 +173,7 @@ export interface SenderIdentity {
   email: string;
   display_name: string | null;
   status: "pending" | "verified";
+  is_default: boolean;
   created_at: string;
   verified_at: string | null;
 }

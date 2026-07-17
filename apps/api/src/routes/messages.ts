@@ -42,7 +42,7 @@ import {
 } from "../lib/billing";
 import { requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { verifiedSenderFor } from "../lib/senders";
+import { defaultSenderFor, verifiedSenderFor } from "../lib/senders";
 import { openThreadForSend, threadReplyAddress } from "../lib/threads";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
 import { serializeAudit, serializeMessage } from "../lib/serialize";
@@ -92,14 +92,18 @@ const eventBody = z.object({
 
 type FromInput = string | { email: string; name?: string } | undefined;
 
-function resolveFrom(
+async function resolveFrom(
   from: FromInput,
   subTenant: SubTenant | null,
   workspace: Workspace,
-): { email: string; name?: string } {
+): Promise<{ email: string; name?: string }> {
   if (typeof from === "string") return { email: from };
   if (from) return { email: from.email, name: from.name };
   if (subTenant) return { email: `no-reply@${subTenant.sendingDomain}`, name: subTenant.name };
+  // No address named → send from the org's own verified sender if it set one up
+  // (the whole point of "send from your own email"); else the rootmail no-reply.
+  const own = await defaultSenderFor(workspace.organizationId);
+  if (own) return { email: own.email, name: own.displayName ?? workspace.name };
   return { email: `no-reply@${env.ROOTMAIL_DOMAIN}`, name: workspace.name };
 }
 
@@ -263,7 +267,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       rendered = { ...rendered, ...appendBrandingFooter(rendered, { url: env.MARKETING_URL }) };
     }
     const contentHash = sha256Hex(rendered.html);
-    const from = resolveFrom(body.from, subTenant, workspace);
+    const from = await resolveFrom(body.from, subTenant, workspace);
     // A caller-chosen From must be an address the org actually controls: a
     // verified sender identity, the sub-tenant's verified domain, or the platform
     // domain — otherwise SES would reject it downstream with a cryptic error.

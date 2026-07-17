@@ -521,6 +521,8 @@ export const api = {
     rmFetch<SenderIdentity>("/v1/senders", { method: "POST", body }),
   checkSender: (id: string) =>
     rmFetch<SenderIdentity>(`/v1/senders/${id}/check`, { method: "POST" }),
+  setDefaultSender: (id: string) =>
+    rmFetch<{ is_default: boolean }>(`/v1/senders/${id}/default`, { method: "POST" }),
   deleteSender: (id: string) =>
     rmFetch<{ deleted: boolean }>(`/v1/senders/${id}`, { method: "DELETE" }),
   updateOrganization: (body: { name?: string; postal_address?: string | null }) =>

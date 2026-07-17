@@ -1363,6 +1363,9 @@ export const senderIdentities = pgTable(
     email: text("email").notNull(),
     displayName: text("display_name"),
     status: text("status").notNull().default("pending"), // pending | verified
+    // The address the org sends from when a message/campaign doesn't name one.
+    // At most one default per org (enforced in app code on set/verify/delete).
+    isDefault: boolean("is_default").notNull().default(false),
     createdAt: createdAt(),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
   },

@@ -31,9 +31,18 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   }
   const analytics: CampaignAnalytics | null = await api.campaignAnalytics(id).catch(() => null);
 
+  // The From is decided at send time: the campaign's own address if set, else the
+  // org's default verified sender, else rootmail's no-reply — show what will actually go out.
+  let fromLabel = campaign.from_email;
+  if (!fromLabel) {
+    const senders = (await api.listSenders().catch(() => ({ data: [] }))).data;
+    const def = senders.find((s) => s.status === "verified" && s.is_default) ?? senders.find((s) => s.status === "verified");
+    fromLabel = def ? (def.display_name ? `${def.display_name} <${def.email}>` : def.email) : "rootmail address (no sender verified)";
+  }
+
   const facts: [string, string][] = [
     ["Subject", campaign.subject ?? "—"],
-    ["From", campaign.from_email ?? "workspace default"],
+    ["From", fromLabel],
     ["Audience", campaign.segment_tag ? `contacts tagged “${campaign.segment_tag}”` : "everyone on the list"],
     ["Recipients", campaign.stats.recipients ? campaign.stats.recipients.toLocaleString() : "—"],
     ["Suppressed", campaign.stats.suppressed.toLocaleString()],
