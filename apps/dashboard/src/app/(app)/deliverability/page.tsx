@@ -106,6 +106,37 @@ function Stat({ label, value }: { label: string; value: number | string }) {
   );
 }
 
+/** The dedicated-IP add-on's status — shown whether or not there's send data yet,
+ * so a just-purchased IP is acknowledged immediately (not hidden until first send). */
+function DedicatedIpBanner({
+  status,
+  address,
+}: {
+  status: "none" | "provisioning" | "active" | string;
+  address?: string | null;
+}) {
+  if (status === "none") return null;
+  return (
+    <Card className="border-l-4 border-l-primary">
+      <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+        <div>
+          <p className="flex items-center gap-2 font-medium">
+            Dedicated IP
+            <Badge variant={status === "active" ? "success" : "warning"}>
+              {status === "active" ? "Active" : "Provisioning"}
+            </Badge>
+          </p>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            {status === "active"
+              ? `Your mail sends from a dedicated IP${address ? ` (${address})` : ""} — reputation you own.`
+              : "Your dedicated IP is being set up by our team. We'll email you when it's live, then warm it gradually (usually 1–2 business days to start)."}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 function PillarCard({ p }: { p: (typeof PILLARS)[number] }) {
   return (
     <Card className="h-full">
@@ -168,6 +199,7 @@ export default async function DeliverabilityPage({
           description="How reliably your email reaches inboxes — and what to do to keep it landing there."
         />
         <Reveal className="space-y-8">
+          {dip !== "none" ? <DedicatedIpBanner status={dip} address={org?.dedicated_ip_address} /> : null}
           <EmptyState
             icon={<ShieldCheck className="size-6" />}
             title="Your deliverability picture builds as you send"
@@ -208,24 +240,8 @@ export default async function DeliverabilityPage({
       />
 
       {dip !== "none" ? (
-        <Reveal>
-          <Card className="mb-6 border-l-4 border-l-primary">
-            <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-              <div>
-                <p className="flex items-center gap-2 font-medium">
-                  Dedicated IP
-                  <Badge variant={dip === "active" ? "success" : "warning"}>
-                    {dip === "active" ? "Active" : "Provisioning"}
-                  </Badge>
-                </p>
-                <p className="mt-0.5 text-sm text-muted-foreground">
-                  {dip === "active"
-                    ? `Your mail sends from a dedicated IP${org?.dedicated_ip_address ? ` (${org.dedicated_ip_address})` : ""} — reputation you own.`
-                    : "Your dedicated IP is being set up by our team. We'll email you when it's live, then warm it gradually (usually 1–2 business days to start)."}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+        <Reveal className="mb-6 block">
+          <DedicatedIpBanner status={dip} address={org?.dedicated_ip_address} />
         </Reveal>
       ) : null}
 
