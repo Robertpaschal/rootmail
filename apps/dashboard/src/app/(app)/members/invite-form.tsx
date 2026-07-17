@@ -8,13 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
-export function InviteForm({ customRoles = [] }: { customRoles?: { id: string; name: string }[] }) {
+export function InviteForm({ customRoles = [], onDone }: { customRoles?: { id: string; name: string }[]; onDone?: () => void }) {
   const [state, action, pending] = useActionState<InviteState | null, FormData>(inviteMember, null);
 
   useEffect(() => {
-    if (state?.ok) toast.success(state.ok);
-    else if (state?.error) toast.error(state.error);
-  }, [state]);
+    if (state?.ok) {
+      toast.success(state.ok);
+      onDone?.();
+    } else if (state?.error) toast.error(state.error);
+  }, [state, onDone]);
 
   return (
     <form action={action} className="space-y-3">

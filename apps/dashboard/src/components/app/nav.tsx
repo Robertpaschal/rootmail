@@ -13,7 +13,6 @@ import {
   FlaskConical,
   Gauge,
   Upload,
-  Images,
   Inbox,
   KeyRound,
   LayoutDashboard,
@@ -66,7 +65,6 @@ const SHARED_TOP: NavItem[] = [
 const TRANSACTIONAL_ITEMS: NavItem[] = [
   { href: "/messages", label: "Messages", icon: Mail },
   { href: "/templates", label: "Templates & blocks", icon: FileText },
-  { href: "/assets", label: "Assets", icon: Images },
   { href: "/api-keys", label: "API keys", icon: KeyRound },
   { href: "/webhooks", label: "Webhooks", icon: Webhook },
   { href: "/deliverability", label: "Deliverability", icon: Gauge },
@@ -98,7 +96,7 @@ const SHARED_WORKSPACE: NavGroup = {
 };
 
 // Routes that belong exclusively to one wing — landing on them selects it. Content
-// tools (/templates, /assets) live in both wings, so they don't force a switch.
+// tools (/templates) live in both wings, so they don't force a switch.
 const TX_ROUTES = ["/messages", "/api-keys", "/webhooks", "/deliverability", "/sub-tenants", "/test-inbox", "/docs"];
 const MK_ROUTES = ["/campaigns", "/sequences", "/inbox", "/contacts", "/lists", "/import", "/analytics"];
 

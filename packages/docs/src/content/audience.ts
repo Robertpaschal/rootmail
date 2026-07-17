@@ -36,6 +36,7 @@ export const lists: DocPage = {
     endpoint("GET", "/v1/lists/:id/contacts", "List the contacts in an audience."),
     endpoint("POST", "/v1/lists/:id/contacts", "Add contacts to an audience."),
     endpoint("DELETE", "/v1/lists/:id/contacts/:contactId", "Remove a contact from an audience."),
+    endpoint("GET", "/v1/lists/:id/tags", "Distinct tags carried by this audience's members, with counts — feeds campaign segments and A/B variants."),
     code(
       "ts",
       `const list = await mail.lists.create({ name: "Newsletter" });

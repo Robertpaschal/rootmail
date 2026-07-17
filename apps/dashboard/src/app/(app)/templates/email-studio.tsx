@@ -45,7 +45,8 @@ import {
   Wand2,
   X,
 } from "lucide-react";
-import { aiDraftAction, uploadAssetAction } from "./actions";
+import { aiDraftAction } from "./actions";
+import { pickMedia } from "./media-library";
 import {
   BRAND,
   DEFAULT_THEME,
@@ -208,29 +209,11 @@ const EmailTextAlign = Extension.create({
   },
 });
 
-// --- Upload / embed helpers -------------------------------------------------
+// --- Media / embed helpers ---------------------------------------------------
 
-/** Open a file picker, upload via the server action, return the public URL. */
-async function pickAndUpload(accept = "image/*"): Promise<string | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = accept;
-    input.onchange = async () => {
-      const file = input.files?.[0];
-      if (!file) return resolve(null);
-      const fd = new FormData();
-      fd.set("file", file);
-      const res = await uploadAssetAction(fd);
-      if (res.error) {
-        window.alert(res.error);
-        return resolve(null);
-      }
-      resolve(res.url ?? null);
-    };
-    input.click();
-  });
-}
+// Picking an image goes through the media library (media-library.tsx): reuse a
+// previous upload, upload new, or delete stale files — all without leaving the
+// studio. `pickMedia` resolves to a public URL, or null on cancel.
 
 /** Resolve a pasted video/social URL to a poster (YouTube gets a real thumbnail). */
 export function deriveEmbed(raw: string): { url: string; thumbnail: string; title: string } | null {
@@ -645,7 +628,7 @@ function BlocksPalette({ editor, onInserted, onAiSubject }: { editor: Editor; on
       case "header": insertBlock(editor, { type: "header", attrs: { align: "center" } }, true); return onInserted();
       case "footer": insertBlock(editor, { type: "footer", attrs: { showUnsubscribe: true } }, true); return onInserted();
       case "image": {
-        const src = await pickAndUpload("image/*");
+        const src = await pickMedia("image/*");
         if (!src) return;
         insertBlock(editor, { type: "image", attrs: { src, width: 100, align: "center" } }, true);
         return onInserted();
@@ -901,7 +884,7 @@ function ButtonFields({ attrs, patch }: { attrs: Record<string, unknown>; patch:
 }
 
 function ImageFields({ attrs, patch }: { attrs: Record<string, unknown>; patch: (p: Record<string, unknown>) => void }) {
-  const replace = async () => { const src = await pickAndUpload("image/*"); if (src) patch({ src }); };
+  const replace = async () => { const src = await pickMedia("image/*"); if (src) patch({ src }); };
   return (
     <div className="space-y-3">
       {attrs.src ? <img src={String(attrs.src)} alt="" className="max-h-28 w-full rounded-md border object-contain" /> : null}
@@ -915,7 +898,7 @@ function ImageFields({ attrs, patch }: { attrs: Record<string, unknown>; patch: 
 }
 
 function HeaderFields({ attrs, patch }: { attrs: Record<string, unknown>; patch: (p: Record<string, unknown>) => void }) {
-  const upload = async () => { const logo = await pickAndUpload("image/*"); if (logo) patch({ logo }); };
+  const upload = async () => { const logo = await pickMedia("image/*"); if (logo) patch({ logo }); };
   return (
     <div className="space-y-3">
       {attrs.logo ? (

@@ -98,6 +98,26 @@ export async function assetRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  // --- Delete (authenticated) ---------------------------------------------
+  // Removes the DB row and the stored object. Note: any already-sent email that
+  // embedded this asset's URL will show a broken image once it's gone — the UI
+  // warns before confirming.
+  app.delete("/v1/assets/:id", async (req, reply) => {
+    await requirePermission(req, "content.manage");
+    const { id } = req.params as { id: string };
+    const [row] = await db
+      .select()
+      .from(assets)
+      .where(eq(assets.id, id))
+      .limit(1);
+    if (!row || row.workspaceId !== req.auth.workspace.id) {
+      throw Errors.notFound("Asset not found");
+    }
+    await storage.delete(row.storageKey);
+    await db.delete(assets).where(eq(assets.id, id));
+    return reply.status(204).send();
+  });
+
   // --- Serve (PUBLIC; images are loaded by email clients with no auth) -----
   app.get("/assets/:name", async (req, reply) => {
     const { name } = req.params as { name: string };

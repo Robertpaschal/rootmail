@@ -120,6 +120,27 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
     return { object: "contact_list", id: l.id, deleted: true };
   });
 
+  // Distinct tags carried by this list's members, with how many members carry
+  // each — feeds the campaign composer's segment + A/B pickers.
+  app.get("/v1/lists/:id/tags", async (req) => {
+    const { id } = req.params as { id: string };
+    const l = await getScoped(req, id);
+    const rows = (await db.execute(sql`
+      select tag, count(*)::int as n
+      from ${listContacts}
+      join ${contacts} on ${contacts.id} = ${listContacts.contactId},
+      lateral jsonb_array_elements_text(${contacts.tags}) as tag
+      where ${listContacts.listId} = ${l.id}
+      group by tag
+      order by n desc, tag asc
+      limit 100
+    `)) as unknown as { tag: string; n: number }[];
+    return {
+      object: "list",
+      data: rows.map((r) => ({ tag: r.tag, contacts: r.n })),
+    };
+  });
+
   // --- Membership ---------------------------------------------------------
   app.get("/v1/lists/:id/contacts", async (req) => {
     const { id } = req.params as { id: string };

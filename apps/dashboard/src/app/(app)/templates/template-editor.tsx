@@ -18,6 +18,7 @@ import { createTemplate, deleteTemplate, updateTemplate, type TemplateFormState 
 import { StarterGallery } from "./starter-gallery";
 import type { BasicLayout, Starter, StarterWing } from "./starters";
 import { EmailCanvas, StudioPanel, useEmailEditor, useSelectedBlock } from "./email-studio";
+import { MediaLibraryHost } from "./media-library";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -300,6 +301,9 @@ export function TemplateEditor({ template }: { template?: Template }) {
           {activeType ? <p className="text-xs text-muted-foreground">{activeType.desc}</p> : null}
         </CardContent>
       </Card>
+
+      {/* Media library modal — serves every "pick an image" flow in the studio. */}
+      <MediaLibraryHost />
 
       {/* The studio: canvas + right rail (Blocks / Design / Inspect + preview). */}
       {mode === "write" ? (

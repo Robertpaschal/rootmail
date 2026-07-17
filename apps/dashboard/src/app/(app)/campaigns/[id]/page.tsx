@@ -34,6 +34,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
   const facts: [string, string][] = [
     ["Subject", campaign.subject ?? "—"],
     ["From", campaign.from_email ?? "workspace default"],
+    ["Audience", campaign.segment_tag ? `contacts tagged “${campaign.segment_tag}”` : "everyone on the list"],
     ["Recipients", campaign.stats.recipients ? campaign.stats.recipients.toLocaleString() : "—"],
     ["Suppressed", campaign.stats.suppressed.toLocaleString()],
     ["Created", new Date(campaign.created_at).toLocaleString()],
@@ -86,6 +87,20 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
                 <span className="text-right font-medium">{v}</span>
               </div>
             ))}
+            {campaign.variants.length > 0 ? (
+              <div className="border-t pt-3">
+                <p className="mb-1.5 text-xs font-semibold text-muted-foreground">A/B variants (first matching tag wins)</p>
+                <ul className="space-y-1 text-xs text-muted-foreground">
+                  {campaign.variants.map((v, i) => (
+                    <li key={i}>
+                      tagged <span className="font-medium text-foreground">“{v.tag}”</span> → their own template
+                      {v.subject ? <> · subject “{v.subject}”</> : null}
+                    </li>
+                  ))}
+                  <li>everyone else → the base message</li>
+                </ul>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 

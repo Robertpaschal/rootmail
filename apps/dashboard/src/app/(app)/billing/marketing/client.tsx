@@ -359,9 +359,11 @@ function OrderBar({
               <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
                 <ShoppingCart className="size-4" />
               </span>
-              <div className="min-w-0 flex-1">
+              {/* No truncation here — the summary and the "add extras" nudge WRAP
+                  to the next line, so every word (and the whole CTA) stays visible. */}
+              <div className="min-w-0 flex-1 basis-52">
                 {chosen ? (
-                  <p className="truncate text-sm font-semibold">
+                  <p className="text-sm font-semibold">
                     Marketing {chosen.name} · {num(contacts)} contacts
                     {addonLines.length > 0 ? (
                       <span className="ml-1.5 font-normal text-muted-foreground">
@@ -370,13 +372,13 @@ function OrderBar({
                     ) : null}
                   </p>
                 ) : (
-                  <p className="truncate text-sm font-semibold">
+                  <p className="text-sm font-semibold">
                     {addonLines.length} extra{addonLines.length > 1 ? "s" : ""} selected
                     <span className="ml-1.5 font-normal text-muted-foreground">pick a plan to check out together</span>
                   </p>
                 )}
                 {chosen && addonLines.length === 0 ? (
-                  <p className="truncate text-xs text-muted-foreground">
+                  <p className="text-xs text-muted-foreground">
                     <Sparkles className="mr-1 inline size-3" />
                     Want seats, workspaces, or AI credits with it? Add extras above — same bill.
                   </p>

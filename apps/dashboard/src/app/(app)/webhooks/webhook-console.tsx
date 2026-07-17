@@ -1,9 +1,13 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
-import { ChevronDown, Copy, Loader2, Plus, Trash2 } from "lucide-react";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
+import { ArrowRight, ChevronDown, Copy, Loader2, Plus, ShieldCheck, Trash2, Webhook, X, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { type CreateState, createWebhook, deleteWebhook, loadDeliveries, setWebhookStatus } from "./actions";
+import { EmptyState } from "@/components/app/empty-state";
+import { Reveal } from "@/components/app/motion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -26,71 +30,124 @@ const EVENTS = [
 
 export function WebhookConsole({ initial }: { initial: WebhookEndpoint[] }) {
   const [state, action, pending] = useActionState<CreateState | null, FormData>(createWebhook, null);
+  const [adding, setAdding] = useState(false);
+  const empty = initial.length === 0;
+
+  useEffect(() => {
+    if (state?.created) setAdding(false);
+  }, [state?.created]);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-3">
-      <div className="space-y-4 lg:col-span-2">
-        {initial.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No endpoints yet. Add one to start receiving events.</p>
-        ) : (
-          initial.map((e) => <EndpointCard key={e.id} endpoint={e} />)
-        )}
+    <Reveal className="space-y-6">
+      {/* The signing-secret reveal appears once, right after creation. */}
+      <AnimatePresence>
+        {state?.created ? (
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <div className="rounded-xl border border-emerald-500/40 bg-emerald-50 p-4 dark:bg-emerald-950/30">
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Endpoint created. Copy your signing secret now — it won&apos;t be shown again.</p>
+              <div className="mt-2 flex items-center gap-2">
+                <code className="flex-1 break-all rounded-md border bg-background px-2 py-1.5 font-mono text-xs">{state.created.secret}</code>
+                <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(state.created!.secret); toast.success("Secret copied."); }}>
+                  <Copy className="size-3.5" /> Copy
+                </Button>
+              </div>
+              <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-400/80">
+                Verify each delivery with it — the <code className="font-mono">Rootmail-Signature</code> header is an HMAC of the raw body.{" "}
+                <Link href="/docs/webhooks" className="font-medium underline">See the verify snippet in the docs</Link>.
+              </p>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">
+          {empty ? "Webhooks push message events to your server in real time." : `${initial.length} endpoint${initial.length === 1 ? "" : "s"}`}
+        </p>
+        {!empty ? (
+          !adding ? (
+            <Button size="sm" onClick={() => setAdding(true)}><Plus className="size-4" /> Add endpoint</Button>
+          ) : (
+            <Button size="sm" variant="outline" onClick={() => setAdding(false)}><X className="size-4" /> Cancel</Button>
+          )
+        ) : null}
       </div>
 
-      <Card className="h-fit">
-        <CardContent className="space-y-4 pt-6">
-          <h3 className="text-sm font-semibold">Add an endpoint</h3>
-          {state?.created ? (
-            <div className="space-y-2 rounded-md border bg-muted/40 p-3">
-              <p className="text-sm font-medium text-emerald-600">Endpoint created.</p>
-              <p className="text-xs text-muted-foreground">
-                Copy your signing secret now — it won&apos;t be shown again.
-              </p>
-              <code className="block break-all rounded bg-background px-2 py-1 font-mono text-xs">
-                {state.created.secret}
-              </code>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  void navigator.clipboard.writeText(state.created!.secret);
-                  toast.success("Secret copied.");
-                }}
-              >
-                <Copy className="size-3.5" /> Copy secret
-              </Button>
-            </div>
-          ) : (
-            <form action={action} className="space-y-3">
-              <div className="space-y-1.5">
-                <Label htmlFor="url">Endpoint URL</Label>
-                <Input id="url" name="url" type="url" placeholder="https://example.com/webhooks" required />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="description">Description (optional)</Label>
-                <Input id="description" name="description" placeholder="Production receiver" />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Events</Label>
-                <div className="max-h-40 space-y-1 overflow-y-auto rounded-md border p-2">
-                  {EVENTS.map((ev) => (
-                    <label key={ev} className="flex items-center gap-2 text-xs">
-                      <input type="checkbox" name="events" value={ev} className="size-3.5" /> {ev}
-                    </label>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">Leave all unchecked to receive every event.</p>
-              </div>
-              {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
-              <Button type="submit" disabled={pending} className="w-full">
-                {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
-                Add endpoint
-              </Button>
-            </form>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      {/* Empty: teach what webhooks do + the signed model, then reveal the form. */}
+      {empty && !adding ? (
+        <div className="space-y-6">
+          <EmptyState
+            icon={<Webhook className="size-6" />}
+            title="No endpoints yet"
+            description="Get a POST to your server the instant something happens — delivered, opened, clicked, bounced, a reply received — so your product reacts without polling."
+            action={<Button size="sm" onClick={() => setAdding(true)}><Plus className="size-4" /> Add your first endpoint</Button>}
+          />
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[
+              { icon: Zap, title: "Real-time events", body: "Nine event types, from message.sent to message.received (inbound replies). Subscribe to all or a subset." },
+              { icon: ShieldCheck, title: "Signed & verifiable", body: "Every delivery carries a Rootmail-Signature HMAC of the raw body — so you can trust it came from us." },
+              { icon: ArrowRight, title: "Retried & observable", body: "Failed deliveries retry with backoff; the delivery log here shows every attempt and its response." },
+            ].map((s) => (
+              <Card key={s.title}><CardContent className="p-5">
+                <span className="mb-3 grid size-8 place-items-center rounded-lg bg-primary/10 text-primary"><s.icon className="size-4" /></span>
+                <p className="text-sm font-medium">{s.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{s.body}</p>
+              </CardContent></Card>
+            ))}
+          </div>
+          <Link href="/docs/webhooks" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+            The full webhooks reference — payloads + signature verification <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
+      ) : null}
+
+      {/* Create form — revealed on demand. */}
+      <AnimatePresence initial={false}>
+        {adding ? (
+          <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
+            <Card className="border-primary/30">
+              <CardContent className="p-5">
+                <form action={action} className="space-y-4">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="url">Where should we POST?</Label>
+                      <Input id="url" name="url" type="url" placeholder="https://api.yourapp.com/rootmail/webhooks" required autoFocus />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="description">Label (optional)</Label>
+                      <Input id="description" name="description" placeholder="Production receiver" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Which events?</Label>
+                    <div className="grid grid-cols-2 gap-1.5 rounded-md border p-2 sm:grid-cols-3">
+                      {EVENTS.map((ev) => (
+                        <label key={ev} className="flex items-center gap-2 rounded px-1.5 py-1 text-xs hover:bg-secondary/60">
+                          <input type="checkbox" name="events" value={ev} className="size-3.5 accent-primary" /> <span className="font-mono">{ev}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Leave all unchecked to receive every event.</p>
+                  </div>
+                  {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
+                  <Button type="submit" disabled={pending}>
+                    {pending ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+                    Create endpoint
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+
+      {/* Existing endpoints — view-first. */}
+      {!empty ? (
+        <div className="space-y-4">
+          {initial.map((e) => <EndpointCard key={e.id} endpoint={e} />)}
+        </div>
+      ) : null}
+    </Reveal>
   );
 }
 

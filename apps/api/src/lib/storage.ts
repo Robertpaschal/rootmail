@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
-import { GetObjectCommand, NoSuchKey, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, NoSuchKey, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { env } from "@rootmail/core";
 
 export interface StoredAsset {
@@ -15,6 +15,7 @@ export interface StoredAsset {
 export interface StorageDriver {
   put(key: string, body: Buffer): Promise<StoredAsset>;
   get(key: string): Promise<Buffer | null>;
+  delete(key: string): Promise<void>;
 }
 
 // Server-generated keys are `ast_….ext`; the allowlist blocks slashes and the
@@ -56,6 +57,12 @@ class LocalStorage implements StorageDriver {
     const path = join(this.dir, key);
     if (!existsSync(path)) return null;
     return readFile(path);
+  }
+
+  async delete(key: string): Promise<void> {
+    if (!isSafeKey(key)) return;
+    // `force` makes a missing file a no-op — deletes stay idempotent.
+    await rm(join(this.dir, key), { force: true });
   }
 }
 
@@ -103,6 +110,12 @@ class S3Storage implements StorageDriver {
       }
       throw err;
     }
+  }
+
+  async delete(key: string): Promise<void> {
+    if (!isSafeKey(key)) return;
+    // S3 DeleteObject is idempotent — a missing key returns success.
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 }
 

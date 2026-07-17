@@ -2,19 +2,20 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { enqueueCampaignSend, Errors, newId } from "@rootmail/core";
-import { type Campaign, campaigns, db, listContacts, lists, messages, templates } from "@rootmail/db";
+import { type Campaign, campaigns, contacts, db, listContacts, lists, messages, templates } from "@rootmail/db";
 import { assertContactCapacity, assertEmailVerified, assertMarketingSendCapacity } from "../lib/billing";
 import { loadOrg, requireFeature } from "../lib/features";
 import { messageFunnel } from "../lib/funnel";
 import { requirePermission } from "../lib/permissions";
 import { parse } from "../lib/validate";
 
-/** Validate that referenced list/template belong to the workspace — so a bad
+/** Validate that referenced list/template(s) belong to the workspace — so a bad
  * id returns a clean 404 instead of a raw foreign-key error. */
 async function validateRefs(
   req: FastifyRequest,
   listId?: string | null,
   templateId?: string | null,
+  variantTemplateIds: string[] = [],
 ): Promise<void> {
   if (listId) {
     const [l] = await db
@@ -24,13 +25,13 @@ async function validateRefs(
       .limit(1);
     if (!l) throw Errors.notFound(`List ${listId} not found`);
   }
-  if (templateId) {
+  for (const tid of new Set([templateId, ...variantTemplateIds].filter((x): x is string => !!x))) {
     const [t] = await db
       .select({ id: templates.id })
       .from(templates)
-      .where(and(eq(templates.id, templateId), eq(templates.workspaceId, req.auth.workspace.id)))
+      .where(and(eq(templates.id, tid), eq(templates.workspaceId, req.auth.workspace.id)))
       .limit(1);
-    if (!t) throw Errors.notFound(`Template ${templateId} not found`);
+    if (!t) throw Errors.notFound(`Template ${tid} not found`);
   }
 }
 
@@ -47,6 +48,8 @@ function serialize(c: Campaign) {
     template_id: c.templateId,
     subject: c.subject,
     from_email: c.fromEmail,
+    segment_tag: c.segmentTag,
+    variants: c.variants ?? [],
     status: c.status,
     scheduled_at: c.scheduledAt?.toISOString() ?? null,
     sent_at: c.sentAt?.toISOString() ?? null,
@@ -55,12 +58,22 @@ function serialize(c: Campaign) {
   };
 }
 
+const variantBody = z.object({
+  tag: z.string().min(1).max(80),
+  template_id: z.string().min(1),
+  subject: z.string().max(300).optional().nullable(),
+});
+
 const createBody = z.object({
   name: z.string().min(1).max(120),
   list_id: z.string().optional(),
   template_id: z.string().optional(),
   subject: z.string().optional(),
   from_email: z.string().email().optional(),
+  // Only send to list members carrying this tag (null/absent = the whole list).
+  segment_tag: z.string().min(1).max(80).optional().nullable(),
+  // Tag-targeted A/B variants; capped so a campaign stays reviewable.
+  variants: z.array(variantBody).max(4).optional(),
 });
 
 async function getScoped(req: FastifyRequest, id: string): Promise<Campaign> {
@@ -104,7 +117,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   app.post("/v1/campaigns", async (req, reply) => {
     await requirePermission(req, "content.manage");
     const body = parse(createBody, req.body);
-    await validateRefs(req, body.list_id, body.template_id);
+    await validateRefs(req, body.list_id, body.template_id, (body.variants ?? []).map((v) => v.template_id));
     const [row] = await db
       .insert(campaigns)
       .values({
@@ -116,6 +129,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         templateId: body.template_id ?? null,
         subject: body.subject ?? null,
         fromEmail: body.from_email ?? null,
+        segmentTag: body.segment_tag ?? null,
+        variants: body.variants ?? [],
       })
       .returning();
     return reply.status(201).send(serialize(row));
@@ -146,7 +161,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     if (existing.status === "sending" || existing.status === "sent") {
       throw Errors.conflict(`Can't edit a campaign that's ${existing.status}`);
     }
-    await validateRefs(req, body.list_id, body.template_id);
+    await validateRefs(req, body.list_id, body.template_id, (body.variants ?? []).map((v) => v.template_id));
     const [updated] = await db
       .update(campaigns)
       .set({
@@ -155,6 +170,8 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         templateId: body.template_id !== undefined ? body.template_id : existing.templateId,
         subject: body.subject !== undefined ? body.subject : existing.subject,
         fromEmail: body.from_email !== undefined ? body.from_email : existing.fromEmail,
+        segmentTag: body.segment_tag !== undefined ? body.segment_tag : existing.segmentTag,
+        variants: body.variants !== undefined ? body.variants : existing.variants,
         updatedAt: new Date(),
       })
       .where(eq(campaigns.id, existing.id))
@@ -191,10 +208,22 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       throw Errors.conflict(`Campaign is already ${c.status}.`);
     }
 
-    const [cnt] = await db
-      .select({ n: sql<number>`count(*)::int` })
-      .from(listContacts)
-      .where(eq(listContacts.listId, c.listId));
+    // Segmented campaigns only count members carrying the tag (jsonb containment).
+    const [cnt] = c.segmentTag
+      ? await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(listContacts)
+          .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
+          .where(
+            and(
+              eq(listContacts.listId, c.listId),
+              sql`${contacts.tags} @> ${JSON.stringify([c.segmentTag])}::jsonb`,
+            ),
+          )
+      : await db
+          .select({ n: sql<number>`count(*)::int` })
+          .from(listContacts)
+          .where(eq(listContacts.listId, c.listId));
     const recipients = cnt?.n ?? 0;
 
     // The whole batch must fit the marketing send allowance (monthly + today).

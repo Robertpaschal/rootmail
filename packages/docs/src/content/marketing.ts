@@ -24,6 +24,22 @@ await mail.campaigns.send(c.id, { sendAt: "2026-03-01T15:00:00Z" });
 const funnel = await mail.campaigns.analytics(c.id);`,
       "campaign.ts",
     ),
+    h("Segments & A/B by tags"),
+    p("Two optional fields target the send. ", c("segment_tag"), " narrows the audience to list members carrying that tag. ", c("variants"), " (up to 4) A/B-tests by tag: a contact carrying a variant's tag gets that variant's template (and optional subject) instead of the base message — first matching variant wins, everyone else gets the base. Distinct tags for a list come from ", c("GET /v1/lists/:id/tags"), "."),
+    code(
+      "json",
+      `POST /v1/campaigns
+{
+  "name": "March newsletter",
+  "list_id": "lst_…",
+  "template_id": "tpl_base…",
+  "segment_tag": "active",
+  "variants": [
+    { "tag": "vip", "template_id": "tpl_vip…", "subject": "A thank-you for being a VIP" }
+  ]
+}`,
+      "campaign-ab.json",
+    ),
   ],
 };
 

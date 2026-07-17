@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Campaigns, rebuilt end-to-end — audiences, A/B by tags, and a guided composer",
+    date: "2026-07-17",
+    changes: [
+      {
+        kind: "New",
+        text: "The campaign composer is now one guided flow: pick your audience (or just the contacts carrying a tag), pick a studio-designed template, and optionally A/B it — differently-tagged contacts get different versions, and the analytics show how each landed.",
+      },
+      {
+        kind: "New",
+        text: "A media library lives inside the template studio: picking an image now offers everything you've uploaded before — reuse, upload new, or delete — without leaving the canvas. The standalone Assets page is retired.",
+      },
+      {
+        kind: "Improved",
+        text: "Deliverability now tells a story: a plain-English verdict on your reputation, the four levers of inbox placement with links to act on each, and a teaching page (not a wall of zeros) before your first send.",
+      },
+      {
+        kind: "Improved",
+        text: "Webhooks, API keys, Team, and Client domains follow a view-first pattern: see what exists (or an empty state that teaches), and reveal the create form only when you ask — with how-to guides living in the docs.",
+      },
+    ],
+  },
+  {
     title: "Watch your email's whole journey — sent, delivered, opened, clicked",
     date: "2026-07-16",
     changes: [

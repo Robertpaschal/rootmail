@@ -24,7 +24,6 @@ const SHARED: Item[] = [
 const TX: Item[] = [
   { label: "Messages", href: "/messages", kw: "sends log transactional history" },
   { label: "Templates & blocks", href: "/templates", kw: "design studio email layout" },
-  { label: "Assets", href: "/assets", kw: "images files uploads" },
   { label: "API keys", href: "/api-keys", kw: "developer secret token integrate" },
   { label: "Webhooks", href: "/webhooks", kw: "events callbacks notifications" },
   { label: "Deliverability", href: "/deliverability", kw: "spf dkim dmarc reputation score inbox" },

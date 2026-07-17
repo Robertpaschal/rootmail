@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { TemplateType } from "@/lib/types";
+import type { Asset, TemplateType } from "@/lib/types";
 
 export interface TemplateFormState {
   error?: string;
@@ -125,6 +125,30 @@ export async function uploadAssetAction(
   } catch (err) {
     if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
     return { error: "Upload failed." };
+  }
+}
+
+/** List previously-uploaded assets for the studio's media library. */
+export async function listAssetsAction(): Promise<{ assets?: Asset[]; error?: string }> {
+  try {
+    const r = await api.listAssets();
+    return { assets: r.data };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't load your media." };
+  }
+}
+
+/** Delete an uploaded asset (removes the stored file — sent emails that embed it
+ * will show a broken image, so the UI confirms first). */
+export async function deleteAssetAction(id: string): Promise<{ error?: string }> {
+  if (!id) return { error: "Missing asset id." };
+  try {
+    await api.deleteAsset(id);
+    return {};
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't delete the file." };
   }
 }
 

@@ -13,6 +13,8 @@ import type {
   Billing,
   Campaign,
   CampaignAnalytics,
+  CampaignVariant,
+  ListTag,
   ComplianceExport,
   Deliverability,
   EmailAuthReport,
@@ -285,6 +287,7 @@ export const api = {
     }
     return json as UploadedAsset;
   },
+  deleteAsset: (id: string) => rmFetch<void>(`/v1/assets/${id}`, { method: "DELETE" }),
 
   listThreads: (q: { status?: ThreadStatus } = {}) =>
     rmFetch<ListResponse<Thread>>("/v1/threads", { query: q }),
@@ -381,13 +384,20 @@ export const api = {
     rmFetch<{ contact_id: string }>(`/v1/lists/${id}/contacts`, { method: "POST", body: { email } }),
   removeListContact: (id: string, contactId: string) =>
     rmFetch<{ deleted: boolean }>(`/v1/lists/${id}/contacts/${contactId}`, { method: "DELETE" }),
+  listTags: (id: string) => rmFetch<ListResponse<ListTag>>(`/v1/lists/${id}/tags`),
 
   listCampaigns: () => rmFetch<ListResponse<Campaign>>("/v1/campaigns"),
   getCampaign: (id: string) => rmFetch<Campaign>(`/v1/campaigns/${id}`),
   campaignAnalytics: (id: string) =>
     rmFetch<CampaignAnalytics>(`/v1/campaigns/${id}/analytics`),
-  createCampaign: (body: { name: string; list_id?: string; template_id?: string; subject?: string }) =>
-    rmFetch<Campaign>("/v1/campaigns", { method: "POST", body }),
+  createCampaign: (body: {
+    name: string;
+    list_id?: string;
+    template_id?: string;
+    subject?: string;
+    segment_tag?: string | null;
+    variants?: CampaignVariant[];
+  }) => rmFetch<Campaign>("/v1/campaigns", { method: "POST", body }),
   sendCampaign: (id: string) =>
     rmFetch<Campaign>(`/v1/campaigns/${id}/send`, { method: "POST", body: {} }),
   deleteCampaign: (id: string) =>

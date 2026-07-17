@@ -752,6 +752,14 @@ export const listContacts = pgTable(
   (t) => [uniqueIndex("list_contacts_uq").on(t.listId, t.contactId)],
 );
 
+/** A tag-targeted A/B variant: contacts carrying `tag` get this template (and
+ * optional subject) instead of the campaign's base message. Stored wire-shaped. */
+export interface CampaignVariant {
+  tag: string;
+  template_id: string;
+  subject?: string | null;
+}
+
 export const campaigns = pgTable(
   "campaigns",
   {
@@ -765,6 +773,10 @@ export const campaigns = pgTable(
     templateId: text("template_id").references(() => templates.id, { onDelete: "set null" }),
     subject: text("subject"),
     fromEmail: text("from_email"),
+    // Optional audience segment: only list members carrying this tag receive it.
+    segmentTag: text("segment_tag"),
+    // Tag-targeted A/B variants; first matching tag wins, everyone else gets the base message.
+    variants: jsonb("variants").$type<CampaignVariant[]>().notNull().default([]),
     status: campaignStatusEnum("status").notNull().default("draft"),
     scheduledAt: timestamp("scheduled_at", { withTimezone: true }),
     sentAt: timestamp("sent_at", { withTimezone: true }),

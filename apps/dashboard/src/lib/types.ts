@@ -541,6 +541,20 @@ export interface ContactList {
   created_at: string;
 }
 
+/** A tag-targeted A/B variant: contacts carrying `tag` get this template/subject
+ * instead of the campaign's base message. */
+export interface CampaignVariant {
+  tag: string;
+  template_id: string;
+  subject?: string | null;
+}
+
+/** A tag carried by an audience's members, with how many carry it. */
+export interface ListTag {
+  tag: string;
+  contacts: number;
+}
+
 export interface Campaign {
   object: "campaign";
   id: string;
@@ -549,6 +563,8 @@ export interface Campaign {
   template_id: string | null;
   subject: string | null;
   from_email: string | null;
+  segment_tag: string | null;
+  variants: CampaignVariant[];
   status: "draft" | "scheduled" | "sending" | "sent";
   scheduled_at: string | null;
   sent_at: string | null;
