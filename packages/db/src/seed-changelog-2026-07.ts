@@ -14,6 +14,16 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Your campaigns now send from your own address",
+    date: "2026-07-17",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Once you verify a sending address under Settings → Sending, your campaigns and quick composes go out from it by default — not a rootmail no-reply. Pick which verified address is your default; the campaign composer shows exactly who mail will come from before you send.",
+      },
+    ],
+  },
+  {
     title: "One roof for your audience — people, imports, and audiences together",
     date: "2026-07-17",
     changes: [
