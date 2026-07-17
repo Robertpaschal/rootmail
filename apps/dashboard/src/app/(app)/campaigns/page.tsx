@@ -125,9 +125,9 @@ export default async function CampaignsPage() {
           </div>
           <p className="text-sm text-muted-foreground">
             Need contacts first?{" "}
-            <Link href="/import" className="text-primary hover:underline">Import them from a file</Link>
+            <Link href="/contacts?add=import" className="text-primary hover:underline">Import them from a file</Link>
             {" "}or{" "}
-            <Link href="/lists" className="text-primary hover:underline">create an audience</Link>.
+            <Link href="/contacts?tab=audiences" className="text-primary hover:underline">create an audience</Link>.
           </p>
         </Reveal>
       ) : (

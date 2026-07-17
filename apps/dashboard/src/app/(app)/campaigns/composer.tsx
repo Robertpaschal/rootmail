@@ -136,8 +136,8 @@ export function CampaignComposer({ lists, templates }: { lists: ComposerList[]; 
                 </div>
               </div>
               <div className="flex gap-2">
-                <Link href="/lists" className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-accent"><ListChecks className="size-3.5" /> Create audience</Link>
-                <Link href="/import" className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">Import contacts</Link>
+                <Link href="/contacts?tab=audiences&create=1" className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-accent"><ListChecks className="size-3.5" /> Create audience</Link>
+                <Link href="/contacts?add=import" className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">Import contacts</Link>
               </div>
             </CardContent>
           </Card>

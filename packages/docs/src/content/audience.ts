@@ -7,6 +7,8 @@ export const contacts: DocPage = {
   blocks: [
     p("Contacts are the individuals in your audience. Create them directly, import in bulk, or let them arrive through sign-up flows."),
     endpoint("POST", "/v1/contacts", "Create or upsert a contact."),
+    endpoint("GET", "/v1/contacts", "Browse contacts — paged, with q (email/name search), tag, and status filters; returns total."),
+    endpoint("GET", "/v1/contacts/tags", "Distinct tags across your contacts, with how many carry each."),
     endpoint("GET", "/v1/contacts/:email", "Look a contact up by email address."),
     endpoint("POST", "/v1/contacts/unsubscribe", "Unsubscribe a contact from marketing mail."),
     code(
@@ -29,7 +31,7 @@ export const lists: DocPage = {
   blocks: [
     p("An audience (list) is a named group of contacts. Campaigns and sequences target audiences."),
     endpoint("GET", "/v1/lists", "List your audiences."),
-    endpoint("POST", "/v1/lists", "Create an audience."),
+    endpoint("POST", "/v1/lists", "Create an audience — pass from_tag to seed it with everyone carrying that tag."),
     endpoint("GET", "/v1/lists/:id", "Fetch one audience."),
     endpoint("PATCH", "/v1/lists/:id", "Rename or edit an audience."),
     endpoint("DELETE", "/v1/lists/:id", "Delete an audience."),

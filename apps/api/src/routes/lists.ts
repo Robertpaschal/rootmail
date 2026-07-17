@@ -73,7 +73,15 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/v1/lists", async (req, reply) => {
     await requirePermission(req, "content.manage");
-    const body = parse(z.object({ name: z.string().min(1).max(120), description: z.string().max(500).optional() }), req.body);
+    const body = parse(
+      z.object({
+        name: z.string().min(1).max(120),
+        description: z.string().max(500).optional(),
+        // Seed the new audience with everyone carrying this tag (a "subset").
+        from_tag: z.string().min(1).max(80).optional(),
+      }),
+      req.body,
+    );
     // Audiences are a per-tier marketing dimension — enforce the count.
     await assertAudienceCapacity(await loadOrg(req));
     const [row] = await db
@@ -86,7 +94,30 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
         description: body.description ?? null,
       })
       .returning();
-    return reply.status(201).send(serialize(row, 0));
+
+    let seeded = 0;
+    if (body.from_tag) {
+      const subTenantId = scopeOf(req);
+      const members = await db
+        .select({ id: contacts.id })
+        .from(contacts)
+        .where(
+          and(
+            eq(contacts.workspaceId, req.auth.workspace.id),
+            subTenantId ? eq(contacts.subTenantId, subTenantId) : isNull(contacts.subTenantId),
+            sql`${contacts.tags} @> ${JSON.stringify([body.from_tag])}::jsonb`,
+          ),
+        );
+      for (let i = 0; i < members.length; i += 500) {
+        const chunk = members.slice(i, i + 500);
+        await db
+          .insert(listContacts)
+          .values(chunk.map((m) => ({ id: newId("listContact"), listId: row.id, contactId: m.id })))
+          .onConflictDoNothing();
+      }
+      seeded = members.length;
+    }
+    return reply.status(201).send(serialize(row, seeded));
   });
 
   app.get("/v1/lists/:id", async (req) => {

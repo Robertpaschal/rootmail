@@ -1,25 +1,10 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ApiError, ConnectionError, api } from "@/lib/rootmail";
+import { api } from "@/lib/rootmail";
 
-export interface ListFormState {
-  error?: string;
-  ok?: boolean;
-}
-
-export async function createList(_prev: ListFormState | null, formData: FormData): Promise<ListFormState> {
-  const name = String(formData.get("name") ?? "").trim();
-  if (!name) return { error: "A name is required." };
-  try {
-    await api.createList({ name });
-  } catch (err) {
-    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
-    return { error: "Failed to create the list." };
-  }
-  revalidatePath("/lists");
-  return { ok: true };
-}
+// Audience creation lives in the hub (contacts/actions.ts createAudienceAction);
+// these are the membership + lifecycle actions shared by the hub and /lists/[id].
 
 export async function deleteList(formData: FormData): Promise<void> {
   const id = String(formData.get("id") ?? "");
@@ -30,6 +15,7 @@ export async function deleteList(formData: FormData): Promise<void> {
     /* best-effort */
   }
   revalidatePath("/lists");
+  revalidatePath("/contacts");
 }
 
 export async function addContact(formData: FormData): Promise<void> {

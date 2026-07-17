@@ -78,7 +78,7 @@ export async function OnboardingChecklist() {
       done: lists > 0,
       label: "Build your audience",
       desc: "Import or add the people you want to reach.",
-      href: "/import",
+      href: "/contacts?add=import",
       minutes: 3,
     },
     {

@@ -23,7 +23,7 @@ export default async function ListDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <>
-      <PageHeader title={list.name} description={`${list.contacts} contacts`} backHref="/lists" backLabel="Audiences" />
+      <PageHeader title={list.name} description={`${list.contacts} contacts`} backHref="/contacts?tab=audiences" backLabel="Audiences" />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="h-fit">

@@ -10,6 +10,7 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import { SuppressionsImport } from "./suppressions-import";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -78,7 +79,7 @@ const PILLARS = [
     icon: Sparkles,
     title: "Keep lists clean",
     body: "We auto-suppress bounces and complaints so you never re-hit a bad address. Bring your own suppression list too.",
-    href: "/import",
+    href: "/deliverability?import=suppressions",
     cta: "Import suppressions",
   },
   {
@@ -127,7 +128,13 @@ function PillarCard({ p }: { p: (typeof PILLARS)[number] }) {
   );
 }
 
-export default async function DeliverabilityPage() {
+export default async function DeliverabilityPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ import?: string }>;
+}) {
+  const sp = await searchParams;
+  const importOpen = sp.import === "suppressions";
   let d: Deliverability;
   try {
     d = await api.getDeliverability();
@@ -179,6 +186,8 @@ export default async function DeliverabilityPage() {
               <PillarCard key={p.title} p={p} />
             ))}
           </div>
+          {/* Migrating? The old provider's "never email these" list comes first. */}
+          <SuppressionsImport defaultOpen={importOpen} />
         </Reveal>
       </>
     );
@@ -394,6 +403,9 @@ export default async function DeliverabilityPage() {
                   {d.domains.unverified} domain(s) need DKIM verification — finish set-up
                 </Link>
               ) : null}
+              <div className="border-t pt-3">
+                <SuppressionsImport defaultOpen={importOpen} />
+              </div>
             </CardContent>
           </Card>
         </Reveal>

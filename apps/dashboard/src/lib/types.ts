@@ -792,6 +792,13 @@ export interface ListResponse<T> {
   data: T[];
 }
 
+/** Paged contact browse (GET /v1/contacts). */
+export interface ContactsBrowse extends ListResponse<Contact> {
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface DeliverabilityFactor {
   id: string;
   severity: "info" | "warning" | "critical";

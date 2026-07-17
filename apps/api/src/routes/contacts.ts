@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { CONTACT_STATUSES, Errors, newId, verifyUnsubscribeToken } from "@rootmail/core";
@@ -22,7 +22,71 @@ const upsertBody = z.object({
 
 const emailBody = z.object({ email: z.string().email() });
 
+const browseQuery = z.object({
+  q: z.string().max(200).optional(),
+  tag: z.string().max(80).optional(),
+  status: z.enum(CONTACT_STATUSES).optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  offset: z.coerce.number().int().min(0).default(0),
+});
+
 export async function contactRoutes(app: FastifyInstance): Promise<void> {
+  // --- Browse (paged; search + tag/status filters) --------------------------
+  // The workspace's people in one place — powers the dashboard's Audience hub
+  // and gives API users a way to page through contacts (`GET /v1/contacts/:email`
+  // remains the point lookup).
+  app.get("/v1/contacts", async (req) => {
+    const q = parse(browseQuery, req.query);
+    const subTenantId = req.auth.subTenant?.id ?? null;
+
+    const where: SQL[] = [
+      eq(contacts.workspaceId, req.auth.workspace.id),
+      subTenantId ? eq(contacts.subTenantId, subTenantId) : isNull(contacts.subTenantId),
+    ];
+    if (q.q) {
+      const needle = `%${q.q}%`;
+      where.push(or(ilike(contacts.email, needle), ilike(contacts.name, needle))!);
+    }
+    if (q.tag) where.push(sql`${contacts.tags} @> ${JSON.stringify([q.tag])}::jsonb`);
+    if (q.status) where.push(eq(contacts.status, q.status));
+
+    const [rows, [cnt]] = await Promise.all([
+      db
+        .select()
+        .from(contacts)
+        .where(and(...where))
+        .orderBy(desc(contacts.createdAt))
+        .limit(q.limit)
+        .offset(q.offset),
+      db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(contacts)
+        .where(and(...where)),
+    ]);
+
+    return {
+      object: "list",
+      data: rows.map(serializeContact),
+      total: cnt?.n ?? 0,
+      limit: q.limit,
+      offset: q.offset,
+    };
+  });
+
+  // --- Tags (the workspace's subsets, with how many people carry each) ------
+  app.get("/v1/contacts/tags", async (req) => {
+    const subTenantId = req.auth.subTenant?.id ?? null;
+    const rows = (await db.execute(sql`
+      select tag, count(*)::int as n
+      from ${contacts}, lateral jsonb_array_elements_text(${contacts.tags}) as tag
+      where ${contacts.workspaceId} = ${req.auth.workspace.id}
+        and ${subTenantId ? sql`${contacts.subTenantId} = ${subTenantId}` : sql`${contacts.subTenantId} is null`}
+      group by tag
+      order by n desc, tag asc
+      limit 100
+    `)) as unknown as { tag: string; n: number }[];
+    return { object: "list", data: rows.map((r) => ({ tag: r.tag, contacts: r.n })) };
+  });
   // --- Upsert -------------------------------------------------------------
   app.post("/v1/contacts", async (req, reply) => {
     await requirePermission(req, "content.manage");

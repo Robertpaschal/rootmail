@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "One roof for your audience — people, imports, and audiences together",
+    date: "2026-07-17",
+    changes: [
+      {
+        kind: "New",
+        text: "Contacts, Import, and Audiences merged into one Audience section: browse and search everyone you email, filter by tag, and add people by hand or from a file — the separate Import page is gone.",
+      },
+      {
+        kind: "New",
+        text: "Tags now work as subsets: click one to see just those people, then turn it into an audience in one click — or start a new audience from a tag when you create it.",
+      },
+      {
+        kind: "New",
+        text: "For developers: GET /v1/contacts (paged browse with search, tag, and status filters) and GET /v1/contacts/tags; POST /v1/lists accepts from_tag to seed a new audience.",
+      },
+      {
+        kind: "Improved",
+        text: "Suppression imports moved to Deliverability, where list hygiene lives — bring your old provider's suppression list from there.",
+      },
+    ],
+  },
+  {
     title: "Campaigns, rebuilt end-to-end — audiences, A/B by tags, and a guided composer",
     date: "2026-07-17",
     changes: [

@@ -12,7 +12,7 @@ const ACTIONS = [
   { href: "/messages/new", label: "Send an email", hint: "Transactional", icon: Send },
   { href: "/campaigns", label: "New campaign", hint: "Marketing", icon: Megaphone },
   { href: "/templates/new", label: "New template", hint: "Design studio", icon: FileText },
-  { href: "/import", label: "Import contacts", hint: "CSV or paste", icon: Upload },
+  { href: "/contacts?add=import", label: "Import contacts", hint: "CSV or paste", icon: Upload },
   { href: "/members", label: "Invite a teammate", hint: "Team", icon: Users },
   { href: "/api-keys", label: "Create an API key", hint: "Developers", icon: KeyRound },
 ];

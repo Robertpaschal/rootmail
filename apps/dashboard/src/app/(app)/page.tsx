@@ -95,7 +95,7 @@ export default async function OverviewPage() {
 
   const quickActions = [
     { href: "/messages/new", label: "Compose", icon: Send },
-    { href: "/import", label: "Import contacts", icon: Upload },
+    { href: "/contacts?add=import", label: "Import contacts", icon: Upload },
     { href: "/templates/new", label: "Design a template", icon: FileText },
     { href: "/assistant", label: "Ask the assistant", icon: Sparkles },
   ];
@@ -353,7 +353,7 @@ export default async function OverviewPage() {
             <CardTitle className="text-base">Your workspace</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <SnapshotRow icon={Users} label="Audiences" value={lists.length} href="/lists" />
+            <SnapshotRow icon={Users} label="Audiences" value={lists.length} href="/contacts?tab=audiences" />
             <SnapshotRow icon={FileText} label="Templates" value={templates.length} href="/templates" />
             <SnapshotRow
               icon={TriangleAlert}

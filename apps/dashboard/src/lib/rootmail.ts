@@ -22,6 +22,7 @@ import type {
   RetentionPolicy,
   Contact,
   ContactList,
+  ContactsBrowse,
   ContactStatus,
   CreatedApiKey,
   Enrollment,
@@ -374,9 +375,14 @@ export const api = {
   sequenceAnalytics: (id: string) =>
     rmFetch<SequenceAnalytics>(`/v1/sequences/${id}/analytics`),
 
+  // Browse the workspace's people (paged; q/tag/status filters).
+  browseContacts: (q: { q?: string; tag?: string; status?: string; limit?: number; offset?: number } = {}) =>
+    rmFetch<ContactsBrowse>("/v1/contacts", { query: q }),
+  contactTags: () => rmFetch<ListResponse<ListTag>>("/v1/contacts/tags"),
+
   listLists: () => rmFetch<ListResponse<ContactList>>("/v1/lists"),
   getList: (id: string) => rmFetch<ContactList>(`/v1/lists/${id}`),
-  createList: (body: { name: string; description?: string }) =>
+  createList: (body: { name: string; description?: string; from_tag?: string }) =>
     rmFetch<ContactList>("/v1/lists", { method: "POST", body }),
   deleteList: (id: string) => rmFetch<{ deleted: boolean }>(`/v1/lists/${id}`, { method: "DELETE" }),
   getListContacts: (id: string) => rmFetch<ListResponse<Contact>>(`/v1/lists/${id}/contacts`),
