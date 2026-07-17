@@ -3,21 +3,23 @@
 import { useActionState, useEffect } from "react";
 import { Loader2, Plus } from "lucide-react";
 import { createSubTenant, type CreateState } from "./actions";
+import { useRevealClose } from "@/components/app/reveal-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function CreateSubTenantForm({ onDone }: { onDone?: () => void }) {
+export function CreateSubTenantForm() {
   const [state, formAction, pending] = useActionState<CreateState | null, FormData>(
     createSubTenant,
     null,
   );
+  const closeReveal = useRevealClose();
 
   // On success the server action redirects to the new domain's detail page; if it
   // instead returns without error, collapse the panel.
   useEffect(() => {
-    if (state && !state.error) onDone?.();
-  }, [state, onDone]);
+    if (state && !state.error) closeReveal();
+  }, [state, closeReveal]);
 
   return (
     <div className="rounded-lg border bg-muted/20 p-4">

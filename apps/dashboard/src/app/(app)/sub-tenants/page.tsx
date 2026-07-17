@@ -73,11 +73,9 @@ export default async function SubTenantsPage() {
         actions={
           !empty ? (
             <InlineReveal triggerLabel="Add client domain">
-              {(close) => (
-                <div className="mt-4 w-full">
-                  <CreateSubTenantForm onDone={close} />
-                </div>
-              )}
+              <div className="mt-4 w-full">
+                <CreateSubTenantForm />
+              </div>
             </InlineReveal>
           ) : undefined
         }
@@ -107,11 +105,9 @@ export default async function SubTenantsPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <InlineReveal triggerLabel="Add your first client domain" defaultOpen>
-              {(close) => (
-                <div className="mt-4 w-full max-w-md">
-                  <CreateSubTenantForm onDone={close} />
-                </div>
-              )}
+              <div className="mt-4 w-full max-w-md">
+                <CreateSubTenantForm />
+              </div>
             </InlineReveal>
             <Link href="/docs/client-domains" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
               <Sparkles className="size-3.5" /> How client domains work in the docs

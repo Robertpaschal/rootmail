@@ -1,11 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { createContext, useCallback, useContext, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
+
+// Children reach the enclosing reveal's close via context — NOT a render prop.
+// (Server pages compose these; a (close) => … function child would cross the
+// server→client boundary and crash at runtime, even though it typechecks.)
+const RevealContext = createContext<(() => void) | null>(null);
+
+/** Close the enclosing RevealPanel/InlineReveal; a no-op outside one. */
+export function useRevealClose(): () => void {
+  const close = useContext(RevealContext);
+  return close ?? (() => {});
+}
 
 /**
  * View-first "add" affordance: a section shows its existing data, and the
@@ -29,6 +40,7 @@ export function RevealPanel({
   className?: string;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const close = useCallback(() => setOpen(false), []);
 
   return (
     <div className={className}>
@@ -47,14 +59,14 @@ export function RevealPanel({
                 </div>
                 <button
                   type="button"
-                  onClick={() => setOpen(false)}
+                  onClick={close}
                   aria-label="Close"
                   className="rounded p-1 text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
                 >
                   <X className="size-4" />
                 </button>
               </div>
-              {children}
+              <RevealContext.Provider value={close}>{children}</RevealContext.Provider>
             </CardContent>
           </Card>
         </motion.div>
@@ -63,17 +75,19 @@ export function RevealPanel({
   );
 }
 
-/** Same reveal, but the trigger sits inline (e.g. a section header action). */
+/** Same reveal, but the trigger sits inline (e.g. a section header action).
+ * Children are plain nodes; a form inside closes the panel via useRevealClose(). */
 export function InlineReveal({
   triggerLabel,
   children,
   defaultOpen = false,
 }: {
   triggerLabel: string;
-  children: (close: () => void) => React.ReactNode;
+  children: React.ReactNode;
   defaultOpen?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
+  const close = useCallback(() => setOpen(false), []);
   return (
     <>
       <Button size="sm" variant={open ? "outline" : "default"} onClick={() => setOpen((v) => !v)}>
@@ -89,7 +103,7 @@ export function InlineReveal({
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
           >
-            {children(() => setOpen(false))}
+            <RevealContext.Provider value={close}>{children}</RevealContext.Provider>
           </motion.div>
         ) : null}
       </AnimatePresence>

@@ -72,15 +72,13 @@ export default async function MembersPage() {
               </a>
             ) : (
               <InlineReveal triggerLabel="Invite teammate">
-                {(close) => (
-                  <div className="mt-4 rounded-lg border bg-muted/20 p-4">
-                    <InviteForm customRoles={customRoles} onDone={close} />
-                    <p className="mt-3 text-xs text-muted-foreground">
-                      Need more seats?{" "}
-                      <a href="/billing/addons?focus=extra_seat" className="underline">Add seats</a> — they take effect immediately.
-                    </p>
-                  </div>
-                )}
+                <div className="mt-4 rounded-lg border bg-muted/20 p-4">
+                  <InviteForm customRoles={customRoles} />
+                  <p className="mt-3 text-xs text-muted-foreground">
+                    Need more seats?{" "}
+                    <a href="/billing/addons?focus=extra_seat" className="underline">Add seats</a> — they take effect immediately.
+                  </p>
+                </div>
               </InlineReveal>
             )}
           </CardHeader>

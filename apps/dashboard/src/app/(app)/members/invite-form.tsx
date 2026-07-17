@@ -4,19 +4,21 @@ import { useActionState, useEffect } from "react";
 import { Loader2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
 import { type InviteState, inviteMember, revokeInvite } from "./actions";
+import { useRevealClose } from "@/components/app/reveal-panel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 
-export function InviteForm({ customRoles = [], onDone }: { customRoles?: { id: string; name: string }[]; onDone?: () => void }) {
+export function InviteForm({ customRoles = [] }: { customRoles?: { id: string; name: string }[] }) {
   const [state, action, pending] = useActionState<InviteState | null, FormData>(inviteMember, null);
+  const closeReveal = useRevealClose();
 
   useEffect(() => {
     if (state?.ok) {
       toast.success(state.ok);
-      onDone?.();
+      closeReveal();
     } else if (state?.error) toast.error(state.error);
-  }, [state, onDone]);
+  }, [state, closeReveal]);
 
   return (
     <form action={action} className="space-y-3">
