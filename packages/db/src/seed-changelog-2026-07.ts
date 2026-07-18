@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "See a campaign land in real time — then turn it into a nurture",
+    date: "2026-07-18",
+    changes: [
+      {
+        kind: "New",
+        text: "Open a sent campaign and watch it work: a live delivery-through-clicked funnel updates on its own, and every recipient is listed most-engaged first — with exactly what each person clicked and when. Click anyone to open their message, just like a transactional send.",
+      },
+      {
+        kind: "New",
+        text: "Follow up with a sequence, right from the campaign: “Drip to everyone who clicked using …” enrolls the people who engaged (or the ones who went cold) into an automated sequence in one click. Already-enrolled people are skipped, and anyone who replies exits the drip on their own.",
+      },
+      {
+        kind: "Improved",
+        text: "Campaign and sequence replies now come back to your own verified address, not a rootmail no-reply — so a real conversation starts in your inbox. The campaign header shows exactly where replies go before you send.",
+      },
+      {
+        kind: "Improved",
+        text: "The sequence builder now opens with a plain-English “How a sequence works” — a trigger enrolls a contact, steps run in order (wait, send, branch), and the whole thing stops the moment someone replies.",
+      },
+      {
+        kind: "New",
+        text: "For developers: GET /v1/campaigns/:id/recipients (paged, ranked by engagement) and POST /v1/campaigns/:id/follow-up (enroll a campaign's clicked / opened / cold recipients into a sequence).",
+      },
+    ],
+  },
+  {
     title: "Your campaigns now send from your own address",
     date: "2026-07-17",
     changes: [
