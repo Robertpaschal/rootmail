@@ -1,10 +1,11 @@
-import { and, desc, eq, lte } from "drizzle-orm";
+import { and, asc, desc, eq, lte } from "drizzle-orm";
 import { env, type SequenceStep } from "@rootmail/core";
 import {
   auditEntries,
   db,
   type Sequence,
   type SequenceEnrollment,
+  senderIdentities,
   sequenceEnrollments,
   sequences,
   messages,
@@ -23,6 +24,7 @@ interface SendCtx {
   mode: "live" | "test";
   fromEmail: string;
   fromName: string | null;
+  replyTo: string | null;
 }
 
 async function resolveTemplate(seq: Sequence, ref: string) {
@@ -60,6 +62,19 @@ async function buildCtx(enr: SequenceEnrollment): Promise<SendCtx> {
       fromEmail = `no-reply@${st.sendingDomain}`;
       fromName = st.name;
     }
+  } else if (ws?.organizationId) {
+    // Send (and receive replies) as the org's own verified sender when it set one
+    // up — a drip should feel like it's from the business, not rootmail.
+    const [own] = await db
+      .select()
+      .from(senderIdentities)
+      .where(and(eq(senderIdentities.organizationId, ws.organizationId), eq(senderIdentities.status, "verified")))
+      .orderBy(desc(senderIdentities.isDefault), asc(senderIdentities.createdAt))
+      .limit(1);
+    if (own) {
+      fromEmail = own.email;
+      fromName = own.displayName ?? ws.name;
+    }
   }
   return {
     workspaceId: enr.workspaceId,
@@ -68,6 +83,7 @@ async function buildCtx(enr: SequenceEnrollment): Promise<SendCtx> {
     mode: ws?.environment === "test" ? "test" : "live",
     fromEmail,
     fromName,
+    replyTo: fromEmail === `no-reply@${env.ROOTMAIL_DOMAIN}` ? null : fromEmail,
   };
 }
 

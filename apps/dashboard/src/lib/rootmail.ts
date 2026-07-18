@@ -13,6 +13,7 @@ import type {
   Billing,
   Campaign,
   CampaignAnalytics,
+  CampaignRecipientsBrowse,
   CampaignVariant,
   ListTag,
   ComplianceExport,
@@ -396,6 +397,8 @@ export const api = {
   getCampaign: (id: string) => rmFetch<Campaign>(`/v1/campaigns/${id}`),
   campaignAnalytics: (id: string) =>
     rmFetch<CampaignAnalytics>(`/v1/campaigns/${id}/analytics`),
+  campaignRecipients: (id: string, q: { limit?: number; offset?: number } = {}) =>
+    rmFetch<CampaignRecipientsBrowse>(`/v1/campaigns/${id}/recipients`, { query: q }),
   createCampaign: (body: {
     name: string;
     list_id?: string;

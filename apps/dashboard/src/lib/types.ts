@@ -573,6 +573,24 @@ export interface Campaign {
   created_at: string;
 }
 
+/** One person a campaign reached, with exactly how they engaged. */
+export interface CampaignRecipient {
+  message_id: string;
+  email: string;
+  name: string | null;
+  status: MessageStatus;
+  sent_at: string | null;
+  opened_at: string | null;
+  clicked_at: string | null;
+  clicked_url: string | null;
+}
+
+export interface CampaignRecipientsBrowse extends ListResponse<CampaignRecipient> {
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 /** Message-funnel rollup shared by the per-campaign and per-sequence analytics. */
 export interface MessageFunnelStats {
   total: number;

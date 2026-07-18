@@ -3,11 +3,30 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { CampaignVariant, ListTag } from "@/lib/types";
+import type { Campaign, CampaignAnalytics, CampaignRecipient, CampaignVariant, ListTag } from "@/lib/types";
 
 export interface CampaignFormState {
   error?: string;
   ok?: boolean;
+}
+
+/** One poll of a campaign's live state — status, funnel, and the recipient rows —
+ * for the detail page's real-time refresh while a send is in flight or opens/clicks
+ * trickle in. Returns null pieces on transient failure so the UI keeps the last good state. */
+export async function refreshCampaign(
+  id: string,
+  recipientLimit = 100,
+): Promise<{ campaign?: Campaign; analytics?: CampaignAnalytics | null; recipients?: CampaignRecipient[]; total?: number }> {
+  try {
+    const [campaign, analytics, recips] = await Promise.all([
+      api.getCampaign(id),
+      api.campaignAnalytics(id).catch(() => null),
+      api.campaignRecipients(id, { limit: recipientLimit }).catch(() => null),
+    ]);
+    return { campaign, analytics, recipients: recips?.data, total: recips?.total };
+  } catch {
+    return {};
+  }
 }
 
 export async function createCampaign(

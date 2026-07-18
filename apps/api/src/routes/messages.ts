@@ -323,7 +323,10 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         toContactId: contact?.id ?? null,
         fromEmail: from.email,
         fromName: from.name ?? null,
-        replyTo: body.reply_to ?? null,
+        // Replies go to the sender's own address when they send as themselves (a
+        // verified From) — not rootmail. When From is the rootmail no-reply, this
+        // stays null so the thread reply-alias below captures replies in-app.
+        replyTo: body.reply_to ?? (from.email === `no-reply@${env.ROOTMAIL_DOMAIN}` ? null : from.email),
         subject: rendered.subject,
         templateId,
         templateVersion,

@@ -31,6 +31,7 @@ export interface AutomationSendInput {
   to: string;
   fromEmail: string;
   fromName?: string | null;
+  replyTo?: string | null;
   subject: string;
   html: string;
   text?: string | null;
@@ -161,6 +162,7 @@ export async function automationSend(
     toContactId: contact?.id ?? null,
     fromEmail: input.fromEmail,
     fromName: input.fromName ?? null,
+    replyTo: input.replyTo ?? null,
     subject: rendered.subject,
     templateId: input.templateId ?? null,
     templateVersion: input.templateVersion ?? null,

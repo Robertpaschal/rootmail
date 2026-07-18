@@ -82,6 +82,11 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
         to: m.email,
         fromEmail,
         fromName,
+        // Replies go to the sender's own address (their verified From) — not
+        // rootmail — so a recipient hitting "reply" reaches the customer directly.
+        // Only when they've set up no verified sender does it stay unset (and the
+        // rootmail no-reply is used).
+        replyTo: fromEmail === `no-reply@${env.ROOTMAIL_DOMAIN}` ? null : fromEmail,
         subject: useSubject,
         html: useTpl.html,
         text: useTpl.text,

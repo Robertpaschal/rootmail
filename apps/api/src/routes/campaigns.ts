@@ -2,7 +2,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { enqueueCampaignSend, Errors, newId } from "@rootmail/core";
-import { type Campaign, campaigns, contacts, db, listContacts, lists, messages, templates } from "@rootmail/db";
+import { auditEntries, type Campaign, campaigns, contacts, db, listContacts, lists, messages, templates } from "@rootmail/db";
 import { assertContactCapacity, assertEmailVerified, assertMarketingSendCapacity } from "../lib/billing";
 import { loadOrg, requireFeature } from "../lib/features";
 import { messageFunnel } from "../lib/funnel";
@@ -151,6 +151,76 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       eq(messages.campaignId, c.id),
     ]);
     return { object: "campaign_analytics", campaign_id: c.id, ...stats };
+  });
+
+  // Per-recipient engagement: every person the campaign reached, their status,
+  // and exactly what they did (opened / clicked which link + when). Paged, most
+  // engaged first, so "who's warming up" reads at a glance. Powers the campaign
+  // detail's recipients table (and its real-time refresh while a send is live).
+  app.get("/v1/campaigns/:id/recipients", async (req) => {
+    const { id } = req.params as { id: string };
+    const q = parse(
+      z.object({
+        limit: z.coerce.number().int().min(1).max(200).default(50),
+        offset: z.coerce.number().int().min(0).default(0),
+      }),
+      req.query,
+    );
+    const c = await getScoped(req, id);
+
+    // Opens/clicks are audit-only (status stays "delivered"), so rank by the audit
+    // trail: clicked > opened > delivered > sent > problem, then recency — the most
+    // engaged people surface first.
+    const engagementRank = sql<number>`case
+      when count(*) filter (where ${auditEntries.event} = 'clicked') > 0 then 5
+      when count(*) filter (where ${auditEntries.event} = 'opened') > 0 then 4
+      when ${messages.status} = 'delivered' then 3
+      when ${messages.status} = 'sent' then 2
+      when ${messages.status} in ('bounced','complained','failed') then 1
+      else 0 end`;
+
+    const rows = await db
+      .select({
+        messageId: messages.id,
+        email: messages.toEmail,
+        name: contacts.name,
+        status: messages.status,
+        sentAt: messages.createdAt,
+        // First open/click time + the first clicked URL, from the audit trail.
+        openedAt: sql<Date | null>`min(${auditEntries.occurredAt}) filter (where ${auditEntries.event} = 'opened')`,
+        clickedAt: sql<Date | null>`min(${auditEntries.occurredAt}) filter (where ${auditEntries.event} = 'clicked')`,
+        clickedUrl: sql<string | null>`(array_agg(${auditEntries.metadata}->>'url') filter (where ${auditEntries.event} = 'clicked'))[1]`,
+      })
+      .from(messages)
+      .leftJoin(contacts, eq(contacts.id, messages.toContactId))
+      .leftJoin(auditEntries, eq(auditEntries.messageId, messages.id))
+      .where(and(eq(messages.workspaceId, req.auth.workspace.id), eq(messages.campaignId, c.id)))
+      .groupBy(messages.id, messages.toEmail, contacts.name, messages.status, messages.createdAt)
+      .orderBy(desc(engagementRank), desc(messages.createdAt))
+      .limit(q.limit)
+      .offset(q.offset);
+
+    const [cnt] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(and(eq(messages.workspaceId, req.auth.workspace.id), eq(messages.campaignId, c.id)));
+
+    return {
+      object: "list",
+      data: rows.map((r) => ({
+        message_id: r.messageId,
+        email: r.email,
+        name: r.name,
+        status: r.status,
+        sent_at: r.sentAt?.toISOString() ?? null,
+        opened_at: r.openedAt ? new Date(r.openedAt).toISOString() : null,
+        clicked_at: r.clickedAt ? new Date(r.clickedAt).toISOString() : null,
+        clicked_url: r.clickedUrl,
+      })),
+      total: cnt?.n ?? 0,
+      limit: q.limit,
+      offset: q.offset,
+    };
   });
 
   app.patch("/v1/campaigns/:id", async (req) => {
