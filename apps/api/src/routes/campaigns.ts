@@ -2,7 +2,7 @@ import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { enqueueCampaignSend, Errors, newId } from "@rootmail/core";
-import { auditEntries, type Campaign, campaigns, contacts, db, listContacts, lists, messages, templates } from "@rootmail/db";
+import { auditEntries, type Campaign, campaigns, contacts, db, listContacts, lists, messages, sequenceEnrollments, sequences, templates } from "@rootmail/db";
 import { assertContactCapacity, assertEmailVerified, assertMarketingSendCapacity } from "../lib/billing";
 import { loadOrg, requireFeature } from "../lib/features";
 import { messageFunnel } from "../lib/funnel";
@@ -221,6 +221,84 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       limit: q.limit,
       offset: q.offset,
     };
+  });
+
+  // Campaign → sequence: enroll the people who engaged (or didn't) into an
+  // automated follow-up drip. This is the "campaigns work with sequences" flow —
+  // send once, then let a sequence nurture whoever clicked / opened / went cold.
+  app.post("/v1/campaigns/:id/follow-up", async (req, reply) => {
+    await requirePermission(req, "content.manage");
+    await requireFeature(req, "sequences");
+    const { id } = req.params as { id: string };
+    const body = parse(
+      z.object({
+        sequence_id: z.string().min(1),
+        segment: z.enum(["clicked", "opened", "not_opened", "all"]),
+      }),
+      req.body,
+    );
+    const c = await getScoped(req, id);
+    const subTenantId = scopeOf(req);
+
+    // The chosen sequence must be this workspace's.
+    const [seq] = await db
+      .select({ id: sequences.id })
+      .from(sequences)
+      .where(and(eq(sequences.id, body.sequence_id), eq(sequences.workspaceId, req.auth.workspace.id)))
+      .limit(1);
+    if (!seq) throw Errors.notFound("Sequence not found");
+
+    // The campaign's recipients + whether each opened/clicked, from the audit trail.
+    const recips = await db
+      .select({
+        contactId: messages.toContactId,
+        email: messages.toEmail,
+        opened: sql<number>`count(*) filter (where ${auditEntries.event} = 'opened')`,
+        clicked: sql<number>`count(*) filter (where ${auditEntries.event} = 'clicked')`,
+      })
+      .from(messages)
+      .leftJoin(auditEntries, eq(auditEntries.messageId, messages.id))
+      .where(and(eq(messages.workspaceId, req.auth.workspace.id), eq(messages.campaignId, c.id)))
+      .groupBy(messages.toContactId, messages.toEmail);
+
+    const match = recips.filter((r) => {
+      if (!r.contactId) return false; // enrollment needs a contact record
+      if (body.segment === "all") return true;
+      if (body.segment === "clicked") return r.clicked > 0;
+      if (body.segment === "opened") return r.opened > 0 || r.clicked > 0;
+      return r.opened === 0 && r.clicked === 0; // not_opened
+    });
+
+    // Enroll each, skipping anyone already active in this sequence.
+    let enrolled = 0;
+    for (const r of match) {
+      const [active] = await db
+        .select({ id: sequenceEnrollments.id })
+        .from(sequenceEnrollments)
+        .where(
+          and(
+            eq(sequenceEnrollments.sequenceId, seq.id),
+            eq(sequenceEnrollments.email, r.email.toLowerCase()),
+            eq(sequenceEnrollments.status, "active"),
+          ),
+        )
+        .limit(1);
+      if (active) continue;
+      await db.insert(sequenceEnrollments).values({
+        id: newId("sequenceEnrollment"),
+        sequenceId: seq.id,
+        workspaceId: req.auth.workspace.id,
+        subTenantId,
+        contactId: r.contactId,
+        email: r.email.toLowerCase(),
+        status: "active",
+        currentStep: 0,
+        nextRunAt: new Date(),
+      });
+      enrolled += 1;
+    }
+
+    return reply.status(200).send({ object: "follow_up", sequence_id: seq.id, matched: match.length, enrolled });
   });
 
   app.patch("/v1/campaigns/:id", async (req) => {

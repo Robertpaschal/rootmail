@@ -399,6 +399,8 @@ export const api = {
     rmFetch<CampaignAnalytics>(`/v1/campaigns/${id}/analytics`),
   campaignRecipients: (id: string, q: { limit?: number; offset?: number } = {}) =>
     rmFetch<CampaignRecipientsBrowse>(`/v1/campaigns/${id}/recipients`, { query: q }),
+  campaignFollowUp: (id: string, body: { sequence_id: string; segment: "clicked" | "opened" | "not_opened" | "all" }) =>
+    rmFetch<{ matched: number; enrolled: number }>(`/v1/campaigns/${id}/follow-up`, { method: "POST", body }),
   createCampaign: (body: {
     name: string;
     list_id?: string;

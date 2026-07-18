@@ -10,6 +10,24 @@ export interface CampaignFormState {
   ok?: boolean;
 }
 
+/** Enroll a campaign's engaged (or cold) recipients into a follow-up sequence —
+ * the campaign→sequence bridge. Returns how many were newly enrolled. */
+export async function followUpAction(
+  campaignId: string,
+  sequenceId: string,
+  segment: "clicked" | "opened" | "not_opened" | "all",
+): Promise<{ enrolled?: number; matched?: number; error?: string }> {
+  if (!sequenceId) return { error: "Pick a sequence to follow up with." };
+  try {
+    const res = await api.campaignFollowUp(campaignId, { sequence_id: sequenceId, segment });
+    revalidatePath(`/campaigns/${campaignId}`);
+    return { enrolled: res.enrolled, matched: res.matched };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't start the follow-up." };
+  }
+}
+
 /** One poll of a campaign's live state — status, funnel, and the recipient rows —
  * for the detail page's real-time refresh while a send is in flight or opens/clicks
  * trickle in. Returns null pieces on transient failure so the UI keeps the last good state. */

@@ -40,6 +40,17 @@ export function SequenceBuilder({
   return (
     <Card>
       <CardContent className="p-6">
+        {/* Plain-English mental model so the builder below reads as a journey. */}
+        <div className="mb-5 rounded-lg border bg-muted/30 p-4 text-sm">
+          <p className="font-medium">How a sequence works</p>
+          <ol className="mt-2 space-y-1 text-muted-foreground">
+            <li><span className="font-medium text-foreground">1. A trigger</span> enrolls a contact — manually/API, when they&apos;re created, or when they get a tag. (You can also enroll a campaign&apos;s openers or clickers from that campaign.)</li>
+            <li><span className="font-medium text-foreground">2. Steps</span> run in order: <span className="font-medium text-foreground">Wait</span> pauses for a time, <span className="font-medium text-foreground">Send</span> emails a template, <span className="font-medium text-foreground">Branch</span> jumps ahead if they opened/clicked.</li>
+            <li><span className="font-medium text-foreground">3. It stops on its own</span> the moment they reply — so you never robot-message someone who&apos;s already talking to you.</li>
+          </ol>
+          <p className="mt-2 text-xs text-muted-foreground">Emails send from your verified address, and replies come back to you (Settings → Sending).</p>
+        </div>
+
         <form action={action} className="space-y-5">
           {sequence ? <input type="hidden" name="id" value={sequence.id} /> : null}
           <input type="hidden" name="steps" value={JSON.stringify(steps satisfies SequenceStepDef[])} />

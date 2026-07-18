@@ -10,6 +10,7 @@ import { ApiError, api } from "@/lib/rootmail";
 import type { Campaign, CampaignAnalytics, CampaignRecipient } from "@/lib/types";
 import { deleteCampaign, sendCampaign } from "../actions";
 import { CampaignLive } from "./campaign-live";
+import { FollowUp } from "./follow-up";
 
 export const metadata: Metadata = { title: "Campaign" };
 
@@ -31,10 +32,11 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
-  const [analytics, recipientsRes, sendersRes] = await Promise.all([
+  const [analytics, recipientsRes, sendersRes, sequencesRes] = await Promise.all([
     api.campaignAnalytics(id).catch(() => null as CampaignAnalytics | null),
     api.campaignRecipients(id, { limit: 100 }).catch(() => ({ data: [] as CampaignRecipient[], total: 0 })),
     api.listSenders().catch(() => ({ data: [] })),
+    api.listSequences().catch(() => ({ data: [] })),
   ]);
 
   // The address the campaign sends from (and replies go to): its own, else the
@@ -122,6 +124,13 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           total: recipientsRes.total ?? recipientsRes.data.length,
         }}
       />
+
+      {/* Turn the send into a nurture — enroll engaged (or cold) people into a sequence. */}
+      {campaign.status === "sent" ? (
+        <div className="mt-6">
+          <FollowUp campaignId={campaign.id} sequences={sequencesRes.data.map((s) => ({ id: s.id, name: s.name }))} />
+        </div>
+      ) : null}
     </>
   );
 }
