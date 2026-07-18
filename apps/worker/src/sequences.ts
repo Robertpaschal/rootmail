@@ -24,7 +24,6 @@ interface SendCtx {
   mode: "live" | "test";
   fromEmail: string;
   fromName: string | null;
-  replyTo: string | null;
 }
 
 async function resolveTemplate(seq: Sequence, ref: string) {
@@ -83,7 +82,9 @@ async function buildCtx(enr: SequenceEnrollment): Promise<SendCtx> {
     mode: ws?.environment === "test" ? "test" : "live",
     fromEmail,
     fromName,
-    replyTo: fromEmail === `no-reply@${env.ROOTMAIL_DOMAIN}` ? null : fromEmail,
+    // Reply-To is resolved inside automationSend per the org's reply mode
+    // (capture into the Replies inbox by default) — a drip's replies thread back
+    // to the contact just like every other send.
   };
 }
 

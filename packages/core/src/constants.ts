@@ -711,15 +711,16 @@ export const WING_TIERS: TierDef[] = [
   // BLOCK_BRACKETS rates; org's block count lives on organizations.transactional_blocks).
   // Blocks are pure VOLUME — audit + suppression are baseline; client domains and a
   // dedicated IP are add-ons folded into the purchase.
-  { id: "tx_free", wing: "transactional", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["audit", "suppression"], trialDays: 0, includedSends: FREE_TX_SENDS, blockSize: BLOCK_SIZE, allowOverage: false, overagePer1000: 0, includedSubTenants: 0 },
-  { id: "tx_blocks", wing: "transactional", name: "Send blocks", rank: 1, priceMonthly: BLOCK_BRACKETS[0].perBlock, priceYearly: BLOCK_BRACKETS[0].perBlock * 10, aiCredits: 0, features: ["audit", "suppression"], trialDays: 0, includedSends: 0 /* = blocks × BLOCK_SIZE */, blockSize: BLOCK_SIZE, allowOverage: true, overagePer1000: 0.4, includedSubTenants: 0 },
+  { id: "tx_free", wing: "transactional", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["audit", "suppression", "threads"], trialDays: 0, includedSends: FREE_TX_SENDS, blockSize: BLOCK_SIZE, allowOverage: false, overagePer1000: 0, includedSubTenants: 0 },
+  { id: "tx_blocks", wing: "transactional", name: "Send blocks", rank: 1, priceMonthly: BLOCK_BRACKETS[0].perBlock, priceYearly: BLOCK_BRACKETS[0].perBlock * 10, aiCredits: 0, features: ["audit", "suppression", "threads"], trialDays: 0, includedSends: 0 /* = blocks × BLOCK_SIZE */, blockSize: BLOCK_SIZE, allowOverage: true, overagePer1000: 0.4, includedSubTenants: 0 },
   // Marketing — the CONTACT SIZE is the base; the tier multiplies it into price,
   // monthly sends, and a daily cap (perContactCents / sendsPerContact / dailyPerContact).
   // Objective, enforced dimensions only: audience size (contacts), monthly + daily
   // send volume (contacts × multiplier), the number of distinct audiences, and the
-  // real feature unlocks (campaigns → + sequences + replies inbox). No vague copy.
-  { id: "mk_free", wing: "marketing", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns"], trialDays: 0, includedContacts: FREE_MK_CONTACTS, perThousandCents: 0, sendsPerContact: 2, dailyPerContact: 1, includedAudiences: 1 },
-  { id: "mk_starter", wing: "marketing", name: "Starter", rank: 1, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns"], trialDays: 0, perThousandCents: 1_200, sendsPerContact: 12, dailyPerContact: 1, includedAudiences: 3 },
+  // feature unlocks. The Replies inbox ("threads") is a BASELINE on every tier of
+  // both wings — never lose a reply; sequences are the paid automation on top.
+  { id: "mk_free", wing: "marketing", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns", "threads"], trialDays: 0, includedContacts: FREE_MK_CONTACTS, perThousandCents: 0, sendsPerContact: 2, dailyPerContact: 1, includedAudiences: 1 },
+  { id: "mk_starter", wing: "marketing", name: "Starter", rank: 1, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns", "threads"], trialDays: 0, perThousandCents: 1_200, sendsPerContact: 12, dailyPerContact: 1, includedAudiences: 3 },
   { id: "mk_growth", wing: "marketing", name: "Growth", rank: 2, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns", "sequences", "threads"], trialDays: 0, perThousandCents: 1_800, sendsPerContact: 20, dailyPerContact: 2, includedAudiences: 10 },
   { id: "mk_pro", wing: "marketing", name: "Pro", rank: 3, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["campaigns", "sequences", "threads"], trialDays: 0, perThousandCents: 2_800, sendsPerContact: 40, dailyPerContact: 4, includedAudiences: 50 },
   // Platform — the invisible FREE base every org sits on. Seats/workspaces beyond

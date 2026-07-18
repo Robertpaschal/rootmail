@@ -178,6 +178,12 @@ export const organizations = pgTable("organizations", {
   // Repurposed: the org-level ADD-ONS subscription (Platform-as-a-plan is gone;
   // seats/workspaces/roles/SSO/proof/residency/AI packs all bill here).
   stripePlatformSubscriptionId: text("stripe_platform_subscription_id"),
+  // How replies to this org's mail come back. "inbox" (default) routes replies
+  // through a rootmail-received address (reply+<token>@INBOUND_DOMAIN) so they
+  // land in the per-contact Replies inbox; "own_mailbox" sends replies straight
+  // to the sender's From address (no capture — they land in the user's own mail
+  // client). ("own_domain" — a branded reply subdomain — is Phase 2.)
+  replyMode: text("reply_mode").notNull().default("inbox"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

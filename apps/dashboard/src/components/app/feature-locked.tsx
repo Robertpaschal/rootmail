@@ -86,7 +86,7 @@ const PITCHES: Record<string, { headline: string; capabilities: string[] }> = {
 // The marquee extras that ride along with each wing tier — context for the price.
 const TIER_EXTRAS: Record<string, string> = {
   tx_blocks: "Send blocks also bring client sending domains and volume rates that drop as you grow.",
-  mk_growth: "Marketing Growth also brings sequences, the shared replies inbox, and 10,000 contacts.",
+  mk_growth: "Marketing Growth also brings sequences, 10,000 contacts, and higher daily send limits.",
   mk_pro: "Marketing Pro also brings 50,000 contacts and more AI assistant credits.",
   pf_team: "Platform Team also brings 10 seats, 5 workspaces, and custom roles.",
 };

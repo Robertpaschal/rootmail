@@ -5,6 +5,23 @@ import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 
 export type SenderState = { ok?: boolean; error?: string };
 
+/** Set how replies come back: captured into the Replies inbox, or straight to the
+ * sender's own mailbox. billing.manage. */
+export async function updateReplyMode(mode: "inbox" | "own_mailbox"): Promise<SenderState> {
+  try {
+    await api.updateOrganization({ reply_mode: mode });
+    revalidatePath("/settings/sender");
+    revalidatePath("/inbox");
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 403) {
+      return { error: "Only owners and billing managers can change how replies are handled." };
+    }
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't update reply handling. Please try again." };
+  }
+}
+
 /** Save the org's CAN-SPAM postal address (blank clears it). billing.manage. */
 export async function updateSenderAddress(
   _prev: SenderState,

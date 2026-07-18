@@ -12,7 +12,13 @@ import type {
   Workspace,
 } from "@rootmail/db";
 
-export function serializeThreadMessage(m: ThreadMessage) {
+/** Where an outbound bubble came from, for a chat label. Inbound is always a reply. */
+export interface ThreadMessageSource {
+  kind: "transactional" | "marketing" | "sales" | "campaign" | "sequence" | "reply" | "message";
+  subject?: string | null;
+}
+
+export function serializeThreadMessage(m: ThreadMessage, source?: ThreadMessageSource) {
   return {
     id: m.id,
     object: "thread_message",
@@ -23,20 +29,32 @@ export function serializeThreadMessage(m: ThreadMessage) {
     body_html: m.bodyHtml,
     body_text: m.bodyText,
     created_at: m.createdAt,
+    // A plain-English source ("Campaign", "Sequence", "Reply") + the send's subject,
+    // so each bubble reads like a labeled message in a chat.
+    kind: source?.kind ?? (m.direction === "inbound" ? "reply" : "message"),
+    subject: source?.subject ?? null,
   };
 }
 
-export function serializeThread(t: Thread, msgs?: ThreadMessage[]) {
+export interface ThreadExtras {
+  contactName?: string | null;
+  preview?: string | null;
+  source?: (m: ThreadMessage) => ThreadMessageSource | undefined;
+}
+
+export function serializeThread(t: Thread, msgs?: ThreadMessage[], extra?: ThreadExtras) {
   return {
     id: t.id,
     object: "thread",
     subject: t.subject,
     status: t.status,
     contact_email: t.contactEmail,
+    contact_name: extra?.contactName ?? null,
+    preview: extra?.preview ?? null,
     sub_tenant_id: t.subTenantId,
     last_message_at: t.lastMessageAt,
     created_at: t.createdAt,
-    ...(msgs ? { messages: msgs.map(serializeThreadMessage) } : {}),
+    ...(msgs ? { messages: msgs.map((m) => serializeThreadMessage(m, extra?.source?.(m))) } : {}),
   };
 }
 

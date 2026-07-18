@@ -217,6 +217,8 @@ export interface Organization {
   data_region: string;
   dedicated_ip_status: "none" | "requested" | "active";
   dedicated_ip_address: string | null;
+  /** How replies come back: "inbox" (captured into the Replies inbox) or "own_mailbox". */
+  reply_mode: "inbox" | "own_mailbox";
   business_types: string[];
   previous_provider: string | null;
   onboarding_completed: boolean;
@@ -745,6 +747,15 @@ export interface MfaActivated {
 
 export type ThreadStatus = "open" | "needs_reply" | "closed";
 
+export type ThreadMessageKind =
+  | "transactional"
+  | "marketing"
+  | "sales"
+  | "campaign"
+  | "sequence"
+  | "reply"
+  | "message";
+
 export interface ThreadMessage {
   id: string;
   object: "thread_message";
@@ -755,6 +766,10 @@ export interface ThreadMessage {
   body_html: string | null;
   body_text: string | null;
   created_at: string;
+  /** Where an outbound bubble came from (Campaign / Sequence / a plain send); inbound is "reply". */
+  kind: ThreadMessageKind;
+  /** The send's subject, for the bubble's label. */
+  subject: string | null;
 }
 
 export interface Thread {
@@ -763,6 +778,10 @@ export interface Thread {
   subject: string;
   status: ThreadStatus;
   contact_email: string;
+  /** The contact's display name, when we know it. */
+  contact_name: string | null;
+  /** A short last-message preview for the conversation list. */
+  preview: string | null;
   sub_tenant_id: string | null;
   last_message_at: string;
   created_at: string;

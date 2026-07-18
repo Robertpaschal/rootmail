@@ -9,7 +9,7 @@ import {
 import { auditEntries, db, type Message, messages, threads } from "@rootmail/db";
 import { addSuppression } from "./queries";
 import { exitEnrollments } from "./sequence-triggers";
-import { appendInbound } from "./threads";
+import { appendInbound } from "@rootmail/db";
 
 // ---------------------------------------------------------------------------
 // Amazon SES feedback notifications (Bounce / Complaint / Delivery), delivered

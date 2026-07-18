@@ -29,13 +29,16 @@ export async function OnboardingChecklist() {
   let lists = 0;
   let templates = 0;
   let messages = 0;
+  let replyDecided = false;
   try {
-    const [me, snd, l, t, m] = await Promise.all([
+    const [me, snd, l, t, m, org, threads] = await Promise.all([
       api.me(),
       api.listSenders(),
       api.listLists(),
       api.listTemplates(),
       api.listMessages({ limit: 1 }),
+      api.getOrganization().catch(() => null),
+      api.listThreads().catch(() => ({ data: [] })),
     ]);
     emailVerified = me.user.email_verified;
     onboarded = me.onboarding_completed ?? true; // undefined (older API) → don't nag
@@ -43,6 +46,9 @@ export async function OnboardingChecklist() {
     lists = l.data.length;
     templates = t.data.length;
     messages = m.data.length;
+    // "Done" once they've either chosen to handle replies in their own mailbox or
+    // actually have a conversation flowing into the inbox.
+    replyDecided = org?.reply_mode === "own_mailbox" || threads.data.length > 0;
   } catch {
     return null;
   }
@@ -94,6 +100,13 @@ export async function OnboardingChecklist() {
       desc: "Compose and send from a real email surface.",
       href: "/messages/new",
       minutes: 2,
+    },
+    {
+      done: replyDecided,
+      label: "Set up your Replies inbox",
+      desc: "When people reply, it lands here as a conversation with them — one space per contact. Pick whether replies come here or straight to your own mailbox.",
+      href: "/settings/sender",
+      minutes: 1,
     },
   ];
 

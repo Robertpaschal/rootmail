@@ -1,20 +1,26 @@
-import { and, asc, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { enqueueWebhookEvent, Errors, THREAD_STATUSES } from "@rootmail/core";
-import { db, organizations, type Thread, threadMessages, threads } from "@rootmail/db";
-import { assertCanSend } from "../lib/billing";
-import { requireFeature } from "../lib/features";
-import { authActor, dispatchMessage } from "../lib/dispatch";
-import { exitEnrollments } from "../lib/sequence-triggers";
 import {
   appendInbound,
   appendOutbound,
+  contacts,
+  db,
   findThreadForReply,
+  messages,
+  organizations,
+  resolveReplyTo,
+  type Thread,
+  threadMessages,
   threadReplyFrom,
-} from "../lib/threads";
+  threads,
+} from "@rootmail/db";
+import { assertCanSend } from "../lib/billing";
+import { authActor, dispatchMessage } from "../lib/dispatch";
+import { exitEnrollments } from "../lib/sequence-triggers";
 import { requirePermission } from "../lib/permissions";
-import { serializeThread } from "../lib/serialize";
+import { serializeThread, type ThreadMessageSource } from "../lib/serialize";
 import { parse } from "../lib/validate";
 
 function escapeHtml(s: string): string {
@@ -70,11 +76,10 @@ async function getScopedThread(req: FastifyRequest, id: string): Promise<Thread>
 }
 
 export async function threadRoutes(app: FastifyInstance): Promise<void> {
-  // Conversation (Layer 2) is a Pro+ capability. Gate the whole plugin — the
-  // hook runs after the global auth hook has populated req.auth.
-  app.addHook("preHandler", async (req) => {
-    await requireFeature(req, "threads");
-  });
+  // The Replies inbox is a platform baseline — every sender can see and answer
+  // their replies, both wings, no plan gate ("never lose a reply"). Advanced reply
+  // automation (drip auto-exit, webhook routing of received replies) rides on the
+  // paid marketing tiers, but the inbox itself is always on.
 
   // --- List ---------------------------------------------------------------
   app.get("/v1/threads", async (req) => {
@@ -90,7 +95,41 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
       .where(and(...conditions))
       .orderBy(desc(threads.lastMessageAt))
       .limit(q.limit);
-    return { object: "list", data: rows.map((t) => serializeThread(t)) };
+
+    // Enrich each conversation with the contact's name + a last-message preview so
+    // the list reads like a messaging app (who + the gist), not a bare table.
+    const emails = [...new Set(rows.map((t) => t.contactEmail))];
+    const nameByEmail = new Map<string, string | null>();
+    if (emails.length) {
+      const cs = await db
+        .select({ email: contacts.email, name: contacts.name })
+        .from(contacts)
+        .where(and(eq(contacts.workspaceId, req.auth.workspace.id), inArray(contacts.email, emails)));
+      for (const c of cs) nameByEmail.set(c.email, c.name);
+    }
+    const tids = rows.map((t) => t.id);
+    const previewByThread = new Map<string, string>();
+    if (tids.length) {
+      const ms = await db
+        .select({ threadId: threadMessages.threadId, bodyText: threadMessages.bodyText, bodyHtml: threadMessages.bodyHtml })
+        .from(threadMessages)
+        .where(inArray(threadMessages.threadId, tids))
+        .orderBy(desc(threadMessages.createdAt));
+      for (const m of ms) {
+        if (previewByThread.has(m.threadId)) continue;
+        const text = (m.bodyText ?? m.bodyHtml?.replace(/<[^>]+>/g, " ") ?? "").replace(/\s+/g, " ").trim();
+        previewByThread.set(m.threadId, text.slice(0, 140));
+      }
+    }
+    return {
+      object: "list",
+      data: rows.map((t) =>
+        serializeThread(t, undefined, {
+          contactName: nameByEmail.get(t.contactEmail) ?? null,
+          preview: previewByThread.get(t.id) ?? null,
+        }),
+      ),
+    };
   });
 
   // --- Retrieve (with messages) -------------------------------------------
@@ -102,7 +141,38 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
       .from(threadMessages)
       .where(eq(threadMessages.threadId, thread.id))
       .orderBy(asc(threadMessages.createdAt));
-    return serializeThread(thread, msgs);
+
+    // Label each outbound bubble with where it came from (Campaign / Sequence /
+    // a plain send) + its subject, by joining the messages it links to.
+    const mids = msgs.map((m) => m.messageId).filter((x): x is string => !!x);
+    const srcById = new Map<string, { type: string; campaignId: string | null; sequenceId: string | null; subject: string }>();
+    if (mids.length) {
+      const srcRows = await db
+        .select({ id: messages.id, type: messages.type, campaignId: messages.campaignId, sequenceId: messages.sequenceId, subject: messages.subject })
+        .from(messages)
+        .where(inArray(messages.id, mids));
+      for (const s of srcRows) srcById.set(s.id, s);
+    }
+    const source = (m: (typeof msgs)[number]): ThreadMessageSource => {
+      if (m.direction === "inbound") return { kind: "reply", subject: null };
+      const s = m.messageId ? srcById.get(m.messageId) : undefined;
+      const kind: ThreadMessageSource["kind"] = s?.campaignId
+        ? "campaign"
+        : s?.sequenceId
+          ? "sequence"
+          : s?.type === "marketing" || s?.type === "sales" || s?.type === "transactional"
+            ? s.type
+            : "message";
+      return { kind, subject: s?.subject ?? thread.subject };
+    };
+
+    const [c] = await db
+      .select({ name: contacts.name })
+      .from(contacts)
+      .where(and(eq(contacts.workspaceId, thread.workspaceId), eq(contacts.email, thread.contactEmail)))
+      .limit(1);
+
+    return serializeThread(thread, msgs, { contactName: c?.name ?? null, source });
   });
 
   // --- Reply --------------------------------------------------------------
@@ -136,7 +206,9 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
       type: "transactional",
       to: thread.contactEmail,
       fromEmail,
-      replyTo: fromEmail,
+      // Keep the conversation captured: the recipient's next reply should route
+      // back here too, honoring the org's reply mode (not silently to the sender).
+      replyTo: resolveReplyTo({ replyMode: org?.replyMode ?? null, conversationId: thread.id, fromEmail }),
       subject,
       html,
       text: body.text ?? null,

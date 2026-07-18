@@ -24,7 +24,9 @@ import {
   messages,
   type Message,
   type MessageAttachment,
+  openConversationForSend,
   organizations,
+  resolveReplyTo,
   subTenants,
   type SubTenant,
   type Workspace,
@@ -43,7 +45,6 @@ import {
 import { requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { defaultSenderFor, verifiedSenderFor } from "../lib/senders";
-import { openThreadForSend, threadReplyAddress } from "../lib/threads";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
 import { serializeAudit, serializeMessage } from "../lib/serialize";
 import { parse } from "../lib/validate";
@@ -323,10 +324,10 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         toContactId: contact?.id ?? null,
         fromEmail: from.email,
         fromName: from.name ?? null,
-        // Replies go to the sender's own address when they send as themselves (a
-        // verified From) — not rootmail. When From is the rootmail no-reply, this
-        // stays null so the thread reply-alias below captures replies in-app.
-        replyTo: body.reply_to ?? (from.email === `no-reply@${env.ROOTMAIL_DOMAIN}` ? null : from.email),
+        // Only an explicit caller Reply-To is stamped here; the org's reply mode
+        // (capture into the Replies inbox vs. the sender's own mailbox) is resolved
+        // once the conversation is opened below.
+        replyTo: body.reply_to ?? null,
         subject: rendered.subject,
         templateId,
         templateVersion,
@@ -371,25 +372,33 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
 
     const message = insertedRows[0];
 
-    // Open a conversation thread (Layer 2) — best-effort, never fails the send.
-    let thread: Awaited<ReturnType<typeof openThreadForSend>> | undefined;
+    // Roll this send into the recipient's conversation (Layer 2) and stamp the
+    // Reply-To per the org's reply mode — capture into the Replies inbox by
+    // default, the sender's own mailbox if they chose that, an explicit Reply-To
+    // always wins. Best-effort: threading never fails the send.
     try {
-      thread = await openThreadForSend(message);
+      const thread = await openConversationForSend({
+        workspaceId: workspace.id,
+        subTenantId,
+        contactEmail: toEmail,
+        subject: rendered.subject,
+        fromEmail: from.email,
+        messageId: message.id,
+        bodyHtml: rendered.html,
+        bodyText: rendered.text,
+      });
+      const replyTo = resolveReplyTo({
+        replyMode: org?.replyMode ?? null,
+        conversationId: thread.id,
+        fromEmail: from.email,
+        explicit: body.reply_to ?? null,
+      });
+      if (replyTo !== message.replyTo) {
+        await db.update(messages).set({ replyTo, updatedAt: new Date() }).where(eq(messages.id, message.id));
+        message.replyTo = replyTo;
+      }
     } catch {
       /* threading is non-critical to the send */
-    }
-
-    // Route replies back to us so the SES inbound webhook can match them to this
-    // thread — unless the caller supplied an explicit Reply-To.
-    if (thread && !message.replyTo) {
-      const replyAddr = threadReplyAddress(thread.id);
-      if (replyAddr) {
-        await db
-          .update(messages)
-          .set({ replyTo: replyAddr, updatedAt: new Date() })
-          .where(eq(messages.id, message.id));
-        message.replyTo = replyAddr;
-      }
     }
 
     await writeAudit(db, {

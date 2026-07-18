@@ -530,7 +530,7 @@ export const api = {
     rmFetch<{ is_default: boolean }>(`/v1/senders/${id}/default`, { method: "POST" }),
   deleteSender: (id: string) =>
     rmFetch<{ deleted: boolean }>(`/v1/senders/${id}`, { method: "DELETE" }),
-  updateOrganization: (body: { name?: string; postal_address?: string | null }) =>
+  updateOrganization: (body: { name?: string; postal_address?: string | null; reply_mode?: "inbox" | "own_mailbox" }) =>
     rmFetch<Organization>("/v1/organization", { method: "PATCH", body }),
 
   // In-app "talk to a human": sales (Enterprise/custom) + support. Lands in the

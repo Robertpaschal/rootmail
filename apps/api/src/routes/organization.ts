@@ -21,6 +21,9 @@ const updateBody = z.object({
   name: z.string().min(1).max(120).optional(),
   // The CAN-SPAM postal address shown in marketing/sales footers. null clears it.
   postal_address: z.string().max(500).nullable().optional(),
+  // How replies come back: "inbox" (capture into the Replies inbox) or
+  // "own_mailbox" (replies go straight to the sender's own From address).
+  reply_mode: z.enum(["inbox", "own_mailbox"]).optional(),
 });
 
 const deleteBody = z.object({ confirm: z.string() });
@@ -37,6 +40,8 @@ function serialize(org: Organization) {
     // Dedicated-IP add-on provisioning status (none | requested | active).
     dedicated_ip_status: org.dedicatedIpStatus,
     dedicated_ip_address: org.dedicatedIpAddress,
+    // How replies come back (inbox = captured into the Replies inbox).
+    reply_mode: org.replyMode,
     // Onboarding profile — powers personalization + the migration nudge.
     business_types: org.businessTypes,
     previous_provider: org.previousProvider,
@@ -69,6 +74,7 @@ export async function organizationRoutes(app: FastifyInstance): Promise<void> {
       .set({
         name: body.name ?? org.name,
         postalAddress: body.postal_address !== undefined ? body.postal_address : org.postalAddress,
+        replyMode: body.reply_mode ?? org.replyMode,
         updatedAt: new Date(),
       })
       .where(eq(organizations.id, org.id))

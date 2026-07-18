@@ -3,6 +3,7 @@ import { ConnectionError as ConnectionErrorCard } from "@/components/app/connect
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { SenderIdentity } from "@/lib/types";
+import { ReplySettings } from "./reply-settings";
 import { SenderForm } from "./sender-form";
 import { SendersManager } from "./senders-manager";
 
@@ -14,6 +15,7 @@ export const metadata: Metadata = { title: "Sending · Settings" };
 export default async function SenderSettingsPage() {
   let postal = "";
   let orgName = "";
+  let replyMode: "inbox" | "own_mailbox" = "inbox";
   let senders: SenderIdentity[] = [];
   try {
     const [org, sn] = await Promise.all([
@@ -22,6 +24,7 @@ export default async function SenderSettingsPage() {
     ]);
     postal = org.postal_address ?? "";
     orgName = org.name;
+    replyMode = org.reply_mode;
     senders = sn.data;
   } catch (err) {
     return (
@@ -49,6 +52,20 @@ export default async function SenderSettingsPage() {
         </CardHeader>
         <CardContent>
           <SendersManager senders={senders} />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">When people reply</CardTitle>
+          <CardDescription>
+            Every email opens a conversation. Choose where a reply goes when someone writes back — into
+            your <strong>Replies</strong> inbox here (one thread per person, answer in-app), or straight
+            to your own mailbox.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ReplySettings initial={replyMode} />
         </CardContent>
       </Card>
 

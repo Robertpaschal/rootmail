@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "reply_mode" text DEFAULT 'inbox' NOT NULL;

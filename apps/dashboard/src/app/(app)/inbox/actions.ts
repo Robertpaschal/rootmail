@@ -2,37 +2,45 @@
 
 import { revalidatePath } from "next/cache";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
+import type { Thread } from "@/lib/types";
 
-export interface ReplyState {
-  error?: string;
-  sent?: boolean;
+/** Load one conversation (with its messages) for the right-hand pane. */
+export async function loadConversation(id: string): Promise<Thread | null> {
+  if (!id) return null;
+  try {
+    return await api.getThread(id);
+  } catch {
+    return null;
+  }
 }
 
-export async function reply(_prev: ReplyState | null, formData: FormData): Promise<ReplyState> {
-  const id = String(formData.get("thread_id") ?? "");
-  const text = String(formData.get("text") ?? "").trim();
-  if (!id) return { error: "Missing thread." };
-  if (!text) return { error: "Write a reply first." };
-
+/** Send a reply into a conversation, then return the refreshed thread so the pane
+ * updates in place (no full navigation). */
+export async function sendReply(id: string, text: string): Promise<{ thread?: Thread; error?: string }> {
+  if (!id) return { error: "Missing conversation." };
+  if (!text.trim()) return { error: "Write a reply first." };
   try {
-    await api.replyThread(id, { text });
+    await api.replyThread(id, { text: text.trim() });
+    const thread = await api.getThread(id);
+    revalidatePath("/inbox");
+    return { thread };
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
     return { error: "Failed to send the reply." };
   }
-  revalidatePath(`/inbox/${id}`);
-  revalidatePath("/inbox");
-  return { sent: true };
 }
 
-export async function simulateReply(formData: FormData): Promise<void> {
-  const id = String(formData.get("thread_id") ?? "");
-  if (!id) return;
+/** Testing helper: drop a simulated inbound reply into a conversation so the owner
+ * can see the round-trip without waiting for a real email. */
+export async function simulateInbound(id: string): Promise<{ thread?: Thread; error?: string }> {
+  if (!id) return { error: "Missing conversation." };
   try {
     await api.simulateReply(id, {});
-  } catch {
-    // Best-effort demo helper.
+    const thread = await api.getThread(id);
+    revalidatePath("/inbox");
+    return { thread };
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't simulate a reply." };
   }
-  revalidatePath(`/inbox/${id}`);
-  revalidatePath("/inbox");
 }

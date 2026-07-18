@@ -14,7 +14,7 @@ import {
   WEBHOOK_EVENTS,
   wingBrandingRequired,
 } from "@rootmail/core";
-import { auditEntries, contacts, db, marketingDailyUsage, messages, organizations, suppressions, usageRecords } from "@rootmail/db";
+import { auditEntries, contacts, db, marketingDailyUsage, messages, openConversationForSend, organizations, resolveReplyTo, suppressions, usageRecords } from "@rootmail/db";
 
 // Shared send primitive for worker-driven automation (sequences + campaigns).
 // Mirrors the API's dispatchMessage (apps/api/src/lib/dispatch.ts) but lives in
@@ -98,6 +98,7 @@ export async function automationSend(
     marketingTier: string | null;
   } | null = null;
   let postalAddress: string | null = null;
+  let orgReplyMode: string | null = null;
   if (input.organizationId) {
     const [o] = await db
       .select({
@@ -105,6 +106,7 @@ export async function automationSend(
         transactionalBlocks: organizations.transactionalBlocks,
         marketingTier: organizations.marketingTier,
         a: organizations.postalAddress,
+        replyMode: organizations.replyMode,
       })
       .from(organizations)
       .where(eq(organizations.id, input.organizationId))
@@ -117,6 +119,7 @@ export async function automationSend(
         }
       : null;
     postalAddress = o?.a ?? null;
+    orgReplyMode = o?.replyMode ?? null;
   }
   if (input.type === "marketing" || input.type === "sales") {
     rendered = {
@@ -176,6 +179,35 @@ export async function automationSend(
     status: suppressed ? "suppressed" : "queued",
     sandbox: input.mode === "test",
   });
+
+  // Roll this send into the recipient's conversation (Layer 2) and stamp the
+  // Reply-To per the org's reply mode — capture into the Replies inbox by default
+  // so campaign/sequence replies are threaded too, the sender's own mailbox if
+  // they chose that. Best-effort: threading never fails the send. (Skip suppressed
+  // — they were never really sent.)
+  if (!suppressed) {
+    try {
+      const thread = await openConversationForSend({
+        workspaceId: input.workspaceId,
+        subTenantId: input.subTenantId,
+        contactEmail: input.to,
+        subject: rendered.subject,
+        fromEmail: input.fromEmail,
+        messageId: id,
+        bodyHtml: rendered.html,
+        bodyText: rendered.text,
+      });
+      const replyTo = resolveReplyTo({
+        replyMode: orgReplyMode,
+        conversationId: thread.id,
+        fromEmail: input.fromEmail,
+        explicit: input.replyTo ?? null,
+      });
+      if (replyTo) await db.update(messages).set({ replyTo, updatedAt: new Date() }).where(eq(messages.id, id));
+    } catch {
+      /* threading is non-critical to the send */
+    }
+  }
 
   if (input.mode === "live" && input.organizationId) {
     // Per-wing metering (bulk path): transactional feeds the block meter; marketing/

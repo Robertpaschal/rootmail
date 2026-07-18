@@ -62,6 +62,7 @@ const SHARED_TOP: NavItem[] = [
 
 const TRANSACTIONAL_ITEMS: NavItem[] = [
   { href: "/messages", label: "Messages", icon: Mail },
+  { href: "/inbox", label: "Replies", icon: Inbox },
   { href: "/templates", label: "Templates & blocks", icon: FileText },
   { href: "/api-keys", label: "API keys", icon: KeyRound },
   { href: "/webhooks", label: "Webhooks", icon: Webhook },
@@ -95,7 +96,9 @@ const SHARED_WORKSPACE: NavGroup = {
 // Routes that belong exclusively to one wing — landing on them selects it. Content
 // tools (/templates) live in both wings, so they don't force a switch.
 const TX_ROUTES = ["/messages", "/api-keys", "/webhooks", "/deliverability", "/sub-tenants", "/test-inbox", "/docs"];
-const MK_ROUTES = ["/campaigns", "/sequences", "/inbox", "/contacts", "/lists", "/import", "/analytics"];
+const MK_ROUTES = ["/campaigns", "/sequences", "/contacts", "/lists", "/import", "/analytics"];
+// /inbox (Replies) is a shared, cross-wing surface — like /templates it lives in
+// both wings and never forces a wing switch.
 
 function wingForPath(p: string): Wing | null {
   const hit = (routes: string[]) => routes.some((h) => p === h || p.startsWith(`${h}/`));
