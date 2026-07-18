@@ -14,6 +14,20 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Get replies on your own domain",
+    date: "2026-07-18",
+    changes: [
+      {
+        kind: "New",
+        text: "Own a domain? Have replies come back on it — recipients reply to reply.yourcompany.com instead of a rootmail address, and it still lands in your Replies inbox. Add the subdomain under Settings → Sending, publish the two DNS records we show you (MX + TXT), and verify.",
+      },
+      {
+        kind: "Improved",
+        text: "Nothing breaks while you set it up: until your domain is switched on, replies keep coming to your rootmail inbox, so you never miss one mid-migration.",
+      },
+    ],
+  },
+  {
     title: "Replies, done right — a conversation with every contact",
     date: "2026-07-18",
     changes: [
