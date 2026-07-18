@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Replies, done right — a conversation with every contact",
+    date: "2026-07-18",
+    changes: [
+      {
+        kind: "New",
+        text: "The Replies inbox is now a real messaging space: one conversation per contact, like a chat. Everything you've sent them — a campaign, a drip, a one-off — sits in their thread, each message labeled by where it came from, and you answer right in the app.",
+      },
+      {
+        kind: "Improved",
+        text: "Replies actually come back to you now. Choose under Settings → Sending whether a reply lands in your Replies inbox (recommended — nothing disappears into a no-reply void) or goes straight to your own mailbox. It applies to transactional email, campaigns, and sequences alike.",
+      },
+      {
+        kind: "New",
+        text: "The Replies inbox is now included on every plan, both wings — never lose a reply, whatever you're sending. It's in the transactional side too, not just marketing.",
+      },
+      {
+        kind: "Improved",
+        text: "New setup help: a plain-English “When people reply” card in Settings, and a “Set up your Replies inbox” step on your Overview, so it's clear where replies go before you send.",
+      },
+    ],
+  },
+  {
     title: "See a campaign land in real time — then turn it into a nurture",
     date: "2026-07-18",
     changes: [
