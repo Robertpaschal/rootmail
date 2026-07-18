@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { SenderIdentity } from "@/lib/types";
+import type { Organization, SenderIdentity } from "@/lib/types";
+import { OwnReplyDomain } from "./own-reply-domain";
 import { ReplySettings } from "./reply-settings";
 import { SenderForm } from "./sender-form";
 import { SendersManager } from "./senders-manager";
@@ -13,18 +14,14 @@ export const metadata: Metadata = { title: "Sending · Settings" };
 // mail carries your name, and replies land in your real inbox) and the postal
 // address anti-spam law requires on marketing mail.
 export default async function SenderSettingsPage() {
-  let postal = "";
-  let orgName = "";
-  let replyMode: "inbox" | "own_mailbox" = "inbox";
+  let org: Organization;
   let senders: SenderIdentity[] = [];
   try {
-    const [org, sn] = await Promise.all([
+    const [o, sn] = await Promise.all([
       api.getOrganization(),
       api.listSenders().catch(() => ({ data: [] as SenderIdentity[] })),
     ]);
-    postal = org.postal_address ?? "";
-    orgName = org.name;
-    replyMode = org.reply_mode;
+    org = o;
     senders = sn.data;
   } catch (err) {
     return (
@@ -64,8 +61,16 @@ export default async function SenderSettingsPage() {
             to your own mailbox.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <ReplySettings initial={replyMode} />
+        <CardContent className="space-y-5">
+          <ReplySettings initial={org.reply_mode} />
+          <div className="border-t pt-5">
+            <p className="mb-1 text-sm font-medium">Replies on your own domain <span className="font-normal text-muted-foreground">· optional</span></p>
+            <p className="mb-3 text-xs text-muted-foreground">
+              By default replies come in on a rootmail address. Point a subdomain of yours at us and recipients reply to
+              your brand instead — still captured in the inbox above.
+            </p>
+            <OwnReplyDomain initial={org} />
+          </div>
         </CardContent>
       </Card>
 
@@ -73,7 +78,7 @@ export default async function SenderSettingsPage() {
         <CardHeader>
           <CardTitle className="text-base">Postal address</CardTitle>
           <CardDescription>
-            The physical postal address for {orgName || "your organization"}, added automatically —
+            The physical postal address for {org.name || "your organization"}, added automatically —
             with the unsubscribe link — to the footer of every <strong>marketing</strong> and{" "}
             <strong>sales</strong> send, as anti-spam law requires. Receipts and other transactional
             mail never get the footer. A street address, P.O. box, or registered agent address all
@@ -81,7 +86,7 @@ export default async function SenderSettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <SenderForm initial={postal} />
+          <SenderForm initial={org.postal_address ?? ""} />
         </CardContent>
       </Card>
     </div>

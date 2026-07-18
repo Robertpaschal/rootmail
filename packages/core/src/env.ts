@@ -79,6 +79,11 @@ const EnvSchema = z.object({
   // sends set Reply-To to reply+<threadId>@<INBOUND_DOMAIN>; the SES inbound
   // webhook parses the thread id back out. Unset → reply capture is off.
   INBOUND_DOMAIN: z.string().optional(),
+  // The mail host a customer's own reply subdomain (reply.theirco.com) must point
+  // its MX record at so replies route into rootmail's inbound. This is the SES
+  // receiving endpoint for the region; the owner still creates the SES receipt
+  // rule per activated domain (staff flips the org to active afterwards).
+  INBOUND_MX_HOST: z.string().default("inbound-smtp.us-east-1.amazonaws.com"),
 
   SENDGRID_API_KEY: z.string().optional(),
 

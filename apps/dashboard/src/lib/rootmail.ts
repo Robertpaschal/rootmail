@@ -47,6 +47,7 @@ import type {
   MfaActivated,
   OnboardingInput,
   Organization,
+  ReplyDomainCheck,
   MfaSetup,
   Message,
   MessageStatus,
@@ -532,6 +533,16 @@ export const api = {
     rmFetch<{ deleted: boolean }>(`/v1/senders/${id}`, { method: "DELETE" }),
   updateOrganization: (body: { name?: string; postal_address?: string | null; reply_mode?: "inbox" | "own_mailbox" }) =>
     rmFetch<Organization>("/v1/organization", { method: "PATCH", body }),
+
+  /** Set (or clear with null) the branded reply subdomain. */
+  setReplyDomain: (domain: string | null) =>
+    rmFetch<Organization>("/v1/organization/reply-domain", { method: "POST", body: { domain } }),
+
+  /** Check the reply domain's DNS records are live. */
+  verifyReplyDomain: () =>
+    rmFetch<{ ok: boolean; checks: ReplyDomainCheck[]; organization: Organization }>("/v1/organization/reply-domain/verify", {
+      method: "POST",
+    }),
 
   // In-app "talk to a human": sales (Enterprise/custom) + support. Lands in the
   // admin Leads inbox. The public leads endpoint (noAuth) — the action attaches org context.

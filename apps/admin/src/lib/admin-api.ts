@@ -224,6 +224,11 @@ export const adminApi = {
       method: "PATCH",
       body: { status, address: address ?? null },
     }),
+  setReplyDomainStatus: (id: string, status: "none" | "pending" | "active") =>
+    adminFetch<{ status: string; domain: string | null }>(`/v1/admin/orgs/${id}/reply-domain`, {
+      method: "PATCH",
+      body: { status },
+    }),
 
   listOrgSuppressions: (id: string, limit = 50) =>
     adminFetch<ListResponse<Suppression>>(`/v1/admin/orgs/${id}/suppressions?limit=${limit}`),

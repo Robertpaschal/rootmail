@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { Errors } from "@rootmail/core";
+import { Errors, replyDnsRecords, verifyReplyDns } from "@rootmail/core";
 import {
   contacts,
   db,
@@ -42,6 +43,12 @@ function serialize(org: Organization) {
     dedicated_ip_address: org.dedicatedIpAddress,
     // How replies come back (inbox = captured into the Replies inbox).
     reply_mode: org.replyMode,
+    // Branded own-domain replies: the subdomain, its status, whether DNS is
+    // verified, and the exact records to publish.
+    reply_domain: org.replyDomain,
+    reply_domain_status: org.replyDomainStatus,
+    reply_domain_verified: org.replyDomainVerifiedAt != null,
+    reply_dns_records: org.replyDomain ? replyDnsRecords(org.replyDomain, org.replyDomainToken ?? "") : [],
     // Onboarding profile — powers personalization + the migration nudge.
     business_types: org.businessTypes,
     previous_provider: org.previousProvider,
@@ -80,6 +87,75 @@ export async function organizationRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(organizations.id, org.id))
       .returning();
     return serialize(updated);
+  });
+
+  // --- Branded own-domain replies -----------------------------------------
+  // Set (or replace/clear) the reply subdomain a customer wants replies to come
+  // back on. Setting a new domain resets it to "pending" with a fresh ownership
+  // token; verifying DNS then flags it; staff flip it to "active" once the SES
+  // receipt rule exists. Reply-to keeps using the shared address until then.
+  const replyDomainBody = z.object({
+    // A subdomain like "reply.acme.com" — or null/"" to remove it.
+    domain: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .max(253)
+      .regex(/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i, "Enter a valid subdomain, e.g. reply.yourcompany.com")
+      .nullable(),
+  });
+
+  app.post("/v1/organization/reply-domain", async (req) => {
+    await requirePermission(req, "billing.manage");
+    const org = await loadOrg(req);
+    const { domain } = parse(replyDomainBody, req.body);
+
+    if (!domain) {
+      const [updated] = await db
+        .update(organizations)
+        .set({ replyDomain: null, replyDomainToken: null, replyDomainStatus: "none", replyDomainVerifiedAt: null, updatedAt: new Date() })
+        .where(eq(organizations.id, org.id))
+        .returning();
+      return serialize(updated);
+    }
+
+    // Same domain already set → no-op (keep its token/status).
+    if (domain === org.replyDomain) return serialize(org);
+
+    const [updated] = await db
+      .update(organizations)
+      .set({
+        replyDomain: domain,
+        replyDomainToken: randomUUID().replace(/-/g, ""),
+        replyDomainStatus: "pending",
+        replyDomainVerifiedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(organizations.id, org.id))
+      .returning();
+    return serialize(updated);
+  });
+
+  app.post("/v1/organization/reply-domain/verify", async (req) => {
+    await requirePermission(req, "billing.manage");
+    const org = await loadOrg(req);
+    if (!org.replyDomain || !org.replyDomainToken) throw Errors.badRequest("Add a reply domain first.");
+
+    const result = await verifyReplyDns(org.replyDomain, org.replyDomainToken);
+    // DNS passing marks it verified (awaiting our activation); it never regresses
+    // an already-active domain. Failing clears the verified flag.
+    if (result.ok && org.replyDomainStatus !== "active") {
+      await db
+        .update(organizations)
+        .set({ replyDomainVerifiedAt: new Date(), updatedAt: new Date() })
+        .where(eq(organizations.id, org.id));
+    } else if (!result.ok && org.replyDomainStatus === "pending") {
+      await db
+        .update(organizations)
+        .set({ replyDomainVerifiedAt: null, updatedAt: new Date() })
+        .where(eq(organizations.id, org.id));
+    }
+    return { object: "reply_domain_verification", ok: result.ok, checks: result.checks, organization: serialize(await loadOrg(req)) };
   });
 
   // --- Post-signup onboarding ----------------------------------------------

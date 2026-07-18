@@ -23,6 +23,21 @@ export async function setDedicatedIp(
   }
 }
 
+/** Activate (or revert) an org's branded reply domain once the SES receipt rule exists. */
+export async function setReplyDomainStatus(
+  orgId: string,
+  status: "none" | "pending" | "active",
+): Promise<{ error?: string }> {
+  try {
+    await adminApi.setReplyDomainStatus(orgId, status);
+    revalidatePath(`/orgs/${orgId}`);
+    return {};
+  } catch (e) {
+    if (e instanceof ApiError) return { error: e.message };
+    return { error: "Couldn't update the reply domain." };
+  }
+}
+
 /** Grant a goodwill account credit (superadmin only). */
 export async function grantCredit(_prev: CreditState, formData: FormData): Promise<CreditState> {
   const orgId = String(formData.get("orgId") ?? "");

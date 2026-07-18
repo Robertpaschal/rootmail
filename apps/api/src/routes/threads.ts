@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { enqueueWebhookEvent, Errors, THREAD_STATUSES } from "@rootmail/core";
 import {
+  activeReplyDomain,
   appendInbound,
   appendOutbound,
   contacts,
@@ -208,7 +209,12 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
       fromEmail,
       // Keep the conversation captured: the recipient's next reply should route
       // back here too, honoring the org's reply mode (not silently to the sender).
-      replyTo: resolveReplyTo({ replyMode: org?.replyMode ?? null, conversationId: thread.id, fromEmail }),
+      replyTo: resolveReplyTo({
+        replyMode: org?.replyMode ?? null,
+        conversationId: thread.id,
+        fromEmail,
+        replyDomain: org ? activeReplyDomain(org) : null,
+      }),
       subject,
       html,
       text: body.text ?? null,

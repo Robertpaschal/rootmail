@@ -580,6 +580,9 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       data_region: org.dataRegion,
       dedicated_ip_status: org.dedicatedIpStatus,
       dedicated_ip_address: org.dedicatedIpAddress,
+      reply_domain: org.replyDomain,
+      reply_domain_status: org.replyDomainStatus,
+      reply_domain_verified: org.replyDomainVerifiedAt != null,
       stripe_customer_id: org.stripeCustomerId ?? null,
       stripe_subscription_id: org.stripeSubscriptionId ?? null,
       created_at: org.createdAt,
@@ -1037,9 +1040,31 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       .from(organizations)
       .where(eq(organizations.dedicatedIpStatus, "requested"))
       .orderBy(asc(organizations.updatedAt));
+
+    // Branded reply domains awaiting our SES receipt-rule provisioning. Staff see
+    // the domain + whether the customer's DNS is verified (ready to activate).
+    const replyRows = await db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        domain: organizations.replyDomain,
+        verifiedAt: organizations.replyDomainVerifiedAt,
+        since: organizations.updatedAt,
+      })
+      .from(organizations)
+      .where(eq(organizations.replyDomainStatus, "pending"))
+      .orderBy(asc(organizations.updatedAt));
+
     return {
       object: "provisioning_queue",
       dedicated_ip: rows.map((r) => ({ org_id: r.id, org_name: r.name, since: r.since.toISOString() })),
+      reply_domain: replyRows.map((r) => ({
+        org_id: r.id,
+        org_name: r.name,
+        domain: r.domain,
+        dns_verified: r.verifiedAt != null,
+        since: r.since.toISOString(),
+      })),
     };
   });
 
@@ -1076,6 +1101,42 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { object: "dedicated_ip", status: b.status, address };
+  });
+
+  // Reply-domain provisioning: staff flip an org to "active" once the SES receipt
+  // rule for its verified reply subdomain exists (or back to pending/none). Only
+  // then does reply-to start using the customer's own domain.
+  app.patch("/v1/admin/orgs/:id/reply-domain", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "support.manage");
+    const { id } = req.params as { id: string };
+    const b = parse(z.object({ status: z.enum(["none", "pending", "active"]) }), req.body);
+    const [org] = await db
+      .select({ id: organizations.id, domain: organizations.replyDomain, verifiedAt: organizations.replyDomainVerifiedAt })
+      .from(organizations)
+      .where(eq(organizations.id, id))
+      .limit(1);
+    if (!org) throw Errors.notFound("Organization not found");
+    if (b.status === "active" && (!org.domain || org.verifiedAt == null)) {
+      throw Errors.badRequest("The reply domain must be added and DNS-verified before it can go active.");
+    }
+    await db
+      .update(organizations)
+      .set({
+        replyDomainStatus: b.status,
+        ...(b.status === "none" ? { replyDomain: null, replyDomainToken: null, replyDomainVerifiedAt: null } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(organizations.id, id));
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "reply_domain.update",
+      targetType: "organization",
+      targetId: id,
+      metadata: { status: b.status, domain: org.domain },
+      ip: req.ip,
+    });
+    return { object: "reply_domain", status: b.status, domain: b.status === "none" ? null : org.domain };
   });
 
   // --- Pricing management (data-driven plans) -----------------------------

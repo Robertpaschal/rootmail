@@ -85,6 +85,7 @@ export interface LoginResult {
 export interface ProvisioningQueue {
   object: "provisioning_queue";
   dedicated_ip: { org_id: string; org_name: string; since: string }[];
+  reply_domain: { org_id: string; org_name: string; domain: string | null; dns_verified: boolean; since: string }[];
 }
 
 export interface OrgSummary {
@@ -171,6 +172,9 @@ export interface OrgDetail {
   data_region: string;
   dedicated_ip_status: "none" | "requested" | "active";
   dedicated_ip_address: string | null;
+  reply_domain: string | null;
+  reply_domain_status: "none" | "pending" | "active";
+  reply_domain_verified: boolean;
   stripe_customer_id: string | null;
   stripe_subscription_id: string | null;
   created_at: string;

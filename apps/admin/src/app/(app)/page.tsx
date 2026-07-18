@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Contact, CreditCard, LifeBuoy, Mail, Server, Users } from "lucide-react";
+import { ArrowRight, Building2, Contact, CreditCard, Globe, LifeBuoy, Mail, Server, Users } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { StatCard } from "@/components/app/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -22,12 +22,13 @@ export default async function OverviewPage() {
     adminApi.analytics().catch(() => null),
     adminApi.listSupportTickets("open").catch(() => ({ data: [] as SupportTicketListItem[] })),
     adminApi.listLeads("new").catch(() => ({ data: [] as Lead[] })),
-    adminApi.provisioningQueue().catch(() => ({ dedicated_ip: [] } as unknown as ProvisioningQueue)),
+    adminApi.provisioningQueue().catch(() => ({ dedicated_ip: [], reply_domain: [] } as unknown as ProvisioningQueue)),
   ]);
   const orgs = orgsRes.data;
   const openTickets = ticketsRes.data;
   const newLeads = leadsRes.data;
   const ipQueue = provisioning.dedicated_ip ?? [];
+  const replyQueue = provisioning.reply_domain ?? [];
 
   const paid = analytics?.orgs.paid ?? 0;
   // Wing MRR + add-ons — computed by the API from what each org actually holds.
@@ -81,6 +82,37 @@ export default async function OverviewPage() {
                 </Link>
                 <span className="flex shrink-0 items-center gap-2">
                   <span className="text-xs text-muted-foreground">requested {formatDate(q.since)}</span>
+                  <Link href={`/orgs/${q.org_id}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-accent">
+                    Provision <ArrowRight className="size-3" />
+                  </Link>
+                </span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {/* Branded reply domains a customer set up — provision the SES receipt rule,
+          then activate. "DNS ✓" marks the ones ready to switch on. */}
+      {replyQueue.length > 0 ? (
+        <section className="rounded-xl border border-amber-500/40 bg-amber-50 p-4 dark:bg-amber-950/20">
+          <div className="flex items-center gap-2">
+            <Globe className="size-4 text-amber-600 dark:text-amber-400" />
+            <h2 className="text-sm font-semibold">Awaiting reply-domain provisioning</h2>
+            <Badge variant="warning">{replyQueue.length}</Badge>
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            These orgs want replies on their own domain. Once DNS is verified, create the SES receipt rule, then activate.
+          </p>
+          <ul className="mt-3 divide-y">
+            {replyQueue.map((q) => (
+              <li key={q.org_id} className="flex items-center justify-between gap-2 py-2 text-sm">
+                <Link href={`/orgs/${q.org_id}`} className="min-w-0 truncate font-medium hover:underline">
+                  {q.org_name} <span className="font-mono text-xs text-muted-foreground">{q.domain}</span>
+                </Link>
+                <span className="flex shrink-0 items-center gap-2">
+                  <Badge variant={q.dns_verified ? "success" : "secondary"}>{q.dns_verified ? "DNS ✓" : "DNS pending"}</Badge>
+                  <span className="text-xs text-muted-foreground">{formatDate(q.since)}</span>
                   <Link href={`/orgs/${q.org_id}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-accent">
                     Provision <ArrowRight className="size-3" />
                   </Link>

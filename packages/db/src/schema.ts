@@ -182,8 +182,16 @@ export const organizations = pgTable("organizations", {
   // through a rootmail-received address (reply+<token>@INBOUND_DOMAIN) so they
   // land in the per-contact Replies inbox; "own_mailbox" sends replies straight
   // to the sender's From address (no capture — they land in the user's own mail
-  // client). ("own_domain" — a branded reply subdomain — is Phase 2.)
+  // client). ("own_domain" — a branded reply subdomain — layers on via the columns below.)
   replyMode: text("reply_mode").notNull().default("inbox"),
+  // Branded own-domain replies (Phase 2): the customer's reply subdomain
+  // (reply.theirco.com). status none → pending (DNS added/verified, awaiting our
+  // SES receipt-rule provisioning) → active (receiving live). Until "active",
+  // reply-to falls back to the rootmail-hosted INBOUND_DOMAIN so no reply is lost.
+  replyDomain: text("reply_domain"),
+  replyDomainToken: text("reply_domain_token"),
+  replyDomainStatus: text("reply_domain_status").notNull().default("none"),
+  replyDomainVerifiedAt: timestamp("reply_domain_verified_at", { withTimezone: true }),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

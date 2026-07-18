@@ -15,6 +15,7 @@ import {
 import { StatusBadge } from "@/components/app/status-badge";
 import { SubmitButton } from "@/components/app/submit-button";
 import { DedicatedIpForm } from "./dedicated-ip-form";
+import { ReplyDomainForm } from "./reply-domain-form";
 import { formatDate, formatDateTime, formatMoney, formatUnix } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { AdminBilling, MessageSummary, OrgDetail, Suppression } from "@/lib/types";
@@ -116,6 +117,16 @@ function OverviewTab({ org }: { org: OrgDetail }) {
                 orgId={org.id}
                 status={org.dedicated_ip_status}
                 address={org.dedicated_ip_address}
+              />
+            </div>
+          ) : null}
+          {org.reply_domain_status !== "none" ? (
+            <div className="pt-2">
+              <ReplyDomainForm
+                orgId={org.id}
+                domain={org.reply_domain}
+                status={org.reply_domain_status}
+                verified={org.reply_domain_verified}
               />
             </div>
           ) : null}

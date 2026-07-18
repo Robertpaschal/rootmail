@@ -18,6 +18,7 @@ import {
   unsubscribeUrl,
 } from "@rootmail/core";
 import {
+  activeReplyDomain,
   assets,
   auditEntries,
   db,
@@ -392,6 +393,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         conversationId: thread.id,
         fromEmail: from.email,
         explicit: body.reply_to ?? null,
+        replyDomain: org ? activeReplyDomain(org) : null,
       });
       if (replyTo !== message.replyTo) {
         await db.update(messages).set({ replyTo, updatedAt: new Date() }).where(eq(messages.id, message.id));

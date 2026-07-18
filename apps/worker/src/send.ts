@@ -14,7 +14,7 @@ import {
   WEBHOOK_EVENTS,
   wingBrandingRequired,
 } from "@rootmail/core";
-import { auditEntries, contacts, db, marketingDailyUsage, messages, openConversationForSend, organizations, resolveReplyTo, suppressions, usageRecords } from "@rootmail/db";
+import { activeReplyDomain, auditEntries, contacts, db, marketingDailyUsage, messages, openConversationForSend, organizations, resolveReplyTo, suppressions, usageRecords } from "@rootmail/db";
 
 // Shared send primitive for worker-driven automation (sequences + campaigns).
 // Mirrors the API's dispatchMessage (apps/api/src/lib/dispatch.ts) but lives in
@@ -99,6 +99,7 @@ export async function automationSend(
   } | null = null;
   let postalAddress: string | null = null;
   let orgReplyMode: string | null = null;
+  let orgReplyDomain: string | null = null;
   if (input.organizationId) {
     const [o] = await db
       .select({
@@ -107,6 +108,8 @@ export async function automationSend(
         marketingTier: organizations.marketingTier,
         a: organizations.postalAddress,
         replyMode: organizations.replyMode,
+        replyDomain: organizations.replyDomain,
+        replyDomainStatus: organizations.replyDomainStatus,
       })
       .from(organizations)
       .where(eq(organizations.id, input.organizationId))
@@ -120,6 +123,7 @@ export async function automationSend(
       : null;
     postalAddress = o?.a ?? null;
     orgReplyMode = o?.replyMode ?? null;
+    orgReplyDomain = o ? activeReplyDomain(o) : null;
   }
   if (input.type === "marketing" || input.type === "sales") {
     rendered = {
@@ -202,6 +206,7 @@ export async function automationSend(
         conversationId: thread.id,
         fromEmail: input.fromEmail,
         explicit: input.replyTo ?? null,
+        replyDomain: orgReplyDomain,
       });
       if (replyTo) await db.update(messages).set({ replyTo, updatedAt: new Date() }).where(eq(messages.id, id));
     } catch {

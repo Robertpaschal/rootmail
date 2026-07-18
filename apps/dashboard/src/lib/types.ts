@@ -208,6 +208,25 @@ export interface WorkspacesResult {
 
 export type PlanId = "free" | "pro" | "scale" | "enterprise";
 
+/** A DNS record a customer publishes to receive replies on their own domain. */
+export interface ReplyDnsRecord {
+  type: "MX" | "TXT";
+  host: string;
+  value: string;
+  priority?: number;
+  required: boolean;
+  detail: string;
+}
+
+export interface ReplyDomainCheck {
+  type: "MX" | "TXT";
+  host: string;
+  ok: boolean;
+  expected: string;
+  found: string[];
+  detail?: string;
+}
+
 export interface Organization {
   object: "organization";
   id: string;
@@ -219,6 +238,11 @@ export interface Organization {
   dedicated_ip_address: string | null;
   /** How replies come back: "inbox" (captured into the Replies inbox) or "own_mailbox". */
   reply_mode: "inbox" | "own_mailbox";
+  /** Branded own-domain replies: the subdomain, its provisioning status, and the DNS to publish. */
+  reply_domain: string | null;
+  reply_domain_status: "none" | "pending" | "active";
+  reply_domain_verified: boolean;
+  reply_dns_records: ReplyDnsRecord[];
   business_types: string[];
   previous_provider: string | null;
   onboarding_completed: boolean;

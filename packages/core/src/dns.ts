@@ -1,4 +1,4 @@
-import { resolveTxt } from "node:dns/promises";
+import { resolveMx, resolveTxt } from "node:dns/promises";
 import { env } from "./env";
 
 export type DnsRecordPurpose = "ownership" | "dkim" | "spf" | "dmarc";
@@ -140,6 +140,95 @@ export async function verifyDnsRecords(records: DnsRecord[]): Promise<DnsCheck[]
 /** A domain is verified once every *required* record resolves correctly. */
 export function isVerified(checks: DnsCheck[]): boolean {
   return checks.filter((c) => c.required).every((c) => c.ok);
+}
+
+// ---------------------------------------------------------------------------
+// Branded reply domain (own-domain replies). A customer points a reply subdomain
+// (reply.theirco.com) at rootmail's inbound so replies come back on THEIR domain
+// but still land in the Replies inbox. Needs an MX (route mail to us) + a TXT
+// (prove ownership). Distinct from the sub-tenant TXT records above.
+// ---------------------------------------------------------------------------
+
+export interface ReplyDnsRecord {
+  type: "MX" | "TXT";
+  host: string;
+  value: string;
+  priority?: number;
+  required: boolean;
+  detail: string;
+}
+
+export interface ReplyDnsCheck {
+  type: "MX" | "TXT";
+  host: string;
+  ok: boolean;
+  expected: string;
+  found: string[];
+  detail?: string;
+}
+
+/** The DNS records a customer publishes to receive replies on their own domain. */
+export function replyDnsRecords(domain: string, token: string): ReplyDnsRecord[] {
+  return [
+    {
+      type: "MX",
+      host: domain,
+      value: env.INBOUND_MX_HOST,
+      priority: 10,
+      required: true,
+      detail: "Routes replies sent to this subdomain into your rootmail inbox.",
+    },
+    {
+      type: "TXT",
+      host: `_rootmail-reply.${domain}`,
+      value: `rootmail-reply-verify=${token}`,
+      required: true,
+      detail: "Proves you own this domain before we start receiving its mail.",
+    },
+  ];
+}
+
+/**
+ * Check the reply-domain records are live. `mock` mode (local dev) auto-passes so
+ * the flow is demoable without a real domain. Verifying DNS does NOT itself turn
+ * on receiving — staff still provision the SES receipt rule and flip to active.
+ */
+export async function verifyReplyDns(
+  domain: string,
+  token: string,
+): Promise<{ ok: boolean; checks: ReplyDnsCheck[] }> {
+  const records = replyDnsRecords(domain, token);
+  if (env.DNS_VERIFY_MODE === "mock") {
+    return {
+      ok: true,
+      checks: records.map((r) => ({
+        type: r.type,
+        host: r.host,
+        ok: true,
+        expected: r.value,
+        found: [],
+        detail: "DNS_VERIFY_MODE=mock — auto-verified for local development",
+      })),
+    };
+  }
+
+  const checks = await Promise.all(
+    records.map(async (r): Promise<ReplyDnsCheck> => {
+      try {
+        if (r.type === "MX") {
+          const mx = await resolveMx(r.host);
+          const found = mx.map((m) => m.exchange.toLowerCase().replace(/\.$/, ""));
+          return { type: "MX", host: r.host, ok: found.includes(r.value.toLowerCase()), expected: r.value, found };
+        }
+        const txts = await resolveTxt(r.host);
+        const found = txts.map((chunks) => chunks.join(""));
+        return { type: "TXT", host: r.host, ok: found.some((v) => stripWs(v) === stripWs(r.value)), expected: r.value, found };
+      } catch (err) {
+        return { type: r.type, host: r.host, ok: false, expected: r.value, found: [], detail: err instanceof Error ? err.message : String(err) };
+      }
+    }),
+  );
+  return { ok: checks.every((c) => c.ok), checks };
 }
 
 // ---------------------------------------------------------------------------

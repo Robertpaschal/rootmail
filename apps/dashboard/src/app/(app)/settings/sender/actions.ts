@@ -2,8 +2,38 @@
 
 import { revalidatePath } from "next/cache";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
+import type { Organization, ReplyDomainCheck } from "@/lib/types";
 
 export type SenderState = { ok?: boolean; error?: string };
+
+/** Set (or clear) the branded reply subdomain. Returns the updated org. billing.manage. */
+export async function setReplyDomainAction(domain: string | null): Promise<{ org?: Organization; error?: string }> {
+  try {
+    const org = await api.setReplyDomain(domain);
+    revalidatePath("/settings/sender");
+    return { org };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't save the reply domain." };
+  }
+}
+
+/** Re-check the reply domain's DNS. Returns whether it's live + per-record detail. */
+export async function verifyReplyDomainAction(): Promise<{
+  ok?: boolean;
+  checks?: ReplyDomainCheck[];
+  org?: Organization;
+  error?: string;
+}> {
+  try {
+    const res = await api.verifyReplyDomain();
+    revalidatePath("/settings/sender");
+    return { ok: res.ok, checks: res.checks, org: res.organization };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't check the DNS records." };
+  }
+}
 
 /** Set how replies come back: captured into the Replies inbox, or straight to the
  * sender's own mailbox. billing.manage. */

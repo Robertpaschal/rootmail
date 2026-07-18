@@ -15,17 +15,18 @@ export function isRootmailNoReply(fromEmail: string): boolean {
   return fromEmail.toLowerCase() === `no-reply@${env.ROOTMAIL_DOMAIN}`.toLowerCase();
 }
 
+const HOSTNAME_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
+
 /** Reply-To that routes a recipient's reply back to a conversation via the SES
- * inbound webhook (`reply+<conversationId>@<INBOUND_DOMAIN>`). Null when no
- * inbound domain is configured, so reply capture stays off until it's set.
- *
- * The domain is validated as a clean hostname: a misconfigured env (e.g. another
- * var bleeding in without a newline) must NEVER produce a malformed address a
- * provider would reject — better to skip capture than to send a bad header. */
-export function threadReplyAddress(conversationId: string): string | null {
-  const domain = env.INBOUND_DOMAIN?.trim();
-  if (!domain || !/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i.test(domain)) return null;
-  return `reply+${conversationId}@${domain}`;
+ * inbound webhook (`reply+<conversationId>@<domain>`). Prefers the org's own
+ * branded reply domain when one is passed (and active); otherwise the shared
+ * rootmail INBOUND_DOMAIN. Null when neither is a valid hostname, so reply
+ * capture stays off rather than emitting a header a provider would reject. */
+export function threadReplyAddress(conversationId: string, ownDomain?: string | null): string | null {
+  for (const d of [ownDomain?.trim(), env.INBOUND_DOMAIN?.trim()]) {
+    if (d && HOSTNAME_RE.test(d)) return `reply+${conversationId}@${d}`;
+  }
+  return null;
 }
 
 /**
@@ -45,11 +46,21 @@ export function resolveReplyTo(opts: {
   conversationId: string;
   fromEmail: string;
   explicit?: string | null;
+  /** The org's ACTIVE branded reply domain (reply.theirco.com), or null to use
+   * the shared rootmail address. Pass only when receiving is live for it. */
+  replyDomain?: string | null;
 }): string | null {
   if (opts.explicit) return opts.explicit;
   const ownMailbox = isRootmailNoReply(opts.fromEmail) ? null : opts.fromEmail;
   if (opts.replyMode === "own_mailbox") return ownMailbox;
-  return threadReplyAddress(opts.conversationId) ?? ownMailbox;
+  return threadReplyAddress(opts.conversationId, opts.replyDomain) ?? ownMailbox;
+}
+
+/** The org's branded reply domain IF receiving is live (status "active"); else
+ * null, so reply-to uses the shared rootmail address (no reply lost while a
+ * domain is still being set up). */
+export function activeReplyDomain(org: { replyDomain: string | null; replyDomainStatus: string }): string | null {
+  return org.replyDomainStatus === "active" ? org.replyDomain : null;
 }
 
 /** The outbound message fields a conversation needs to record a send. */
