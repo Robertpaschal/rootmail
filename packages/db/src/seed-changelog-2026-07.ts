@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Every email personalizes itself — from the contacts you already have",
+    date: "2026-07-20",
+    changes: [
+      {
+        kind: "New",
+        text: "Create a contact once, and every send tailors itself: a template's {{name}}, {{first_name}}, {{phone}} and any custom fields you imported fill in from each recipient's own record — on transactional sends, every campaign recipient, and every sequence step. No per-person setup, ever.",
+      },
+      {
+        kind: "New",
+        text: "The composer's “Start from” grew up: pick a template category (Transactional, Marketing, Sales, General), then the exact template. Missing the one you need? “New template” opens the design studio in a new tab — your draft stays put — then one refresh pulls it in.",
+      },
+      {
+        kind: "Improved",
+        text: "Anything you type in the Personalization box still wins over the automatic contact details — explicit always beats automatic. The unsubscribe link stays rootmail's signed one.",
+      },
+      {
+        kind: "Improved",
+        text: "For developers: the docs gained a Personalization guide (precedence, built-ins, custom fields) and the SDK documents the auto-merge on `variables` — the API shape is unchanged, your existing sends just get smarter.",
+      },
+    ],
+  },
+  {
     title: "Replies grew up: real email threads, per subject, under each contact",
     date: "2026-07-20",
     changes: [
