@@ -1,8 +1,8 @@
-import { and, desc, eq, ilike, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { CONTACT_STATUSES, Errors, newId, verifyUnsubscribeToken } from "@rootmail/core";
-import { contacts, db } from "@rootmail/db";
+import { auditEntries, contactEvents, contactNotes, contacts, db, emitContactEvent, listContacts, lists, messages, suppressions } from "@rootmail/db";
 import { requirePermission } from "../lib/permissions";
 import { addSuppression, findContact, isSuppressed } from "../lib/queries";
 import { evaluateTriggers, exitEnrollments } from "../lib/sequence-triggers";
@@ -164,6 +164,14 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
     }
     await addSuppression(workspace.id, subTenantId, body.email, "unsubscribe", null, "api");
     void exitEnrollments(workspace.id, body.email, "unsubscribed");
+    void emitContactEvent({
+      workspaceId: workspace.id,
+      subTenantId,
+      contactId: existing?.id ?? null,
+      email: body.email,
+      kind: "unsubscribed",
+      metadata: { source: "api" },
+    });
 
     return reply.status(200).send({ ok: true, email: body.email, status: "unsubscribed" });
   });
@@ -199,6 +207,14 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       }
       await addSuppression(payload.w, payload.s ?? null, payload.e, "unsubscribe", null, "unsubscribe_link");
       void exitEnrollments(payload.w, payload.e, "unsubscribed");
+      void emitContactEvent({
+        workspaceId: payload.w,
+        subTenantId: payload.s ?? null,
+        contactId: existing?.id ?? null,
+        email: payload.e,
+        kind: "unsubscribed",
+        metadata: { source: "unsubscribe_link" },
+      });
       return reply
         .type("text/html")
         .send(unsubPage("Unsubscribed", "<p>You've been unsubscribed and won't receive further emails.</p>"));
@@ -232,6 +248,224 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
     }
     await addSuppression(payload.w, payload.s ?? null, payload.e, "unsubscribe", null, "one_click");
     void exitEnrollments(payload.w, payload.e, "unsubscribed");
+    void emitContactEvent({
+      workspaceId: payload.w,
+      subTenantId: payload.s ?? null,
+      contactId: existing?.id ?? null,
+      email: payload.e,
+      kind: "unsubscribed",
+      metadata: { source: "one_click" },
+    });
     return reply.send({ ok: true });
+  });
+
+  // ==========================================================================
+  // Contact CRM — the customer-relationship surface behind the Audience hub.
+  // A contact is a real profile: edit it, tag it, note it, move it between
+  // audiences, unsubscribe/resubscribe it, and read its whole lifecycle.
+  // Routes live under /v1/contacts/id/:id (the legacy /v1/contacts/:email
+  // lookup stays for API compatibility).
+  // ==========================================================================
+
+  async function getContactById(req: Parameters<typeof requirePermission>[0], id: string) {
+    const subTenantId = req.auth.subTenant?.id ?? null;
+    const [c] = await db
+      .select()
+      .from(contacts)
+      .where(
+        and(
+          eq(contacts.id, id),
+          eq(contacts.workspaceId, req.auth.workspace.id),
+          subTenantId ? eq(contacts.subTenantId, subTenantId) : isNull(contacts.subTenantId),
+        ),
+      )
+      .limit(1);
+    if (!c) throw Errors.notFound(`Contact ${id} not found`);
+    return c;
+  }
+
+  // --- Full profile: audiences, notes, lifecycle events, recent emails ------
+  app.get("/v1/contacts/id/:id", async (req) => {
+    const { id } = req.params as { id: string };
+    const c = await getContactById(req, id);
+
+    const [memberships, notes, events, recentMessages, suppressed] = await Promise.all([
+      db
+        .select({ id: lists.id, name: lists.name })
+        .from(listContacts)
+        .innerJoin(lists, eq(lists.id, listContacts.listId))
+        .where(eq(listContacts.contactId, c.id)),
+      db
+        .select({ id: contactNotes.id, body: contactNotes.body, authorUserId: contactNotes.authorUserId, createdAt: contactNotes.createdAt })
+        .from(contactNotes)
+        .where(eq(contactNotes.contactId, c.id))
+        .orderBy(desc(contactNotes.createdAt))
+        .limit(100),
+      db
+        .select({ id: contactEvents.id, kind: contactEvents.kind, listId: contactEvents.listId, metadata: contactEvents.metadata, occurredAt: contactEvents.occurredAt })
+        .from(contactEvents)
+        .where(eq(contactEvents.contactId, c.id))
+        .orderBy(desc(contactEvents.occurredAt))
+        .limit(50),
+      db
+        .select({ id: messages.id, subject: messages.subject, status: messages.status, type: messages.type, campaignId: messages.campaignId, sequenceId: messages.sequenceId, createdAt: messages.createdAt })
+        .from(messages)
+        .where(and(eq(messages.workspaceId, req.auth.workspace.id), eq(messages.toContactId, c.id)))
+        .orderBy(desc(messages.createdAt))
+        .limit(20),
+      isSuppressed(req.auth.workspace.id, req.auth.subTenant?.id ?? null, c.email),
+    ]);
+
+    // Engagement times for the listed sends, from the audit trail.
+    const mids = recentMessages.map((m) => m.id);
+    const engagement = new Map<string, { openedAt: Date | null; clickedAt: Date | null }>();
+    if (mids.length) {
+      const eng = await db
+        .select({
+          messageId: auditEntries.messageId,
+          openedAt: sql<Date | null>`min(${auditEntries.occurredAt}) filter (where ${auditEntries.event} = 'opened')`,
+          clickedAt: sql<Date | null>`min(${auditEntries.occurredAt}) filter (where ${auditEntries.event} = 'clicked')`,
+        })
+        .from(auditEntries)
+        .where(inArray(auditEntries.messageId, mids))
+        .groupBy(auditEntries.messageId);
+      for (const e of eng) if (e.messageId) engagement.set(e.messageId, { openedAt: e.openedAt, clickedAt: e.clickedAt });
+    }
+
+    const listNameById = new Map(memberships.map((m) => [m.id, m.name]));
+    return {
+      ...serializeContact(c),
+      suppressed,
+      lists: memberships.map((m) => ({ id: m.id, name: m.name })),
+      notes: notes.map((n) => ({ id: n.id, body: n.body, author_user_id: n.authorUserId, created_at: n.createdAt })),
+      events: events.map((e) => ({
+        id: e.id,
+        kind: e.kind,
+        list_id: e.listId,
+        list_name: e.listId ? (listNameById.get(e.listId) ?? null) : null,
+        metadata: e.metadata,
+        occurred_at: e.occurredAt,
+      })),
+      recent_messages: recentMessages.map((m) => ({
+        id: m.id,
+        subject: m.subject,
+        status: m.status,
+        kind: m.campaignId ? "campaign" : m.sequenceId ? "sequence" : m.type,
+        sent_at: m.createdAt,
+        opened_at: engagement.get(m.id)?.openedAt ?? null,
+        clicked_at: engagement.get(m.id)?.clickedAt ?? null,
+      })),
+    };
+  });
+
+  // --- Edit the profile (and lifecycle status) ------------------------------
+  app.patch("/v1/contacts/id/:id", async (req) => {
+    await requirePermission(req, "content.manage");
+    const { id } = req.params as { id: string };
+    const body = parse(
+      z.object({
+        name: z.string().trim().max(120).nullable().optional(),
+        phone: z.string().trim().max(40).nullable().optional(),
+        tags: z.array(z.string().trim().min(1).max(60)).max(50).optional(),
+        metadata: z.record(z.unknown()).optional(),
+        status: z.enum(["active", "unsubscribed"]).optional(),
+      }),
+      req.body,
+    );
+    const c = await getContactById(req, id);
+    const subTenantId = req.auth.subTenant?.id ?? null;
+
+    const [updated] = await db
+      .update(contacts)
+      .set({
+        name: body.name !== undefined ? body.name : c.name,
+        phone: body.phone !== undefined ? body.phone : c.phone,
+        tags: body.tags ?? c.tags,
+        metadata: body.metadata ?? c.metadata,
+        status: body.status ?? c.status,
+        updatedAt: new Date(),
+      })
+      .where(eq(contacts.id, c.id))
+      .returning();
+
+    // Lifecycle transitions carry their real side effects, same as every other door.
+    if (body.status === "unsubscribed" && c.status !== "unsubscribed") {
+      await addSuppression(req.auth.workspace.id, subTenantId, c.email, "unsubscribe", null, "crm");
+      void exitEnrollments(req.auth.workspace.id, c.email, "unsubscribed");
+      void emitContactEvent({
+        workspaceId: req.auth.workspace.id,
+        subTenantId,
+        contactId: c.id,
+        email: c.email,
+        kind: "unsubscribed",
+        metadata: { source: "crm" },
+      });
+    } else if (body.status === "active" && c.status !== "active") {
+      // Resubscribe: clear the unsubscribe suppression so sends flow again.
+      await db
+        .delete(suppressions)
+        .where(
+          and(
+            eq(suppressions.workspaceId, req.auth.workspace.id),
+            subTenantId ? eq(suppressions.subTenantId, subTenantId) : isNull(suppressions.subTenantId),
+            eq(suppressions.email, c.email),
+            eq(suppressions.reason, "unsubscribe"),
+          ),
+        );
+      void emitContactEvent({
+        workspaceId: req.auth.workspace.id,
+        subTenantId,
+        contactId: c.id,
+        email: c.email,
+        kind: "subscribed",
+        metadata: { source: "crm", resubscribed: true },
+      });
+    }
+
+    // New tags can enroll into tag-triggered sequences — the CRM's automation hook.
+    if (body.tags) {
+      const added = body.tags.filter((t) => !(c.tags ?? []).includes(t));
+      if (added.length > 0) {
+        void evaluateTriggers(req.auth.workspace.id, subTenantId, { id: c.id, email: c.email, tags: body.tags }, { created: false });
+      }
+    }
+
+    return serializeContact(updated);
+  });
+
+  // --- Delete (memberships + notes cascade; lifecycle events keep the email) --
+  app.delete("/v1/contacts/id/:id", async (req) => {
+    await requirePermission(req, "content.manage");
+    const { id } = req.params as { id: string };
+    const c = await getContactById(req, id);
+    await db.delete(contacts).where(eq(contacts.id, c.id));
+    return { object: "contact", id: c.id, deleted: true };
+  });
+
+  // --- Notes ----------------------------------------------------------------
+  app.post("/v1/contacts/id/:id/notes", async (req, reply) => {
+    await requirePermission(req, "content.manage");
+    const { id } = req.params as { id: string };
+    const body = parse(z.object({ body: z.string().trim().min(1).max(2000) }), req.body);
+    const c = await getContactById(req, id);
+    const [note] = await db
+      .insert(contactNotes)
+      .values({
+        id: newId("contactNote"),
+        workspaceId: req.auth.workspace.id,
+        contactId: c.id,
+        authorUserId: req.auth.user?.id ?? null,
+        body: body.body,
+      })
+      .returning();
+    return reply.status(201).send({ id: note.id, body: note.body, author_user_id: note.authorUserId, created_at: note.createdAt });
+  });
+
+  app.delete("/v1/contacts/id/:id/notes/:noteId", async (req) => {
+    await requirePermission(req, "content.manage");
+    const { id, noteId } = req.params as { id: string; noteId: string };
+    const c = await getContactById(req, id);
+    await db.delete(contactNotes).where(and(eq(contactNotes.id, noteId), eq(contactNotes.contactId, c.id)));
+    return { object: "contact_note", id: noteId, deleted: true };
   });
 }

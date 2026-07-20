@@ -30,7 +30,9 @@ export default async function MarketingBillingPage({
 
   const addonQty: Record<string, number> = {};
   for (const a of billing.summary.add_ons) addonQty[a.id] = a.quantity;
-  const mkAddons = billing.addons_catalog.filter((a) => a.group === "platform");
+  // Platform extras plus the marketing wing's own packs (e.g. contact packs —
+  // quick audience headroom; growing the plan's contact size stays cheaper).
+  const mkAddons = billing.addons_catalog.filter((a) => a.group === "platform" || a.group === "marketing");
 
   return (
     <>

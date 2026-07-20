@@ -325,10 +325,8 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                         {browse.data.map((c) => (
                           <TableRow key={c.id}>
                             <TableCell>
-                              <Link
-                                href={hubUrl({ q: sp.q, tag: sp.tag, status, page: sp.page, email: c.email })}
-                                className="font-medium hover:underline"
-                              >
+                              {/* Straight into their CRM profile — the relationship, not a peek. */}
+                              <Link href={`/contacts/${c.id}`} className="font-medium hover:underline">
                                 {c.email}
                               </Link>
                             </TableCell>

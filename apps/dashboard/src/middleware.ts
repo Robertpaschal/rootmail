@@ -22,6 +22,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
+  // Hosted audience signup pages are for the CUSTOMER'S subscribers — fully
+  // public, branded per audience, session or not.
+  if (pathname.startsWith("/subscribe/")) {
+    return NextResponse.next();
+  }
+
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   // Not signed in → send to login.

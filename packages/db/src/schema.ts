@@ -745,6 +745,16 @@ export const lists = pgTable(
     subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "cascade" }),
     name: text("name").notNull(),
     description: text("description"),
+    // --- Audience growth (public signup) ---
+    // When enabled, the audience accepts public subscribers via its hosted signup
+    // page + embed form + POST /v1/subscribe. Double opt-in (default on) sends a
+    // branded confirmation email before the contact is created; the signup tag is
+    // applied to every subscriber (driving contact_tagged sequence triggers); the
+    // redirect URL, when set, is where the hosted page sends people afterward.
+    signupEnabled: boolean("signup_enabled").notNull().default(false),
+    doubleOptIn: boolean("double_opt_in").notNull().default(true),
+    signupTag: text("signup_tag"),
+    signupRedirectUrl: text("signup_redirect_url"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -765,6 +775,59 @@ export const listContacts = pgTable(
   },
   (t) => [uniqueIndex("list_contacts_uq").on(t.listId, t.contactId)],
 );
+
+// Audience lifecycle events — the CRM's memory. One row per thing that happened
+// to a contact relationship: subscribed (form/API), confirmed (double opt-in),
+// unsubscribed, imported, waitlisted (signup arrived while the audience was at
+// its contact cap — the email is kept here, NOT as a contact, and admitted later),
+// admitted, note-worthy status flips. Powers the growth chart (subs vs unsubs by
+// day), the waitlist queue, and each contact's activity timeline. Append-only.
+export const contactEvents = pgTable(
+  "contact_events",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "cascade" }),
+    // Nullable: waitlisted signups have no contact row yet; list-less events allowed.
+    contactId: text("contact_id").references(() => contacts.id, { onDelete: "set null" }),
+    listId: text("list_id").references(() => lists.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    kind: text("kind").notNull(), // subscribed | confirmed | unsubscribed | imported | waitlisted | admitted
+    metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
+    occurredAt: timestamp("occurred_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("contact_events_ws_kind_idx").on(t.workspaceId, t.kind, t.occurredAt),
+    index("contact_events_contact_idx").on(t.contactId, t.occurredAt),
+    index("contact_events_list_idx").on(t.listId, t.occurredAt),
+  ],
+);
+
+// Free-form CRM notes a user keeps on a contact ("met at the conference",
+// "wants the annual plan"). Authored by a dashboard user; newest first.
+export const contactNotes = pgTable(
+  "contact_notes",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    contactId: text("contact_id")
+      .notNull()
+      .references(() => contacts.id, { onDelete: "cascade" }),
+    authorUserId: text("author_user_id").references(() => users.id, { onDelete: "set null" }),
+    body: text("body").notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [index("contact_notes_contact_idx").on(t.contactId, t.createdAt)],
+);
+
+export type ContactEvent = typeof contactEvents.$inferSelect;
+export type NewContactEvent = typeof contactEvents.$inferInsert;
+export type ContactNote = typeof contactNotes.$inferSelect;
+export type NewContactNote = typeof contactNotes.$inferInsert;
 
 /** A tag-targeted A/B variant: contacts carrying `tag` get this template (and
  * optional subject) instead of the campaign's base message. Stored wire-shaped. */

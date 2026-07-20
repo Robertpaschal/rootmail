@@ -30,6 +30,8 @@ export const ID_PREFIXES = {
   sequenceEnrollment: "enr",
   list: "lst",
   listContact: "lct",
+  contactEvent: "cev",
+  contactNote: "cnt",
   campaign: "cmp",
   role: "rol",
   authToken: "atk",

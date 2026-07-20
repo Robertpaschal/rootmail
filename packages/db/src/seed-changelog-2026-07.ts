@@ -14,6 +14,36 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Grow your audience — and manage every customer like a CRM",
+    date: "2026-07-20",
+    changes: [
+      {
+        kind: "New",
+        text: "Audiences now grow themselves: turn on signup for any audience and you get a hosted, branded signup page to share anywhere plus an embeddable form for your own site or blog. Double opt-in (on by default) confirms subscribers with a branded email from your verified address.",
+      },
+      {
+        kind: "New",
+        text: "New subscribers can start your welcome automation instantly — tag them on signup and any sequence triggered by that tag runs on its own. Subs and unsubs are tracked per audience with a 30-day growth view.",
+      },
+      {
+        kind: "New",
+        text: "Nobody bounces off your plan limit: signups that arrive while your audiences are full are safely waitlisted and admitted automatically — oldest first — the moment room opens up (an upgrade, a contact pack, or cleanup).",
+      },
+      {
+        kind: "New",
+        text: "Every contact is now a full CRM profile: edit their details and custom fields, tag them, move them between audiences, keep notes, unsubscribe/resubscribe or delete — with a complete activity timeline of signups, emails, opens, clicks and lifecycle changes.",
+      },
+      {
+        kind: "New",
+        text: "Contact packs: need room right now? Add +500 contacts as an add-on on your existing bill. Growing your plan's contact size stays cheaper per contact — packs are the quick overflow valve.",
+      },
+      {
+        kind: "New",
+        text: "For developers: public POST /v1/subscribe (JSON or a plain HTML form post), audience growth stats at GET /v1/lists/:id/growth, and full contact CRM endpoints (profile, edit, notes) — all documented.",
+      },
+    ],
+  },
+  {
     title: "Every email personalizes itself — from the contacts you already have",
     date: "2026-07-20",
     changes: [

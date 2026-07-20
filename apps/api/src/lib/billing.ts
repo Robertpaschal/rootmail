@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { Errors, newId, type PlanDef } from "@rootmail/core";
+import { CONTACT_PACK_SIZE, Errors, newId, type PlanDef } from "@rootmail/core";
 import {
   db,
   listContacts,
@@ -10,6 +10,7 @@ import {
   usageRecords,
   users,
   workspaces,
+  contactPackUnits,
 } from "@rootmail/db";
 import { planForOrg } from "./plans";
 import {
@@ -255,13 +256,15 @@ export async function billableContacts(organizationId: string): Promise<number> 
  * upgrade. Existing contacts keep working — only growth is blocked.
  */
 export async function assertContactCapacity(org: BillableOrg, adding = 1): Promise<void> {
-  const limit = contactLimitForOrg(org);
-  if (limit === -1) return; // unlimited
+  const base = contactLimitForOrg(org);
+  if (base === -1) return; // unlimited
+  // Contact-pack add-ons stack on top of the tier's contact size.
+  const limit = base + (await contactPackUnits(org.id)) * CONTACT_PACK_SIZE;
   const current = await billableContacts(org.id);
   if (current + adding > limit) {
     const tier = mkTierFor(org);
     throw Errors.quotaExceeded(
-      `Your audience is at ${current.toLocaleString()} of ${limit.toLocaleString()} contacts on Marketing ${tier.name}. Upgrade the Marketing wing to grow it.`,
+      `Your audience is at ${current.toLocaleString()} of ${limit.toLocaleString()} contacts on Marketing ${tier.name}. Grow your plan's contact size (cheapest per contact), or add a contact pack for quick headroom.`,
       { contacts: current, limit, wing: "marketing", upgrade_url: "/billing/marketing" },
     );
   }

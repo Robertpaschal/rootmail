@@ -6,16 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError, api } from "@/lib/rootmail";
-import type { Contact, ContactList } from "@/lib/types";
+import type { Contact, ContactList, ListGrowth } from "@/lib/types";
 import { addContact, removeContact } from "../actions";
+import { GrowAudience } from "./grow-audience";
 
 export default async function ListDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   let list: ContactList;
   let members: Contact[] = [];
+  let growth: ListGrowth | null = null;
   try {
     list = await api.getList(id);
     members = (await api.getListContacts(id)).data;
+    growth = await api.listGrowth(id).catch(() => null);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
@@ -24,6 +27,12 @@ export default async function ListDetailPage({ params }: { params: Promise<{ id:
   return (
     <>
       <PageHeader title={list.name} description={`${list.contacts} contacts`} backHref="/contacts?tab=audiences" backLabel="Audiences" />
+
+      {growth ? (
+        <div className="mb-6">
+          <GrowAudience list={list} growth={growth} />
+        </div>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="h-fit">

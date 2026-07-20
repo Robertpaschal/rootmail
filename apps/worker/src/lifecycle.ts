@@ -1,7 +1,7 @@
 import type { Redis } from "ioredis";
 import { eq } from "drizzle-orm";
-import { createRedis, env, PLANS, sendSystemEmail } from "@rootmail/core";
-import { db, memberships, organizations, plans, usageRecords, users } from "@rootmail/db";
+import { contactCapForOrg, createRedis, env, PLANS, sendSystemEmail } from "@rootmail/core";
+import { admitWaitlisted, billableContactCount, contactEvents, contactPackUnits, db, memberships, organizations, plans, usageRecords, users, workspaces } from "@rootmail/db";
 
 // Conditional lifecycle email, sent by a daily sweep and de-duplicated in Redis so
 // nothing re-sends. Bodies are inline + email-client-safe, matching the platform
@@ -67,10 +67,44 @@ async function ownersByOrg(): Promise<Owner[]> {
   }));
 }
 
+/**
+ * Let waitlisted signups in wherever room has appeared (an upgrade, a contact
+ * pack, or cleanup freed slots). Runs with the daily lifecycle sweep; oldest
+ * signups admitted first, through the same door as a live signup — tag, welcome
+ * sequences and all. A signup that hit the paywall is noted, never lost.
+ */
+async function admitWaitlistedSweep(): Promise<void> {
+  const rows = await db
+    .selectDistinct({ orgId: workspaces.organizationId })
+    .from(contactEvents)
+    .innerJoin(workspaces, eq(workspaces.id, contactEvents.workspaceId))
+    .where(eq(contactEvents.kind, "waitlisted"));
+
+  for (const { orgId } of rows) {
+    try {
+      const [org] = await db
+        .select({ id: organizations.id, marketingTier: organizations.marketingTier, marketingContacts: organizations.marketingContacts })
+        .from(organizations)
+        .where(eq(organizations.id, orgId))
+        .limit(1);
+      if (!org) continue;
+      const cap = contactCapForOrg(org, await contactPackUnits(org.id));
+      const used = await billableContactCount(org.id);
+      const room = cap - used;
+      if (room < 1) continue;
+      const admitted = await admitWaitlisted(org.id, room);
+      if (admitted > 0) console.log(`[lifecycle] admitted ${admitted} waitlisted signup(s) for ${org.id}`);
+    } catch (err) {
+      console.warn(`[lifecycle] waitlist admission failed for ${orgId}: ${String(err)}`);
+    }
+  }
+}
+
 export async function processLifecycleSweep(): Promise<void> {
   const redis = createRedis() as unknown as Redis;
   let sent = 0;
   try {
+    await admitWaitlistedSweep().catch((err) => console.warn(`[lifecycle] waitlist sweep failed: ${String(err)}`));
     const owners = await ownersByOrg();
     const ownerByOrg = new Map(owners.map((o) => [o.orgId, o]));
 

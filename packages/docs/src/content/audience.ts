@@ -11,6 +11,17 @@ export const contacts: DocPage = {
     endpoint("GET", "/v1/contacts/tags", "Distinct tags across your contacts, with how many carry each."),
     endpoint("GET", "/v1/contacts/:email", "Look a contact up by email address."),
     endpoint("POST", "/v1/contacts/unsubscribe", "Unsubscribe a contact from marketing mail."),
+    h("The full relationship (CRM)"),
+    p(
+      "Each contact is a full profile: audiences, notes, lifecycle events (subscribed, unsubscribed, waitlisted, admitted) and recent sends with open/click times. Custom ",
+      c("metadata"),
+      " fields personalize templates automatically, and status changes carry their real side effects — unsubscribing suppresses, resubscribing clears the suppression, and new tags can enroll into tag-triggered sequences.",
+    ),
+    endpoint("GET", "/v1/contacts/id/:id", "The full CRM view — profile, audiences, notes, lifecycle events, recent sends."),
+    endpoint("PATCH", "/v1/contacts/id/:id", "Edit name, phone, tags, metadata, or status (active | unsubscribed)."),
+    endpoint("DELETE", "/v1/contacts/id/:id", "Delete a contact (memberships and notes go too; send history stays)."),
+    endpoint("POST", "/v1/contacts/id/:id/notes", "Add a note to a contact."),
+    endpoint("DELETE", "/v1/contacts/id/:id/notes/:noteId", "Remove a note."),
     code(
       "ts",
       `await mail.contacts.create({
@@ -45,6 +56,26 @@ export const lists: DocPage = {
 await mail.lists.addContacts(list.id, ["ada@example.com", "grace@example.com"]);`,
       "audience.ts",
     ),
+    h("Growing an audience (public signup)"),
+    p(
+      "Enable signup on an audience and it grows itself: every audience gets a hosted, branded signup page plus an embeddable HTML form for your own site. Double opt-in (default) sends a confirmation email from your verified sender; the signup tag is applied to every subscriber — a sequence triggered by that tag is your welcome automation. Signups that arrive while you're at your contact limit are waitlisted (never lost) and admitted automatically when room frees up.",
+    ),
+    endpoint("PATCH", "/v1/lists/:id", "Enable signup: signup_enabled, double_opt_in, signup_tag, signup_redirect_url."),
+    endpoint("POST", "/v1/subscribe", "PUBLIC — subscribe someone: { list_id, email, name? }. Also accepts a plain HTML form post."),
+    endpoint("GET", "/v1/lists/:id/growth", "Daily subscribes vs unsubscribes (30d), waitlist count, and the hosted page + embed endpoint URLs."),
+    code(
+      "html",
+      `<!-- Drop this on your site — style it however you like -->
+<form action="https://service.gateml.io/v1/subscribe" method="post">
+  <input type="hidden" name="list_id" value="lst_your_audience">
+  <input type="email" name="email" placeholder="you@example.com" required>
+  <input type="text" name="name" placeholder="Your name">
+  <input type="text" name="website" style="display:none" tabindex="-1" autocomplete="off">
+  <button type="submit">Subscribe</button>
+</form>`,
+      "embed.html",
+    ),
+    callout("note", "The hidden ", c("website"), " field is a honeypot — leave it in. Bots fill it; humans never see it."),
   ],
 };
 

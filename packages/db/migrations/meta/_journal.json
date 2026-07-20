@@ -386,6 +386,13 @@
       "when": 1784367878014,
       "tag": "0054_jazzy_omega_sentinel",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1784550083040,
+      "tag": "0055_ancient_firebrand",
+      "breakpoints": true
     }
   ]
 }

@@ -359,6 +359,7 @@ export const ADD_ON_IDS = [
   "workspace_pack",
   "dedicated_ip",
   "subtenant_pack",
+  "contact_pack",
   "ai_credit_pack",
   "custom_roles",
   "sso_scim",
@@ -438,6 +439,22 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
     grant: 1,
     grantsFeature: "subtenants",
     wing: "transactional",
+  },
+  contact_pack: {
+    id: "contact_pack",
+    name: "Contact pack",
+    description:
+      "Room for 500 more contacts in your audiences without changing your plan — headroom when a signup wave hits. Raising your plan's contact size costs less per contact; this is the quick overflow valve.",
+    unit: "pack of 500 contacts",
+    unitNote: "Each pack fits 500 more contacts. Growing your plan's contact size is cheaper per contact — packs are for right-now headroom.",
+    // $16/mo per +500 = $32 per 1k/mo — deliberately above every marketing tier's
+    // per-1k rate (Starter $12 / Growth $18 / Pro $28), so upgrading the wing's
+    // contact size stays the better deal (pricing doctrine: add-ons nudge up).
+    defaultUnitAmount: 16,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_CONTACT_PACK",
+    grant: 500,
+    wing: "marketing",
   },
   ai_credit_pack: {
     id: "ai_credit_pack",
@@ -621,8 +638,24 @@ export function blocksForSends(sends: number): number {
 // 500 contacts on Pro and 1,000 on Pro are genuinely different products.
 /** Free marketing contact ceiling (no contacts purchased). */
 export const FREE_MK_CONTACTS = 500;
+/** Contacts one contact_pack add-on unit adds (= ADD_ONS.contact_pack.grant). */
+export const CONTACT_PACK_SIZE = 500;
 /** Stripe bills marketing per this many contacts (keeps the quantity small). */
 export const CONTACT_UNIT = 100;
+
+/**
+ * The org's total contact capacity: the tier base (free ceiling on Free, else the
+ * purchased contact size) plus any contact-pack add-on units. Shared by the API's
+ * capacity gate and the worker's waitlist-admission job so both agree exactly.
+ */
+export function contactCapForOrg(
+  org: { marketingTier: string | null; marketingContacts: number },
+  packUnits = 0,
+): number {
+  const base =
+    !org.marketingTier || org.marketingTier === "mk_free" ? FREE_MK_CONTACTS : (org.marketingContacts ?? 0);
+  return base + packUnits * CONTACT_PACK_SIZE;
+}
 /** Contact sizes the selector offers (self-serve; grows smoothly beyond). */
 export const CONTACT_STEPS = [500, 1_000, 2_500, 5_000, 10_000, 25_000, 50_000, 100_000] as const;
 export const MAX_SELF_SERVE_CONTACTS = 250_000;

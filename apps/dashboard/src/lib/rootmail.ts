@@ -22,7 +22,10 @@ import type {
   ImportResult,
   RetentionPolicy,
   Contact,
+  ContactDetail,
   ContactList,
+  ContactNote,
+  ListGrowth,
   ContactsBrowse,
   ContactStatus,
   CreatedApiKey,
@@ -392,7 +395,39 @@ export const api = {
     rmFetch<{ contact_id: string }>(`/v1/lists/${id}/contacts`, { method: "POST", body: { email } }),
   removeListContact: (id: string, contactId: string) =>
     rmFetch<{ deleted: boolean }>(`/v1/lists/${id}/contacts/${contactId}`, { method: "DELETE" }),
+  addListContactById: (id: string, contactId: string) =>
+    rmFetch<{ contact_id: string }>(`/v1/lists/${id}/contacts`, { method: "POST", body: { contact_id: contactId } }),
   listTags: (id: string) => rmFetch<ListResponse<ListTag>>(`/v1/lists/${id}/tags`),
+  updateList: (
+    id: string,
+    body: {
+      name?: string;
+      description?: string | null;
+      signup_enabled?: boolean;
+      double_opt_in?: boolean;
+      signup_tag?: string | null;
+      signup_redirect_url?: string | null;
+    },
+  ) => rmFetch<ContactList>(`/v1/lists/${id}`, { method: "PATCH", body }),
+  listGrowth: (id: string) => rmFetch<ListGrowth>(`/v1/lists/${id}/growth`),
+
+  // --- Contact CRM ---
+  contactDetail: (id: string) => rmFetch<ContactDetail>(`/v1/contacts/id/${id}`),
+  updateContact: (
+    id: string,
+    body: {
+      name?: string | null;
+      phone?: string | null;
+      tags?: string[];
+      metadata?: Record<string, unknown>;
+      status?: "active" | "unsubscribed";
+    },
+  ) => rmFetch<Contact>(`/v1/contacts/id/${id}`, { method: "PATCH", body }),
+  deleteContact: (id: string) => rmFetch<{ deleted: boolean }>(`/v1/contacts/id/${id}`, { method: "DELETE" }),
+  addContactNote: (id: string, body: string) =>
+    rmFetch<ContactNote>(`/v1/contacts/id/${id}/notes`, { method: "POST", body: { body } }),
+  deleteContactNote: (id: string, noteId: string) =>
+    rmFetch<{ deleted: boolean }>(`/v1/contacts/id/${id}/notes/${noteId}`, { method: "DELETE" }),
 
   listCampaigns: () => rmFetch<ListResponse<Campaign>>("/v1/campaigns"),
   getCampaign: (id: string) => rmFetch<Campaign>(`/v1/campaigns/${id}`),

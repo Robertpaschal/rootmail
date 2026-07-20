@@ -1,8 +1,8 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { Errors, newId } from "@rootmail/core";
-import { contacts, db, type List, listContacts, lists } from "@rootmail/db";
+import { env, Errors, newId } from "@rootmail/core";
+import { contactEvents, contacts, db, type List, listContacts, lists, pendingWaitlist } from "@rootmail/db";
 import { assertAudienceCapacity, assertContactCapacity } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
@@ -24,6 +24,11 @@ function serialize(l: List, contactCount: number) {
     name: l.name,
     description: l.description,
     contacts: contactCount,
+    // Public signup (audience growth): the hosted page + embed form settings.
+    signup_enabled: l.signupEnabled,
+    double_opt_in: l.doubleOptIn,
+    signup_tag: l.signupTag,
+    signup_redirect_url: l.signupRedirectUrl,
     created_at: l.createdAt.toISOString(),
   };
 }
@@ -129,18 +134,88 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
   app.patch("/v1/lists/:id", async (req) => {
     await requirePermission(req, "content.manage");
     const { id } = req.params as { id: string };
-    const body = parse(z.object({ name: z.string().min(1).max(120).optional(), description: z.string().max(500).nullable().optional() }), req.body);
+    const body = parse(
+      z.object({
+        name: z.string().min(1).max(120).optional(),
+        description: z.string().max(500).nullable().optional(),
+        signup_enabled: z.boolean().optional(),
+        double_opt_in: z.boolean().optional(),
+        signup_tag: z.string().trim().max(60).nullable().optional(),
+        signup_redirect_url: z.string().url().max(500).nullable().optional(),
+      }),
+      req.body,
+    );
     const existing = await getScoped(req, id);
     const [updated] = await db
       .update(lists)
       .set({
         name: body.name ?? existing.name,
         description: body.description !== undefined ? body.description : existing.description,
+        signupEnabled: body.signup_enabled ?? existing.signupEnabled,
+        doubleOptIn: body.double_opt_in ?? existing.doubleOptIn,
+        signupTag: body.signup_tag !== undefined ? body.signup_tag : existing.signupTag,
+        signupRedirectUrl: body.signup_redirect_url !== undefined ? body.signup_redirect_url : existing.signupRedirectUrl,
         updatedAt: new Date(),
       })
       .where(eq(lists.id, existing.id))
       .returning();
     return serialize(updated, await countOf(updated.id));
+  });
+
+  // --- Growth: subs vs unsubs by day + the waitlist, for the Grow panel ------
+  app.get("/v1/lists/:id/growth", async (req) => {
+    const { id } = req.params as { id: string };
+    const list = await getScoped(req, id);
+
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const rows = await db
+      .select({
+        day: sql<string>`to_char(${contactEvents.occurredAt}, 'YYYY-MM-DD')`,
+        kind: contactEvents.kind,
+        n: sql<number>`count(*)::int`,
+      })
+      .from(contactEvents)
+      .where(
+        and(
+          eq(contactEvents.workspaceId, req.auth.workspace.id),
+          eq(contactEvents.listId, list.id),
+          gte(contactEvents.occurredAt, since),
+          inArray(contactEvents.kind, ["subscribed", "unsubscribed", "admitted"]),
+        ),
+      )
+      .groupBy(sql`1`, contactEvents.kind);
+
+    const byDay = new Map<string, { subscribed: number; unsubscribed: number }>();
+    for (const r of rows) {
+      const d = byDay.get(r.day) ?? { subscribed: 0, unsubscribed: 0 };
+      if (r.kind === "unsubscribed") d.unsubscribed += r.n;
+      else d.subscribed += r.n;
+      byDay.set(r.day, d);
+    }
+    const days: { day: string; subscribed: number; unsubscribed: number }[] = [];
+    for (let i = 29; i >= 0; i--) {
+      const day = new Date(Date.now() - i * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+      days.push({ day, ...(byDay.get(day) ?? { subscribed: 0, unsubscribed: 0 }) });
+    }
+
+    // People still waiting for contact room (kept, never lost).
+    const org = await loadOrg(req);
+    const pending = await pendingWaitlist(org.id, 500);
+    const waitlisted = pending.filter((p) => p.listId === list.id).length;
+
+    return {
+      object: "list_growth",
+      list_id: list.id,
+      days,
+      totals: {
+        subscribed_30d: days.reduce((a, d) => a + d.subscribed, 0),
+        unsubscribed_30d: days.reduce((a, d) => a + d.unsubscribed, 0),
+      },
+      waitlisted,
+      // Ready-to-share growth surfaces (the API knows the public bases).
+      hosted_url: `${env.DASHBOARD_URL.replace(/\/$/, "")}/subscribe/${list.id}`,
+      subscribe_endpoint: `${env.PUBLIC_API_URL.replace(/\/$/, "")}/v1/subscribe`,
+    };
   });
 
   app.delete("/v1/lists/:id", async (req) => {

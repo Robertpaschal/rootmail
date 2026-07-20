@@ -565,7 +565,60 @@ export interface ContactList {
   name: string;
   description: string | null;
   contacts: number;
+  /** Public signup (audience growth) settings. */
+  signup_enabled: boolean;
+  double_opt_in: boolean;
+  signup_tag: string | null;
+  signup_redirect_url: string | null;
   created_at: string;
+}
+
+/** 30-day growth series + waitlist for one audience. */
+export interface ListGrowth {
+  object: "list_growth";
+  list_id: string;
+  days: { day: string; subscribed: number; unsubscribed: number }[];
+  totals: { subscribed_30d: number; unsubscribed_30d: number };
+  waitlisted: number;
+  /** The audience's public hosted signup page. */
+  hosted_url: string;
+  /** The public endpoint an embedded form posts to. */
+  subscribe_endpoint: string;
+}
+
+export interface ContactNote {
+  id: string;
+  body: string;
+  author_user_id: string | null;
+  created_at: string;
+}
+
+export interface ContactLifecycleEvent {
+  id: string;
+  kind: "subscribed" | "confirmed" | "unsubscribed" | "imported" | "waitlisted" | "admitted";
+  list_id: string | null;
+  list_name: string | null;
+  metadata: Record<string, unknown>;
+  occurred_at: string;
+}
+
+export interface ContactRecentMessage {
+  id: string;
+  subject: string;
+  status: string;
+  kind: string;
+  sent_at: string;
+  opened_at: string | null;
+  clicked_at: string | null;
+}
+
+/** The CRM view of one contact: profile + audiences + notes + lifecycle + sends. */
+export interface ContactDetail extends Contact {
+  suppressed: boolean;
+  lists: { id: string; name: string }[];
+  notes: ContactNote[];
+  events: ContactLifecycleEvent[];
+  recent_messages: ContactRecentMessage[];
 }
 
 /** A tag-targeted A/B variant: contacts carrying `tag` get this template/subject

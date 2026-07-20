@@ -40,6 +40,45 @@ export function unsubscribeUrl(p: UnsubscribePayload): string {
   return `${base}/v1/unsubscribe?token=${encodeURIComponent(unsubscribeToken(p))}`;
 }
 
+// --- Audience signup (double opt-in confirmation) ---------------------------
+// The link inside the "confirm your subscription" email. Distinct `k`
+// discriminator so it can't double as an unsubscribe link or vice-versa.
+
+export interface SubscribePayload {
+  /** workspace id */
+  w: string;
+  /** list (audience) id */
+  l: string;
+  /** subscriber email */
+  e: string;
+  /** subscriber name, when the form captured one */
+  n?: string;
+}
+
+export function subscribeConfirmToken(p: SubscribePayload): string {
+  const body = Buffer.from(JSON.stringify({ ...p, k: "subscribe" })).toString("base64url");
+  return `${body}.${hmacSign(body, SECRET)}`;
+}
+
+export function verifySubscribeConfirmToken(token: string): SubscribePayload | null {
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  if (!safeEqual(sig, hmacSign(body, SECRET))) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(body, "base64url").toString()) as SubscribePayload & { k?: string };
+    if (parsed.k !== "subscribe" || !parsed.w || !parsed.l || !parsed.e) return null;
+    return { w: parsed.w, l: parsed.l, e: parsed.e, n: parsed.n };
+  } catch {
+    return null;
+  }
+}
+
+/** Absolute confirm URL for the double opt-in email's button. */
+export function subscribeConfirmUrl(p: SubscribePayload): string {
+  const base = env.PUBLIC_API_URL.replace(/\/$/, "");
+  return `${base}/v1/subscribe/confirm?token=${encodeURIComponent(subscribeConfirmToken(p))}`;
+}
+
 // --- Admin announcement opt-out -------------------------------------------
 // Announcements broadcast to account owners. A distinct token shape (`k`
 // discriminator) so an announcement link can't double as a contact-unsubscribe
