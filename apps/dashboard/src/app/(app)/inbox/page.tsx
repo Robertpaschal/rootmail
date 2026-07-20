@@ -4,9 +4,9 @@ import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Thread } from "@/lib/types";
 import { InboxView } from "./inbox-view";
 
-// The Replies inbox — one conversation per contact, like a chat. Every send (a
-// campaign, a drip, or a one-off) rolls into the recipient's space, and their
-// replies land right back here.
+// The Replies inbox as an email client: one entry per contact, and inside it
+// their subject-threads — a new subject is a new thread, every reply stays on
+// the thread it answers, and each entry renders as the full email it is.
 export default async function InboxPage() {
   let threads: Thread[] = [];
   let failed: string | null = null;
@@ -22,19 +22,25 @@ export default async function InboxPage() {
     }
   }
 
-  // Preload the most-recent conversation so the pane isn't empty on first paint.
-  const initial = threads[0] ? await api.getThread(threads[0].id).catch(() => null) : null;
+  // Preload the first contact's threads (messages included) so the pane opens full.
+  const firstContact = threads[0]?.contact_email ?? null;
+  const firstIds = firstContact
+    ? threads.filter((t) => t.contact_email === firstContact).slice(0, 6).map((t) => t.id)
+    : [];
+  const initialDetails = (
+    await Promise.all(firstIds.map((id) => api.getThread(id).catch(() => null)))
+  ).filter((t): t is Thread => t != null);
 
   return (
     <>
       <PageHeader
         title="Replies"
-        description="Every send opens a conversation. Replies land here — one space per contact, like a chat."
+        description="Every send opens a thread under its contact — one per subject, replies attached where they belong."
       />
       {failed ? (
         <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
       ) : (
-        <InboxView threads={threads} initialConversation={initial} />
+        <InboxView threads={threads} initialDetails={initialDetails} initialContact={firstContact} />
       )}
     </>
   );

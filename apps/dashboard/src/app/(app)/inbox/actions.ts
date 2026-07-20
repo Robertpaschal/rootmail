@@ -14,6 +14,13 @@ export async function loadConversation(id: string): Promise<Thread | null> {
   }
 }
 
+/** Load several of a contact's subject-threads (with messages) in one go — the
+ * right-hand pane shows their whole timeline, thread by thread. */
+export async function loadConversations(ids: string[]): Promise<Thread[]> {
+  const results = await Promise.all(ids.slice(0, 8).map((id) => api.getThread(id).catch(() => null)));
+  return results.filter((t): t is Thread => t != null);
+}
+
 /** Send a reply into a conversation, then return the refreshed thread so the pane
  * updates in place (no full navigation). */
 export async function sendReply(id: string, text: string): Promise<{ thread?: Thread; error?: string }> {

@@ -63,16 +63,20 @@ export function SendForm({
   tenants,
   templates,
   senders,
+  initialTo = "",
+  initialSubject = "",
 }: {
   tenants: SubTenant[];
   templates: ComposeTemplate[];
   senders: { email: string; display_name: string | null }[];
+  initialTo?: string;
+  initialSubject?: string;
 }) {
   const [state, formAction, pending] = useActionState<SendState | null, FormData>(sendMessage, null);
 
   const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [subject, setSubject] = useState("");
+  const [to, setTo] = useState(initialTo);
+  const [subject, setSubject] = useState(initialSubject);
   const [startFrom, setStartFrom] = useState(""); // "" = blank, else template slug
   const [bodyHtml, setBodyHtml] = useState(""); // inner HTML from the compose editor
   const [varsRaw, setVarsRaw] = useState("");

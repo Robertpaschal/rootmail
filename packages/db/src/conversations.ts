@@ -63,6 +63,29 @@ export function activeReplyDomain(org: { replyDomain: string | null; replyDomain
   return org.replyDomainStatus === "active" ? org.replyDomain : null;
 }
 
+/** The subject with reply/forward prefixes peeled off — "Re: Re: Welcome" and
+ * "Welcome" belong to the same conversation. Lowercased for matching. */
+export function baseSubject(subject: string): string {
+  let s = subject.trim();
+  for (let i = 0; i < 10; i++) {
+    const next = s.replace(/^(re|fwd?|fw)\s*(\[\d+\])?\s*:\s*/i, "");
+    if (next === s) break;
+    s = next.trim();
+  }
+  return s.toLowerCase();
+}
+
+/** The subject a thread displays: original casing, prefixes stripped. */
+function displaySubject(subject: string): string {
+  let s = subject.trim();
+  for (let i = 0; i < 10; i++) {
+    const next = s.replace(/^(re|fwd?|fw)\s*(\[\d+\])?\s*:\s*/i, "");
+    if (next === s) break;
+    s = next.trim();
+  }
+  return s || subject.trim();
+}
+
 /** The outbound message fields a conversation needs to record a send. */
 export interface ConversationSend {
   workspaceId: string;
@@ -76,21 +99,24 @@ export interface ConversationSend {
 }
 
 /**
- * Find (or open) the recipient's conversation and append this outbound send to
- * it — so all mail to a contact rolls up into one messaging space. Returns the
- * conversation; the caller stamps its reply address via `resolveReplyTo`.
+ * Find (or open) the conversation for this send and append the outbound message.
+ * A conversation is per CONTACT **and** per SUBJECT: replies ("Re: X") continue
+ * X's thread, while a genuinely new subject opens a new thread — so one contact
+ * holds many subject-threads, and a reply lands on exactly the right one. The
+ * caller stamps the reply address via `resolveReplyTo`.
  *
  * Best-effort by contract: callers wrap this so threading never fails a send.
  */
 export async function openConversationForSend(m: ConversationSend): Promise<Thread> {
   const email = m.contactEmail.toLowerCase();
   const scope = m.subTenantId ? eq(threads.subTenantId, m.subTenantId) : isNull(threads.subTenantId);
-  const [existing] = await db
+  const key = baseSubject(m.subject);
+  const existingRows = await db
     .select()
     .from(threads)
     .where(and(eq(threads.workspaceId, m.workspaceId), scope, eq(threads.contactEmail, email)))
-    .orderBy(desc(threads.lastMessageAt))
-    .limit(1);
+    .orderBy(desc(threads.lastMessageAt));
+  const existing = existingRows.find((t) => baseSubject(t.subject) === key);
 
   let thread = existing;
   if (!thread) {
@@ -101,7 +127,7 @@ export async function openConversationForSend(m: ConversationSend): Promise<Thre
         workspaceId: m.workspaceId,
         subTenantId: m.subTenantId,
         contactEmail: email,
-        subject: m.subject,
+        subject: displaySubject(m.subject),
         status: "open",
         lastMessageAt: new Date(),
       })

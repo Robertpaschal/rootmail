@@ -5,8 +5,8 @@ import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Thread } from "@/lib/types";
 import { InboxView } from "../inbox-view";
 
-// Deep-link into a specific conversation (e.g. from a contact or a campaign). Same
-// per-contact messaging view, with this conversation preselected.
+// Deep-link into one conversation (e.g. from a contact or a campaign): the same
+// email-client view with that thread's contact selected.
 export default async function ThreadPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -35,9 +35,9 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
     <>
       <PageHeader
         title="Replies"
-        description="Every send opens a conversation. Replies land here — one space per contact, like a chat."
+        description="Every send opens a thread under its contact — one per subject, replies attached where they belong."
       />
-      <InboxView threads={threads} initialConversation={convo} />
+      <InboxView threads={threads} initialDetails={[convo]} initialContact={convo.contact_email} />
     </>
   );
 }

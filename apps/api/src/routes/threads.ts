@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { enqueueWebhookEvent, Errors, THREAD_STATUSES } from "@rootmail/core";
@@ -6,6 +6,7 @@ import {
   activeReplyDomain,
   appendInbound,
   appendOutbound,
+  auditEntries,
   contacts,
   db,
   findThreadForReply,
@@ -143,20 +144,56 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(threadMessages.threadId, thread.id))
       .orderBy(asc(threadMessages.createdAt));
 
-    // Label each outbound bubble with where it came from (Campaign / Sequence /
-    // a plain send) + its subject, by joining the messages it links to.
+    // Each outbound entry is a FULL email: join the message it created for its
+    // source (Campaign / Sequence / plain send), subject, delivery status, sender
+    // name, and attachments — and the audit trail for its open/click lifeline.
     const mids = msgs.map((m) => m.messageId).filter((x): x is string => !!x);
-    const srcById = new Map<string, { type: string; campaignId: string | null; sequenceId: string | null; subject: string }>();
+    const srcById = new Map<
+      string,
+      {
+        type: string;
+        campaignId: string | null;
+        sequenceId: string | null;
+        subject: string;
+        status: string;
+        fromName: string | null;
+        attachments: { filename: string; size: number; content_type: string }[] | null;
+      }
+    >();
+    const engagementById = new Map<string, { openedAt: Date | null; clickedAt: Date | null }>();
     if (mids.length) {
       const srcRows = await db
-        .select({ id: messages.id, type: messages.type, campaignId: messages.campaignId, sequenceId: messages.sequenceId, subject: messages.subject })
+        .select({
+          id: messages.id,
+          type: messages.type,
+          campaignId: messages.campaignId,
+          sequenceId: messages.sequenceId,
+          subject: messages.subject,
+          status: messages.status,
+          fromName: messages.fromName,
+          attachments: messages.attachments,
+        })
         .from(messages)
         .where(inArray(messages.id, mids));
       for (const s of srcRows) srcById.set(s.id, s);
+
+      const eng = await db
+        .select({
+          messageId: auditEntries.messageId,
+          openedAt: sql<Date | null>`min(${auditEntries.occurredAt}) filter (where ${auditEntries.event} = 'opened')`,
+          clickedAt: sql<Date | null>`min(${auditEntries.occurredAt}) filter (where ${auditEntries.event} = 'clicked')`,
+        })
+        .from(auditEntries)
+        .where(inArray(auditEntries.messageId, mids))
+        .groupBy(auditEntries.messageId);
+      for (const e of eng) {
+        if (e.messageId) engagementById.set(e.messageId, { openedAt: e.openedAt, clickedAt: e.clickedAt });
+      }
     }
     const source = (m: (typeof msgs)[number]): ThreadMessageSource => {
       if (m.direction === "inbound") return { kind: "reply", subject: null };
       const s = m.messageId ? srcById.get(m.messageId) : undefined;
+      const e = m.messageId ? engagementById.get(m.messageId) : undefined;
       const kind: ThreadMessageSource["kind"] = s?.campaignId
         ? "campaign"
         : s?.sequenceId
@@ -164,7 +201,15 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
           : s?.type === "marketing" || s?.type === "sales" || s?.type === "transactional"
             ? s.type
             : "message";
-      return { kind, subject: s?.subject ?? thread.subject };
+      return {
+        kind,
+        subject: s?.subject ?? thread.subject,
+        status: s?.status ?? null,
+        fromName: s?.fromName ?? null,
+        attachments: (s?.attachments ?? []).map((a) => ({ filename: a.filename, size: a.size, content_type: a.content_type })),
+        openedAt: e?.openedAt ?? null,
+        clickedAt: e?.clickedAt ?? null,
+      };
     };
 
     const [c] = await db

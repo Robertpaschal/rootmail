@@ -12,10 +12,17 @@ import type {
   Workspace,
 } from "@rootmail/db";
 
-/** Where an outbound bubble came from, for a chat label. Inbound is always a reply. */
+/** Everything the inbox needs to render one thread entry as a FULL email: where
+ * it came from, its subject, delivery status + engagement times, the sender's
+ * display name, and its attachments. Inbound entries are always kind "reply". */
 export interface ThreadMessageSource {
   kind: "transactional" | "marketing" | "sales" | "campaign" | "sequence" | "reply" | "message";
   subject?: string | null;
+  status?: string | null;
+  fromName?: string | null;
+  attachments?: { filename: string; size: number; content_type: string }[];
+  openedAt?: Date | null;
+  clickedAt?: Date | null;
 }
 
 export function serializeThreadMessage(m: ThreadMessage, source?: ThreadMessageSource) {
@@ -25,14 +32,19 @@ export function serializeThreadMessage(m: ThreadMessage, source?: ThreadMessageS
     direction: m.direction,
     message_id: m.messageId,
     from: m.fromEmail,
+    from_name: source?.fromName ?? null,
     to: m.toEmail,
     body_html: m.bodyHtml,
     body_text: m.bodyText,
     created_at: m.createdAt,
-    // A plain-English source ("Campaign", "Sequence", "Reply") + the send's subject,
-    // so each bubble reads like a labeled message in a chat.
     kind: source?.kind ?? (m.direction === "inbound" ? "reply" : "message"),
     subject: source?.subject ?? null,
+    // The email's own lifeline — status advances via provider events; opens/clicks
+    // come from the audit trail. Null for inbound entries.
+    status: source?.status ?? null,
+    opened_at: source?.openedAt ?? null,
+    clicked_at: source?.clickedAt ?? null,
+    attachments: source?.attachments ?? [],
   };
 }
 

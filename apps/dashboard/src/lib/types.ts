@@ -786,14 +786,21 @@ export interface ThreadMessage {
   direction: "outbound" | "inbound";
   message_id: string | null;
   from: string;
+  /** The sender's display name, when the linked message carried one. */
+  from_name: string | null;
   to: string;
   body_html: string | null;
   body_text: string | null;
   created_at: string;
-  /** Where an outbound bubble came from (Campaign / Sequence / a plain send); inbound is "reply". */
+  /** Where an outbound entry came from (Campaign / Sequence / a plain send); inbound is "reply". */
   kind: ThreadMessageKind;
-  /** The send's subject, for the bubble's label. */
+  /** The email's subject line. */
   subject: string | null;
+  /** The email's own lifeline: delivery status + first open/click. Null for inbound. */
+  status: string | null;
+  opened_at: string | null;
+  clicked_at: string | null;
+  attachments: { filename: string; size: number; content_type: string }[];
 }
 
 export interface Thread {

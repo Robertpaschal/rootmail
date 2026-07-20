@@ -5,7 +5,15 @@ import { api } from "@/lib/rootmail";
 import type { SubTenant } from "@/lib/types";
 import { SendForm, type ComposeTemplate } from "./send-form";
 
-export default async function NewMessagePage() {
+// Supports prefill via query params (?to=&subject=) so the Replies inbox can open
+// a full-featured compose "in context": a Re: subject rejoins that conversation's
+// thread automatically, a fresh subject starts a new one.
+export default async function NewMessagePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ to?: string; subject?: string }>;
+}) {
+  const { to: initialTo = "", subject: initialSubject = "" } = await searchParams;
   let tenants: SubTenant[] = [];
   let templates: ComposeTemplate[] = [];
   let senders: { email: string; display_name: string | null }[] = [];
@@ -57,7 +65,7 @@ export default async function NewMessagePage() {
           </Link>
         </div>
       ) : null}
-      <SendForm tenants={tenants} templates={templates} senders={senders} />
+      <SendForm tenants={tenants} templates={templates} senders={senders} initialTo={initialTo} initialSubject={initialSubject} />
     </>
   );
 }
