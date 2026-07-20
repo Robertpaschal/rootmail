@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   appendBrandingFooter,
   appendComplianceFooter,
+  contactVariables,
   wingBrandingRequired,
   enqueueSend,
   env,
@@ -237,10 +238,13 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       );
     }
 
-    // Inject a signed, per-recipient unsubscribe URL so {{unsubscribe_url}} in
-    // a template footer resolves to a tamper-proof link (ours wins over any
-    // caller-supplied value of the same name).
+    // Personalize for the recipient: a saved contact's details (name, first_name,
+    // custom fields…) fill the template's {{placeholders}} automatically, the
+    // caller's explicit variables override them, and our signed per-recipient
+    // unsubscribe URL wins over any caller-supplied value of the same name.
+    const contact = await findContact(workspace.id, subTenantId, toEmail);
     const variables = {
+      ...contactVariables(contact, toEmail),
       ...body.variables,
       unsubscribe_url: unsubscribeUrl({ w: workspace.id, e: toEmail, s: subTenantId }),
     };
@@ -284,7 +288,6 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         );
       }
     }
-    const contact = await findContact(workspace.id, subTenantId, toEmail);
     const suppressed = await isSuppressed(workspace.id, subTenantId, toEmail);
 
     // Resolve attachment references to owned assets (scoped to the workspace),

@@ -1,7 +1,8 @@
 import { and, asc, desc, eq, lte } from "drizzle-orm";
-import { env, type SequenceStep } from "@rootmail/core";
+import { contactVariables, env, type SequenceStep } from "@rootmail/core";
 import {
   auditEntries,
+  contacts,
   db,
   type Sequence,
   type SequenceEnrollment,
@@ -24,6 +25,8 @@ interface SendCtx {
   mode: "live" | "test";
   fromEmail: string;
   fromName: string | null;
+  /** The enrollee's own details — fills the template's {{placeholders}} per person. */
+  variables: Record<string, unknown>;
 }
 
 async function resolveTemplate(seq: Sequence, ref: string) {
@@ -75,6 +78,17 @@ async function buildCtx(enr: SequenceEnrollment): Promise<SendCtx> {
       fromName = own.displayName ?? ws.name;
     }
   }
+  // The enrollee's saved details personalize every step's template — name,
+  // first_name, phone, and any custom fields on their contact record.
+  let enrollee: { email: string; name: string | null; phone: string | null; metadata: Record<string, unknown> } | undefined;
+  if (enr.contactId) {
+    [enrollee] = await db
+      .select({ email: contacts.email, name: contacts.name, phone: contacts.phone, metadata: contacts.metadata })
+      .from(contacts)
+      .where(eq(contacts.id, enr.contactId))
+      .limit(1);
+  }
+
   return {
     workspaceId: enr.workspaceId,
     subTenantId: enr.subTenantId,
@@ -82,6 +96,7 @@ async function buildCtx(enr: SequenceEnrollment): Promise<SendCtx> {
     mode: ws?.environment === "test" ? "test" : "live",
     fromEmail,
     fromName,
+    variables: contactVariables(enrollee ?? null, enr.email),
     // Reply-To is resolved inside automationSend per the org's reply mode
     // (capture into the Replies inbox by default) — a drip's replies thread back
     // to the contact just like every other send.

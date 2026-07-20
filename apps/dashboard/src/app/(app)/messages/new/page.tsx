@@ -18,8 +18,10 @@ export default async function NewMessagePage({
   let templates: ComposeTemplate[] = [];
   let senders: { email: string; display_name: string | null }[] = [];
   try {
+    // Each list degrades independently — client domains are a gated add-on, and a
+    // 402 there must never blank the templates/senders of a free-tier composer.
     const [t, tpl, sn] = await Promise.all([
-      api.listSubTenants(),
+      api.listSubTenants().catch(() => ({ data: [] as SubTenant[] })),
       api.listTemplates(),
       api.listSenders().catch(() => ({ data: [] })),
     ]);
@@ -29,6 +31,7 @@ export default async function NewMessagePage({
       name: x.name,
       subject: x.subject,
       html: x.html,
+      type: x.type,
     }));
     senders = sn.data
       .filter((s) => s.status === "verified")

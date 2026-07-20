@@ -13,7 +13,7 @@ export const messages: DocPage = {
       { name: "subject", type: "string", desc: ["Required unless the template supplies one."] },
       { name: "html / text", type: "string", desc: ["Inline body. Omit when using a template."] },
       { name: "template", type: "string", desc: ["A template slug. Use ", c("template_id"), " for the id."] },
-      { name: "variables", type: "object", desc: ["Values merged into the template (Handlebars)."] },
+      { name: "variables", type: "object", desc: ["Values merged into the template (Handlebars). A saved contact's details merge in automatically first — see ", a("Personalization", "messages"), " below."] },
       { name: "from / reply_to", type: "string", desc: ["Override the sender / reply-to (must be a verified sender)."] },
       { name: "type", type: "enum", desc: ["`transactional` (default) or `marketing` — meters against the right wing."] },
       { name: "send_at", type: "string", desc: ["ISO 8601 — schedule for later instead of sending now."] },
@@ -31,6 +31,27 @@ export const messages: DocPage = {
 });
 // → { id: "msg_…", status: "queued", … }`,
       "send-template.ts",
+    ),
+    h("Personalization"),
+    p(
+      "When the recipient is a saved contact, their details fill the template's ",
+      c("{{placeholders}}"),
+      " automatically — you don't have to look anything up or pass it per send. The same happens for every campaign recipient and sequence enrollee.",
+    ),
+    list([
+      [c("{{email}}"), ", ", c("{{name}}"), ", ", c("{{first_name}}"), ", ", c("{{last_name}}"), ", ", c("{{phone}}"), " — from the contact record (first/last are split from the name)."],
+      ["Every custom field on the contact's ", c("metadata"), " is available by its own name — import once, personalize everywhere."],
+      ["Precedence: your explicit ", c("variables"), " override contact fields, which override the derived built-ins. ", c("{{unsubscribe_url}}"), " is always rootmail's signed link."],
+    ]),
+    code(
+      "ts",
+      `// Contact ada@example.com has { name: "Ada Lovelace", metadata: { plan: "Growth" } }
+await mail.messages.create({
+  to: "ada@example.com",
+  template: "renewal", // "Hi {{first_name}}, your {{plan}} plan renews soon."
+  // → "Hi Ada, your Growth plan renews soon." — no variables needed.
+});`,
+      "personalization.ts",
     ),
     h("Retrieve, audit & prove"),
     endpoint("GET", "/v1/messages", "List messages (paginated, filterable)."),
@@ -58,7 +79,7 @@ export const templates: DocPage = {
       c("slug"),
       " when sending and pass ",
       c("variables"),
-      " — they're merged with Handlebars.",
+      " — they're merged with Handlebars. Saved-contact details (name, first_name, custom fields) fill in automatically for every recipient; explicit variables override them.",
     ),
     endpoint("GET", "/v1/templates", "List templates."),
     endpoint("POST", "/v1/templates", "Create a template."),

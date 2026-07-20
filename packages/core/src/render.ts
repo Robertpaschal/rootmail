@@ -25,6 +25,38 @@ function compile(source: string): Compiled {
   return tpl;
 }
 
+/**
+ * Per-recipient personalization derived from a saved contact: `email`, `name`,
+ * `first_name`/`last_name` (split from name), `phone`, plus every custom field
+ * the contact carries in `metadata` — so a template's {{placeholders}} fill
+ * themselves for each recipient, on every send path (transactional, campaigns,
+ * sequences). Spread caller-supplied variables AFTER this so explicit values
+ * always win; metadata wins over the derived built-ins (it's the user's data).
+ */
+export function contactVariables(
+  contact:
+    | { email?: string | null; name?: string | null; phone?: string | null; metadata?: Record<string, unknown> | null }
+    | null
+    | undefined,
+  fallbackEmail?: string,
+): Record<string, unknown> {
+  const vars: Record<string, unknown> = {};
+  const email = contact?.email ?? fallbackEmail;
+  if (email) vars.email = email;
+  const name = contact?.name?.trim();
+  if (name) {
+    vars.name = name;
+    const [first, ...rest] = name.split(/\s+/);
+    vars.first_name = first;
+    if (rest.length > 0) vars.last_name = rest.join(" ");
+  }
+  if (contact?.phone) vars.phone = contact.phone;
+  for (const [k, v] of Object.entries(contact?.metadata ?? {})) {
+    if (v != null) vars[k] = v;
+  }
+  return vars;
+}
+
 /** Render subject + html with Handlebars; derive plain text when not provided. */
 export function render(input: RenderInput): RenderOutput {
   const variables = input.variables ?? {};

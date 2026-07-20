@@ -6,6 +6,11 @@ export const campaigns: DocPage = {
   summary: "Send one email to a whole audience, and measure how it lands.",
   blocks: [
     p("A campaign is a one-time send to an audience — a newsletter, an announcement. Create it, then send (or schedule) it; suppressed and unsubscribed contacts are skipped automatically."),
+    p(
+      "Every recipient gets a personalized copy: the template's ",
+      c("{{placeholders}}"),
+      " fill from each contact's own record (name, first_name, phone, custom metadata fields) at send time — one template, tailored per person.",
+    ),
     endpoint("GET", "/v1/campaigns", "List campaigns."),
     endpoint("POST", "/v1/campaigns", "Create a campaign (audience + template)."),
     endpoint("GET", "/v1/campaigns/:id", "Fetch one campaign."),
@@ -48,7 +53,7 @@ export const sequences: DocPage = {
   title: "Sequences",
   summary: "Automated, multi-step drips that stop when someone replies.",
   blocks: [
-    p("A sequence emails a contact over time — a welcome series, an onboarding drip — with waits between steps. It exits automatically the moment the contact replies."),
+    p("A sequence emails a contact over time — a welcome series, an onboarding drip — with waits between steps. It exits automatically the moment the contact replies. Each step's template personalizes from the enrollee's own contact record (name, first_name, custom fields), automatically."),
     endpoint("GET", "/v1/sequences", "List sequences."),
     endpoint("POST", "/v1/sequences", "Create a sequence with its steps."),
     endpoint("GET", "/v1/sequences/:id", "Fetch a sequence."),

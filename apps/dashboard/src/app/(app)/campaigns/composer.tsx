@@ -259,6 +259,11 @@ export function CampaignComposer({
                 </div>
               ) : null}
             </div>
+            <p className="text-xs text-muted-foreground">
+              Personalized for every recipient automatically: the template&apos;s{" "}
+              <span className="font-mono">{"{{name}}"}</span>, <span className="font-mono">{"{{first_name}}"}</span> and any
+              custom fields fill in from each contact&apos;s own record when it sends — no per-person setup.
+            </p>
           </>
         )}
       </Step>

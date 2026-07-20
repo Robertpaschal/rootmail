@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { type CampaignJob, env } from "@rootmail/core";
+import { type CampaignJob, contactVariables, env } from "@rootmail/core";
 import { campaigns, contacts, db, listContacts, senderIdentities, subTenants, templates, workspaces, type Template } from "@rootmail/db";
 import { automationSend } from "./send";
 
@@ -55,7 +55,13 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
   }
 
   const all = await db
-    .select({ email: contacts.email, tags: contacts.tags })
+    .select({
+      email: contacts.email,
+      tags: contacts.tags,
+      name: contacts.name,
+      phone: contacts.phone,
+      metadata: contacts.metadata,
+    })
     .from(listContacts)
     .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
     .where(eq(listContacts.listId, c.listId));
@@ -85,6 +91,9 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
         // Reply-To is resolved inside automationSend per the org's reply mode
         // (capture into the Replies inbox by default), so campaign replies thread
         // back to the contact just like transactional ones.
+        // Each recipient gets THEIR details in the template — name, first_name,
+        // phone, and any custom fields on the contact record.
+        variables: contactVariables(m),
         subject: useSubject,
         html: useTpl.html,
         text: useTpl.text,

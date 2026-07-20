@@ -2,7 +2,8 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { FileText, Film, ImageIcon, Loader2, Paperclip, Send, X } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ExternalLink, FileText, Film, ImageIcon, Loader2, Paperclip, RefreshCw, Send, X } from "lucide-react";
 import { sendMessage, uploadAttachmentAction, type SendState } from "../actions";
 import { ComposeEditor } from "./compose-editor";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,8 @@ export interface ComposeTemplate {
   name: string;
   subject: string;
   html: string;
+  /** Template category: transactional | marketing | sales | any (general). */
+  type: string;
 }
 
 interface Attachment {
@@ -73,11 +76,13 @@ export function SendForm({
   initialSubject?: string;
 }) {
   const [state, formAction, pending] = useActionState<SendState | null, FormData>(sendMessage, null);
+  const router = useRouter();
 
   const [from, setFrom] = useState("");
   const [to, setTo] = useState(initialTo);
   const [subject, setSubject] = useState(initialSubject);
   const [startFrom, setStartFrom] = useState(""); // "" = blank, else template slug
+  const [category, setCategory] = useState(""); // "" = all; else template type
   const [bodyHtml, setBodyHtml] = useState(""); // inner HTML from the compose editor
   const [varsRaw, setVarsRaw] = useState("");
 
@@ -93,6 +98,18 @@ export function SendForm({
 
   const template = templates.find((t) => t.slug === startFrom) ?? null;
   const hasPlaceholders = template ? /\{\{\s*\w+\s*\}\}/.test(template.html + template.subject) : false;
+
+  // Category-filtered template options; "General" (type any) templates show in
+  // every specific category too, since they're usable anywhere. The currently
+  // selected template always stays listed so the picker never looks empty-handed.
+  const categoryTemplates = useMemo(() => {
+    const filtered =
+      category === ""
+        ? templates
+        : templates.filter((t) => t.type === category || (category !== "any" && t.type === "any"));
+    if (template && !filtered.some((t) => t.slug === template.slug)) return [template, ...filtered];
+    return filtered;
+  }, [templates, category, template]);
 
   const pickTemplate = (slug: string) => {
     setStartFrom(slug);
@@ -178,25 +195,62 @@ export function SendForm({
                   className="flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50" />
               </div>
 
-              {/* Start from — templates woven into composing */}
-              {templates.length > 0 ? (
-                <div className="flex items-center gap-3 px-5 py-3">
-                  <span className="w-16 shrink-0 text-sm text-muted-foreground">Start from</span>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <button type="button" onClick={() => setStartFrom("")}
-                      className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", !template ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
-                      Blank
-                    </button>
-                    {templates.slice(0, 6).map((t) => (
-                      <button key={t.slug} type="button" onClick={() => pickTemplate(t.slug)}
-                        className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", template?.slug === t.slug ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
-                        {t.name}
-                      </button>
-                    ))}
-                  </div>
-                  {template ? <input type="hidden" name="template" value={template.slug} /> : null}
-                </div>
-              ) : null}
+              {/* Start from — pick a category, then a template; or jump to the
+                  studio (new tab) to design the one that's missing and refresh. */}
+              <div className="flex flex-wrap items-center gap-2 px-5 py-3">
+                <span className="w-16 shrink-0 text-sm text-muted-foreground">Start from</span>
+                <button type="button" onClick={() => setStartFrom("")}
+                  className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", !template ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
+                  Blank
+                </button>
+                {templates.length > 0 ? (
+                  <>
+                    <Select
+                      value={category}
+                      onChange={(e) => setCategory(e.target.value)}
+                      className="h-8 w-auto text-xs"
+                      aria-label="Template category"
+                    >
+                      <option value="">All categories</option>
+                      <option value="transactional">Transactional</option>
+                      <option value="marketing">Marketing</option>
+                      <option value="sales">Sales</option>
+                      <option value="any">General</option>
+                    </Select>
+                    <Select
+                      value={template?.slug ?? ""}
+                      onChange={(e) => (e.target.value ? pickTemplate(e.target.value) : setStartFrom(""))}
+                      className="h-8 w-auto min-w-44 max-w-72 text-xs"
+                      aria-label="Template"
+                    >
+                      <option value="">Pick a template…</option>
+                      {categoryTemplates.map((t) => (
+                        <option key={t.slug} value={t.slug}>
+                          {t.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </>
+                ) : (
+                  <span className="text-xs text-muted-foreground">No templates yet —</span>
+                )}
+                <Link
+                  href="/templates/new"
+                  target="_blank"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                >
+                  New template <ExternalLink className="size-3" />
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => router.refresh()}
+                  title="Refresh templates (after designing one in the studio)"
+                  className="grid size-6 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                >
+                  <RefreshCw className="size-3.5" />
+                </button>
+                {template ? <input type="hidden" name="template" value={template.slug} /> : null}
+              </div>
 
               {/* Body */}
               <div className="px-5 py-4">
@@ -210,7 +264,10 @@ export function SendForm({
                         <label htmlFor="variables" className="text-sm font-medium">Personalization</label>
                         <Textarea id="variables" name="variables" rows={2} value={varsRaw} onChange={(e) => setVarsRaw(e.target.value)} placeholder={'{"name":"Ada"}'} />
                         <p className="text-xs text-muted-foreground">
-                          Fills the template&apos;s <span className="font-mono">{"{{placeholders}}"}</span> — watch the preview update.
+                          Optional overrides for the template&apos;s <span className="font-mono">{"{{placeholders}}"}</span> — watch the
+                          preview update. Sending to a saved contact? Their details (<span className="font-mono">{"{{name}}"}</span>,{" "}
+                          <span className="font-mono">{"{{first_name}}"}</span>, custom fields) fill in automatically at send;
+                          anything you set here wins.
                         </p>
                       </div>
                     ) : null}

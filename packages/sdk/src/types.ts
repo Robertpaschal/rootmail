@@ -14,6 +14,14 @@ export interface SendParams {
   subject?: string;
   template?: string;
   templateId?: string;
+  /**
+   * Values merged into the template's {{placeholders}} (Handlebars). When the
+   * recipient is a saved contact, their details (email, name, first_name,
+   * last_name, phone, and any custom metadata fields) merge in automatically
+   * first — values you pass here override them. {{unsubscribe_url}} is always
+   * rootmail's signed link. The same auto-personalization applies to campaign
+   * recipients and sequence enrollees.
+   */
   variables?: Record<string, unknown>;
   html?: string;
   text?: string;
