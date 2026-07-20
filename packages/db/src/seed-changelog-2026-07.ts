@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Replies grew up: real email threads, per subject, under each contact",
+    date: "2026-07-20",
+    changes: [
+      {
+        kind: "New",
+        text: "Conversations are now threaded the way email actually works: one thread per subject, under the contact. A new subject starts a new thread; every reply lands on the thread it answers — “Re:” and “Fwd:” prefixes are understood. One contact, all their subjects, nothing sprawls.",
+      },
+      {
+        kind: "New",
+        text: "Every message in a thread renders as the full email it is — the real HTML body on white “email paper”, the sender and recipient, attachments, and its own lifeline: delivered, opened, clicked, each with times. Collapse or expand any email in the thread.",
+      },
+      {
+        kind: "Improved",
+        text: "Reply in context, two ways: a quick reply right in the thread, or “Open the full editor” — the complete composer (templates, formatting, attachments) prefilled with the contact and “Re:” subject, and your email lands back on that thread automatically. “New email” starts a fresh subject with the same contact.",
+      },
+      {
+        kind: "Improved",
+        text: "Honest accounting, stated in the thread: every reply is a real email send and counts toward your monthly and daily sending like any other message.",
+      },
+    ],
+  },
+  {
     title: "Get replies on your own domain",
     date: "2026-07-18",
     changes: [
