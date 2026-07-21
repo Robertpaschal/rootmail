@@ -49,6 +49,7 @@ export default async function ListDetailPage({
   let list: ContactList;
   let members: ListMembers;
   let growth: ListGrowth | null = null;
+  let welcome: { id: string; name: string; status: string } | null = null;
   try {
     list = await api.getList(id);
     members = await api.getListContacts(id, {
@@ -58,6 +59,13 @@ export default async function ListDetailPage({
       offset: (page - 1) * PAGE_SIZE,
     });
     growth = await api.listGrowth(id).catch(() => null);
+    // The welcome automation: a sequence triggered by this audience's signup tag.
+    // Sequences are gated (mk_growth) — degrade quietly if not entitled.
+    if (list.signup_tag) {
+      const seqs = await api.listSequences().then((r) => r.data).catch(() => []);
+      const s = seqs.find((x) => x.trigger.type === "contact_tagged" && x.trigger.tag === list.signup_tag);
+      if (s) welcome = { id: s.id, name: s.name, status: s.status };
+    }
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
@@ -173,7 +181,7 @@ export default async function ListDetailPage({
               </div>
             </div>
           </div>
-          <div id="grow">{growth ? <GrowAudience list={list} growth={growth} /> : null}</div>
+          <div id="grow">{growth ? <GrowAudience list={list} growth={growth} welcome={welcome} /> : null}</div>
         </Reveal>
       ) : (
         <Reveal className="space-y-4" delay={0.05}>
@@ -279,7 +287,7 @@ export default async function ListDetailPage({
           ) : null}
 
           {/* Grow this audience — the scaling path, always available */}
-          {growth ? <GrowAudience list={list} growth={growth} /> : null}
+          {growth ? <GrowAudience list={list} growth={growth} welcome={welcome} /> : null}
         </Reveal>
       )}
     </>

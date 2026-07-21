@@ -113,7 +113,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                             <span className="block break-words text-sm font-medium leading-tight group-hover:underline">
                               {c.name ?? c.email}
                             </span>
-                            {c.name ? <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{c.email}</span> : null}
+                            {c.name ? <span className="mt-0.5 block break-all text-[11px] leading-tight text-muted-foreground">{c.email}</span> : null}
                           </span>
                         </span>
                       </Link>
