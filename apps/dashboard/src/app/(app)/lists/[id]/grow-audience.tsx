@@ -99,10 +99,13 @@ export function GrowAudience({
   list,
   growth,
   welcome,
+  canSequence,
 }: {
   list: ContactList;
   growth: ListGrowth;
   welcome: { id: string; name: string; status: string } | null;
+  /** Whether this org can use Sequences (Growth feature) — gates the CTA below. */
+  canSequence: boolean;
 }) {
   const [enabled, setEnabled] = useState(list.signup_enabled);
   const [doubleOptIn, setDoubleOptIn] = useState(list.double_opt_in);
@@ -282,7 +285,8 @@ export function GrowAudience({
             <div className="rounded-lg border p-3">
               <Label htmlFor="signup-tag" className="text-xs">Tag new subscribers</Label>
               <Input id="signup-tag" value={tag} onChange={(e) => setTag(e.target.value)} placeholder="newsletter" className="mt-1 h-8" />
-              {/* Integration: the tag → its welcome sequence, live */}
+              {/* Integration: the tag → its welcome sequence, live + entitlement-aware.
+                  Never link a free org into the locked composer — offer the upgrade. */}
               <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-2.5 py-2 text-xs">
                 <Workflow className="size-3.5 shrink-0 text-primary" />
                 {welcome ? (
@@ -293,23 +297,27 @@ export function GrowAudience({
                     </Link>
                     <span className="text-muted-foreground"> · {welcome.status}</span>
                   </span>
-                ) : tag.trim() ? (
-                  <span className="min-w-0 flex-1 text-muted-foreground">
-                    No welcome sequence runs on “{tag.trim()}” yet.
-                  </span>
+                ) : canSequence ? (
+                  <>
+                    <span className="min-w-0 flex-1 text-muted-foreground">
+                      {tag.trim()
+                        ? `No welcome sequence runs on “${tag.trim()}” yet.`
+                        : "Set a tag, then a sequence triggered by it greets subscribers automatically."}
+                    </span>
+                    <Link href="/sequences/new" className="inline-flex shrink-0 items-center gap-1 font-medium text-primary hover:underline">
+                      Create welcome sequence <ArrowRight className="size-3" />
+                    </Link>
+                  </>
                 ) : (
-                  <span className="min-w-0 flex-1 text-muted-foreground">
-                    Set a tag, then a sequence triggered by it greets subscribers automatically.
-                  </span>
+                  <>
+                    <span className="min-w-0 flex-1 text-muted-foreground">
+                      Automatic welcome sequences are a <span className="font-medium text-foreground">Growth</span> feature.
+                    </span>
+                    <Link href="/billing/marketing" className="inline-flex shrink-0 items-center gap-1 font-medium text-primary hover:underline">
+                      Upgrade <ArrowRight className="size-3" />
+                    </Link>
+                  </>
                 )}
-                {!welcome ? (
-                  <Link
-                    href="/sequences/new"
-                    className="inline-flex shrink-0 items-center gap-1 font-medium text-primary hover:underline"
-                  >
-                    Create welcome sequence <ArrowRight className="size-3" />
-                  </Link>
-                ) : null}
               </div>
             </div>
 

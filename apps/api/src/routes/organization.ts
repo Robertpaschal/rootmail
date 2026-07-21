@@ -15,6 +15,8 @@ import {
   workspaces,
 } from "@rootmail/db";
 import { loadOrg } from "../lib/features";
+import { orgAddonQuantities } from "../lib/plans";
+import { effectiveFeatures } from "../lib/wings";
 import { requirePermission } from "../lib/permissions";
 import { parse } from "../lib/validate";
 
@@ -70,7 +72,14 @@ const onboardingBody = z.object({
 });
 
 export async function organizationRoutes(app: FastifyInstance): Promise<void> {
-  app.get("/v1/organization", async (req) => serialize(await loadOrg(req)));
+  app.get("/v1/organization", async (req) => {
+    const org = await loadOrg(req);
+    // Effective entitlements (tier features ∪ add-on-granted) — the SAME set the
+    // API gate enforces via requireFeature. The single source of truth the
+    // dashboard reads to keep cross-links entitlement-aware everywhere.
+    const features = effectiveFeatures(org, await orgAddonQuantities(org.id));
+    return { ...serialize(org), features };
+  });
 
   app.patch("/v1/organization", async (req) => {
     await requirePermission(req, "billing.manage");

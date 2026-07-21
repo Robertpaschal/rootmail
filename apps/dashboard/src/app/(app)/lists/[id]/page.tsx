@@ -50,6 +50,10 @@ export default async function ListDetailPage({
   let members: ListMembers;
   let growth: ListGrowth | null = null;
   let welcome: { id: string; name: string; status: string } | null = null;
+  // Whether this org can use Sequences at all (Growth feature). Drives the grow
+  // panel's welcome-automation CTA so we never invite a free org into the locked
+  // sequence composer — the door itself is entitlement-aware, not just the wall.
+  let canSequence = true;
   try {
     list = await api.getList(id);
     members = await api.getListContacts(id, {
@@ -59,12 +63,18 @@ export default async function ListDetailPage({
       offset: (page - 1) * PAGE_SIZE,
     });
     growth = await api.listGrowth(id).catch(() => null);
-    // The welcome automation: a sequence triggered by this audience's signup tag.
-    // Sequences are gated (mk_growth) — degrade quietly if not entitled.
-    if (list.signup_tag) {
-      const seqs = await api.listSequences().then((r) => r.data).catch(() => []);
-      const s = seqs.find((x) => x.trigger.type === "contact_tagged" && x.trigger.tag === list.signup_tag);
-      if (s) welcome = { id: s.id, name: s.name, status: s.status };
+    // Reuse this one gated call as the entitlement probe: it 402s (feature_locked)
+    // for orgs without Sequences, and otherwise lets us find the welcome sequence
+    // triggered by this audience's signup tag.
+    try {
+      const seqs = (await api.listSequences()).data;
+      if (list.signup_tag) {
+        const s = seqs.find((x) => x.trigger.type === "contact_tagged" && x.trigger.tag === list.signup_tag);
+        if (s) welcome = { id: s.id, name: s.name, status: s.status };
+      }
+    } catch (err) {
+      if (err instanceof ApiError && err.code === "feature_locked") canSequence = false;
+      /* other errors: leave canSequence true; the destination page still walls off */
     }
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
@@ -181,7 +191,7 @@ export default async function ListDetailPage({
               </div>
             </div>
           </div>
-          <div id="grow">{growth ? <GrowAudience list={list} growth={growth} welcome={welcome} /> : null}</div>
+          <div id="grow">{growth ? <GrowAudience list={list} growth={growth} welcome={welcome} canSequence={canSequence} /> : null}</div>
         </Reveal>
       ) : (
         <Reveal className="space-y-4" delay={0.05}>
@@ -287,7 +297,7 @@ export default async function ListDetailPage({
           ) : null}
 
           {/* Grow this audience — the scaling path, always available */}
-          {growth ? <GrowAudience list={list} growth={growth} welcome={welcome} /> : null}
+          {growth ? <GrowAudience list={list} growth={growth} welcome={welcome} canSequence={canSequence} /> : null}
         </Reveal>
       )}
     </>

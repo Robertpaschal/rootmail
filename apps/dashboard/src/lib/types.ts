@@ -256,6 +256,9 @@ export interface Organization {
   business_types: string[];
   previous_provider: string | null;
   onboarding_completed: boolean;
+  /** Effective entitlements (tier ∪ add-ons) — present on GET /v1/organization;
+   * the single source of truth for keeping cross-links entitlement-aware. */
+  features?: string[];
 }
 
 /** A SAML SSO connection — with the SP values (entity id, ACS, metadata) the
