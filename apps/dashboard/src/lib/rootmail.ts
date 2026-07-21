@@ -25,6 +25,8 @@ import type {
   ContactDetail,
   ContactList,
   ContactNote,
+  ContactStage,
+  ContactStagesSummary,
   ListGrowth,
   ContactsBrowse,
   ContactStatus,
@@ -381,7 +383,7 @@ export const api = {
     rmFetch<SequenceAnalytics>(`/v1/sequences/${id}/analytics`),
 
   // Browse the workspace's people (paged; q/tag/status filters).
-  browseContacts: (q: { q?: string; tag?: string; status?: string; limit?: number; offset?: number } = {}) =>
+  browseContacts: (q: { q?: string; tag?: string; status?: string; stage?: string; limit?: number; offset?: number } = {}) =>
     rmFetch<ContactsBrowse>("/v1/contacts", { query: q }),
   contactTags: () => rmFetch<ListResponse<ListTag>>("/v1/contacts/tags"),
 
@@ -421,8 +423,10 @@ export const api = {
       tags?: string[];
       metadata?: Record<string, unknown>;
       status?: "active" | "unsubscribed";
+      stage?: ContactStage;
     },
   ) => rmFetch<Contact>(`/v1/contacts/id/${id}`, { method: "PATCH", body }),
+  contactStages: () => rmFetch<ContactStagesSummary>("/v1/contacts/stages"),
   deleteContact: (id: string) => rmFetch<{ deleted: boolean }>(`/v1/contacts/id/${id}`, { method: "DELETE" }),
   addContactNote: (id: string, body: string) =>
     rmFetch<ContactNote>(`/v1/contacts/id/${id}/notes`, { method: "POST", body: { body } }),

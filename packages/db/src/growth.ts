@@ -16,7 +16,14 @@ import { evaluateTriggers } from "./sequence-triggers";
 // (waitlist admission) admit people through EXACTLY the same door: capacity check
 // → contact upsert → audience membership → lifecycle event → sequence triggers.
 
-export type ContactEventKind = "subscribed" | "confirmed" | "unsubscribed" | "imported" | "waitlisted" | "admitted";
+export type ContactEventKind =
+  | "subscribed"
+  | "confirmed"
+  | "unsubscribed"
+  | "imported"
+  | "waitlisted"
+  | "admitted"
+  | "stage_changed";
 
 export async function emitContactEvent(e: {
   workspaceId: string;

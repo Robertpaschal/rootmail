@@ -130,3 +130,18 @@ export async function audienceFromTagAction(formData: FormData): Promise<void> {
   revalidatePath("/lists");
   redirect(dest);
 }
+
+/** Move a contact along the CRM lifecycle (board drag / pipeline click). */
+export async function moveStageAction(
+  contactId: string,
+  stage: "subscriber" | "engaged" | "customer" | "champion" | "at_risk",
+): Promise<{ ok?: boolean; error?: string }> {
+  try {
+    await api.updateContact(contactId, { stage });
+    revalidatePath("/contacts");
+    revalidatePath(`/contacts/${contactId}`);
+    return { ok: true };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Couldn't move that contact." };
+  }
+}

@@ -37,6 +37,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { ContactDetail, ContactList } from "@/lib/types";
+import { POSITIVE_STAGES, STAGE_META, type ContactStage } from "@/lib/stages";
 
 // The CRM view of one person: who they are (editable), where they belong
 // (audiences), what you know (notes, custom fields), and everything that's
@@ -57,6 +58,7 @@ const EVENT_META: Record<string, { label: string; Icon: typeof Mail; tone: strin
   imported: { label: "Imported", Icon: UserPlus, tone: "text-muted-foreground" },
   waitlisted: { label: "Waitlisted (no contact room)", Icon: Ban, tone: "text-amber-600" },
   admitted: { label: "Admitted from the waitlist", Icon: UserCheck, tone: "text-emerald-600" },
+  stage_changed: { label: "Stage changed", Icon: UserCheck, tone: "text-primary" },
 };
 
 export function ContactCrm({ contact, allLists }: { contact: ContactDetail; allLists: ContactList[] }) {
@@ -73,6 +75,7 @@ export function ContactCrm({ contact, allLists }: { contact: ContactDetail; allL
   const [audiences, setAudiences] = useState(contact.lists);
   const [addList, setAddList] = useState("");
   const [status, setStatus] = useState(contact.status);
+  const [stage, setStage] = useState<ContactStage>(contact.stage);
   const [msg, setMsg] = useState<{ ok?: string; error?: string } | null>(null);
   const [pending, start] = useTransition();
 
@@ -107,6 +110,18 @@ export function ContactCrm({ contact, allLists }: { contact: ContactDetail; allL
       router.refresh();
     });
 
+  const setStageTo = (next: ContactStage) =>
+    start(async () => {
+      setMsg(null);
+      const prev = stage;
+      setStage(next);
+      const res = await updateContactAction(contact.id, { stage: next });
+      if (res.error) {
+        setStage(prev);
+        setMsg({ error: res.error });
+      } else router.refresh();
+    });
+
   const remove = () =>
     start(async () => {
       const res = await deleteContactAction(contact.id);
@@ -125,7 +140,12 @@ export function ContactCrm({ contact, allLists }: { contact: ContactDetail; allL
           <span className="flex items-center gap-2 text-sm">
             <meta.Icon className={cn("size-4 shrink-0", meta.tone)} />
             <span>
-              {meta.label}
+              {e.kind === "stage_changed" && typeof e.metadata?.to === "string"
+                ? `Moved to ${STAGE_META[e.metadata.to as ContactStage]?.label ?? String(e.metadata.to)}`
+                : meta.label}
+              {e.kind === "stage_changed" && typeof e.metadata?.from === "string" ? (
+                <span className="text-muted-foreground"> (from {STAGE_META[e.metadata.from as ContactStage]?.label ?? String(e.metadata.from)})</span>
+              ) : null}
               {e.list_name ? <span className="text-muted-foreground"> · {e.list_name}</span> : null}
               {typeof e.metadata?.source === "string" ? <span className="text-muted-foreground"> · via {String(e.metadata.source)}</span> : null}
             </span>
@@ -202,6 +222,65 @@ export function ContactCrm({ contact, allLists }: { contact: ContactDetail; allL
             >
               <Trash2 className="size-4" />
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* The relationship pipeline — click a stage to move them (like a real CRM).
+          "At risk" is the side lane: pull them in when they cool, back out when they warm. */}
+      <Card>
+        <CardContent className="space-y-2.5 p-4">
+          <div className="flex items-stretch overflow-hidden rounded-lg border">
+            {POSITIVE_STAGES.map((s2, i) => {
+              const currentIdx = POSITIVE_STAGES.indexOf(stage as (typeof POSITIVE_STAGES)[number]);
+              const atRisk = stage === "at_risk";
+              const reached = !atRisk && currentIdx >= i;
+              const isCurrent = !atRisk && currentIdx === i;
+              return (
+                <button
+                  key={s2}
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setStageTo(s2)}
+                  title={STAGE_META[s2].hint}
+                  className={cn(
+                    "flex h-10 flex-1 items-center justify-center border-r px-2 text-xs transition-colors last:border-r-0",
+                    s2 === "champion" && reached
+                      ? "bg-amber-500 text-white hover:bg-amber-600"
+                      : reached
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "bg-muted/30 text-muted-foreground hover:bg-muted",
+                    isCurrent ? "font-semibold" : "font-medium",
+                  )}
+                >
+                  {STAGE_META[s2].label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="text-muted-foreground">
+              {stage === "at_risk"
+                ? "In the at-risk lane — a win-back email or sequence is the usual next move."
+                : stage === "champion"
+                  ? "A champion — your best kind of customer. 🎉"
+                  : `${STAGE_META[stage].label} · click ahead to escalate, back to de-escalate`}
+            </span>
+            {stage === "at_risk" ? (
+              <Button variant="outline" size="sm" disabled={pending} onClick={() => setStageTo("engaged")}>
+                Back on track
+              </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={pending}
+                onClick={() => setStageTo("at_risk")}
+                className="text-muted-foreground hover:text-destructive"
+              >
+                Mark at risk
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

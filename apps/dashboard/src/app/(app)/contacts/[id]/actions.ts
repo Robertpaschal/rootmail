@@ -20,6 +20,7 @@ export async function updateContactAction(
     tags?: string[];
     metadata?: Record<string, unknown>;
     status?: "active" | "unsubscribed";
+    stage?: "subscriber" | "engaged" | "customer" | "champion" | "at_risk";
   },
 ): Promise<Result> {
   try {

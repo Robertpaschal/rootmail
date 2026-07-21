@@ -44,6 +44,13 @@ export const PRIORITIES = ["high", "normal", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];
 
 export const CONTACT_STATUSES = ["active", "unsubscribed", "bounced", "complained"] as const;
+
+// The CRM lifecycle a user moves contacts through (escalate/de-escalate) —
+// distinct from deliverability `status`. Positive path: subscriber → engaged →
+// customer → champion; `at_risk` is the side exit (like a CRM's "lost", but
+// recoverable). Stage changes are user-driven and recorded as contact_events.
+export const CONTACT_STAGES = ["subscriber", "engaged", "customer", "champion", "at_risk"] as const;
+export type ContactStage = (typeof CONTACT_STAGES)[number];
 export type ContactStatus = (typeof CONTACT_STATUSES)[number];
 
 export const SUBTENANT_STATUSES = [

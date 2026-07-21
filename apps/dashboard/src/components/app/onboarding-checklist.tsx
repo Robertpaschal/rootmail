@@ -27,6 +27,7 @@ export async function OnboardingChecklist() {
   let onboarded = true;
   let hasVerifiedSender = false;
   let lists = 0;
+  let growthOn = false;
   let templates = 0;
   let messages = 0;
   let replyDecided = false;
@@ -44,6 +45,7 @@ export async function OnboardingChecklist() {
     onboarded = me.onboarding_completed ?? true; // undefined (older API) → don't nag
     hasVerifiedSender = snd.data.some((s) => s.status === "verified");
     lists = l.data.length;
+    growthOn = l.data.some((x) => x.signup_enabled);
     templates = t.data.length;
     messages = m.data.length;
     // "Done" once they've either chosen to handle replies in their own mailbox or
@@ -86,6 +88,13 @@ export async function OnboardingChecklist() {
       desc: "Import or add the people you want to reach.",
       href: "/contacts?add=import",
       minutes: 3,
+    },
+    {
+      done: growthOn,
+      label: "Turn on audience growth",
+      desc: "Get a shareable signup page + an embeddable form, so people subscribe themselves — and a welcome sequence can greet them automatically.",
+      href: "/contacts?tab=audiences",
+      minutes: 2,
     },
     {
       done: templates > 0,

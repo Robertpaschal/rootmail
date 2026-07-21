@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Your audience is now a real CRM — pipeline, board, and lifecycle stages",
+    date: "2026-07-21",
+    changes: [
+      {
+        kind: "New",
+        text: "Every contact now has a lifecycle stage — Subscriber → Engaged → Customer → Champion, with an At-risk side lane. The Audience page opens with your pipeline at a glance: live counts per stage, click any to filter.",
+      },
+      {
+        kind: "New",
+        text: "A Board view sits next to the table: drag people between stage columns as the relationship changes (or use the card's move menu). Every move lands on the contact's timeline — “Moved to Customer (from Subscriber)”.",
+      },
+      {
+        kind: "New",
+        text: "Each contact's profile now carries a clickable pipeline bar — click ahead to escalate, back to de-escalate, “Mark at risk” when they go quiet and “Back on track” when they warm up.",
+      },
+      {
+        kind: "Improved",
+        text: "The empty Audience page now shows the three ways to get your first customers in — Grow (signup page + embed), Import, or add by hand — and your Overview checklist gained a “Turn on audience growth” step.",
+      },
+      {
+        kind: "New",
+        text: "For developers: stage on every contact, a stage filter on GET /v1/contacts, and GET /v1/contacts/stages for pipeline counts.",
+      },
+    ],
+  },
+  {
     title: "Grow your audience — and manage every customer like a CRM",
     date: "2026-07-20",
     changes: [

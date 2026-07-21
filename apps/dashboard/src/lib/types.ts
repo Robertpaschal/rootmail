@@ -120,6 +120,14 @@ export interface VerifyResult extends SubTenant {
   checks: DnsCheck[];
 }
 
+export type ContactStage = "subscriber" | "engaged" | "customer" | "champion" | "at_risk";
+
+export interface ContactStagesSummary {
+  object: "contact_stages";
+  total: number;
+  stages: Record<ContactStage, number>;
+}
+
 export interface Contact {
   id: string;
   object: "contact";
@@ -129,6 +137,8 @@ export interface Contact {
   tags: string[];
   metadata: Record<string, unknown>;
   status: ContactStatus;
+  /** CRM lifecycle stage — the relationship, distinct from deliverability status. */
+  stage: ContactStage;
   sub_tenant_id: string | null;
   created_at: string;
   updated_at: string;
@@ -595,7 +605,7 @@ export interface ContactNote {
 
 export interface ContactLifecycleEvent {
   id: string;
-  kind: "subscribed" | "confirmed" | "unsubscribed" | "imported" | "waitlisted" | "admitted";
+  kind: "subscribed" | "confirmed" | "unsubscribed" | "imported" | "waitlisted" | "admitted" | "stage_changed";
   list_id: string | null;
   list_name: string | null;
   metadata: Record<string, unknown>;

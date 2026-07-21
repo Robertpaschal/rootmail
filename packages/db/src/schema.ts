@@ -556,12 +556,16 @@ export const contacts = pgTable(
     tags: jsonb("tags").$type<string[]>().notNull().default([]),
     metadata: jsonb("metadata").$type<Record<string, unknown>>().notNull().default({}),
     status: contactStatusEnum("status").notNull().default("active"),
+    // CRM lifecycle stage (user-managed; see CONTACT_STAGES in core) — where the
+    // RELATIONSHIP stands, independent of deliverability `status`.
+    stage: text("stage").notNull().default("subscriber"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   (t) => [
     uniqueIndex("contacts_scope_email_uq").on(t.workspaceId, t.subTenantId, t.email),
     index("contacts_ws_status_idx").on(t.workspaceId, t.status),
+    index("contacts_ws_stage_idx").on(t.workspaceId, t.stage),
   ],
 );
 

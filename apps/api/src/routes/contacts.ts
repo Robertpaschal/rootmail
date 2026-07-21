@@ -1,7 +1,7 @@
 import { and, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { CONTACT_STATUSES, Errors, newId, verifyUnsubscribeToken } from "@rootmail/core";
+import { CONTACT_STAGES, CONTACT_STATUSES, Errors, newId, verifyUnsubscribeToken } from "@rootmail/core";
 import { auditEntries, contactEvents, contactNotes, contacts, db, emitContactEvent, listContacts, lists, messages, suppressions } from "@rootmail/db";
 import { requirePermission } from "../lib/permissions";
 import { addSuppression, findContact, isSuppressed } from "../lib/queries";
@@ -26,6 +26,7 @@ const browseQuery = z.object({
   q: z.string().max(200).optional(),
   tag: z.string().max(80).optional(),
   status: z.enum(CONTACT_STATUSES).optional(),
+  stage: z.enum(CONTACT_STAGES).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
@@ -49,6 +50,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
     }
     if (q.tag) where.push(sql`${contacts.tags} @> ${JSON.stringify([q.tag])}::jsonb`);
     if (q.status) where.push(eq(contacts.status, q.status));
+    if (q.stage) where.push(eq(contacts.stage, q.stage));
 
     const [rows, [cnt]] = await Promise.all([
       db
@@ -86,6 +88,28 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       limit 100
     `)) as unknown as { tag: string; n: number }[];
     return { object: "list", data: rows.map((r) => ({ tag: r.tag, contacts: r.n })) };
+  });
+
+  // --- Lifecycle pipeline: how many people sit at each stage ----------------
+  app.get("/v1/contacts/stages", async (req) => {
+    const subTenantId = req.auth.subTenant?.id ?? null;
+    const rows = await db
+      .select({ stage: contacts.stage, n: sql<number>`count(*)::int` })
+      .from(contacts)
+      .where(
+        and(
+          eq(contacts.workspaceId, req.auth.workspace.id),
+          subTenantId ? eq(contacts.subTenantId, subTenantId) : isNull(contacts.subTenantId),
+        ),
+      )
+      .groupBy(contacts.stage);
+    const counts = Object.fromEntries(CONTACT_STAGES.map((s) => [s, 0])) as Record<string, number>;
+    let total = 0;
+    for (const r of rows) {
+      counts[r.stage] = (counts[r.stage] ?? 0) + r.n;
+      total += r.n;
+    }
+    return { object: "contact_stages", total, stages: counts };
   });
   // --- Upsert -------------------------------------------------------------
   app.post("/v1/contacts", async (req, reply) => {
@@ -369,6 +393,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         tags: z.array(z.string().trim().min(1).max(60)).max(50).optional(),
         metadata: z.record(z.unknown()).optional(),
         status: z.enum(["active", "unsubscribed"]).optional(),
+        stage: z.enum(CONTACT_STAGES).optional(),
       }),
       req.body,
     );
@@ -383,10 +408,23 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
         tags: body.tags ?? c.tags,
         metadata: body.metadata ?? c.metadata,
         status: body.status ?? c.status,
+        stage: body.stage ?? c.stage,
         updatedAt: new Date(),
       })
       .where(eq(contacts.id, c.id))
       .returning();
+
+    // Escalations/de-escalations land on the timeline (from → to).
+    if (body.stage && body.stage !== c.stage) {
+      void emitContactEvent({
+        workspaceId: req.auth.workspace.id,
+        subTenantId,
+        contactId: c.id,
+        email: c.email,
+        kind: "stage_changed",
+        metadata: { from: c.stage, to: body.stage },
+      });
+    }
 
     // Lifecycle transitions carry their real side effects, same as every other door.
     if (body.status === "unsubscribed" && c.status !== "unsubscribed") {

@@ -3,13 +3,18 @@ import Link from "next/link";
 import {
   ChevronLeft,
   ChevronRight,
+  Kanban,
   ListChecks,
+  Rows3,
   Search,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
   Tag,
   Trash2,
+  TrendingUp,
+  Upload,
+  UserPlus,
   Users,
   X,
 } from "lucide-react";
@@ -33,7 +38,9 @@ import { LocalTime } from "@/components/app/local-time";
 import { relativeTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import { cn } from "@/lib/utils";
-import type { Contact, ContactList, ContactsBrowse, ListTag } from "@/lib/types";
+import type { Contact, ContactList, ContactsBrowse, ContactStagesSummary, ListTag } from "@/lib/types";
+import { CONTACT_STAGES, STAGE_META, type ContactStage } from "@/lib/stages";
+import { CrmBoard, type BoardColumn } from "./crm-board";
 
 const PAGE_SIZE = 25;
 const STATUSES = ["active", "unsubscribed", "bounced", "complained"] as const;
@@ -43,6 +50,8 @@ interface Params {
   q?: string;
   tag?: string;
   status?: string;
+  stage?: string;
+  view?: string; // "board" → the lifecycle kanban; default table
   page?: string;
   email?: string;
   add?: string; // "one" | "import" → open the Add-people panel in that mode
@@ -77,8 +86,12 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
   const tab = sp.tab === "audiences" ? "audiences" : "people";
   const page = Math.max(1, Number(sp.page) || 1);
   const status = STATUSES.includes(sp.status as (typeof STATUSES)[number]) ? sp.status : undefined;
+  const stage = CONTACT_STAGES.includes(sp.stage as ContactStage) ? (sp.stage as ContactStage) : undefined;
+  const view = sp.view === "board" ? "board" : "table";
 
   let browse: ContactsBrowse | null = null;
+  let stages: ContactStagesSummary | null = null;
+  let board: BoardColumn[] = [];
   let tags: ListTag[] = [];
   let lists: ContactList[] = [];
   let person: Contact | null = null;
@@ -93,10 +106,24 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
       api.listLists().then((r) => r.data),
     ]);
     if (tab === "people") {
+      stages = await api.contactStages().catch(() => null);
+      if (view === "board") {
+        // One slim page per column; the strip's counts carry the true totals and
+        // each column hands off to the table for the long tail.
+        const cols = await Promise.all(
+          CONTACT_STAGES.map((st) => api.browseContacts({ stage: st, limit: 30 }).catch(() => null)),
+        );
+        board = CONTACT_STAGES.map((st, i) => ({
+          stage: st,
+          count: stages?.stages[st] ?? cols[i]?.total ?? 0,
+          contacts: cols[i]?.data ?? [],
+        }));
+      }
       browse = await api.browseContacts({
         q: sp.q || undefined,
         tag: sp.tag || undefined,
         status,
+        stage,
         limit: PAGE_SIZE,
         offset: (page - 1) * PAGE_SIZE,
       });
@@ -130,8 +157,9 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
   }
 
   const totalPeople = browse?.total ?? 0;
-  const activeFilters = Boolean(sp.q || sp.tag || status);
-  const noPeopleAtAll = tab === "people" && totalPeople === 0 && !activeFilters;
+  const everyone = stages?.total ?? totalPeople;
+  const activeFilters = Boolean(sp.q || sp.tag || status || stage);
+  const noPeopleAtAll = tab === "people" && everyone === 0 && !activeFilters;
   const pages = Math.max(1, Math.ceil(totalPeople / PAGE_SIZE));
 
   return (
@@ -240,12 +268,35 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
 
           {noPeopleAtAll ? (
             <>
-              <EmptyState
-                icon={<Users className="size-6" />}
-                title="No one here yet"
-                description="People land here when you add them, import a file, or your product signs them up through the API. Tags mark subsets — audiences are the groups you send campaigns to."
-              />
-              <AddPeople lists={lists.map((l) => ({ id: l.id, name: l.name }))} defaultOpen defaultMode={sp.add === "one" ? "one" : "import"} />
+              {/* The empty CRM sells its own doors: grow, bring, or add. */}
+              <div className="rounded-xl border border-dashed p-8 text-center">
+                <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+                  <Users className="size-6" />
+                </span>
+                <h2 className="mt-3 text-lg font-semibold">Your customers will live here</h2>
+                <p className="mx-auto mt-1 max-w-lg text-sm text-muted-foreground">
+                  Every person you email becomes a profile you can manage — stages, tags, notes, and their whole
+                  history. Three ways to get the first ones in:
+                </p>
+                <div className="mx-auto mt-5 grid max-w-2xl gap-3 sm:grid-cols-3">
+                  <Link href="/contacts?tab=audiences" className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50">
+                    <TrendingUp className="size-5 text-primary" />
+                    <p className="mt-2 text-sm font-semibold">Grow</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Turn on signup for an audience — share the page or embed the form; people add themselves.</p>
+                  </Link>
+                  <Link href={hubUrl({ add: "import" })} className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50">
+                    <Upload className="size-5 text-primary" />
+                    <p className="mt-2 text-sm font-semibold">Import</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Bring a CSV from your old provider — tags and details come along.</p>
+                  </Link>
+                  <Link href={hubUrl({ add: "one" })} className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50">
+                    <UserPlus className="size-5 text-primary" />
+                    <p className="mt-2 text-sm font-semibold">Add by hand</p>
+                    <p className="mt-0.5 text-xs text-muted-foreground">Type one person in — perfect for testing the whole flow end to end.</p>
+                  </Link>
+                </div>
+              </div>
+              <AddPeople lists={lists.map((l) => ({ id: l.id, name: l.name }))} defaultOpen={sp.add != null} defaultMode={sp.add === "one" ? "one" : "import"} />
             </>
           ) : (
             <>
@@ -255,6 +306,67 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                 defaultMode={sp.add === "import" ? "import" : "one"}
               />
 
+              {/* The lifecycle pipeline — your relationships at a glance. Click a
+                  stage to filter; every count is live. */}
+              {stages ? (
+                <div className="flex flex-wrap items-stretch gap-2">
+                  <Link
+                    href={hubUrl({ view: sp.view })}
+                    className={cn(
+                      "flex min-w-24 flex-1 flex-col rounded-lg border px-3 py-2 transition-colors hover:border-primary/40",
+                      !stage && "border-primary ring-1 ring-primary/30",
+                    )}
+                  >
+                    <span className="text-[11px] font-medium text-muted-foreground">Everyone</span>
+                    <span className="text-lg font-bold tabular-nums">{everyone.toLocaleString()}</span>
+                  </Link>
+                  {CONTACT_STAGES.map((st) => {
+                    const meta = STAGE_META[st];
+                    const active = stage === st;
+                    return (
+                      <Link
+                        key={st}
+                        href={active ? hubUrl({ view: sp.view }) : hubUrl({ stage: st, view: sp.view })}
+                        title={meta.hint}
+                        className={cn(
+                          "flex min-w-24 flex-1 flex-col rounded-lg border px-3 py-2 transition-colors hover:border-primary/40",
+                          active && "border-primary ring-1 ring-primary/30",
+                        )}
+                      >
+                        <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                          <span className={cn("size-1.5 rounded-full", meta.dot)} /> {meta.label}
+                        </span>
+                        <span className="text-lg font-bold tabular-nums">{(stages.stages[st] ?? 0).toLocaleString()}</span>
+                      </Link>
+                    );
+                  })}
+                  <div className="flex items-center gap-1 self-center rounded-lg bg-secondary/50 p-1">
+                    <Link
+                      href={hubUrl({ q: sp.q, tag: sp.tag, status, stage })}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+                        view === "table" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Rows3 className="size-3.5" /> Table
+                    </Link>
+                    <Link
+                      href={hubUrl({ q: sp.q, tag: sp.tag, status, stage, view: "board" })}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+                        view === "board" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Kanban className="size-3.5" /> Board
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+
+              {view === "board" ? (
+                <CrmBoard columns={board} />
+              ) : (
+                <>
               {/* Search + filters (plain GET — the URL is the state). */}
               <form action="/contacts" method="get" className="flex flex-wrap items-center gap-2">
                 {sp.tag ? <input type="hidden" name="tag" value={sp.tag} /> : null}
@@ -317,6 +429,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                           <TableHead>Email</TableHead>
                           <TableHead>Name</TableHead>
                           <TableHead>Status</TableHead>
+                          <TableHead>Stage</TableHead>
                           <TableHead>Tags</TableHead>
                           <TableHead className="text-right">Added</TableHead>
                         </TableRow>
@@ -332,6 +445,11 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                             </TableCell>
                             <TableCell className="text-muted-foreground">{c.name ?? "—"}</TableCell>
                             <TableCell><ContactStatusBadge status={c.status} /></TableCell>
+                            <TableCell>
+                              <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium", STAGE_META[c.stage].badge)}>
+                                <span className={cn("size-1.5 rounded-full", STAGE_META[c.stage].dot)} /> {STAGE_META[c.stage].label}
+                              </span>
+                            </TableCell>
                             <TableCell>
                               {c.tags.length ? (
                                 <span className="flex flex-wrap gap-1">
@@ -368,18 +486,20 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                   </span>
                   <span className="flex gap-1">
                     {page > 1 ? (
-                      <Link href={hubUrl({ q: sp.q, tag: sp.tag, status, page: String(page - 1) })} className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 hover:bg-accent">
+                      <Link href={hubUrl({ q: sp.q, tag: sp.tag, status, stage, page: String(page - 1) })} className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 hover:bg-accent">
                         <ChevronLeft className="size-3.5" /> Prev
                       </Link>
                     ) : null}
                     {page < pages ? (
-                      <Link href={hubUrl({ q: sp.q, tag: sp.tag, status, page: String(page + 1) })} className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 hover:bg-accent">
+                      <Link href={hubUrl({ q: sp.q, tag: sp.tag, status, stage, page: String(page + 1) })} className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1 hover:bg-accent">
                         Next <ChevronRight className="size-3.5" />
                       </Link>
                     ) : null}
                   </span>
                 </div>
               ) : null}
+                </>
+              )}
             </>
           )}
         </Reveal>

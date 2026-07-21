@@ -220,6 +220,8 @@ export function serializeContact(c: Contact) {
     tags: c.tags,
     metadata: c.metadata,
     status: c.status,
+    // CRM lifecycle stage — the relationship, distinct from deliverability status.
+    stage: c.stage,
     sub_tenant_id: c.subTenantId,
     created_at: c.createdAt,
     updated_at: c.updatedAt,
