@@ -14,6 +14,36 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A calmer CRM: cleaner contact pages, richer audiences, and an audience pack",
+    date: "2026-07-21",
+    changes: [
+      {
+        kind: "Improved",
+        text: "The contact page is now presented, not permanently in edit mode: details, tags, and audiences show cleanly and open to edit or add only when you ask. Notes get their own composer, and the activity feed is one tidy timeline that scrolls instead of growing forever.",
+      },
+      {
+        kind: "Improved",
+        text: "Lifecycle suggestions: when someone's engagement says they've moved on — a subscriber who just clicked, or a customer gone quiet — the contact page offers a one-click stage change. You're always in control; nothing moves on its own.",
+      },
+      {
+        kind: "Improved",
+        text: "The lifecycle board's cards now show each person's current stage at a glance, with a proper menu to move them (the current stage is checked) — no more guessing.",
+      },
+      {
+        kind: "New",
+        text: "Each audience now has its own rich view: the lifecycle mix at a glance, searchable and filterable members that link straight to their profile, and the same from-empty-to-scale guidance as the People hub.",
+      },
+      {
+        kind: "New",
+        text: "Audience pack add-on: need a few more lists than your plan includes? Add +5 audiences on the same bill. As always, moving up a plan raises your allowance for less per audience — packs are the quick top-up.",
+      },
+      {
+        kind: "Fixed",
+        text: "Contact packs now show their real price at checkout instead of $0.",
+      },
+    ],
+  },
+  {
     title: "Your audience is now a real CRM — pipeline, board, and lifecycle stages",
     date: "2026-07-21",
     changes: [

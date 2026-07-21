@@ -931,6 +931,14 @@ export interface ContactsBrowse extends ListResponse<Contact> {
   offset: number;
 }
 
+/** Members of one audience — a page, plus the audience's whole lifecycle mix. */
+export interface ListMembers extends ListResponse<Contact> {
+  total: number;
+  limit: number;
+  offset: number;
+  stages: Record<ContactStage, number>;
+}
+
 export interface DeliverabilityFactor {
   id: string;
   severity: "info" | "warning" | "critical";

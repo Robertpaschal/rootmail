@@ -367,6 +367,7 @@ export const ADD_ON_IDS = [
   "dedicated_ip",
   "subtenant_pack",
   "contact_pack",
+  "audience_pack",
   "ai_credit_pack",
   "custom_roles",
   "sso_scim",
@@ -461,6 +462,22 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
     kind: "recurring",
     priceEnvKey: "STRIPE_PRICE_ADDON_CONTACT_PACK",
     grant: 500,
+    wing: "marketing",
+  },
+  audience_pack: {
+    id: "audience_pack",
+    name: "Audience pack",
+    description:
+      "Room for 5 more audiences (lists) without changing your plan — for when you want another segment, campaign list, or brand and you're at your plan's limit. Moving up a plan raises your audience allowance for less per audience; this is the quick add-a-few valve.",
+    unit: "pack of 5 audiences",
+    unitNote: "Each pack adds 5 audiences. A higher plan includes more audiences for less per audience — packs are for right-now headroom.",
+    // $12/mo per +5 audiences = $2.40/audience/mo — a stopgap that's pricier per
+    // audience than the jump a wing upgrade buys, so upgrading stays the better
+    // deal (pricing doctrine: add-ons nudge up).
+    defaultUnitAmount: 12,
+    kind: "recurring",
+    priceEnvKey: "STRIPE_PRICE_ADDON_AUDIENCE_PACK",
+    grant: 5,
     wing: "marketing",
   },
   ai_credit_pack: {
@@ -647,6 +664,8 @@ export function blocksForSends(sends: number): number {
 export const FREE_MK_CONTACTS = 500;
 /** Contacts one contact_pack add-on unit adds (= ADD_ONS.contact_pack.grant). */
 export const CONTACT_PACK_SIZE = 500;
+/** Audiences one audience_pack add-on unit adds (= ADD_ONS.audience_pack.grant). */
+export const AUDIENCE_PACK_SIZE = 5;
 /** Stripe bills marketing per this many contacts (keeps the quantity small). */
 export const CONTACT_UNIT = 100;
 

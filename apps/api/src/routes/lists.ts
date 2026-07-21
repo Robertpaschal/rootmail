@@ -1,7 +1,7 @@
-import { and, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { env, Errors, newId } from "@rootmail/core";
+import { CONTACT_STAGES, env, Errors, newId } from "@rootmail/core";
 import { contactEvents, contacts, db, type List, listContacts, lists, pendingWaitlist } from "@rootmail/db";
 import { assertAudienceCapacity, assertContactCapacity } from "../lib/billing";
 import { loadOrg } from "../lib/features";
@@ -251,13 +251,58 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/lists/:id/contacts", async (req) => {
     const { id } = req.params as { id: string };
     const l = await getScoped(req, id);
-    const rows = await db
-      .select({ contact: contacts })
-      .from(listContacts)
-      .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
-      .where(eq(listContacts.listId, l.id))
-      .orderBy(desc(listContacts.createdAt));
-    return { object: "list", data: rows.map((r) => serializeContact(r.contact)) };
+    const q = parse(
+      z.object({
+        q: z.string().max(200).optional(),
+        stage: z.enum(CONTACT_STAGES).optional(),
+        limit: z.coerce.number().int().min(1).max(100).default(50),
+        offset: z.coerce.number().int().min(0).default(0),
+      }),
+      req.query,
+    );
+
+    const base = [eq(listContacts.listId, l.id)];
+    const filtered = [...base];
+    if (q.q) {
+      const needle = `%${q.q}%`;
+      filtered.push(or(ilike(contacts.email, needle), ilike(contacts.name, needle))!);
+    }
+    if (q.stage) filtered.push(eq(contacts.stage, q.stage));
+
+    const [rows, [cnt], stageRows] = await Promise.all([
+      db
+        .select({ contact: contacts })
+        .from(listContacts)
+        .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
+        .where(and(...filtered))
+        .orderBy(desc(listContacts.createdAt))
+        .limit(q.limit)
+        .offset(q.offset),
+      db
+        .select({ n: sql<number>`count(*)::int` })
+        .from(listContacts)
+        .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
+        .where(and(...filtered)),
+      // The audience's true lifecycle mix (ignores the q/stage filter) — the "at a glance".
+      db
+        .select({ stage: contacts.stage, n: sql<number>`count(*)::int` })
+        .from(listContacts)
+        .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
+        .where(and(...base))
+        .groupBy(contacts.stage),
+    ]);
+
+    const stages = Object.fromEntries(CONTACT_STAGES.map((s) => [s, 0])) as Record<string, number>;
+    for (const r of stageRows) stages[r.stage] = (stages[r.stage] ?? 0) + r.n;
+
+    return {
+      object: "list",
+      data: rows.map((r) => serializeContact(r.contact)),
+      total: cnt?.n ?? 0,
+      limit: q.limit,
+      offset: q.offset,
+      stages,
+    };
   });
 
   // Add a contact by id or email (creating the contact if the email is new).

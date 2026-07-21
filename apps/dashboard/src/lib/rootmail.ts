@@ -28,6 +28,7 @@ import type {
   ContactStage,
   ContactStagesSummary,
   ListGrowth,
+  ListMembers,
   ContactsBrowse,
   ContactStatus,
   CreatedApiKey,
@@ -392,7 +393,8 @@ export const api = {
   createList: (body: { name: string; description?: string; from_tag?: string }) =>
     rmFetch<ContactList>("/v1/lists", { method: "POST", body }),
   deleteList: (id: string) => rmFetch<{ deleted: boolean }>(`/v1/lists/${id}`, { method: "DELETE" }),
-  getListContacts: (id: string) => rmFetch<ListResponse<Contact>>(`/v1/lists/${id}/contacts`),
+  getListContacts: (id: string, q: { q?: string; stage?: string; limit?: number; offset?: number } = {}) =>
+    rmFetch<ListMembers>(`/v1/lists/${id}/contacts`, { query: q }),
   addListContact: (id: string, email: string) =>
     rmFetch<{ contact_id: string }>(`/v1/lists/${id}/contacts`, { method: "POST", body: { email } }),
   removeListContact: (id: string, contactId: string) =>

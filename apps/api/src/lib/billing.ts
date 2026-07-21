@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { CONTACT_PACK_SIZE, Errors, newId, type PlanDef } from "@rootmail/core";
+import { AUDIENCE_PACK_SIZE, CONTACT_PACK_SIZE, Errors, newId, type PlanDef } from "@rootmail/core";
 import {
   db,
   listContacts,
@@ -10,6 +10,7 @@ import {
   usageRecords,
   users,
   workspaces,
+  addonPackUnits,
   contactPackUnits,
 } from "@rootmail/db";
 import { planForOrg } from "./plans";
@@ -108,16 +109,25 @@ export async function audienceCount(organizationId: string): Promise<number> {
  * dimension — not "unlimited").
  */
 export async function assertAudienceCapacity(org: BillableOrg): Promise<void> {
-  const limit = audienceLimitForOrg(org);
-  if (limit === -1) return;
+  const base = audienceLimitForOrg(org);
+  if (base === -1) return;
+  // Audience-pack add-ons stack on top of the tier's audience allowance.
+  const limit = base + (await addonPackUnits(org.id, "audience_pack")) * AUDIENCE_PACK_SIZE;
   const current = await audienceCount(org.id);
   if (current >= limit) {
     const tier = mkTierFor(org);
     throw Errors.quotaExceeded(
-      `You've used all ${limit} audience${limit === 1 ? "" : "s"} on Marketing ${tier.name}. Upgrade the Marketing wing for more.`,
+      `You've used all ${limit} audience${limit === 1 ? "" : "s"} on Marketing ${tier.name}. Move up a plan for more (cheaper per audience), or add an audience pack for quick headroom.`,
       { audiences_used: current, audiences_limit: limit, wing: "marketing", upgrade_url: "/billing/marketing" },
     );
   }
+}
+
+/** The org's total audience allowance: tier base + any audience-pack units. */
+export async function audienceCapacityForOrg(org: BillableOrg): Promise<number> {
+  const base = audienceLimitForOrg(org);
+  if (base === -1) return -1;
+  return base + (await addonPackUnits(org.id, "audience_pack")) * AUDIENCE_PACK_SIZE;
 }
 
 /** UTC day key "YYYY-MM-DD" for the per-day marketing cap. */
@@ -410,13 +420,18 @@ export interface QuotaState {
 
 export async function quotaState(org: Organization): Promise<QuotaState> {
   const plan = planFor(org);
-  const [used, marketingSent, marketingToday, contactsUsed, audiencesUsed] = await Promise.all([
-    getUsage(org.id),
-    getMarketingUsage(org.id),
-    getMarketingDaily(org.id),
-    billableContacts(org.id),
-    audienceCount(org.id),
-  ]);
+  const [used, marketingSent, marketingToday, contactsUsed, audiencesUsed, contactPacks, audiencePacks] =
+    await Promise.all([
+      getUsage(org.id),
+      getMarketingUsage(org.id),
+      getMarketingDaily(org.id),
+      billableContacts(org.id),
+      audienceCount(org.id),
+      contactPackUnits(org.id),
+      addonPackUnits(org.id, "audience_pack"),
+    ]);
+  const baseContactLimit = contactLimitForOrg(org);
+  const baseAudienceLimit = audienceLimitForOrg(org);
   const overage = Math.max(0, used - plan.monthlyQuota);
   return {
     plan,
@@ -432,9 +447,9 @@ export async function quotaState(org: Organization): Promise<QuotaState> {
     marketing_sent_today: marketingToday,
     marketing_daily_limit: marketingDailyLimitForOrg(org),
     contacts_used: contactsUsed,
-    contacts_limit: contactLimitForOrg(org),
+    contacts_limit: baseContactLimit === -1 ? -1 : baseContactLimit + contactPacks * CONTACT_PACK_SIZE,
     audiences_used: audiencesUsed,
-    audiences_limit: audienceLimitForOrg(org),
+    audiences_limit: baseAudienceLimit === -1 ? -1 : baseAudienceLimit + audiencePacks * AUDIENCE_PACK_SIZE,
   };
 }
 

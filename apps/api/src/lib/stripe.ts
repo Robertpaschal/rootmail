@@ -1524,6 +1524,26 @@ export async function syncAllAddonPrices(): Promise<{ synced: number }> {
 }
 
 /**
+ * Mint Stripe prices ONLY for priced add-ons that don't have one yet (e.g. a newly
+ * added pack like contact_pack / audience_pack). Unlike syncAllAddonPrices this never
+ * re-mints an existing price, so live subscriptions keep mapping to their current ids
+ * (addOnForPrice) — safe to run on prod after seeding a new add-on into the catalog.
+ */
+export async function syncMissingAddonPrices(): Promise<{ synced: string[] }> {
+  const stripe = getStripe();
+  if (!stripe) return { synced: [] };
+  const rows = await db.select().from(addonsTable);
+  const synced: string[] = [];
+  for (const a of rows) {
+    if (a.unitAmount > 0 && !a.stripePriceId) {
+      await syncAddonPrice(a);
+      synced.push(a.id);
+    }
+  }
+  return { synced };
+}
+
+/**
  * Create the discounted "sale price" for an add-on (percent off its unit price), on
  * the same product as its regular price. While a sale is active this is what
  * `priceForAddOn` bills. Archives any prior sale price. Returns the new price id, or

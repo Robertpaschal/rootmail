@@ -3,10 +3,10 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { GripVertical, Loader2 } from "lucide-react";
+import { AnimatePresence, motion } from "framer-motion";
+import { Check, ChevronDown, GripVertical, Loader2 } from "lucide-react";
 import { moveStageAction } from "./actions";
 import { Badge } from "@/components/ui/badge";
-import { Select } from "@/components/ui/select";
 import { relativeTime } from "@/lib/format";
 import { CONTACT_STAGES, STAGE_META, type ContactStage } from "@/lib/stages";
 import { cn } from "@/lib/utils";
@@ -35,6 +35,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const [overStage, setOverStage] = useState<ContactStage | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, start] = useTransition();
 
@@ -104,43 +105,87 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                     <div className="flex items-start gap-2">
                       <GripVertical className="mt-1 size-3.5 shrink-0 cursor-grab text-muted-foreground/50" />
                       <Link href={`/contacts/${c.id}`} className="min-w-0 flex-1">
-                        <span className="flex items-center gap-2">
+                        <span className="flex items-start gap-2">
                           <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
                             {initials(c.name, c.email)}
                           </span>
                           <span className="min-w-0">
-                            <span className="block truncate text-sm font-medium group-hover:underline">
+                            <span className="block break-words text-sm font-medium leading-tight group-hover:underline">
                               {c.name ?? c.email}
                             </span>
-                            {c.name ? <span className="block truncate text-[11px] text-muted-foreground">{c.email}</span> : null}
+                            {c.name ? <span className="mt-0.5 block truncate text-[11px] text-muted-foreground">{c.email}</span> : null}
                           </span>
                         </span>
                       </Link>
-                      {movingId === c.id ? <Loader2 className="size-3.5 animate-spin text-muted-foreground" /> : null}
+                      {movingId === c.id ? <Loader2 className="mt-1 size-3.5 animate-spin text-muted-foreground" /> : null}
                     </div>
-                    <div className="mt-1.5 flex items-center justify-between gap-2 pl-5">
-                      <span className="flex min-w-0 flex-wrap gap-1">
-                        {c.tags.slice(0, 2).map((t) => (
+
+                    {c.tags.length || c.status !== "active" ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1 pl-5">
+                        {c.tags.slice(0, 3).map((t) => (
                           <Badge key={t} variant="secondary" className="font-mono text-[9px]">{t}</Badge>
                         ))}
                         {c.status !== "active" ? (
                           <Badge variant="secondary" className="text-[9px] text-muted-foreground">{c.status}</Badge>
                         ) : null}
-                      </span>
+                      </div>
+                    ) : null}
+
+                    {/* Current stage — always shown — and the change menu behind it. */}
+                    <div className="mt-2 flex items-center justify-between gap-2 pl-5">
+                      <div className="relative">
+                        <button
+                          type="button"
+                          onClick={() => setMenuId((id) => (id === c.id ? null : c.id))}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-accent",
+                            STAGE_META[c.stage].badge,
+                          )}
+                          aria-label={`Stage: ${STAGE_META[c.stage].label}. Change stage`}
+                        >
+                          <span className={cn("size-1.5 rounded-full", STAGE_META[c.stage].dot)} />
+                          {STAGE_META[c.stage].label}
+                          <ChevronDown className="size-3 opacity-60" />
+                        </button>
+                        <AnimatePresence>
+                          {menuId === c.id ? (
+                            <>
+                              <div className="fixed inset-0 z-20" onClick={() => setMenuId(null)} />
+                              <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                                transition={{ duration: 0.12 }}
+                                className="absolute left-0 z-30 mt-1 w-44 overflow-hidden rounded-lg border bg-popover p-1 shadow-lg"
+                              >
+                                <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Move to stage</p>
+                                {CONTACT_STAGES.map((s) => {
+                                  const isCurrent = s === c.stage;
+                                  return (
+                                    <button
+                                      key={s}
+                                      type="button"
+                                      onClick={() => {
+                                        setMenuId(null);
+                                        if (!isCurrent) move(c.id, s, c.stage);
+                                      }}
+                                      className={cn(
+                                        "flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent",
+                                        isCurrent && "bg-accent/60",
+                                      )}
+                                    >
+                                      <span className={cn("size-2 rounded-full", STAGE_META[s].dot)} />
+                                      <span className="flex-1">{STAGE_META[s].label}</span>
+                                      {isCurrent ? <Check className="size-3.5 text-primary" /> : null}
+                                    </button>
+                                  );
+                                })}
+                              </motion.div>
+                            </>
+                          ) : null}
+                        </AnimatePresence>
+                      </div>
                       <span className="shrink-0 text-[10px] text-muted-foreground">{relativeTime(c.updated_at)}</span>
-                    </div>
-                    {/* No-drag fallback: move via menu. */}
-                    <div className="mt-1.5 hidden pl-5 group-hover:block">
-                      <Select
-                        value={col.stage}
-                        onChange={(e) => move(c.id, e.target.value as ContactStage, col.stage)}
-                        className="h-6 w-full text-[11px]"
-                        aria-label="Move to stage"
-                      >
-                        {CONTACT_STAGES.map((s) => (
-                          <option key={s} value={s}>{STAGE_META[s].label}</option>
-                        ))}
-                      </Select>
                     </div>
                   </div>
                 ))}

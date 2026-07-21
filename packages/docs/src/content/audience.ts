@@ -47,7 +47,7 @@ export const lists: DocPage = {
     endpoint("GET", "/v1/lists/:id", "Fetch one audience."),
     endpoint("PATCH", "/v1/lists/:id", "Rename or edit an audience."),
     endpoint("DELETE", "/v1/lists/:id", "Delete an audience."),
-    endpoint("GET", "/v1/lists/:id/contacts", "List the contacts in an audience."),
+    endpoint("GET", "/v1/lists/:id/contacts", "List the contacts in an audience — paged (q, stage, limit, offset); returns total and the audience's lifecycle-stage breakdown."),
     endpoint("POST", "/v1/lists/:id/contacts", "Add contacts to an audience."),
     endpoint("DELETE", "/v1/lists/:id/contacts/:contactId", "Remove a contact from an audience."),
     endpoint("GET", "/v1/lists/:id/tags", "Distinct tags carried by this audience's members, with counts — feeds campaign segments and A/B variants."),

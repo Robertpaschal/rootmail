@@ -58,13 +58,18 @@ export async function billableContactCount(organizationId: string): Promise<numb
 }
 
 /** Purchased contact_pack add-on units (each = CONTACT_PACK_SIZE more contacts). */
-export async function contactPackUnits(organizationId: string): Promise<number> {
+/** Purchased quantity of a given pack add-on for an org (0 if none). */
+export async function addonPackUnits(organizationId: string, addonId: string): Promise<number> {
   const [row] = await db
     .select({ q: orgAddons.quantity })
     .from(orgAddons)
-    .where(and(eq(orgAddons.organizationId, organizationId), eq(orgAddons.addonId, "contact_pack")))
+    .where(and(eq(orgAddons.organizationId, organizationId), eq(orgAddons.addonId, addonId)))
     .limit(1);
   return row?.q ?? 0;
+}
+
+export async function contactPackUnits(organizationId: string): Promise<number> {
+  return addonPackUnits(organizationId, "contact_pack");
 }
 
 export interface AdmitInput {
