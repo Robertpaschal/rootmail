@@ -17,7 +17,7 @@ const baseline = [
   "Unsubscribes & bounces respected automatically",
   "1-click move-in from Mailchimp-style exports",
   "A free practice mode — test sends never cost anything",
-  "Design studio for emails — no code, ever",
+  "A visual studio to design every email",
   "Full developer access included (developers.gateml.io)",
 ];
 

@@ -3,8 +3,8 @@ import { Badge } from "@/components/ui/badge";
 
 const faqs = [
   {
-    q: "Do I need to know how to code to use rootmail?",
-    a: "No. The dashboard is a full no-code console: write and design templates in a visual editor, build contact lists, send campaigns, automate drip sequences, read replies in a shared inbox, and watch open and click rates — all without writing a line of code. An AI assistant can even draft a template or build a sequence for you — and if your team includes developers, they get the exact same product in code at developers.gateml.io.",
+    q: "Is rootmail for non-technical people?",
+    a: "Completely. It's a full visual product: design templates in a drag-and-drop studio, build contact lists, send campaigns, automate welcome series, read replies in a shared inbox, and watch opens and clicks — all by pointing and clicking. An AI assistant can even draft a template or build a sequence for you. (If your team includes developers, they get the exact same product over an API at developers.gateml.io — same data, either front door.)",
   },
   {
     q: "How do I send to my contacts or a mailing list?",

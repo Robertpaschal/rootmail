@@ -48,8 +48,9 @@ export function WhoItsFor() {
             Made for people. Loved by developers.
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
-            Everything here works with zero code. And when your team has developers, they can plug
-            into the very same product from their own tools — it&apos;s one email platform either way.
+            Whatever you sell, publish, or build, it&apos;s the same email platform underneath. And
+            when your team has developers, they plug into the very same product from their own
+            tools — one place either way.
           </p>
         </Reveal>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

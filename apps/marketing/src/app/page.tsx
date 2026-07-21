@@ -9,8 +9,8 @@ import { Faq } from "@/components/site/faq";
 import { Cta } from "@/components/site/cta";
 import { Footer } from "@/components/site/footer";
 
-// The main site speaks to the WHOLE audience, no-code first (audience doctrine).
-// The developer pitch — code hero, API showcase — lives at developers.gateml.io.
+// The main site sells the PRODUCT to everyone — all your email in one place
+// (unification, not "no code"). The developer pitch lives at developers.gateml.io.
 export default function HomePage() {
   return (
     <>

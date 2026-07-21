@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 const description =
-  "The receipts your website sends, the newsletters your audience reads, and the replies they send back — designed, sent, and understood from one dashboard anyone can use. No code required; a full API when you want one.";
+  "The receipts your website sends, the newsletters your audience opens, and the replies they send back — designed, delivered, and understood from one place, instead of juggling a sending service, a newsletter tool, and a personal inbox. If you can write an email, you can run rootmail.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://rootmail.io"),
   title: {
-    default: "Rootmail — all your email. No code required.",
+    default: "Rootmail — all your email, in one place",
     template: "%s · rootmail",
   },
   description,
@@ -16,7 +16,7 @@ export const metadata: Metadata = {
     "email marketing",
     "newsletter software",
     "transactional email",
-    "no-code email",
+    "all-in-one email platform",
     "email campaigns",
     "email templates",
     "shared inbox",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "rootmail",
-    title: "Rootmail — all your email. No code required.",
+    title: "Rootmail — all your email, in one place",
     description,
     url: "https://rootmail.io",
   },

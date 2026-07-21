@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { ReactiveCard, Reveal } from "./motion";
 
 // The agency/platform story in plain words: send for each client from THEIR
-// name, with their reputation kept separate — no jargon, no code.
+// name, with their reputation kept separate — plain language, no jargon.
 const steps = [
   "Add your client's web address in the dashboard.",
   "We prepare a short list of settings — copy them to your client (or their domain provider).",

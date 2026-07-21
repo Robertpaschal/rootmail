@@ -6,14 +6,15 @@ import { Parallax, ReactiveCard, Reveal } from "./motion";
 import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
-// The main site speaks to EVERYONE — the promise is no-code first. Developers
-// get their own pitch at developers.gateml.io (linked below and in the nav).
+// The main site sells the PRODUCT, not the plumbing: rootmail is the one place
+// for every email a business sends and receives (the switch motivator is
+// unification, not "no code"). The developer story lives at developers.gateml.io.
 const proofs = [
-  { icon: PenLine, text: "Design emails visually — no code, ever" },
   { icon: Send, text: "Receipts & resets your site sends itself" },
   { icon: Megaphone, text: "Campaigns & newsletters to your audience" },
-  { icon: Inbox, text: "Replies come back to one shared inbox" },
-  { icon: Sparkles, text: "An AI assistant that does the busywork" },
+  { icon: Inbox, text: "Replies land back in one shared inbox" },
+  { icon: PenLine, text: "One studio to design every email" },
+  { icon: Sparkles, text: "An assistant that does the busywork" },
 ];
 
 export function Hero() {
@@ -35,23 +36,23 @@ export function Hero() {
         <Reveal className="flex max-w-3xl flex-col items-center gap-6">
           <Link href="#platform">
             <Badge variant="muted" className="py-1 pl-2.5 pr-2.5">
-              Every email your business sends — one place
+              Every email your business runs on — one place
               <ArrowRight className="size-3" />
             </Badge>
           </Link>
 
           <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            All your email.{" "}
+            All your email,{" "}
             <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
-              No code required.
+              in one place.
             </span>
           </h1>
 
           <p className="max-w-2xl text-balance text-lg text-muted-foreground">
-            The receipts your website sends, the newsletters your audience reads, and the replies
-            they send back — designed, sent, and understood from one dashboard anyone can use. A
-            clothing brand, a news desk, a five-person startup: if you can write an email, you can
-            run rootmail.
+            The receipts your website sends, the newsletters your audience opens, and the replies
+            they send back — designed, delivered, and understood together, instead of juggling a
+            sending service, a separate newsletter tool, and a personal inbox. If you can write an
+            email, you can run rootmail.
           </p>
 
           <div className="flex flex-col items-center gap-3 sm:flex-row">

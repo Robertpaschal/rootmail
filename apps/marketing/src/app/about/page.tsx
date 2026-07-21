@@ -19,7 +19,7 @@ const audiences = [
   {
     icon: Users,
     title: "For people who just want to reach their people",
-    body: "Marketers, founders, and operators get a no-code dashboard to design emails, build lists, send campaigns, automate follow-ups, and read replies — without touching code or stitching tools together.",
+    body: "Marketers, founders, and operators get one dashboard to design emails, build lists, send campaigns, automate follow-ups, and read replies — instead of stitching a sending service, a newsletter tool, and an inbox together.",
   },
   {
     icon: MailCheck,
