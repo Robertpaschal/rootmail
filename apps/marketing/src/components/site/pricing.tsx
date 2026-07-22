@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { Check, Receipt } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import { signupUrl } from "@/lib/links";
 import { getPublicPricing } from "@/lib/pricing";
-import { cn } from "@/lib/utils";
 import { ReactiveCard, Reveal } from "./motion";
+import { CtaButton } from "./cta-button";
 import { BlocksCalculator, ContactPricer } from "./pricing-calculators";
 
 // The floor every account shares — so the two wings are about what THEY do,
@@ -105,12 +103,7 @@ export async function Pricing() {
               </p>
             </div>
           </div>
-          <Link
-            href={signupUrl}
-            className={cn(buttonVariants({ variant: "outline" }), "shrink-0 whitespace-nowrap")}
-          >
-            Start free
-          </Link>
+          <CtaButton label="Start free" variant="outline" className="shrink-0 whitespace-nowrap" />
         </Reveal>
 
         <Reveal inView delay={0.2} className="mx-auto mt-10 max-w-5xl rounded-2xl border bg-card p-6">

@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Layers, MailCheck, ShieldCheck, Sparkles, Users } from "lucide-react";
+import { Layers, MailCheck, ShieldCheck, Sparkles, Users } from "lucide-react";
 import { Navbar } from "@/components/site/navbar";
 import { Footer } from "@/components/site/footer";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
+import { CtaButton } from "@/components/site/cta-button";
 
 export const metadata: Metadata = {
   title: "About",
@@ -163,9 +163,7 @@ export default function AboutPage() {
                 with us — we&apos;d love to talk.
               </p>
               <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-                <Link href={signupUrl} className={cn(buttonVariants({ size: "lg" }))}>
-                  Start sending <ArrowRight className="size-4" />
-                </Link>
+                <CtaButton label="Start sending" size="lg" arrow />
                 <Link
                   href="/contact"
                   className={cn(buttonVariants({ variant: "outline", size: "lg" }))}

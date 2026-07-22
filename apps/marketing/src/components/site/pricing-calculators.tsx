@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { motion } from "framer-motion";
 import { Megaphone, Minus, Plus, Users, Zap } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { signupUrl } from "@/lib/links";
 import type { PublicPricing, PublicTier } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
+import { CtaButton } from "./cta-button";
 
 const num = (n: number) => n.toLocaleString();
 const money = (n: number) => `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
@@ -125,9 +123,7 @@ export function BlocksCalculator({ tx }: { tx: PublicPricing["wings"]["transacti
         <li>· Full append-only audit trail</li>
       </ul>
 
-      <Link href={signupUrl} className={cn(buttonVariants(), "mt-6 w-full")}>
-        Start free — 3,000 sends/mo
-      </Link>
+      <CtaButton label="Start free — 3,000 sends/mo" className="mt-6 w-full" />
     </div>
   );
 }
@@ -241,9 +237,7 @@ export function ContactPricer({ mk }: { mk: PublicPricing["wings"]["marketing"] 
         <li>· Never touches your transactional volume</li>
       </ul>
 
-      <Link href={signupUrl} className={cn(buttonVariants(), "mt-6 w-full")}>
-        Start free — up to {num(mk.free_contacts)} contacts
-      </Link>
+      <CtaButton label={`Start free — up to ${num(mk.free_contacts)} contacts`} className="mt-6 w-full" />
     </div>
   );
 }

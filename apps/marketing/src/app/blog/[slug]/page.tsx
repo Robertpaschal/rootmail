@@ -1,15 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Navbar } from "@/components/site/navbar";
 import { Footer } from "@/components/site/footer";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { getPublicArticle, staticArticleSlugs, type Block } from "@/lib/blog";
 import { Markdown } from "@/components/site/markdown";
-import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
+import { CtaButton } from "@/components/site/cta-button";
 
 type Params = { slug: string };
 
@@ -113,9 +113,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<Para
             both right there when you sign up.
           </p>
           <div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href={signupUrl} className={cn(buttonVariants())}>
-              Start sending <ArrowRight className="size-4" />
-            </Link>
+            <CtaButton label="Start sending" arrow />
             <Link href="/blog" className={cn(buttonVariants({ variant: "outline" }))}>
               More from the blog
             </Link>

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  ArrowRight,
   BarChart3,
   BookOpen,
   Check,
@@ -20,8 +19,8 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
-import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
+import { CtaButton } from "@/components/site/cta-button";
 import { CodeBlock } from "@/components/site/code-block";
 import { CodeShowcase } from "@/components/site/code-showcase";
 import { DevFooter, DevNavbar } from "@/components/site/dev-shell";
@@ -117,9 +116,7 @@ export default function DevelopersHome() {
                 you redeploying anything.
               </p>
               <div className="flex flex-col gap-3 sm:flex-row">
-                <Link href={signupUrl} className={cn(buttonVariants({ size: "lg" }))}>
-                  Get an API key <ArrowRight className="size-4" />
-                </Link>
+                <CtaButton label="Get an API key" size="lg" arrow />
                 <Link
                   href="/docs"
                   className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
@@ -224,9 +221,7 @@ export default function DevelopersHome() {
                 count. Live prices are on the main site; add-ons ride the same bill.
               </p>
               <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-                <Link href={signupUrl} className={cn(buttonVariants({ size: "lg" }))}>
-                  Get an API key <ArrowRight className="size-4" />
-                </Link>
+                <CtaButton label="Get an API key" size="lg" arrow />
                 <Link
                   href="https://marketing.gateml.io/pricing"
                   className={cn(buttonVariants({ variant: "outline", size: "lg" }))}

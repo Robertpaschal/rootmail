@@ -3,8 +3,8 @@ import { ArrowRight, Inbox, Megaphone, PenLine, Send, Sparkles, Terminal } from 
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Parallax, ReactiveCard, Reveal } from "./motion";
-import { signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
+import { CtaButton } from "./cta-button";
 
 // The main site sells the PRODUCT, not the plumbing: rootmail is the one place
 // for every email a business sends and receives (the switch motivator is
@@ -56,15 +56,12 @@ export function Hero() {
           </p>
 
           <div className="flex flex-col items-center gap-3 sm:flex-row">
-            <Link
-              href={signupUrl}
-              className={cn(
-                buttonVariants({ size: "lg" }),
-                "transition-transform hover:-translate-y-0.5 active:scale-[0.98]",
-              )}
-            >
-              Start free — no card <ArrowRight className="size-4" />
-            </Link>
+            <CtaButton
+              label="Start free — no card"
+              size="lg"
+              arrow
+              className="transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+            />
             <Link
               href="/pricing"
               className={cn(

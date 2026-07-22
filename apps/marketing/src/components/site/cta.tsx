@@ -1,8 +1,5 @@
 import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { buttonVariants } from "@/components/ui/button";
-import { signupUrl } from "@/lib/links";
-import { cn } from "@/lib/utils";
+import { CtaButton } from "./cta-button";
 
 export function Cta() {
   return (
@@ -22,12 +19,12 @@ export function Cta() {
               sitting. Nothing to install, no credit card to start.
             </p>
             <div className="flex flex-col items-center gap-3 sm:flex-row">
-              <Link
-                href={signupUrl}
-                className={cn(buttonVariants({ size: "lg" }), "transition-transform hover:-translate-y-0.5 active:scale-[0.98]")}
-              >
-                Create your account <ArrowRight className="size-4" />
-              </Link>
+              <CtaButton
+                label="Create your account"
+                size="lg"
+                arrow
+                className="transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
+              />
               <Link
                 href="/pricing"
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/20 px-6 text-base font-medium text-white transition-all hover:-translate-y-0.5 hover:bg-white/10 active:scale-[0.98]"
