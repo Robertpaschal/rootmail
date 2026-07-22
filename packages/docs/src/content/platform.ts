@@ -25,6 +25,81 @@ export const webhooks: DocPage = {
       { name: "message.suppressed", type: "event", desc: ["Skipped because the address was on the suppression list."] },
       { name: "message.received", type: "event", desc: ["An inbound reply arrived (threaded)."] },
     ]),
+    h("Payloads"),
+    p(
+      "Every event is the same envelope — the ",
+      c("event"),
+      " name, when it ",
+      c("occurred_at"),
+      ", and a ",
+      c("data"),
+      " object carrying the message ",
+      c("id"),
+      ". Fetch ",
+      c("GET /v1/messages/:id"),
+      " (or its ",
+      c("/audit"),
+      ") for the full record, including a bounce's reason.",
+    ),
+    code(
+      "json",
+      `{
+  "event": "message.delivered",
+  "occurred_at": "2026-07-22T10:00:05Z",
+  "data": {
+    "id": "msg_1a2b3c4d5e",
+    "event": "message.delivered",
+    "occurred_at": "2026-07-22T10:00:05Z"
+  }
+}`,
+      "message.delivered",
+    ),
+    code(
+      "json",
+      `{
+  "event": "message.opened",
+  "occurred_at": "2026-07-22T10:14:00Z",
+  "data": { "id": "msg_1a2b3c4d5e", "event": "message.opened", "occurred_at": "2026-07-22T10:14:00Z" }
+}`,
+      "message.opened",
+    ),
+    code(
+      "json",
+      `{
+  "event": "message.clicked",
+  "occurred_at": "2026-07-22T10:14:03Z",
+  "data": { "id": "msg_1a2b3c4d5e", "event": "message.clicked", "occurred_at": "2026-07-22T10:14:03Z" }
+}`,
+      "message.clicked",
+    ),
+    code(
+      "json",
+      `{
+  "event": "message.bounced",
+  "occurred_at": "2026-07-22T10:00:06Z",
+  "data": { "id": "msg_1a2b3c4d5e", "event": "message.bounced", "occurred_at": "2026-07-22T10:00:06Z" }
+}`,
+      "message.bounced",
+    ),
+    code(
+      "json",
+      `{
+  "event": "message.complained",
+  "occurred_at": "2026-07-23T08:00:00Z",
+  "data": { "id": "msg_1a2b3c4d5e", "event": "message.complained", "occurred_at": "2026-07-23T08:00:00Z" }
+}`,
+      "message.complained",
+    ),
+    code(
+      "json",
+      `{
+  "event": "message.received",
+  "occurred_at": "2026-07-22T11:00:00Z",
+  "data": { "id": "msg_reply_9z8y7x", "event": "message.received", "occurred_at": "2026-07-22T11:00:00Z" }
+}`,
+      "message.received (inbound reply)",
+    ),
+    callout("note", "The remaining lifecycle events — message.sent, message.failed, message.suppressed — use the identical envelope with their own event name."),
     h("Verify the signature"),
     p(
       "Every delivery carries a ",

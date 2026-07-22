@@ -32,6 +32,53 @@ export const messages: DocPage = {
 // → { id: "msg_…", status: "queued", … }`,
       "send-template.ts",
     ),
+    h("Raw request & response"),
+    p("Under the SDK it's a plain JSON POST. The body is snake_case; the response is the full message object (also returned by ", c("GET /v1/messages/:id"), ")."),
+    code(
+      "json",
+      `{
+  "to": { "email": "ada@example.com", "name": "Ada" },
+  "type": "transactional",
+  "template": "welcome",
+  "variables": { "name": "Ada", "action_url": "https://acme.com/start" },
+  "tags": ["onboarding"],
+  "idempotency_key": "welcome-42"
+}`,
+      "POST /v1/messages — request body",
+    ),
+    code(
+      "json",
+      `{
+  "id": "msg_1a2b3c4d5e",
+  "object": "message",
+  "type": "transactional",
+  "status": "queued",
+  "to": "ada@example.com",
+  "from": { "email": "hello@acme.com", "name": "Acme" },
+  "reply_to": null,
+  "subject": "Welcome to Acme",
+  "sub_tenant_id": null,
+  "template_id": "tpl_welcome",
+  "template_version": 3,
+  "priority": "normal",
+  "tags": ["onboarding"],
+  "metadata": {},
+  "attachments": [],
+  "opened_at": null,
+  "clicked_at": null,
+  "idempotency_key": "welcome-42",
+  "provider": null,
+  "provider_message_id": null,
+  "content_hash": "b1946ac9…",
+  "sandbox": false,
+  "error": null,
+  "scheduled_at": null,
+  "created_at": "2026-07-22T10:00:00Z",
+  "updated_at": "2026-07-22T10:00:00Z"
+}`,
+      "201 Created — the message",
+    ),
+    callout("note", "Pass idempotency either as the ", c("idempotency_key"), " field or an ", c("Idempotency-Key"), " request header — a retried key returns the SAME message instead of sending twice."),
     h("Personalization"),
     p(
       "When the recipient is a saved contact, their details fill the template's ",
@@ -64,6 +111,21 @@ await mail.messages.create({
 // queued → sending → sent → delivered → opened …
 const proof = await mail.messages.proof(msg.id); // { bundle, signature }`,
       "audit.ts",
+    ),
+    code(
+      "json",
+      `{
+  "message_id": "msg_1a2b3c4d5e",
+  "status": "delivered",
+  "trail": [
+    { "event": "queued",    "actor": "api",    "timestamp": "2026-07-22T10:00:00Z", "metadata": {} },
+    { "event": "sending",   "actor": "system", "timestamp": "2026-07-22T10:00:01Z", "metadata": {} },
+    { "event": "sent",      "actor": "system", "provider": "ses", "provider_message_id": "0100018f…", "timestamp": "2026-07-22T10:00:02Z", "metadata": {} },
+    { "event": "delivered", "actor": "system", "timestamp": "2026-07-22T10:00:05Z", "metadata": {} },
+    { "event": "opened",    "actor": "system", "ip": "9x.x.x.x", "user_agent": "Mozilla/5.0…", "timestamp": "2026-07-22T10:14:00Z", "metadata": {} }
+  ]
+}`,
+      "GET /v1/messages/:id/audit — response",
     ),
     callout("note", "Suppressed, bounced, and unsubscribed recipients are checked automatically before every send — you can't accidentally email someone who opted out."),
   ],

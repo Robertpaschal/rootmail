@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Menu, X } from "lucide-react";
+import { LayoutDashboard, Menu, X } from "lucide-react";
 import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
-import { loginUrl, signupUrl } from "@/lib/links";
+import { dashboardUrl, loginUrl, readSignedInHint, signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
 const links = [
@@ -24,6 +24,10 @@ const links = [
 
 export function Navbar() {
   const [open, setOpen] = useState(false);
+  // Reflect the signed-in state so we drop the "Sign in" wall for people who
+  // already have an account — read on mount (SSR can't see the client cookie).
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => setSignedIn(readSignedInHint()), []);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/65">
@@ -46,12 +50,20 @@ export function Navbar() {
 
         <div className="hidden items-center gap-1 md:flex">
           <ThemeToggle />
-          <Link href={loginUrl} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "ml-1")}>
-            Sign in
-          </Link>
-          <Link href={signupUrl} className={cn(buttonVariants({ size: "sm" }))}>
-            Start sending
-          </Link>
+          {signedIn ? (
+            <Link href={dashboardUrl} className={cn(buttonVariants({ size: "sm" }), "ml-1 gap-1.5")}>
+              <LayoutDashboard className="size-4" /> Go to dashboard
+            </Link>
+          ) : (
+            <>
+              <Link href={loginUrl} className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "ml-1")}>
+                Sign in
+              </Link>
+              <Link href={signupUrl} className={cn(buttonVariants({ size: "sm" }))}>
+                Start sending
+              </Link>
+            </>
+          )}
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
@@ -81,20 +93,32 @@ export function Navbar() {
                 {l.label}
               </Link>
             ))}
-            <Link
-              href={loginUrl}
-              onClick={() => setOpen(false)}
-              className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-2")}
-            >
-              Sign in
-            </Link>
-            <Link
-              href={signupUrl}
-              onClick={() => setOpen(false)}
-              className={cn(buttonVariants({ size: "sm" }))}
-            >
-              Start sending
-            </Link>
+            {signedIn ? (
+              <Link
+                href={dashboardUrl}
+                onClick={() => setOpen(false)}
+                className={cn(buttonVariants({ size: "sm" }), "mt-2 gap-1.5")}
+              >
+                <LayoutDashboard className="size-4" /> Go to dashboard
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href={loginUrl}
+                  onClick={() => setOpen(false)}
+                  className={cn(buttonVariants({ variant: "outline", size: "sm" }), "mt-2")}
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href={signupUrl}
+                  onClick={() => setOpen(false)}
+                  className={cn(buttonVariants({ size: "sm" }))}
+                >
+                  Start sending
+                </Link>
+              </>
+            )}
           </div>
         </div>
       )}

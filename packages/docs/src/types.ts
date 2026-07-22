@@ -67,6 +67,22 @@ export const endpoint = (method: HttpMethod, path: string, summary: string): Doc
   path,
   summary,
 });
+/**
+ * An endpoint with its full request + response JSON, as a small block group
+ * (the endpoint line, then labeled JSON samples). Spread it into a page's blocks:
+ *   ...reqres("POST", "/v1/messages", "Send an email.", { request: `…`, response: `…` })
+ * Renders with the existing endpoint + code renderers — no renderer changes.
+ */
+export const reqres = (
+  method: HttpMethod,
+  path: string,
+  summary: string,
+  opts: { request?: string; response?: string },
+): DocBlock[] => [
+  endpoint(method, path, summary),
+  ...(opts.request ? [code("json", opts.request, "Request body")] : []),
+  ...(opts.response ? [code("json", opts.response, "Response")] : []),
+];
 export const params = (rows: ParamRow[], title?: string): DocBlock => ({ kind: "params", rows, title });
 export const list = (items: Inline[][], ordered = false): DocBlock => ({ kind: "list", ordered, items });
 export const callout = (tone: "note" | "warn" | "tip", ...content: Inline[]): DocBlock => ({

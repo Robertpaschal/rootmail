@@ -1,7 +1,8 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, LayoutDashboard } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { loginUrl, signupUrl } from "@/lib/links";
+import { dashboardUrl, loginUrl, signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
@@ -19,7 +20,10 @@ const links = [
   { href: `${MAIN_SITE}/changelog`, label: "Changelog" },
 ];
 
-export function DevNavbar() {
+export async function DevNavbar() {
+  // Reflect the signed-in state (the dashboard drops a cross-subdomain hint) so
+  // returning devs get a straight shot to their console instead of a Sign-in wall.
+  const signedIn = (await cookies()).get("rm_signed_in")?.value === "1";
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
       <div className="container flex h-16 items-center justify-between gap-4">
@@ -42,12 +46,20 @@ export function DevNavbar() {
         </nav>
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          <Link href={loginUrl} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-            Sign in
-          </Link>
-          <Link href={signupUrl} className={cn(buttonVariants({ size: "sm" }))}>
-            Get an API key
-          </Link>
+          {signedIn ? (
+            <Link href={dashboardUrl} className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
+              <LayoutDashboard className="size-4" /> Go to dashboard
+            </Link>
+          ) : (
+            <>
+              <Link href={loginUrl} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
+                Sign in
+              </Link>
+              <Link href={signupUrl} className={cn(buttonVariants({ size: "sm" }))}>
+                Get an API key
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>
