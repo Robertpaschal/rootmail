@@ -29,7 +29,10 @@ export class SesProvider implements MailProvider {
     // A configuration set is what makes SES publish DELIVERY / OPEN / CLICK events
     // (bounce/complaint can come off the identity, but delivered/opened do not).
     // Without it, a message that truly landed never advances past "sent".
-    const ConfigurationSetName = env.SES_CONFIGURATION_SET || undefined;
+    // An org with an active dedicated IP overrides the shared set with its own,
+    // which routes through its dedicated IP pool (that set must carry the same
+    // SNS event destinations, enforced at staff-activation time).
+    const ConfigurationSetName = email.configurationSet || env.SES_CONFIGURATION_SET || undefined;
 
     const command = hasAttachments
       ? new SendEmailCommand({

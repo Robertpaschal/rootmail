@@ -400,6 +400,13 @@
       "when": 1784597332973,
       "tag": "0056_messy_jubilee",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1784720077394,
+      "tag": "0057_magical_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

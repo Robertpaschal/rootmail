@@ -172,6 +172,7 @@ export interface OrgDetail {
   data_region: string;
   dedicated_ip_status: "none" | "requested" | "active";
   dedicated_ip_address: string | null;
+  dedicated_ip_config_set: string | null;
   reply_domain: string | null;
   reply_domain_status: "none" | "pending" | "active";
   reply_domain_verified: boolean;

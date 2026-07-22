@@ -8,6 +8,9 @@ export interface OutboundEmail {
   text: string;
   dkim?: { domain: string; selector: string; privateKeyPem: string } | null;
   sandbox?: boolean;
+  /** SES configuration set to send through — the org's dedicated-IP set when it
+   * has one active, else the provider falls back to the shared default. */
+  configurationSet?: string | null;
   /** Extra top-level headers, e.g. RFC 8058 one-click unsubscribe on bulk mail. */
   headers?: { name: string; value: string }[];
   /** File attachments (bytes already fetched), MIME-attached to the message. */

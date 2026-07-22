@@ -150,6 +150,11 @@ export const organizations = pgTable("organizations", {
   // add-on from being silently sold before the IP exists.
   dedicatedIpStatus: text("dedicated_ip_status").notNull().default("none"),
   dedicatedIpAddress: text("dedicated_ip_address"),
+  // The SES configuration set bound to this org's dedicated IP pool. Set by staff
+  // at activation; the worker routes this org's real sends through it (making the
+  // dedicated IP actually used, not just billed). Must carry the same SNS event
+  // destinations as the shared set or delivery/open/click events would be lost.
+  dedicatedIpConfigSet: text("dedicated_ip_config_set"),
   // Onboarding profile (first-principles doc): what the business is + how they
   // send today — only what the product structurally uses (personalization,
   // migration nudges); the postal address collected alongside feeds postalAddress.

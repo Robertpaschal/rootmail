@@ -116,7 +116,9 @@ async function main(): Promise<void> {
       unitAmount: a.defaultUnitAmount,
       grant: a.grant,
       rank: i,
-      active: true,
+      // sellable:false (e.g. data_residency — undeliverable on single-region infra)
+      // → inactive, so it's hidden from the catalog and public pricing (no no-op sale).
+      active: a.sellable !== false,
     };
     await db
       .insert(addons)

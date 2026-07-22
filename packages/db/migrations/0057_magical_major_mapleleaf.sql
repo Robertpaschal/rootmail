@@ -1,0 +1,1 @@
+ALTER TABLE "organizations" ADD COLUMN "dedicated_ip_config_set" text;

@@ -6,7 +6,7 @@ import {
   type SendJobData,
   WEBHOOK_EVENTS,
 } from "@rootmail/core";
-import { auditEntries, db, type Message, type MessageAttachment, messages, subTenants, suppressions } from "@rootmail/db";
+import { auditEntries, db, type Message, type MessageAttachment, messages, organizations, subTenants, suppressions, workspaces } from "@rootmail/db";
 import { getProviderFor } from "./providers";
 import type { OutboundAttachment } from "./providers/types";
 
@@ -126,6 +126,20 @@ export async function processSend(data: SendJobData): Promise<void> {
         ]
       : undefined;
 
+  // Route real sends through the org's dedicated IP when it has one active — its
+  // SES configuration set points at the dedicated IP pool. Sandbox sends use the
+  // mock provider and never touch SES, so skip the lookup there.
+  let configurationSet: string | null = null;
+  if (!message.sandbox) {
+    const [org] = await db
+      .select({ status: organizations.dedicatedIpStatus, configSet: organizations.dedicatedIpConfigSet })
+      .from(organizations)
+      .innerJoin(workspaces, eq(workspaces.organizationId, organizations.id))
+      .where(eq(workspaces.id, message.workspaceId))
+      .limit(1);
+    if (org?.status === "active" && org.configSet) configurationSet = org.configSet;
+  }
+
   const provider = getProviderFor(message.sandbox);
   try {
     // Inside the try: if an attachment can't be fetched, the send fails cleanly
@@ -142,6 +156,7 @@ export async function processSend(data: SendJobData): Promise<void> {
       text: message.renderedText ?? "",
       dkim,
       sandbox: message.sandbox,
+      configurationSet,
       headers,
       attachments,
     });

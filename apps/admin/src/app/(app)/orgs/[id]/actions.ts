@@ -12,9 +12,10 @@ export async function setDedicatedIp(
   orgId: string,
   status: "none" | "requested" | "active",
   address: string | null,
+  configSet: string | null = null,
 ): Promise<{ error?: string }> {
   try {
-    await adminApi.setDedicatedIp(orgId, status, address);
+    await adminApi.setDedicatedIp(orgId, status, address, configSet);
     revalidatePath(`/orgs/${orgId}`);
     return {};
   } catch (e) {

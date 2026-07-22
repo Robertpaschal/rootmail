@@ -395,6 +395,10 @@ export interface AddOnDef {
   max?: number;
   /** Grouping only (all add-ons show everywhere): where it surfaces most. */
   wing: Wing;
+  /** False = do NOT sell self-serve (seed marks it inactive → hidden from the
+   * catalog + public pricing). For capabilities the infra can't yet deliver, so
+   * we never charge for a no-op — offered as Enterprise/contact-sales instead. */
+  sellable?: boolean;
 }
 
 export const ADD_ONS: Record<AddOnId, AddOnDef> = {
@@ -545,6 +549,11 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
     priceEnvKey: "STRIPE_PRICE_ADDON_RESIDENCY",
     grant: 1,
     grantsFeature: "residency",
+    // NOT self-serve: the platform runs in a single AWS region today, so region
+    // pinning can't actually be delivered — selling it would charge for a no-op.
+    // Kept in the model (Enterprise/contact-sales) but hidden from the sold
+    // catalog until multi-region infra ships; then flip this back to sellable.
+    sellable: false,
     max: 1,
     wing: "platform",
   },

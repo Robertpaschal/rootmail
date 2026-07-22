@@ -580,6 +580,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       data_region: org.dataRegion,
       dedicated_ip_status: org.dedicatedIpStatus,
       dedicated_ip_address: org.dedicatedIpAddress,
+      dedicated_ip_config_set: org.dedicatedIpConfigSet,
       reply_domain: org.replyDomain,
       reply_domain_status: org.replyDomainStatus,
       reply_domain_verified: org.replyDomainVerifiedAt != null,
@@ -1078,6 +1079,10 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       z.object({
         status: z.enum(["none", "requested", "active"]),
         address: z.string().trim().max(64).nullable().optional(),
+        // The SES configuration set bound to this org's dedicated IP pool. Only
+        // when present + status active does the worker actually route through the
+        // dedicated IP — so the add-on isn't "active" in billing but shared in fact.
+        config_set: z.string().trim().max(128).nullable().optional(),
       }),
       req.body,
     );
@@ -1087,20 +1092,22 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       .where(eq(organizations.id, id))
       .limit(1);
     if (!org) throw Errors.notFound("Organization not found");
-    const address = b.status === "active" ? (b.address ?? null) : null;
+    const active = b.status === "active";
+    const address = active ? (b.address ?? null) : null;
+    const configSet = active ? (b.config_set?.trim() || null) : null;
     await db
       .update(organizations)
-      .set({ dedicatedIpStatus: b.status, dedicatedIpAddress: address, updatedAt: new Date() })
+      .set({ dedicatedIpStatus: b.status, dedicatedIpAddress: address, dedicatedIpConfigSet: configSet, updatedAt: new Date() })
       .where(eq(organizations.id, id));
     await writeStaffAudit({
       staffUserId: staff.id,
       action: "dedicated_ip.update",
       targetType: "organization",
       targetId: id,
-      metadata: { status: b.status, address },
+      metadata: { status: b.status, address, config_set: configSet },
       ip: req.ip,
     });
-    return { object: "dedicated_ip", status: b.status, address };
+    return { object: "dedicated_ip", status: b.status, address, config_set: configSet };
   });
 
   // Reply-domain provisioning: staff flip an org to "active" once the SES receipt

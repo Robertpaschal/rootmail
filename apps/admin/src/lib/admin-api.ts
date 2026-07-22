@@ -219,10 +219,15 @@ export const adminApi = {
       method: "POST",
       body: { amount_cents: amountCents, reason },
     }),
-  setDedicatedIp: (id: string, status: "none" | "requested" | "active", address?: string | null) =>
-    adminFetch<{ status: string; address: string | null }>(`/v1/admin/orgs/${id}/dedicated-ip`, {
+  setDedicatedIp: (
+    id: string,
+    status: "none" | "requested" | "active",
+    address?: string | null,
+    configSet?: string | null,
+  ) =>
+    adminFetch<{ status: string; address: string | null; config_set: string | null }>(`/v1/admin/orgs/${id}/dedicated-ip`, {
       method: "PATCH",
-      body: { status, address: address ?? null },
+      body: { status, address: address ?? null, config_set: configSet ?? null },
     }),
   setReplyDomainStatus: (id: string, status: "none" | "pending" | "active") =>
     adminFetch<{ status: string; domain: string | null }>(`/v1/admin/orgs/${id}/reply-domain`, {

@@ -117,6 +117,7 @@ function OverviewTab({ org }: { org: OrgDetail }) {
                 orgId={org.id}
                 status={org.dedicated_ip_status}
                 address={org.dedicated_ip_address}
+                configSet={org.dedicated_ip_config_set}
               />
             </div>
           ) : null}
