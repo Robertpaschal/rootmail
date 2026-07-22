@@ -82,6 +82,9 @@ services:
       PORT: "3000"
       ROOTMAIL_API_URL: ${PUBLIC_API_URL} # server-side API calls only
       DASHBOARD_URL: ${DASHBOARD_URL}
+      # Parent domain for the cross-subdomain "signed-in" hint cookie (e.g.
+      # .gateml.io) so marketing/developers can reflect the logged-in state.
+      COOKIE_DOMAIN: ${COOKIE_DOMAIN:-}
       INTERNAL_API_SECRET: ${INTERNAL_API_SECRET}
       GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET}
