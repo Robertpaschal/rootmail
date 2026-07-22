@@ -1,8 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
-import { ArrowRight, Check, Loader2, Pencil, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
+import { Check, Loader2, Pencil, Plus, Send, Sparkles, Trash2, User, X } from "lucide-react";
 import {
   createChat,
   deleteChat,
@@ -13,10 +12,11 @@ import {
   type AssistantChatMessage,
 } from "./actions";
 import { ConversationOutline } from "./conversation-outline";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
+import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/components/app/ai-credit-meter";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -65,12 +65,11 @@ const tempId = () => `tmp_${Date.now()}_${tempCounter++}`;
 
 const MAX_COMPOSER_PX = 160; // grow the composer to ~6 rows, then let it scroll
 
-export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] }) {
+export function AssistantChat({ initialChats, initialCredits }: { initialChats: AssistantChat[]; initialCredits: Credits | null }) {
   const [chats, setChats] = useState<AssistantChat[]>(initialChats);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
-  const [credits, setCredits] = useState<{ used: number; allowance: number } | null>(null);
-  const [upgrade, setUpgrade] = useState(false);
+  const [credits, setCredits] = useState<Credits | null>(initialCredits);
   const [input, setInput] = useState("");
   const [pending, startSend] = useTransition();
   const [loadingChat, setLoadingChat] = useState(false);
@@ -190,8 +189,13 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
         }
 
         const res = await sendChatMessage(chatId, text);
-        if (res.credits) setCredits(res.credits);
-        setUpgrade(Boolean(res.upgrade));
+        if (res.credits) {
+          const { used, allowance } = res.credits;
+          setCredits({ used, allowance, remaining: allowance === -1 ? -1 : Math.max(0, allowance - used) });
+        } else if (res.upgrade) {
+          // 402 from the credit gate — reflect "out" even without a fresh balance.
+          setCredits((c) => (c ? { ...c, used: c.allowance, remaining: 0 } : c));
+        }
         setMessages((m) => [
           ...m,
           {
@@ -233,6 +237,7 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
   }, []);
 
   const hasConversation = messages.length > 0;
+  const out = credits ? isOutOfCredits(credits) : false;
 
   return (
     <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
@@ -372,8 +377,11 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
                   <div
                     key={t.id}
                     id={`turn-${t.id}`}
-                    className={cn("flex scroll-mt-2", t.role === "user" ? "justify-end" : "justify-start")}
+                    className={cn("flex items-start gap-2 scroll-mt-2", t.role === "user" ? "flex-row-reverse" : "flex-row")}
                   >
+                    <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                      {t.role === "user" ? <User className="size-3.5" /> : <Sparkles className="size-3.5" />}
+                    </span>
                     <div
                       className={cn(
                         "max-w-[85%] rounded-lg px-3 py-2 text-sm",
@@ -421,21 +429,15 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
             }}
             className="border-t pt-3"
           >
-            {upgrade ? (
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2">
-                <p className="text-sm">You&apos;re out of AI credits this month.</p>
-                <Link href="/billing/addons?focus=ai_credit_pack" className={cn(buttonVariants({ size: "sm" }))}>
-                  Get AI credits <ArrowRight className="ml-1 size-3.5" />
-                </Link>
-              </div>
-            ) : null}
+            {credits ? <CreditNudge credits={credits} className="mb-2" /> : null}
             <div className="flex items-end gap-2 rounded-xl border bg-background p-1.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
               <Textarea
                 ref={ref}
                 rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask the assistant to do something…"
+                placeholder={out ? "Out of AI credits — add more to continue" : "Ask the assistant to do something…"}
+                disabled={out}
                 className="max-h-40 min-h-0 resize-none border-0 bg-transparent px-2 py-1.5 shadow-none focus-visible:ring-0"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
@@ -447,7 +449,7 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
               <Button
                 type="submit"
                 size="icon"
-                disabled={pending || !input.trim()}
+                disabled={pending || !input.trim() || out}
                 aria-label="Send"
                 className="shrink-0"
               >
@@ -460,11 +462,7 @@ export function AssistantChat({ initialChats }: { initialChats: AssistantChat[] 
                 <kbd className="rounded border bg-muted px-1 py-px font-sans text-[10px]">Shift</kbd>
                 <kbd className="ml-0.5 rounded border bg-muted px-1 py-px font-sans text-[10px]">Enter</kbd> for a new line
               </p>
-              {credits ? (
-                <p className="shrink-0 text-[11px] text-muted-foreground">
-                  AI credits: {credits.allowance === -1 ? "unlimited" : `${credits.used} / ${credits.allowance} used`}
-                </p>
-              ) : null}
+              {credits ? <CreditMeter credits={credits} className="shrink-0" /> : null}
             </div>
           </form>
         </CardContent>

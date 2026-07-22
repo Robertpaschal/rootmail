@@ -109,6 +109,20 @@ function serializeMessage(m: AssistantMessage) {
 }
 
 export async function assistantRoutes(app: FastifyInstance): Promise<void> {
+  // Current AI-credit balance — a cheap read so the dashboard can show the meter
+  // and nudge proactively (not only after a send). allowance -1 = unlimited.
+  app.get("/v1/assistant/credits", async (req) => {
+    const org = await loadOrg(req);
+    const allowance = await aiAllowance(org.id, await aiCreditsForOrg(org));
+    const used = await getAiUsage(org.id);
+    return {
+      object: "ai_credits" as const,
+      used,
+      allowance,
+      remaining: allowance === -1 ? -1 : Math.max(0, allowance - used),
+    };
+  });
+
   // The assistant runs agentically and calls other routes; meter it against AI
   // credits (per-tier allocation + buyable packs) and cap bursts per-route.
   app.post(

@@ -1,4 +1,5 @@
 import { redirect } from "next/navigation";
+import { AssistantLauncher } from "@/components/app/assistant-launcher";
 import { CommandMenu } from "@/components/app/command-menu";
 import { ImpersonationBanner } from "@/components/app/impersonation-banner";
 import { MobileNav, Sidebar } from "@/components/app/nav";
@@ -39,6 +40,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
         {unverified ? <VerifyEmailBanner /> : null}
         <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
       </div>
+      {/* The assistant, one tap away on every page (hides itself on /assistant). */}
+      <AssistantLauncher />
     </div>
   );
 }

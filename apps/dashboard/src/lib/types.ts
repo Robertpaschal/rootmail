@@ -712,6 +712,14 @@ export interface AssistantResponse {
   credits: { used: number; allowance: number };
 }
 
+/** AI-credit balance (GET /v1/assistant/credits). allowance/remaining -1 = unlimited. */
+export interface AiCredits {
+  object: "ai_credits";
+  used: number;
+  allowance: number;
+  remaining: number;
+}
+
 export interface AssistantChat {
   object: "assistant_chat";
   id: string;

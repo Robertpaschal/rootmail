@@ -5,6 +5,7 @@ import type {
   Asset,
   CreatedWebhookEndpoint,
   AssistantResponse,
+  AiCredits,
   AssistantChat,
   AssistantChatDetail,
   AuditTrail,
@@ -254,6 +255,7 @@ export const api = {
     rmFetch<AiDraftResponse>("/v1/templates/ai-draft", { method: "POST", body: { prompt } }),
   assistant: (prompt: string) =>
     rmFetch<AssistantResponse>("/v1/assistant", { method: "POST", body: { prompt } }),
+  assistantCredits: () => rmFetch<AiCredits>("/v1/assistant/credits"),
   // Persistent assistant chats (per user). The dashboard's chat UI runs on these;
   // `assistant` above stays as the single-shot path for the SDK / back-compat.
   listAssistantChats: () => rmFetch<ListResponse<AssistantChat>>("/v1/assistant/chats"),

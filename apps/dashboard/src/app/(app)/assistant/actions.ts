@@ -45,6 +45,20 @@ export async function askAssistant(prompt: string): Promise<AssistantReply> {
   }
 }
 
+/** Current AI-credit balance — for the launcher/meter to nudge proactively. */
+export async function getAiCredits(): Promise<{
+  used: number;
+  allowance: number;
+  remaining: number;
+} | null> {
+  try {
+    const c = await api.assistantCredits();
+    return { used: c.used, allowance: c.allowance, remaining: c.remaining };
+  } catch {
+    return null;
+  }
+}
+
 export async function listChats(): Promise<{ chats?: AssistantChat[]; error?: string }> {
   try {
     const r = await api.listAssistantChats();

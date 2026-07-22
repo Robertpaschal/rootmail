@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "The assistant, on every page — plus a clear view of your AI credits",
+    date: "2026-07-22",
+    changes: [
+      {
+        kind: "New",
+        text: "Ask AI from anywhere: a new button follows you across the dashboard and opens the assistant right beside what you're doing — no need to leave the page. It even suggests the most useful things to ask for the section you're on (add someone to a list on Audience, “why did this bounce?” on Messages, and so on).",
+      },
+      {
+        kind: "New",
+        text: "Your AI credits are now always in view — a live meter in the assistant and the Ask-AI panel shows how many you have left this month.",
+      },
+      {
+        kind: "Improved",
+        text: "We nudge you before you run out: a gentle heads-up when credits are running low, and a clear “get more credits” prompt (one click to top up) the moment you hit zero — so the assistant never just stops without explanation.",
+      },
+    ],
+  },
+  {
     title: "A calmer CRM: cleaner contact pages, richer audiences, and an audience pack",
     date: "2026-07-21",
     changes: [
