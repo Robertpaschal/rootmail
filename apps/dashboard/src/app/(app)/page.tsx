@@ -1,17 +1,17 @@
 import { Fragment, Suspense } from "react";
 import Link from "next/link";
-import { cookies } from "next/headers";
 import {
   ArrowRight,
   CheckCircle2,
   FileText,
   Mail,
+  Megaphone,
   MousePointerClick,
   Send,
   Sparkles,
   TriangleAlert,
-  Upload,
   Users,
+  Zap,
 } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { Greeting } from "@/components/app/greeting";
@@ -20,7 +20,6 @@ import { MessageFlow } from "@/components/app/message-flow";
 import { OnboardingChecklist } from "@/components/app/onboarding-checklist";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
 import { api } from "@/lib/rootmail";
 import { cn } from "@/lib/utils";
@@ -45,20 +44,25 @@ function gradeTone(grade: string | null): string {
   }
 }
 
+// The Overview sits ABOVE the wing switcher, so it's the ONE product-wide view:
+// shared sending health up top (deliverability + the whole funnel), then each
+// wing presented on its own terms with its own action — never one wing's compose
+// button leaking onto the other. Each wing hands off to its own analytics.
 export default async function OverviewPage() {
-  // The overview adapts to the wing the user is working in (nav switcher cookie).
-  const wingCookie = (await cookies()).get("rm_wing")?.value;
-  const activeWing = wingCookie === "marketing" ? "marketing" : "transactional";
-  // Pull the whole snapshot in parallel; tolerate partial failure so one slow/erroring
-  // endpoint doesn't blank the home page.
-  const [meR, billR, anaR, delR, msgR, listR, tplR] = await Promise.allSettled([
+  // Pull the whole snapshot in parallel; tolerate partial failure so one slow or
+  // erroring endpoint doesn't blank the home page. Analytics is fetched three
+  // ways: overall (the product-wide funnel) + per wing (each panel's numbers).
+  const [meR, billR, anaR, txR, mkR, delR, msgR, listR, tplR, cmpR] = await Promise.allSettled([
     api.me(),
     api.getBilling(),
     api.getAnalytics({ window_days: 30 }),
+    api.getAnalytics({ window_days: 30, type: "transactional" }),
+    api.getAnalytics({ window_days: 30, type: "marketing" }),
     api.getDeliverability({ window_days: 30 }),
     api.listMessages({ limit: 100 }),
     api.listLists(),
     api.listTemplates(),
+    api.listCampaigns(),
   ]);
   const ok = <T,>(r: PromiseSettledResult<T>) => (r.status === "fulfilled" ? r.value : null);
 
@@ -69,19 +73,20 @@ export default async function OverviewPage() {
 
   const billing = ok(billR);
   const analytics = ok(anaR);
+  const txStats = ok(txR);
+  const mkStats = ok(mkR);
   const deliver = ok(delR);
   const messages = ok(msgR)?.data ?? [];
   const lists = ok(listR)?.data ?? [];
   const templates = ok(tplR)?.data ?? [];
+  const campaigns = ok(cmpR)?.data ?? [];
 
   const firstName = me.user.name?.trim().split(" ")[0] || me.user.email.split("@")[0];
   const workspace = me.active_workspace ?? me.workspaces[0] ?? null;
   const usage = billing?.usage;
-  const usedPct = usage && usage.quota > 0 ? Math.min(100, Math.round((usage.used / usage.quota) * 100)) : 0;
-  const recent = messages.slice(0, 6);
   const problems = messages.filter((m) => ["bounced", "complained", "failed"].includes(m.status)).length;
 
-  // The 30-day journey of your email, as a connected flow — each stage carries
+  // The 30-day journey of ALL your email, as a connected flow — each stage carries
   // its count AND the rate from the stage before, ending in a sender-health chip.
   const funnel = analytics
     ? [
@@ -93,12 +98,25 @@ export default async function OverviewPage() {
     : null;
   const bounceRate = analytics?.rates.bounce ?? 0;
 
-  const quickActions = [
-    { href: "/messages/new", label: "Compose", icon: Send },
-    { href: "/contacts?add=import", label: "Import contacts", icon: Upload },
-    { href: "/templates/new", label: "Design a template", icon: FileText },
-    { href: "/assistant", label: "Ask the assistant", icon: Sparkles },
-  ];
+  // Each wing, on its own terms: transactional is metered by send volume, marketing
+  // by audience size — so their headline numbers are deliberately different.
+  const txSent30 = txStats?.funnel.sent ?? 0;
+  const txDelivery = txStats?.rates.delivery ?? 0;
+  // Keep the transactional panel's "recent" line to its OWN wing (marketing/sales
+  // sends live in the marketing panel), so neither wing borrows the other's data.
+  const lastMessage = messages.find((m) => m.type === "transactional") ?? null;
+
+  const mkSent30 = mkStats?.funnel.sent ?? 0;
+  const mkOpen = mkStats?.rates.open ?? 0;
+  const lastCampaign = campaigns[0] ?? null;
+
+  const usedPct = usage && usage.quota > 0 ? Math.min(100, Math.round((usage.used / usage.quota) * 100)) : 0;
+  const contactsPct =
+    usage && usage.contacts_limit > 0
+      ? Math.min(100, Math.round((usage.contacts_used / usage.contacts_limit) * 100))
+      : usage && usage.contacts_used > 0
+        ? 4
+        : 0;
 
   return (
     <div className="space-y-6">
@@ -114,12 +132,15 @@ export default async function OverviewPage() {
                 {" "}
                 on the <span className="font-medium text-foreground">{billing.plan.name}</span> plan
               </>
-            ) : null}
-            .
+            ) : null}{" "}
+            — across both wings.
           </p>
         </div>
-        <Link href="/messages/new" className={cn(buttonVariants({ size: "sm" }))}>
-          <Send className="size-4" /> Compose
+        <Link
+          href="/assistant"
+          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
+        >
+          <Sparkles className="size-4" /> Ask the assistant
         </Link>
       </div>
 
@@ -127,79 +148,9 @@ export default async function OverviewPage() {
         <OnboardingChecklist />
       </Suspense>
 
+      {/* Shared sending health — reputation + the whole funnel belong to the
+          workspace, not a wing, so they lead. */}
       <Reveal delay={0.03} className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">This month&apos;s sending</CardTitle>
-            <Link href="/billing" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
-              Plan &amp; usage <ArrowRight className="size-3.5" />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {usage ? (
-              activeWing === "transactional" ? (
-                <>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-3xl font-bold tracking-tight">{fmt(usage.used)}</span>
-                    <span className="text-sm text-muted-foreground">
-                      of {fmt(usage.quota)} transactional sends
-                    </span>
-                  </div>
-                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className={cn(
-                        "h-full rounded-full",
-                        usage.over_limit ? "bg-red-500" : usedPct > 80 ? "bg-amber-500" : "bg-primary",
-                      )}
-                      style={{ width: `${usedPct}%` }}
-                    />
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {usage.over_limit
-                      ? `Past your send volume — ${fmt(usage.overage)} extra this period.`
-                      : `${fmt(usage.remaining)} sends left this period.`}{" "}
-                    Marketing has its own meter in its wing.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-3xl font-bold tracking-tight">{fmt(usage.contacts_used)}</span>
-                    <span className="text-sm text-muted-foreground">
-                      {usage.contacts_limit === -1
-                        ? "contacts in your audiences"
-                        : `of ${fmt(usage.contacts_limit)} contacts`}
-                    </span>
-                  </div>
-                  <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-secondary">
-                    <div
-                      className={cn(
-                        "h-full rounded-full",
-                        usage.contacts_limit !== -1 && usage.contacts_used >= usage.contacts_limit
-                          ? "bg-red-500"
-                          : "bg-primary",
-                      )}
-                      style={{
-                        width: `${
-                          usage.contacts_limit > 0
-                            ? Math.min(100, Math.round((usage.contacts_used / usage.contacts_limit) * 100))
-                            : 4
-                        }%`,
-                      }}
-                    />
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    {fmt(usage.marketing_sent)} marketing emails sent this period — campaigns never
-                    consume send blocks. Transactional has its own meter in its wing.
-                  </p>
-                </>
-              )
-            ) : (
-              <p className="text-sm text-muted-foreground">Usage appears here once you start sending.</p>
-            )}
-          </CardContent>
-        </Card>
-
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="text-base">Deliverability</CardTitle>
@@ -226,9 +177,7 @@ export default async function OverviewPage() {
                     {deliver.score}
                     <span className="text-sm font-normal text-muted-foreground">/100</span>
                   </p>
-                  <p className="text-xs capitalize text-muted-foreground">
-                    {deliver.status.replace("_", " ")}
-                  </p>
+                  <p className="text-xs capitalize text-muted-foreground">{deliver.status.replace("_", " ")}</p>
                 </div>
               </div>
             ) : (
@@ -239,17 +188,24 @@ export default async function OverviewPage() {
             ) : null}
           </CardContent>
         </Card>
-      </Reveal>
 
-      <Reveal delay={0.08}>
-        <Card>
-          <CardContent className="p-5">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Everything you send · 30 days</CardTitle>
+            <Link
+              href="/analytics?scope=all"
+              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+            >
+              Analytics <ArrowRight className="size-3.5" />
+            </Link>
+          </CardHeader>
+          <CardContent>
             {funnel ? (
               <div className="flex flex-wrap items-center gap-x-2 gap-y-4">
                 {funnel.map((s, i) => (
                   <Fragment key={s.label}>
                     {i > 0 ? <ArrowRight className="size-4 shrink-0 text-muted-foreground/40" /> : null}
-                    <Link href="/analytics" className="group min-w-[118px] flex-1">
+                    <Link href="/analytics?scope=all" className="group min-w-[104px] flex-1">
                       <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
                         <s.icon className="size-4" /> {s.label}
                       </span>
@@ -284,88 +240,191 @@ export default async function OverviewPage() {
         </Card>
       </Reveal>
 
-      <Reveal delay={0.13}>
-        <p className="mb-2 text-sm font-medium text-muted-foreground">Quick actions</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {quickActions.map((a) => (
-            <Link
-              key={a.href}
-              href={a.href}
-              className="group flex items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:border-primary/40"
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                <a.icon className="size-4" />
-              </span>
-              <span className="text-sm font-medium">{a.label}</span>
-            </Link>
-          ))}
-        </div>
+      {/* The two wings, each self-contained: its own metric, its own compose action,
+          its own handoff. Neither borrows the other's buttons. */}
+      <Reveal delay={0.08} className="grid gap-4 lg:grid-cols-2">
+        <WingCard
+          accent="text-violet-600 dark:text-violet-400"
+          accentBg="bg-violet-500/10"
+          icon={Zap}
+          name="Transactional"
+          blurb="Receipts, resets and alerts your app sends one person at a time."
+          headline={
+            usage
+              ? { value: fmt(usage.used), of: `of ${fmt(usage.quota)} sends`, pct: usedPct, over: usage.over_limit }
+              : null
+          }
+          headlineEmpty="Usage appears here once you start sending."
+          stats={[
+            { label: "Delivery rate", value: txStats ? pct(txDelivery) : "—" },
+            { label: "Sent · 30d", value: fmt(txSent30) },
+          ]}
+          recent={
+            lastMessage ? (
+              <Link
+                href={`/messages/${lastMessage.id}`}
+                className="flex items-center gap-2 hover:text-foreground"
+              >
+                <MessageFlow message={lastMessage} />
+                <span className="truncate">{lastMessage.subject || lastMessage.to}</span>
+                <span className="ml-auto shrink-0 text-xs">{relativeTime(lastMessage.created_at)}</span>
+              </Link>
+            ) : null
+          }
+          primary={{ href: "/messages/new", label: "Send email", icon: Send }}
+          analyticsHref="/analytics?scope=transactional"
+          openHref="/messages"
+        />
+
+        <WingCard
+          accent="text-amber-600 dark:text-amber-400"
+          accentBg="bg-amber-500/10"
+          icon={Megaphone}
+          name="Marketing"
+          blurb="Campaigns, newsletters and promos you send to an audience."
+          headline={
+            usage
+              ? {
+                  value: fmt(usage.contacts_used),
+                  of: usage.contacts_limit === -1 ? "contacts" : `of ${fmt(usage.contacts_limit)} contacts`,
+                  pct: contactsPct,
+                  over: usage.contacts_limit !== -1 && usage.contacts_used >= usage.contacts_limit,
+                }
+              : null
+          }
+          headlineEmpty="Grow an audience to start marketing."
+          stats={[
+            { label: "Open rate", value: mkStats ? pct(mkOpen) : "—" },
+            { label: "Sent · 30d", value: fmt(mkSent30) },
+          ]}
+          recent={
+            lastCampaign ? (
+              <Link
+                href={`/campaigns/${lastCampaign.id}`}
+                className="flex items-center gap-2 hover:text-foreground"
+              >
+                <Megaphone className="size-3.5 shrink-0 text-muted-foreground" />
+                <span className="truncate">{lastCampaign.name}</span>
+                <span className="ml-auto shrink-0 text-xs capitalize">{lastCampaign.status}</span>
+              </Link>
+            ) : null
+          }
+          primary={{ href: "/campaigns/new", label: "New campaign", icon: Megaphone }}
+          analyticsHref="/analytics?scope=marketing"
+          openHref="/campaigns"
+        />
       </Reveal>
 
-      <Reveal delay={0.18} className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Recent messages</CardTitle>
-            <Link href="/messages" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
-              View all <ArrowRight className="size-3.5" />
-            </Link>
-          </CardHeader>
-          <CardContent className="p-0">
-            {recent.length === 0 ? (
-              <p className="px-6 pb-6 text-sm text-muted-foreground">
-                No messages yet — compose your first one.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Status</TableHead>
-                    <TableHead>To</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead className="text-right">Sent</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recent.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell>
-                        <MessageFlow message={m} />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <Link href={`/messages/${m.id}`} className="hover:underline">
-                          {m.to}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="max-w-[220px] truncate text-muted-foreground">{m.subject}</TableCell>
-                      <TableCell className="whitespace-nowrap text-right text-muted-foreground">
-                        {relativeTime(m.created_at)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
+      {/* Shared workspace facts, one row. */}
+      <Reveal delay={0.13}>
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Your workspace</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1">
+          <CardContent className="grid gap-1 p-2 sm:grid-cols-3 sm:gap-2 sm:p-3">
             <SnapshotRow icon={Users} label="Audiences" value={lists.length} href="/contacts?tab=audiences" />
             <SnapshotRow icon={FileText} label="Templates" value={templates.length} href="/templates" />
             <SnapshotRow
               icon={TriangleAlert}
-              label="Problems (last 100)"
+              label="Delivery problems"
               value={problems}
-              href="/messages"
+              href="/messages?status=bounced"
               tone={problems > 0 ? "text-amber-600 dark:text-amber-400" : undefined}
             />
           </CardContent>
         </Card>
       </Reveal>
     </div>
+  );
+}
+
+type WingStat = { label: string; value: string };
+
+function WingCard({
+  accent,
+  accentBg,
+  icon: Icon,
+  name,
+  blurb,
+  headline,
+  headlineEmpty,
+  stats,
+  recent,
+  primary,
+  analyticsHref,
+  openHref,
+}: {
+  accent: string;
+  accentBg: string;
+  icon: typeof Zap;
+  name: string;
+  blurb: string;
+  headline: { value: string; of: string; pct: number; over: boolean } | null;
+  headlineEmpty: string;
+  stats: WingStat[];
+  recent: React.ReactNode;
+  primary: { href: string; label: string; icon: typeof Send };
+  analyticsHref: string;
+  openHref: string;
+}) {
+  return (
+    <Card className="flex flex-col">
+      <CardContent className="flex flex-1 flex-col gap-4 p-5">
+        <div className="flex items-start gap-3">
+          <span className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg", accentBg, accent)}>
+            <Icon className="size-4" />
+          </span>
+          <div className="min-w-0">
+            <Link href={openHref} className="font-semibold hover:underline">
+              {name}
+            </Link>
+            <p className="text-xs leading-snug text-muted-foreground">{blurb}</p>
+          </div>
+        </div>
+
+        {headline ? (
+          <div>
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-3xl font-bold tracking-tight">{headline.value}</span>
+              <span className="text-sm text-muted-foreground">{headline.of}</span>
+            </div>
+            <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-secondary">
+              <div
+                className={cn(
+                  "h-full rounded-full",
+                  headline.over ? "bg-red-500" : headline.pct > 80 ? "bg-amber-500" : "bg-primary",
+                )}
+                style={{ width: `${headline.pct}%` }}
+              />
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">{headlineEmpty}</p>
+        )}
+
+        <div className="grid grid-cols-2 gap-3">
+          {stats.map((s) => (
+            <div key={s.label} className="rounded-lg border bg-secondary/30 p-3">
+              <div className="text-xl font-semibold tabular-nums">{s.value}</div>
+              <div className="text-xs text-muted-foreground">{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {recent ? (
+          <div className="truncate border-t pt-3 text-sm text-muted-foreground">{recent}</div>
+        ) : null}
+
+        <div className="mt-auto flex items-center gap-2 pt-1">
+          <Link href={primary.href} className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
+            <primary.icon className="size-4" /> {primary.label}
+          </Link>
+          <Link
+            href={analyticsHref}
+            className={cn(buttonVariants({ variant: "ghost", size: "sm" }), "gap-1 text-muted-foreground")}
+          >
+            Analytics <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -385,7 +444,7 @@ function SnapshotRow({
   return (
     <Link
       href={href}
-      className="-mx-2 flex items-center justify-between rounded-md px-2 py-2 transition-colors hover:bg-secondary/60"
+      className="flex items-center justify-between rounded-md px-3 py-2 transition-colors hover:bg-secondary/60"
     >
       <span className="flex items-center gap-2 text-sm text-muted-foreground">
         <Icon className="size-4" /> {label}

@@ -313,7 +313,7 @@ export const api = {
   getDeliverability: (q: { window_days?: number; sub_tenant_id?: string } = {}) =>
     rmFetch<Deliverability>("/v1/deliverability", { query: q }),
 
-  getAnalytics: (q: { window_days?: number; sub_tenant_id?: string } = {}) =>
+  getAnalytics: (q: { window_days?: number; sub_tenant_id?: string; type?: "transactional" | "marketing" } = {}) =>
     rmFetch<Analytics>("/v1/analytics", { query: q }),
 
   importSuppressions: (body: { entries: { email: string; reason?: string }[]; source?: string }) =>

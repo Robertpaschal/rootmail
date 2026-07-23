@@ -1,13 +1,23 @@
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
+import type { MessageType } from "@rootmail/core";
 import { db, auditEntries, messages, templates } from "@rootmail/db";
 import { parse } from "../lib/validate";
 
 const query = z.object({
   window_days: z.coerce.number().int().min(1).max(90).default(30),
   sub_tenant_id: z.string().optional(),
+  // Scope the funnel to one wing. Transactional = the API's one-to-one sends;
+  // marketing = campaign/newsletter/promo sends. Omitted = the whole workspace.
+  type: z.enum(["transactional", "marketing"]).optional(),
 });
+
+// A wing maps to one or more message types (the marketing wing owns promos too).
+const WING_TYPES: Record<"transactional" | "marketing", MessageType[]> = {
+  transactional: ["transactional"],
+  marketing: ["marketing", "sales"],
+};
 
 const pct = (num: number, den: number) => (den > 0 ? Math.round((num / den) * 1000) / 10 : 0);
 
@@ -20,6 +30,7 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
     const since = new Date(Date.now() - q.window_days * 86_400_000);
     const base = [eq(messages.workspaceId, wsId), gte(messages.createdAt, since)];
     if (q.sub_tenant_id) base.push(eq(messages.subTenantId, q.sub_tenant_id));
+    if (q.type) base.push(inArray(messages.type, WING_TYPES[q.type]));
 
     // Status breakdown.
     const statusRows = await db
@@ -93,7 +104,7 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
     return {
       object: "analytics",
       window_days: q.window_days,
-      scope: { sub_tenant_id: q.sub_tenant_id ?? null },
+      scope: { sub_tenant_id: q.sub_tenant_id ?? null, type: q.type ?? null },
       funnel: { sent, delivered, opened, clicked },
       rates: {
         delivery: pct(delivered, sent),

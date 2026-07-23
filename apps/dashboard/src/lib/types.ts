@@ -980,7 +980,7 @@ export interface EmailAuthReport {
 export interface Analytics {
   object: "analytics";
   window_days: number;
-  scope: { sub_tenant_id: string | null };
+  scope: { sub_tenant_id: string | null; type?: "transactional" | "marketing" | null };
   funnel: { sent: number; delivered: number; opened: number; clicked: number };
   rates: { delivery: number; open: number; click: number; click_to_open: number; bounce: number };
   series: { date: string; sent: number }[];

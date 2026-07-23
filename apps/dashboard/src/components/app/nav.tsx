@@ -67,6 +67,7 @@ const TRANSACTIONAL_ITEMS: NavItem[] = [
   { href: "/api-keys", label: "API keys", icon: KeyRound },
   { href: "/webhooks", label: "Webhooks", icon: Webhook },
   { href: "/deliverability", label: "Deliverability", icon: Gauge },
+  { href: "/analytics", label: "Analytics", icon: BarChart3 },
   { href: "/sub-tenants", label: "Client domains", icon: Network },
   { href: "/test-inbox", label: "Test inbox", icon: FlaskConical },
   { href: "/docs", label: "Docs", icon: BookOpen },
@@ -96,9 +97,10 @@ const SHARED_WORKSPACE: NavGroup = {
 // Routes that belong exclusively to one wing — landing on them selects it. Content
 // tools (/templates) live in both wings, so they don't force a switch.
 const TX_ROUTES = ["/messages", "/api-keys", "/webhooks", "/deliverability", "/sub-tenants", "/test-inbox", "/docs"];
-const MK_ROUTES = ["/campaigns", "/sequences", "/contacts", "/lists", "/import", "/analytics"];
-// /inbox (Replies) is a shared, cross-wing surface — like /templates it lives in
-// both wings and never forces a wing switch.
+const MK_ROUTES = ["/campaigns", "/sequences", "/contacts", "/lists", "/import"];
+// /inbox (Replies), /templates AND /analytics are shared, cross-wing surfaces —
+// they live in both wings and never force a wing switch. /analytics scopes itself
+// to the wing you're in (its cookie) so it reads as that wing's section.
 
 function wingForPath(p: string): Wing | null {
   const hit = (routes: string[]) => routes.some((h) => p === h || p.startsWith(`${h}/`));
