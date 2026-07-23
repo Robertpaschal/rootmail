@@ -2,7 +2,9 @@ import { Fragment, Suspense } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
+  BarChart3,
   CheckCircle2,
+  CreditCard,
   FileText,
   Mail,
   Megaphone,
@@ -10,6 +12,7 @@ import {
   Send,
   Sparkles,
   TriangleAlert,
+  Upload,
   Users,
   Zap,
 } from "lucide-react";
@@ -18,8 +21,10 @@ import { Greeting } from "@/components/app/greeting";
 import { Reveal } from "@/components/app/motion";
 import { MessageFlow } from "@/components/app/message-flow";
 import { OnboardingChecklist } from "@/components/app/onboarding-checklist";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
 import { api } from "@/lib/rootmail";
 import { cn } from "@/lib/utils";
@@ -46,12 +51,10 @@ function gradeTone(grade: string | null): string {
 
 // The Overview sits ABOVE the wing switcher, so it's the ONE product-wide view:
 // shared sending health up top (deliverability + the whole funnel), then each
-// wing presented on its own terms with its own action — never one wing's compose
-// button leaking onto the other. Each wing hands off to its own analytics.
+// wing on its own terms with its own action — never one wing's compose button
+// leaking onto the other — then shortcuts, recent activity, and the workspace
+// (the product the user is in) with its billing.
 export default async function OverviewPage() {
-  // Pull the whole snapshot in parallel; tolerate partial failure so one slow or
-  // erroring endpoint doesn't blank the home page. Analytics is fetched three
-  // ways: overall (the product-wide funnel) + per wing (each panel's numbers).
   const [meR, billR, anaR, txR, mkR, delR, msgR, listR, tplR, cmpR] = await Promise.allSettled([
     api.me(),
     api.getBilling(),
@@ -85,6 +88,7 @@ export default async function OverviewPage() {
   const workspace = me.active_workspace ?? me.workspaces[0] ?? null;
   const usage = billing?.usage;
   const problems = messages.filter((m) => ["bounced", "complained", "failed"].includes(m.status)).length;
+  const recent = messages.slice(0, 6);
 
   // The 30-day journey of ALL your email, as a connected flow — each stage carries
   // its count AND the rate from the stage before, ending in a sender-health chip.
@@ -118,6 +122,13 @@ export default async function OverviewPage() {
         ? 4
         : 0;
 
+  const quickActions = [
+    { href: "/contacts?add=import", label: "Import contacts", icon: Upload },
+    { href: "/templates/new", label: "Design a template", icon: FileText },
+    { href: "/analytics?scope=all", label: "View analytics", icon: BarChart3 },
+    { href: "/assistant", label: "Ask the assistant", icon: Sparkles },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -136,10 +147,7 @@ export default async function OverviewPage() {
             — across both wings.
           </p>
         </div>
-        <Link
-          href="/assistant"
-          className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
-        >
+        <Link href="/assistant" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
           <Sparkles className="size-4" /> Ask the assistant
         </Link>
       </div>
@@ -315,19 +323,117 @@ export default async function OverviewPage() {
         />
       </Reveal>
 
-      {/* Shared workspace facts, one row. */}
-      <Reveal delay={0.13}>
+      {/* Quick actions — cross-wing shortcuts (the wings own the compose actions). */}
+      <Reveal delay={0.12}>
+        <p className="mb-2 text-sm font-medium text-muted-foreground">Quick actions</p>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {quickActions.map((a) => (
+            <Link
+              key={a.href}
+              href={a.href}
+              className="group flex items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:border-primary/40"
+            >
+              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
+                <a.icon className="size-4" />
+              </span>
+              <span className="text-sm font-medium">{a.label}</span>
+            </Link>
+          ))}
+        </div>
+      </Reveal>
+
+      {/* Recent activity + the workspace (the product you're in) with its billing. */}
+      <Reveal delay={0.16} className="grid gap-6 lg:grid-cols-3">
+        <Card className="lg:col-span-2">
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="text-base">Recent messages</CardTitle>
+            <Link href="/messages" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+              View all <ArrowRight className="size-3.5" />
+            </Link>
+          </CardHeader>
+          <CardContent className="p-0">
+            {recent.length === 0 ? (
+              <p className="px-6 pb-6 text-sm text-muted-foreground">No messages yet — send your first one.</p>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Status</TableHead>
+                    <TableHead>To</TableHead>
+                    <TableHead>Subject</TableHead>
+                    <TableHead className="text-right">Sent</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recent.map((m) => (
+                    <TableRow key={m.id}>
+                      <TableCell>
+                        <MessageFlow message={m} />
+                      </TableCell>
+                      <TableCell className="font-medium">
+                        <Link href={`/messages/${m.id}`} className="hover:underline">
+                          {m.to}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="max-w-[220px] truncate text-muted-foreground">{m.subject}</TableCell>
+                      <TableCell className="whitespace-nowrap text-right text-muted-foreground">
+                        {relativeTime(m.created_at)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* The workspace IS the product the user has — so it's titled by its name,
+            and carries both the at-a-glance contents and the billing. */}
         <Card>
-          <CardContent className="grid gap-1 p-2 sm:grid-cols-3 sm:gap-2 sm:p-3">
-            <SnapshotRow icon={Users} label="Audiences" value={lists.length} href="/contacts?tab=audiences" />
-            <SnapshotRow icon={FileText} label="Templates" value={templates.length} href="/templates" />
-            <SnapshotRow
-              icon={TriangleAlert}
-              label="Delivery problems"
-              value={problems}
-              href="/messages?status=bounced"
-              tone={problems > 0 ? "text-amber-600 dark:text-amber-400" : undefined}
-            />
+          <CardHeader className="flex-row items-center justify-between space-y-0">
+            <CardTitle className="flex min-w-0 items-center gap-2 text-base">
+              <span className="truncate">{workspace?.name ?? "Workspace"}</span>
+              {workspace?.environment ? (
+                <Badge variant={workspace.environment === "test" ? "secondary" : "success"} className="shrink-0">
+                  {workspace.environment === "test" ? "Sandbox" : "Live"}
+                </Badge>
+              ) : null}
+            </CardTitle>
+            <Link href="/settings" className="text-sm text-primary hover:underline">
+              Manage
+            </Link>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Billing */}
+            <Link
+              href="/billing"
+              className="-mx-2 flex items-center justify-between rounded-md px-2 py-2 transition-colors hover:bg-secondary/60"
+            >
+              <span className="flex items-center gap-2 text-sm text-muted-foreground">
+                <CreditCard className="size-4" /> Plan &amp; billing
+              </span>
+              <span className="flex items-center gap-1 text-sm font-semibold">
+                {billing?.plan.name ?? "—"} <ArrowRight className="size-3.5 text-muted-foreground" />
+              </span>
+            </Link>
+            {usage ? (
+              <p className="px-0.5 text-xs text-muted-foreground">
+                {fmt(usage.used)}/{fmt(usage.quota)} sends · {fmt(usage.contacts_used)}
+                {usage.contacts_limit === -1 ? "" : `/${fmt(usage.contacts_limit)}`} contacts this period
+              </p>
+            ) : null}
+
+            <div className="space-y-1 border-t pt-2">
+              <SnapshotRow icon={Users} label="Audiences" value={lists.length} href="/contacts?tab=audiences" />
+              <SnapshotRow icon={FileText} label="Templates" value={templates.length} href="/templates" />
+              <SnapshotRow
+                icon={TriangleAlert}
+                label="Delivery problems"
+                value={problems}
+                href="/messages?status=bounced"
+                tone={problems > 0 ? "text-amber-600 dark:text-amber-400" : undefined}
+              />
+            </div>
           </CardContent>
         </Card>
       </Reveal>
@@ -444,7 +550,7 @@ function SnapshotRow({
   return (
     <Link
       href={href}
-      className="flex items-center justify-between rounded-md px-3 py-2 transition-colors hover:bg-secondary/60"
+      className="-mx-2 flex items-center justify-between rounded-md px-2 py-2 transition-colors hover:bg-secondary/60"
     >
       <span className="flex items-center gap-2 text-sm text-muted-foreground">
         <Icon className="size-4" /> {label}
