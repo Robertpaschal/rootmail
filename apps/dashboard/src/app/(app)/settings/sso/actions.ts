@@ -23,7 +23,7 @@ export async function saveSsoConnection(_prev: SsoState, formData: FormData): Pr
   }
   try {
     await api.putSsoConnection(input);
-    revalidatePath("/settings/sso");
+    revalidatePath("/members");
     return { ok: true };
   } catch (err) {
     if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
@@ -34,7 +34,7 @@ export async function saveSsoConnection(_prev: SsoState, formData: FormData): Pr
 export async function deleteSsoConnection(): Promise<{ error?: string }> {
   try {
     await api.deleteSsoConnection();
-    revalidatePath("/settings/sso");
+    revalidatePath("/members");
     return {};
   } catch (err) {
     if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
@@ -46,7 +46,7 @@ export async function deleteSsoConnection(): Promise<{ error?: string }> {
 export async function enableScim(): Promise<{ token?: string; base_url?: string; error?: string }> {
   try {
     const res = await api.generateScimToken();
-    revalidatePath("/settings/sso");
+    revalidatePath("/members");
     return { token: res.token ?? undefined, base_url: res.base_url };
   } catch (err) {
     if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
@@ -57,7 +57,7 @@ export async function enableScim(): Promise<{ token?: string; base_url?: string;
 export async function disableScim(): Promise<{ error?: string }> {
   try {
     await api.disableScim();
-    revalidatePath("/settings/sso");
+    revalidatePath("/members");
     return {};
   } catch (err) {
     if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };

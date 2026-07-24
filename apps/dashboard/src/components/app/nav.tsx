@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { usePathname } from "next/navigation";
+import { LayoutGroup, motion } from "framer-motion";
 import {
   BarChart3,
   BookOpen,
@@ -20,14 +19,12 @@ import {
   Megaphone,
   Network,
   Send,
-  ShieldCheck,
   Settings,
   Sparkles,
   UserCog,
   Users,
   Webhook,
   Workflow,
-  Zap,
 } from "lucide-react";
 import { Logo } from "./logo";
 import { buttonVariants } from "@/components/ui/button";
@@ -36,102 +33,79 @@ import { cn } from "@/lib/utils";
 type NavItem = { href: string; label: string; icon: typeof Mail; exact?: boolean };
 type NavGroup = { label?: string; items: NavItem[] };
 
-// Transactional and marketing email are fundamentally different products, so the
-// dashboard is two wings, not one flat list. Transactional is the core — the
-// send API + templates/blocks + the reliability tools a product's receipts and
-// resets depend on. Marketing is audience + campaigns + engagement. A switcher
-// makes it obvious which dashboard you're in; shared workspace chrome persists.
-type Wing = "transactional" | "marketing";
-
-const WINGS: { id: Wing; label: string; icon: typeof Mail; home: string }[] = [
-  { id: "transactional", label: "Transactional", icon: Zap, home: "/messages" },
-  { id: "marketing", label: "Marketing", icon: Megaphone, home: "/campaigns" },
-];
-
-// Plain-English context — a user who's never heard "transactional" vs "marketing"
-// should still know what each wing is and what to expect, no demo required.
-const WING_HINT: Record<Wing, string> = {
-  transactional: "Automated emails your app sends one person — receipts, password resets, alerts. Built on the API.",
-  marketing: "Emails you send to an audience — campaigns, newsletters, and promos, driven by your contacts.",
-};
-
-const SHARED_TOP: NavItem[] = [
-  { href: "/", label: "Overview", icon: LayoutDashboard, exact: true },
-  { href: "/assistant", label: "Assistant", icon: Sparkles },
-];
-
-const TRANSACTIONAL_ITEMS: NavItem[] = [
-  { href: "/messages", label: "Messages", icon: Mail },
-  { href: "/inbox", label: "Replies", icon: Inbox },
-  { href: "/templates", label: "Templates & blocks", icon: FileText },
-  { href: "/api-keys", label: "API keys", icon: KeyRound },
-  { href: "/webhooks", label: "Webhooks", icon: Webhook },
-  { href: "/deliverability", label: "Deliverability", icon: Gauge },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/sub-tenants", label: "Client domains", icon: Network },
-  { href: "/test-inbox", label: "Test inbox", icon: FlaskConical },
-  { href: "/docs", label: "Docs", icon: BookOpen },
-];
-
-const MARKETING_ITEMS: NavItem[] = [
-  { href: "/campaigns", label: "Campaigns", icon: Megaphone },
-  { href: "/sequences", label: "Sequences", icon: Workflow },
-  { href: "/inbox", label: "Replies", icon: Inbox },
-  // One roof for people, imports, and audiences — the hub tabs them.
-  { href: "/contacts", label: "Audience", icon: Users },
-  { href: "/templates", label: "Templates", icon: FileText },
-  { href: "/analytics", label: "Analytics", icon: BarChart3 },
-];
-
-const SHARED_WORKSPACE: NavGroup = {
-  label: "Workspace",
-  items: [
-    { href: "/billing", label: "Plan & usage", icon: CreditCard },
-    { href: "/members", label: "Team", icon: UserCog },
-    { href: "/roles", label: "Roles", icon: ShieldCheck },
-    { href: "/compliance", label: "Compliance", icon: FileCheck2 },
-    { href: "/settings", label: "Settings", icon: Settings },
-  ],
-};
-
-// Routes that belong exclusively to one wing — landing on them selects it. Content
-// tools (/templates) live in both wings, so they don't force a switch.
-const TX_ROUTES = ["/messages", "/api-keys", "/webhooks", "/deliverability", "/sub-tenants", "/test-inbox", "/docs"];
-const MK_ROUTES = ["/campaigns", "/sequences", "/contacts", "/lists", "/import"];
-// /inbox (Replies), /templates AND /analytics are shared, cross-wing surfaces —
-// they live in both wings and never force a wing switch. /analytics scopes itself
-// to the wing you're in (its cookie) so it reads as that wing's section.
-
-function wingForPath(p: string): Wing | null {
-  const hit = (routes: string[]) => routes.some((h) => p === h || p.startsWith(`${h}/`));
-  if (hit(TX_ROUTES)) return "transactional";
-  if (hit(MK_ROUTES)) return "marketing";
-  return null;
+/**
+ * ONE sidebar, grouped by what things are FOR — no transactional/marketing flip.
+ * The product core (messages ↔ replies ↔ campaigns ↔ audience ↔ templates) is a
+ * single fabric the user moves through; transactional vs marketing stays a
+ * PRICING and metering dimension (billing pages, analytics scopes, usage
+ * meters), not a navigation wall. Sections that only make sense against real
+ * infrastructure (deliverability, client domains) hide in sandbox, and the
+ * sandbox-only test inbox hides in live — the nav always reflects what can
+ * actually function right now.
+ */
+function buildGroups(opts: { sandbox: boolean; workspaceName: string | null }): NavGroup[] {
+  const { sandbox, workspaceName } = opts;
+  return [
+    {
+      items: [
+        { href: "/", label: "Overview", icon: LayoutDashboard, exact: true },
+        { href: "/assistant", label: "Assistant", icon: Sparkles },
+      ],
+    },
+    {
+      // The product itself: every email, the conversations they open, the bulk
+      // engines that generate them, the people they go to, and the designs they
+      // share. Proof rides with the mail it certifies.
+      label: "Email",
+      items: [
+        { href: "/messages", label: "Messages", icon: Mail },
+        { href: "/inbox", label: "Replies", icon: Inbox },
+        { href: "/campaigns", label: "Campaigns", icon: Megaphone },
+        { href: "/sequences", label: "Sequences", icon: Workflow },
+        { href: "/contacts", label: "Audience", icon: Users },
+        { href: "/templates", label: "Templates", icon: FileText },
+        { href: "/compliance", label: "Proof & compliance", icon: FileCheck2 },
+      ],
+    },
+    {
+      // How it's all going. Both pages scope by wing INSIDE (one entry each —
+      // never duplicated per wing). Reputation needs real sends, so it's live-only.
+      label: "Insights",
+      items: [
+        { href: "/analytics", label: "Analytics", icon: BarChart3 },
+        ...(sandbox ? [] : [{ href: "/deliverability", label: "Deliverability", icon: Gauge }]),
+      ],
+    },
+    {
+      // Everything code-facing in one place; the sandbox-only test inbox appears
+      // exactly when the workspace can use it.
+      label: "Developers",
+      items: [
+        { href: "/api-keys", label: "API keys", icon: KeyRound },
+        { href: "/webhooks", label: "Webhooks", icon: Webhook },
+        { href: "/docs", label: "Docs", icon: BookOpen },
+        ...(sandbox ? [{ href: "/test-inbox", label: "Test inbox", icon: FlaskConical }] : []),
+      ],
+    },
+    {
+      // Titled by the workspace the user is actually in ("Production", not the
+      // abstract "Workspace"). Team carries roles + SSO inside; client domains
+      // (the agency surface) needs real DNS + sending, so it's live-only.
+      label: workspaceName ?? "Workspace",
+      items: [
+        { href: "/billing", label: "Plan & usage", icon: CreditCard },
+        { href: "/members", label: "Team", icon: UserCog },
+        ...(sandbox ? [] : [{ href: "/sub-tenants", label: "Client domains", icon: Network }]),
+        { href: "/settings", label: "Settings", icon: Settings },
+      ],
+    },
+  ];
 }
 
 function useIsActive() {
   const pathname = usePathname();
   return (href: string, exact?: boolean) =>
     exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);
-}
-
-// Active wing follows the route; on shared routes it falls back to the last-picked
-// wing (a cookie, read after mount to keep SSR deterministic).
-function useWing(): [Wing, (w: Wing) => void] {
-  const pathname = usePathname();
-  const router = useRouter();
-  const [pref, setPref] = useState<Wing>("transactional");
-  useEffect(() => {
-    const c = document.cookie.split("; ").find((x) => x.startsWith("rm_wing="))?.split("=")[1];
-    if (c === "marketing" || c === "transactional") setPref(c);
-  }, []);
-  const wing = wingForPath(pathname) ?? pref;
-  const switchWing = (w: Wing) => {
-    document.cookie = `rm_wing=${w}; path=/; max-age=31536000; samesite=lax`;
-    setPref(w);
-    router.push(WINGS.find((x) => x.id === w)!.home);
-  };
-  return [wing, switchWing];
 }
 
 /** A nav row with a GLIDING active pill — the highlight physically travels to the
@@ -168,54 +142,19 @@ function NavLink({
   );
 }
 
-/** The two-wing switch — a sliding thumb (framer layoutId) glides between
- * Transactional and Marketing; both labels render in full with their icons. */
-function WingSwitcher({ wing, onSwitch, thumbId }: { wing: Wing; onSwitch: (w: Wing) => void; thumbId: string }) {
-  return (
-    <div className="grid grid-cols-2 gap-1 rounded-lg bg-secondary/50 p-1">
-      {WINGS.map((w) => {
-        const active = wing === w.id;
-        return (
-          <button
-            key={w.id}
-            type="button"
-            onClick={() => onSwitch(w.id)}
-            title={WING_HINT[w.id]}
-            aria-pressed={active}
-            className={cn(
-              "relative flex items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-              active ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {active ? (
-              <motion.span
-                layoutId={thumbId}
-                className="absolute inset-0 rounded-md bg-background shadow-sm"
-                transition={{ type: "spring", stiffness: 400, damping: 32 }}
-              />
-            ) : null}
-            <span className="relative z-10 flex items-center gap-1.5">
-              <w.icon className="size-3.5 shrink-0" />
-              {w.label}
-            </span>
-          </button>
-        );
-      })}
-    </div>
-  );
+export interface NavContext {
+  /** The active workspace's name — the "product" the user is inside. */
+  workspaceName?: string | null;
+  /** True when the active workspace is the sandbox (test) environment. */
+  sandbox?: boolean;
 }
 
-export function Sidebar() {
+export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
   const isActive = useIsActive();
-  const [wing, switchWing] = useWing();
-  const items = wing === "transactional" ? TRANSACTIONAL_ITEMS : MARKETING_ITEMS;
-  const cta =
-    wing === "transactional"
-      ? { href: "/messages/new", label: "Send email", icon: Send }
-      : { href: "/campaigns", label: "New campaign", icon: Megaphone };
+  const groups = buildGroups({ sandbox, workspaceName });
 
   return (
-    // w-72 so "Transactional" / "Templates & blocks" render in full — no ellipsis.
+    // w-72 so long labels ("Proof & compliance") render in full — no ellipsis.
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r bg-card md:flex">
       <div className="flex h-16 items-center border-b px-5">
         <Link href="/" aria-label="rootmail">
@@ -225,66 +164,26 @@ export function Sidebar() {
 
       <LayoutGroup id="sidebar">
         <div className="space-y-3 px-3 py-4">
-          <Link href={cta.href} className={cn(buttonVariants({ size: "sm" }), "w-full")}>
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.span
-                key={cta.href}
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                transition={{ duration: 0.12 }}
-                className="flex items-center gap-2"
-              >
-                <cta.icon className="size-4" /> {cta.label}
-              </motion.span>
-            </AnimatePresence>
+          {/* One neutral compose action: a one-off email from here is a one-to-one
+              (transactional) send; bulk lives in Campaigns. */}
+          <Link href="/messages/new" className={cn(buttonVariants({ size: "sm" }), "w-full gap-2")}>
+            <Send className="size-4" /> Compose
           </Link>
-          <div className="space-y-1">
-            {SHARED_TOP.map((it) => (
-              <NavLink key={it.href} item={it} isActive={isActive} indicatorId="nav-active" />
-            ))}
-          </div>
-          <div>
-            <WingSwitcher wing={wing} onSwitch={switchWing} thumbId="wing-thumb" />
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.p
-                key={wing}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.12 }}
-                className="mt-1.5 px-1 text-[11px] leading-snug text-muted-foreground/70"
-              >
-                {WING_HINT[wing]}
-              </motion.p>
-            </AnimatePresence>
-          </div>
         </div>
 
         <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
-          {/* The wing's own sections slide as one panel when you switch. */}
-          <AnimatePresence mode="wait" initial={false}>
-            <motion.div
-              key={wing}
-              initial={{ opacity: 0, x: wing === "marketing" ? 16 : -16 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: wing === "marketing" ? -16 : 16 }}
-              transition={{ type: "spring", stiffness: 380, damping: 34 }}
-              className="space-y-1"
-            >
-              {items.map((it) => (
+          {groups.map((g, i) => (
+            <div key={g.label ?? `top-${i}`} className="space-y-1">
+              {g.label ? (
+                <p className="truncate px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  {g.label}
+                </p>
+              ) : null}
+              {g.items.map((it) => (
                 <NavLink key={it.href} item={it} isActive={isActive} indicatorId="nav-active" />
               ))}
-            </motion.div>
-          </AnimatePresence>
-          <div className="space-y-1">
-            <p className="px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-              {SHARED_WORKSPACE.label}
-            </p>
-            {SHARED_WORKSPACE.items.map((it) => (
-              <NavLink key={it.href} item={it} isActive={isActive} indicatorId="nav-active" />
-            ))}
-          </div>
+            </div>
+          ))}
         </nav>
       </LayoutGroup>
 
@@ -306,17 +205,12 @@ export function Sidebar() {
   );
 }
 
-export function MobileNav() {
+export function MobileNav({ workspaceName = null, sandbox = false }: NavContext) {
   const isActive = useIsActive();
-  const [wing, switchWing] = useWing();
-  const items = wing === "transactional" ? TRANSACTIONAL_ITEMS : MARKETING_ITEMS;
-  const shown = [...SHARED_TOP, ...items, ...SHARED_WORKSPACE.items];
+  const shown = buildGroups({ sandbox, workspaceName }).flatMap((g) => g.items);
 
   return (
     <div className="border-b bg-card md:hidden">
-      <div className="px-3 pt-2">
-        <WingSwitcher wing={wing} onSwitch={switchWing} thumbId="wing-thumb-mobile" />
-      </div>
       <nav className="flex gap-1 overflow-x-auto px-3 py-2">
         {shown.map((it) => (
           <Link

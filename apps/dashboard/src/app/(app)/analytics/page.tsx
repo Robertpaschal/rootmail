@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import Link from "next/link";
 import { CheckCircle2, Eye, Megaphone, MousePointerClick, Send, TriangleAlert, Zap } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
@@ -24,9 +23,9 @@ const SCOPE_META: Record<Scope, { title: string; desc: string }> = {
 };
 
 const SCOPE_TABS: { id: Scope; label: string; icon: typeof Zap }[] = [
+  { id: "all", label: "Everything", icon: Send },
   { id: "transactional", label: "Transactional", icon: Zap },
   { id: "marketing", label: "Marketing", icon: Megaphone },
-  { id: "all", label: "Everything", icon: Send },
 ];
 
 function ScopeToggle({ active }: { active: Scope }) {
@@ -58,15 +57,11 @@ export default async function AnalyticsPage({
   searchParams: Promise<{ scope?: string }>;
 }) {
   const sp = await searchParams;
-  // Scope follows an explicit ?scope=, else the wing you're working in (the nav
-  // switcher's cookie), so analytics reads as this wing's section by default.
-  const cookieWing = (await cookies()).get("rm_wing")?.value;
+  // ONE analytics section for the whole product: default to everything, and let
+  // the in-page toggle (or a ?scope= deep link) narrow to a wing. The wing split
+  // lives INSIDE the page — never duplicated as separate nav sections.
   const scope: Scope =
-    sp.scope === "transactional" || sp.scope === "marketing" || sp.scope === "all"
-      ? sp.scope
-      : cookieWing === "marketing"
-        ? "marketing"
-        : "transactional";
+    sp.scope === "transactional" || sp.scope === "marketing" || sp.scope === "all" ? sp.scope : "all";
   const meta = SCOPE_META[scope];
   const type = scope === "all" ? undefined : scope;
 

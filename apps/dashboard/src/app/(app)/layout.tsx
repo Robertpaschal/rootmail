@@ -28,14 +28,20 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   const unverified = me ? !me.user.email_verified : false;
   const impersonating = me?.impersonating ?? false;
+  // The nav adapts to the workspace the user is IN: its name titles the
+  // workspace group (the "product", not an abstract "Workspace"), and sandbox
+  // vs live decides which sections can actually function (test inbox vs
+  // deliverability/client domains).
+  const ws = me?.active_workspace ?? me?.workspaces?.[0] ?? null;
+  const navCtx = { workspaceName: ws?.name ?? null, sandbox: ws?.environment === "test" };
 
   return (
     <div className="min-h-screen">
       <CommandMenu />
-      <Sidebar />
+      <Sidebar {...navCtx} />
       <div className="md:pl-72">
         <Topbar />
-        <MobileNav />
+        <MobileNav {...navCtx} />
         {impersonating && me ? <ImpersonationBanner email={me.user.email} /> : null}
         {unverified ? <VerifyEmailBanner /> : null}
         <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>

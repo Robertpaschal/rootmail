@@ -21,25 +21,29 @@ const SHARED: Item[] = [
   { label: "Assistant", href: "/assistant", kw: "ai help chat copilot diagnose" },
 ];
 
-const TX: Item[] = [
-  { label: "Messages", href: "/messages", kw: "sends log transactional history" },
-  { label: "Templates & blocks", href: "/templates", kw: "design studio email layout" },
-  { label: "API keys", href: "/api-keys", kw: "developer secret token integrate" },
-  { label: "Webhooks", href: "/webhooks", kw: "events callbacks notifications" },
-  { label: "Deliverability", href: "/deliverability", kw: "spf dkim dmarc reputation score inbox" },
-  { label: "Client domains", href: "/sub-tenants", kw: "sub-tenants sending domain clients tenants" },
-  { label: "Test inbox", href: "/test-inbox", kw: "sandbox preview safe" },
-  { label: "Docs", href: "/docs", kw: "api reference developer guide" },
-];
-
-const MK: Item[] = [
+// Mirrors the sidebar's IA: one product fabric, grouped by what things are FOR.
+const EMAIL: Item[] = [
+  { label: "Messages", href: "/messages", kw: "sends log history every email one-to-one transactional" },
+  { label: "Replies", href: "/inbox", kw: "inbox conversations threads responses" },
   { label: "Campaigns", href: "/campaigns", kw: "broadcast blast newsletter marketing" },
   { label: "Sequences", href: "/sequences", kw: "automation drip flow onboarding" },
-  { label: "Replies", href: "/inbox", kw: "inbox conversations threads responses" },
   { label: "Audience — people", href: "/contacts", kw: "contacts people subscribers tags subsets" },
   { label: "Audience — audiences", href: "/contacts?tab=audiences", kw: "lists segments groups audiences" },
   { label: "Import contacts", href: "/contacts?add=import", kw: "upload csv migrate import" },
-  { label: "Analytics", href: "/analytics", kw: "opens clicks funnel stats reports" },
+  { label: "Templates", href: "/templates", kw: "design studio email layout blocks" },
+  { label: "Proof & compliance", href: "/compliance", kw: "residency soc2 proof gdpr privacy retention export" },
+];
+
+const INSIGHTS: Item[] = [
+  { label: "Analytics", href: "/analytics", kw: "opens clicks funnel stats reports engagement" },
+  { label: "Deliverability", href: "/deliverability", kw: "spf dkim dmarc reputation score inbox placement" },
+];
+
+const DEVELOPERS: Item[] = [
+  { label: "API keys", href: "/api-keys", kw: "developer secret token integrate" },
+  { label: "Webhooks", href: "/webhooks", kw: "events callbacks notifications" },
+  { label: "Docs", href: "/docs", kw: "api reference developer guide" },
+  { label: "Test inbox", href: "/test-inbox", kw: "sandbox preview safe" },
 ];
 
 const WORKSPACE: Item[] = [
@@ -48,8 +52,9 @@ const WORKSPACE: Item[] = [
   { label: "Marketing pricing", href: "/billing/marketing", kw: "contacts brackets audience upgrade" },
   { label: "Add-ons", href: "/billing/addons", kw: "seats workspaces roles sso team add-ons addons ai credits packs dedicated ip platform" },
   { label: "Team", href: "/members", kw: "members invite users seats people" },
-  { label: "Roles", href: "/roles", kw: "permissions rbac access control" },
-  { label: "Compliance", href: "/compliance", kw: "residency soc2 proof gdpr privacy" },
+  { label: "Team · Roles", href: "/members?tab=roles", kw: "permissions rbac access control roles" },
+  { label: "Team · Single sign-on", href: "/members?tab=sso", kw: "sso saml okta entra scim provisioning" },
+  { label: "Client domains", href: "/sub-tenants", kw: "sub-tenants sending domain clients tenants agency" },
 ];
 
 const SETTINGS: Item[] = [
@@ -57,8 +62,6 @@ const SETTINGS: Item[] = [
   { label: "Settings · Security & login", href: "/settings/security", kw: "password mfa 2fa sso" },
   { label: "Settings · Sending", href: "/settings/sender", kw: "from address verify sender postal identity" },
 ];
-
-type Wing = "transactional" | "marketing";
 
 const itemClass =
   "flex cursor-pointer items-center gap-2 rounded-md px-2 py-2 text-sm text-foreground aria-selected:bg-accent aria-selected:text-accent-foreground";
@@ -83,7 +86,6 @@ export function CommandTrigger() {
 /** Global command palette: ⌘K / Ctrl+K (or the topbar button) to jump anywhere. */
 export function CommandMenu() {
   const [open, setOpen] = useState(false);
-  const [wing, setWing] = useState<Wing>("transactional");
   const router = useRouter();
 
   useEffect(() => {
@@ -102,40 +104,19 @@ export function CommandMenu() {
     };
   }, []);
 
-  // Context-aware: surface the wing the user is working in first (rm_wing cookie).
-  useEffect(() => {
-    const c = document.cookie.split("; ").find((x) => x.startsWith("rm_wing="))?.split("=")[1];
-    if (c === "marketing" || c === "transactional") setWing(c);
-  }, [open]);
-
   const go = (href: string) => {
     setOpen(false);
     router.push(href);
   };
 
-  // Wing-ordered destination groups.
-  const wingGroups: [string, Item[]][] =
-    wing === "marketing"
-      ? [["Marketing", MK], ["Transactional", TX]]
-      : [["Transactional", TX], ["Marketing", MK]];
-
-  // Primary action follows the wing.
-  const actions: Item[] =
-    wing === "marketing"
-      ? [
-          { label: "New campaign", href: "/campaigns", kw: "broadcast send" },
-          { label: "New sequence", href: "/sequences/new", kw: "automation" },
-          { label: "Compose email", href: "/messages/new", kw: "new send write transactional" },
-        ]
-      : [
-          { label: "Compose email", href: "/messages/new", kw: "new send write" },
-          { label: "New template", href: "/templates/new", kw: "design studio" },
-          { label: "New campaign", href: "/campaigns", kw: "broadcast" },
-        ];
-  actions.push(
+  const actions: Item[] = [
+    { label: "Compose email", href: "/messages/new", kw: "new send write one-to-one" },
+    { label: "New campaign", href: "/campaigns/new", kw: "broadcast send bulk" },
+    { label: "New sequence", href: "/sequences/new", kw: "automation drip" },
+    { label: "New template", href: "/templates/new", kw: "design studio" },
     { label: "Verify a sending address", href: "/settings/sender", kw: "from domain sender setup verify" },
     { label: "Buy send blocks", href: "/billing/transactional", kw: "upgrade transactional volume overage" },
-  );
+  ];
 
   const renderGroup = (heading: string, items: Item[], icon: "go" | "action") => (
     <Command.Group key={heading} heading={heading} className={groupClass}>
@@ -170,7 +151,9 @@ export function CommandMenu() {
         </Command.Empty>
         {renderGroup("Actions", actions, "action")}
         {renderGroup("Go to", SHARED, "go")}
-        {wingGroups.map(([heading, items]) => renderGroup(heading, items, "go"))}
+        {renderGroup("Email", EMAIL, "go")}
+        {renderGroup("Insights", INSIGHTS, "go")}
+        {renderGroup("Developers", DEVELOPERS, "go")}
         {renderGroup("Workspace", WORKSPACE, "go")}
         {renderGroup("Settings", SETTINGS, "go")}
       </Command.List>

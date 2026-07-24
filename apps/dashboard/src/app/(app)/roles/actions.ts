@@ -19,7 +19,7 @@ export async function createRole(_prev: RoleFormState | null, formData: FormData
     if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
     return { error: "Failed to create the role." };
   }
-  revalidatePath("/roles");
+  revalidatePath("/members");
   return { ok: true };
 }
 
@@ -31,5 +31,5 @@ export async function deleteRole(formData: FormData): Promise<void> {
   } catch {
     /* best-effort */
   }
-  revalidatePath("/roles");
+  revalidatePath("/members");
 }
