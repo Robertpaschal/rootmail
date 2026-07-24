@@ -43,6 +43,10 @@ export interface Message {
   reply_to: string | null;
   subject: string;
   sub_tenant_id: string | null;
+  /** The contact this reached (if a saved contact) + where it came from. */
+  to_contact_id: string | null;
+  campaign_id: string | null;
+  sequence_id: string | null;
   template_id: string | null;
   template_version: number | null;
   priority: Priority;

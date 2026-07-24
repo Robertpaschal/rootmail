@@ -47,11 +47,22 @@ export default async function MessagesPage({
     }
   }
 
+  // Resolve source names (campaign / sequence) so each row says WHERE the email
+  // came from, not just its metering type. Best-effort — the table falls back to
+  // a generic label if either lookup fails.
+  const [cmpR, seqR] = await Promise.allSettled([api.listCampaigns(), api.listSequences()]);
+  const campaignNames = Object.fromEntries(
+    (cmpR.status === "fulfilled" ? cmpR.value.data : []).map((c) => [c.id, c.name]),
+  );
+  const sequenceNames = Object.fromEntries(
+    (seqR.status === "fulfilled" ? seqR.value.data : []).map((s) => [s.id, s.name]),
+  );
+
   return (
     <>
       <PageHeader
         title="Messages"
-        description="Every email you've sent, with its delivery story — search it, filter it, click into any one."
+        description="Every email that leaves your account — one-to-one sends, campaign mail, sequence steps — each with its recipient and full delivery story."
         actions={
           <Link href="/messages/new" className={cn(buttonVariants({ size: "sm" }))}>
             <Plus className="size-4" /> Send
@@ -94,7 +105,7 @@ export default async function MessagesPage({
           }
         />
       ) : (
-        <MessagesTable messages={messages} />
+        <MessagesTable messages={messages} campaignNames={campaignNames} sequenceNames={sequenceNames} />
       )}
     </>
   );

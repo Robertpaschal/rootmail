@@ -14,6 +14,40 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "One dashboard — organized by what you're doing, with every email in its relationship",
+    date: "2026-07-24",
+    changes: [
+      {
+        kind: "New",
+        text: "The sidebar is one product now: Email (messages, replies, campaigns, sequences, audience, templates, proof), Insights, Developers, and your workspace under its own name — no more flipping between Transactional and Marketing to find things.",
+      },
+      {
+        kind: "New",
+        text: "Every message now shows its relationship: who it reached (linked to their contact record and lifecycle stage), whether it came from a campaign, a sequence, or a one-to-one send, the rest of that person's history, and the live conversation when one is open.",
+      },
+      {
+        kind: "New",
+        text: "A contact's record surfaces their open conversations right on the activity timeline — messages out, replies back, one story.",
+      },
+      {
+        kind: "Improved",
+        text: "Team, roles, and single sign-on live together in one Team hub — invite someone, decide what they can do, and set how they sign in, all in one place.",
+      },
+      {
+        kind: "Improved",
+        text: "Analytics is one section for everything you send, with a one-tap switch between Everything, Transactional, and Marketing — no duplicate pages per wing.",
+      },
+      {
+        kind: "Improved",
+        text: "The sandbox now shows only what works in a sandbox (the test inbox appears there; deliverability and client domains wait for live) — and sandbox-only tools stay out of your live workspace.",
+      },
+      {
+        kind: "Fixed",
+        text: "Unsubscribes now stop only marketing mail. Password resets, receipts, and one-to-one replies always deliver — exactly as your customers expect.",
+      },
+    ],
+  },
+  {
     title: "The assistant, on every page — plus a clear view of your AI credits",
     date: "2026-07-22",
     changes: [

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { SearchX } from "lucide-react";
+import { Megaphone, SearchX, Send, User, Workflow } from "lucide-react";
 import { MessageFlow } from "@/components/app/message-flow";
 import { Pager, SortHead, type Sort } from "@/components/app/data-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -22,8 +22,18 @@ const PAGE_SIZE = 25;
 type SortKey = "to" | "created_at";
 
 /** Status is already filtered server-side (the chips); this adds search over
- * recipient/subject, sorting, and paging over the fetched window. */
-export function MessagesTable({ messages }: { messages: Message[] }) {
+ * recipient/subject, sorting, and paging over the fetched window. Each row shows
+ * its SOURCE (campaign / sequence / one-to-one) and links the recipient to their
+ * contact record — messages are the product's fabric, not a transactional silo. */
+export function MessagesTable({
+  messages,
+  campaignNames = {},
+  sequenceNames = {},
+}: {
+  messages: Message[];
+  campaignNames?: Record<string, string>;
+  sequenceNames?: Record<string, string>;
+}) {
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<Sort<SortKey>>({ key: "created_at", dir: "desc" });
   const [page, setPage] = useState(1);
@@ -81,7 +91,7 @@ export function MessagesTable({ messages }: { messages: Message[] }) {
                 <TableHead>Status</TableHead>
                 <SortHead label="To" k="to" sort={sort} onSort={sortBy} />
                 <TableHead>Subject</TableHead>
-                <TableHead>Type</TableHead>
+                <TableHead>Source</TableHead>
                 <SortHead label="Created" k="created_at" sort={sort} onSort={sortBy} align="right" />
               </TableRow>
             </TableHeader>
@@ -105,14 +115,47 @@ export function MessagesTable({ messages }: { messages: Message[] }) {
                       <MessageFlow message={m} />
                     </TableCell>
                     <TableCell className="font-medium">
-                      <Link href={`/messages/${m.id}`} className="hover:underline">
-                        {m.to}
-                      </Link>
+                      <span className="inline-flex items-center gap-1.5">
+                        <Link href={`/messages/${m.id}`} className="hover:underline">
+                          {m.to}
+                        </Link>
+                        {m.to_contact_id ? (
+                          <Link
+                            href={`/contacts/${m.to_contact_id}`}
+                            title="Open contact record"
+                            className="text-muted-foreground transition-colors hover:text-primary"
+                          >
+                            <User className="size-3.5" />
+                          </Link>
+                        ) : null}
+                      </span>
                     </TableCell>
                     <TableCell className="max-w-[280px] truncate text-muted-foreground">
                       {m.subject}
                     </TableCell>
-                    <TableCell className="capitalize text-muted-foreground">{m.type}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {m.campaign_id ? (
+                        <Link
+                          href={`/campaigns/${m.campaign_id}`}
+                          className="inline-flex max-w-[170px] items-center gap-1.5 transition-colors hover:text-foreground"
+                        >
+                          <Megaphone className="size-3.5 shrink-0" />
+                          <span className="truncate">{campaignNames[m.campaign_id] ?? "Campaign"}</span>
+                        </Link>
+                      ) : m.sequence_id ? (
+                        <Link
+                          href={`/sequences/${m.sequence_id}`}
+                          className="inline-flex max-w-[170px] items-center gap-1.5 transition-colors hover:text-foreground"
+                        >
+                          <Workflow className="size-3.5 shrink-0" />
+                          <span className="truncate">{sequenceNames[m.sequence_id] ?? "Sequence"}</span>
+                        </Link>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Send className="size-3.5 shrink-0" /> One-to-one
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="whitespace-nowrap text-right text-muted-foreground">
                       {relativeTime(m.created_at)}
                     </TableCell>

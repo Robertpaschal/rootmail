@@ -116,6 +116,12 @@ export function serializeMessage(m: Message, engagement?: MessageEngagement) {
     reply_to: m.replyTo,
     subject: m.subject,
     sub_tenant_id: m.subTenantId,
+    // Relationship: who this reached and where it came from — lets any message be
+    // shown in the context of the contact and its source (campaign / sequence /
+    // a direct transactional send), not just as a status + email address.
+    to_contact_id: m.toContactId ?? null,
+    campaign_id: m.campaignId ?? null,
+    sequence_id: m.sequenceId ?? null,
     template_id: m.templateId,
     template_version: m.templateVersion,
     priority: m.priority,

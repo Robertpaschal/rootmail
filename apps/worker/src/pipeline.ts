@@ -62,12 +62,20 @@ async function audit(message: Message, event: AuditEvent, extra: AuditExtra = {}
 
 async function isSuppressedAtSend(message: Message): Promise<boolean> {
   const rows = await db
-    .select({ subTenantId: suppressions.subTenantId })
+    .select({ subTenantId: suppressions.subTenantId, reason: suppressions.reason })
     .from(suppressions)
     .where(
       and(eq(suppressions.workspaceId, message.workspaceId), eq(suppressions.email, message.toEmail)),
     );
-  return rows.some((r) => r.subTenantId === null || r.subTenantId === message.subTenantId);
+  return rows.some((r) => {
+    if (r.subTenantId !== null && r.subTenantId !== message.subTenantId) return false;
+    // Doctrine: an UNSUBSCRIBE opts out of bulk/marketing mail only — it can never
+    // block transactional one-to-one mail (password resets, receipts, replies in a
+    // live conversation). Bounces, complaints, and manual "never email" entries
+    // protect deliverability, so they stop every send type.
+    if (r.reason === "unsubscribe") return message.type === "marketing" || message.type === "sales";
+    return true;
+  });
 }
 
 /** Process one send job: suppression → provider → status + audit transitions. */

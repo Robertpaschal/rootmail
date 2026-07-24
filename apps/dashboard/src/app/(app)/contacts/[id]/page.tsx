@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/app/page-header";
 import { ApiError, api } from "@/lib/rootmail";
-import type { ContactDetail, ContactList } from "@/lib/types";
+import type { ContactDetail, ContactList, Thread } from "@/lib/types";
 import { ContactCrm } from "./crm";
 
 export const metadata: Metadata = { title: "Contact" };
@@ -21,10 +21,17 @@ export default async function ContactDetailPage({ params }: { params: Promise<{ 
     throw err;
   }
 
+  // Their live conversations — replies are the relationship talking back, so
+  // they belong on the record. Best-effort: the page stands without them.
+  const email = contact.email.toLowerCase();
+  const threads = (await api.listThreads().catch(() => ({ data: [] as Thread[] }))).data
+    .filter((t) => t.contact_email.toLowerCase() === email)
+    .map((t) => ({ id: t.id, subject: t.subject, status: t.status, last_message_at: t.last_message_at }));
+
   return (
     <>
       <PageHeader title={contact.name ?? contact.email} backHref="/contacts" backLabel="Audience" />
-      <ContactCrm contact={contact} allLists={allLists} />
+      <ContactCrm contact={contact} allLists={allLists} threads={threads} />
     </>
   );
 }
