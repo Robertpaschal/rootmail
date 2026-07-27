@@ -20,7 +20,7 @@ jobs:
           version: 11.1.2
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
@@ -59,7 +59,7 @@ jobs:
           version: 11.1.2
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - name: Migrate, seed, run the smoke
