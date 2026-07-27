@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/components/app/ai-credit-meter";
+import { listSupportThreads } from "@/app/(app)/support-actions";
 import { SupportPane } from "@/components/app/support-pane";
 import { cn } from "@/lib/utils";
 
@@ -36,6 +37,8 @@ const DEFAULT_CTX = { hint: "your email", prompts: ["Set up a welcome sequence",
 // (draggable, no backdrop — keep working on the page while you chat). Remembered.
 type Mode = "float" | "drawer";
 const MODE_KEY = "rm_assistant_mode";
+/** Last support activity this user has actually read — drives the unread dot. */
+const SEEN_KEY = "rm_support_seen_at";
 
 /** The bubble is ONE door to two conversations: the AI assistant and a real
  * person on the support team. Which one you're in is always explicit. */
@@ -48,6 +51,7 @@ export function AssistantLauncher() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pane, setPane] = useState<Pane>("assistant");
+  const [unread, setUnread] = useState(false);
   const [mode, setMode] = useState<Mode>("float");
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -56,6 +60,7 @@ export function AssistantLauncher() {
   const [pending, start] = useTransition();
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const seenRef = useRef<string | null>(null);
   const dragControls = useDragControls();
   const constraintsRef = useRef<HTMLDivElement>(null);
 
@@ -66,7 +71,39 @@ export function AssistantLauncher() {
   useEffect(() => {
     const saved = typeof window !== "undefined" ? window.localStorage.getItem(MODE_KEY) : null;
     if (saved === "drawer" || saved === "float") setMode(saved);
+    try {
+      seenRef.current = window.localStorage.getItem(SEEN_KEY);
+    } catch {
+      /* private mode */
+    }
   }, []);
+
+  // A staff reply should find the user, not wait to be found: poll the support
+  // conversations in the background and dot the bubble when the team has written
+  // since the last time this user read the thread. Cheap (one indexed list query)
+  // and paused while the support pane is already open — that's a read, not a poll.
+  useEffect(() => {
+    if (hidden) return;
+    let alive = true;
+    const check = async () => {
+      if (open && pane === "support") return; // they're reading it right now
+      const res = await listSupportThreads();
+      if (!alive || !res.data?.length) return;
+      const newest = res.data.reduce((a, b) => (a.last_message_at > b.last_message_at ? a : b));
+      // Unread = the newest activity is newer than what this user last saw AND
+      // it isn't just their own message echoing back.
+      const seen = seenRef.current;
+      if ((!seen || newest.last_message_at > seen) && newest.status === "open") {
+        setUnread(true);
+      }
+    };
+    void check();
+    const id = setInterval(check, 60_000);
+    return () => {
+      alive = false;
+      clearInterval(id);
+    };
+  }, [hidden, open, pane]);
   const switchMode = (m: Mode) => {
     setMode(m);
     try { window.localStorage.setItem(MODE_KEY, m); } catch { /* private mode */ }
@@ -299,7 +336,22 @@ export function AssistantLauncher() {
   const body = (
     <>
       {paneTabs}
-      {pane === "assistant" ? assistantBody : <SupportPane handoffContext={handoff} />}
+      {pane === "assistant" ? (
+        assistantBody
+      ) : (
+        <SupportPane
+          handoffContext={handoff}
+          onSeen={(at) => {
+            seenRef.current = at;
+            try {
+              localStorage.setItem(SEEN_KEY, at);
+            } catch {
+              /* private mode — the dot just returns next load */
+            }
+            setUnread(false);
+          }}
+        />
+      )}
     </>
   );
 
@@ -310,7 +362,11 @@ export function AssistantLauncher() {
         {!open ? (
           <motion.button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => {
+              // If the team is waiting on them, open straight into that reply.
+              if (unread) setPane("support");
+              setOpen(true);
+            }}
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0, opacity: 0 }}
@@ -321,7 +377,14 @@ export function AssistantLauncher() {
             aria-label="Get help — AI assistant or the support team"
           >
             {/* ONE door to both conversations, so the label can't imply only one. */}
-            <MessagesSquare className="size-4" /> Help
+            <MessagesSquare className="size-4" /> Chat
+            {/* The team wrote back — findable without opening anything. */}
+            {unread ? (
+              <span className="absolute -right-0.5 -top-0.5 grid size-3.5 place-items-center">
+                <span className="absolute size-3.5 animate-ping rounded-full bg-emerald-400/70" />
+                <span className="size-2.5 rounded-full bg-emerald-400 ring-2 ring-primary" />
+              </span>
+            ) : null}
           </motion.button>
         ) : null}
       </AnimatePresence>

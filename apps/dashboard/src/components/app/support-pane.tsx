@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import Link from "next/link";
 import { ArrowLeft, Headset, Loader2, Send } from "lucide-react";
 import {
   listSupportThreads,
@@ -24,11 +25,15 @@ import { cn } from "@/lib/utils";
 export function SupportPane({
   handoffContext,
   compact = true,
+  onSeen,
 }: {
   /** Transcript carried over when the user escalates from the assistant. */
   handoffContext?: string;
   /** Tighter spacing for the floating/docked panes; false on the full page. */
   compact?: boolean;
+  /** Called when the open thread's newest staff reply has been shown, so the
+   * launcher can clear its unread dot. */
+  onSeen?: (lastMessageAt: string) => void;
 }) {
   const [threads, setThreads] = useState<SupportTicket[] | null>(null);
   const [active, setActive] = useState<SupportTicket | null>(null);
@@ -56,7 +61,25 @@ export function SupportPane({
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [active?.messages?.length, threads]);
+    // Reading the thread IS the read receipt — tell the launcher to drop its dot.
+    if (active) onSeen?.(active.last_message_at);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active?.messages?.length, active?.last_message_at, threads]);
+
+  // While the pane is open, poll the active thread so a staff reply lands without
+  // a refresh. 20s is frequent enough to feel live and cheap enough to run all
+  // day; the pane only polls while it's actually mounted (i.e. visible).
+  useEffect(() => {
+    if (!active) return;
+    const id = setInterval(async () => {
+      const res = await loadSupportThread(active.id);
+      if (!res.ticket) return;
+      const before = active.messages?.length ?? 0;
+      const after = res.ticket.messages?.length ?? 0;
+      if (after !== before || res.ticket.status !== active.status) setActive(res.ticket);
+    }, 20_000);
+    return () => clearInterval(id);
+  }, [active]);
 
   const send = () => {
     const text = draft.trim();
@@ -220,6 +243,14 @@ export function SupportPane({
             {sending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </form>
+        {/* Support and SALES are different intents — keep the pricing path in
+            reach rather than making people file a support ticket about a quote. */}
+        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          Pricing or a custom plan?{" "}
+          <Link href="/contact?topic=sales" className="font-medium text-primary hover:underline">
+            Talk to sales
+          </Link>
+        </p>
       </div>
     </>
   );

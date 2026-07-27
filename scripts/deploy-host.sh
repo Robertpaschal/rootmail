@@ -10,6 +10,10 @@
 # Run it FROM the repo root ON the host (where .env.prod + docker-compose.prod.yml live):
 #     ./scripts/deploy-host.sh dashboard        # api | worker | marketing | dashboard | admin
 #
+# Shipping a schema change? Set MIGRATE=1 so the migration runs with the image
+# you're deploying (never the one already running):
+#     MIGRATE=1 TAG=sha-<sha> ./scripts/deploy-host.sh api
+#
 # Or drive it over SSH from your laptop:
 #     ssh -i key.pem ubuntu@<host> 'cd ~/rootmail && ./scripts/deploy-host.sh dashboard'
 #
@@ -44,6 +48,17 @@ echo "  disk: $(df -h / | awk 'NR==2{print $4}') free"
 echo "▸ ${SVC}: pulling ${IMG}"
 sudo docker pull "$IMG"
 [ "$TAG" != "latest" ] && sudo docker tag "$IMG" "${NS}/rootmail-${SVC}:latest"
+
+# Migrations run AFTER the pull, so they execute with the image being deployed.
+# The trap this closes: `compose run api pnpm db:migrate` uses whatever image is
+# currently tagged, so migrating BEFORE the pull silently runs the OLD code's
+# migrations folder — it reports success having skipped the new file entirely,
+# and the new API then 500s against a table that was never created.
+#     MIGRATE=1 TAG=sha-... ./scripts/deploy-host.sh api
+if [ "${MIGRATE:-}" = "1" ]; then
+  echo "▸ ${SVC}: migrating with the NEW image"
+  "${DC[@]}" run --rm --no-deps "$SVC" pnpm db:migrate
+fi
 
 echo "▸ ${SVC}: recreating (picks up image + any .env.prod change)"
 "${DC[@]}" up -d --force-recreate "$SVC"

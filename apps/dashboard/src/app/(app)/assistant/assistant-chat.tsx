@@ -120,6 +120,10 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
 
   const removeChat = useCallback(
     async (id: string) => {
+      // Deleting a chat is irreversible and the button sits one pixel from
+      // "rename" — ask before destroying someone's history.
+      const title = chats.find((c) => c.id === id)?.title ?? "this chat";
+      if (!window.confirm(`Delete “${title}”? The conversation can't be recovered.`)) return;
       // Optimistic — drop it from the rail immediately.
       setChats((cs) => cs.filter((c) => c.id !== id));
       if (activeChatId === id) {
@@ -128,7 +132,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
       }
       await deleteChat(id);
     },
-    [activeChatId],
+    [activeChatId, chats],
   );
 
   // Inline rename in the rail. Optimistic, reverting if the API rejects it.

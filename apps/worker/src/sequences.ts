@@ -14,6 +14,7 @@ import {
   templates,
   workspaces,
 } from "@rootmail/db";
+import { checkSendCapacity } from "./capacity";
 import { automationSend } from "./send";
 
 const MAX_ITERATIONS = 50; // per enrollment per tick — defuses a tight branch loop
@@ -134,6 +135,21 @@ async function advance(enr: SequenceEnrollment, seq: Sequence): Promise<void> {
       if (!tpl) {
         status = "failed";
         break;
+      }
+      // A sequence drips for days, so its capacity has to be re-checked at each
+      // step — the allowance it was enrolled under may be spent by now. When it
+      // is, DEFER the step (stay active, retry when the cap resets); never drop
+      // it and never advance past it, or the contact would silently miss an
+      // email they were supposed to get.
+      if (ctx.mode === "live" && ctx.organizationId) {
+        const cap = await checkSendCapacity(ctx.organizationId, "marketing");
+        if (!cap.ok) {
+          nextRunAt = cap.retryAt ?? new Date(Date.now() + 3_600_000);
+          console.warn(
+            `[sequences] enrollment ${enr.id} step ${step} deferred to ${nextRunAt.toISOString()} — ${cap.reason}`,
+          );
+          break;
+        }
       }
       const res = await automationSend({
         ...ctx,

@@ -62,13 +62,11 @@ export async function requireFeature(
       required_plan_name: addon.name,
       required_wing: addon.wing,
       price: live.unitAmount,
-      // Platform add-ons live on the dedicated add-ons page (deep-linked to the
-      // exact card); wing-homed ones (dedicated IP, client domains) are folded
-      // into their wing's purchase page.
-      upgrade_url:
-        addon.wing === "platform"
-          ? `${base}/billing/addons?focus=${addon.id}`
-          : `${base}/billing/${addon.wing}`,
+      // An add-on is bought AS AN ADD-ON, always — deep-linked to its own card.
+      // The `wing` it's filed under is a catalog/pricing detail, not a route: a
+      // user who clicked "unlock client domains" wants that domain, not the
+      // send-blocks build-up they'd land on by following the wing.
+      upgrade_url: `${base}/billing/addons?focus=${addon.id}`,
       checkout_endpoint: "POST /v1/billing/addons",
       docs_url: `https://${env.ROOTMAIL_DOMAIN}/pricing`,
     });
