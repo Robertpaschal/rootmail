@@ -1,4 +1,4 @@
-import { buildDnsRecords } from "@rootmail/core";
+import { buildDnsRecords, testRecipientFor } from "@rootmail/core";
 import type {
   ApiKey,
   AuditEntry,
@@ -116,6 +116,10 @@ export function serializeMessage(m: Message, engagement?: MessageEngagement) {
     reply_to: m.replyTo,
     subject: m.subject,
     sub_tenant_id: m.subTenantId,
+    // A rootmail test alias (bounced@test.rootmail.dev …): the send takes the real
+    // path but lands on the SES mailbox simulator. Surfaced so every view can say
+    // so plainly instead of showing what looks like a real customer's bounce.
+    test_recipient: testRecipientFor(m.toEmail)?.slug ?? null,
     // Relationship: who this reached and where it came from — lets any message be
     // shown in the context of the contact and its source (campaign / sequence /
     // a direct transactional send), not just as a status + email address.

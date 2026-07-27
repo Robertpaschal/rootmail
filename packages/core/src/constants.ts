@@ -896,3 +896,103 @@ export type SequenceStep =
 // ---------------------------------------------------------------------------
 export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "sent"] as const;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
+
+// ---------------------------------------------------------------------------
+// Test recipients — the REAL send path, to a destination that can't be harmed
+// ---------------------------------------------------------------------------
+// A sandbox proves your integration; it can't prove delivery, because it never
+// talks to the provider. These addresses close that gap: mail to them takes the
+// ENTIRE live path — real SES call, real Easy-DKIM signing, real event webhooks
+// — but lands on Amazon's mailbox simulator instead of a person. AWS explicitly
+// excludes simulator traffic from your bounce/complaint reputation, so you can
+// force a hard bounce on purpose and watch suppression do its job, safely.
+//
+// Users address the rootmail-branded alias; the SES provider swaps in the
+// simulator mailbox at the last hop and the audit trail records the mapping.
+
+/** The domain the friendly test aliases live on. */
+export const TEST_RECIPIENT_DOMAIN = "test.rootmail.dev";
+
+export interface TestRecipientDef {
+  /** The local part users type: `<slug>@test.rootmail.dev`. */
+  slug: string;
+  /** What actually happens, in the user's words. */
+  label: string;
+  description: string;
+  /** The AWS SES mailbox-simulator address this resolves to at send time. */
+  simulator: string;
+  /** The lifecycle this send is expected to end in — drives the UI's promise. */
+  outcome: "delivered" | "bounced" | "complained" | "suppressed" | "delivered_ooto";
+}
+
+export const TEST_RECIPIENTS: TestRecipientDef[] = [
+  {
+    slug: "delivered",
+    label: "Delivers cleanly",
+    description: "A normal successful delivery — the message reaches the mailbox and you get a real delivered event.",
+    simulator: "success@simulator.amazonses.com",
+    outcome: "delivered",
+  },
+  {
+    slug: "bounced",
+    label: "Hard bounce",
+    description: "The address rejects permanently. Watch the bounce arrive and the recipient land on your suppression list automatically.",
+    simulator: "bounce@simulator.amazonses.com",
+    outcome: "bounced",
+  },
+  {
+    slug: "complained",
+    label: "Marked as spam",
+    description: "The recipient reports the message. Proves your complaint handling and auto-suppression work.",
+    simulator: "complaint@simulator.amazonses.com",
+    outcome: "complained",
+  },
+  {
+    slug: "suppressed",
+    label: "On the provider suppression list",
+    description: "Already suppressed at the provider — the send is refused before it goes anywhere.",
+    simulator: "suppressionlist@simulator.amazonses.com",
+    outcome: "suppressed",
+  },
+  {
+    slug: "away",
+    label: "Auto-reply (out of office)",
+    description: "Delivers, then bounces back an out-of-office auto-reply — useful for testing reply handling.",
+    simulator: "ooto@simulator.amazonses.com",
+    outcome: "delivered_ooto",
+  },
+];
+
+const TEST_BY_SLUG = new Map(TEST_RECIPIENTS.map((t) => [t.slug, t]));
+
+/** The full alias for a scenario, e.g. "bounced@test.rootmail.dev". */
+export function testRecipientAddress(slug: string): string {
+  return `${slug}@${TEST_RECIPIENT_DOMAIN}`;
+}
+
+/**
+ * Is this a rootmail test alias? Returns the scenario when it is. Case- and
+ * whitespace-insensitive so a pasted address still matches.
+ */
+export function testRecipientFor(email: string): TestRecipientDef | null {
+  const at = email.trim().toLowerCase();
+  const [local, domain] = at.split("@");
+  if (domain !== TEST_RECIPIENT_DOMAIN) return null;
+  return TEST_BY_SLUG.get(local) ?? null;
+}
+
+/**
+ * The address to actually hand the provider: the SES simulator mailbox for a
+ * test alias, or the address itself for everything else.
+ */
+export function resolveDeliveryAddress(email: string): string {
+  return testRecipientFor(email)?.simulator ?? email;
+}
+
+/**
+ * Sandbox sends cost nothing, and a sandbox send to a test recipient takes the
+ * REAL provider path (that's what makes the sandbox worth anything). Free plus
+ * real needs a bound, so the sandbox gets a generous daily allowance of them.
+ * In a live workspace a test send is an ordinary send against ordinary quota.
+ */
+export const SANDBOX_TEST_SENDS_PER_DAY = 50;

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Megaphone, SearchX, Send, User, Workflow } from "lucide-react";
+import { FlaskConical, Megaphone, SearchX, Send, User, Workflow } from "lucide-react";
 import { MessageFlow } from "@/components/app/message-flow";
 import { Pager, SortHead, type Sort } from "@/components/app/data-table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -126,6 +126,17 @@ export function MessagesTable({
                             className="text-muted-foreground transition-colors hover:text-primary"
                           >
                             <User className="size-3.5" />
+                          </Link>
+                        ) : null}
+                        {/* A test send is real mail — say so, so nobody mistakes a
+                            deliberate bounce for a deliverability problem. */}
+                        {m.test_recipient ? (
+                          <Link
+                            href="/testing"
+                            title="A test send — real path, safe destination"
+                            className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                          >
+                            <FlaskConical className="size-2.5" /> Test
                           </Link>
                         ) : null}
                       </span>

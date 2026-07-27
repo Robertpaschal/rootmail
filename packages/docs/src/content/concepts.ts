@@ -1,4 +1,4 @@
-import { a, b, c, callout, code, DocPage, h, list, p, params } from "../types";
+import { a, b, c, callout, code, DocPage, h, list, p, params, reqres } from "../types";
 
 export const idempotency: DocPage = {
   slug: "idempotency",
@@ -129,9 +129,18 @@ try {
 
 export const sandbox: DocPage = {
   slug: "sandbox",
-  title: "Sandbox & test mode",
-  summary: "Build and test end-to-end without sending real mail — always free.",
+  title: "Sandbox & test recipients",
+  summary: "Two lanes: rehearse your integration for free, then prove real delivery safely.",
   blocks: [
+    p(
+      "Testing email splits cleanly in two. The ",
+      b("sandbox"),
+      " proves your integration — that you're calling the API correctly and your templates render. ",
+      b("Test recipients"),
+      " prove the outside world — that mail actually goes out, gets signed, delivers, bounces and comes back through your webhooks.",
+    ),
+
+    h("The sandbox: a free rehearsal"),
     p(
       "A ",
       c("rm_test_…"),
@@ -139,14 +148,82 @@ export const sandbox: DocPage = {
       b("never delivers"),
       " and ",
       b("never bills"),
-      ". Use it in development and CI to exercise real code paths safely.",
+      ". It's a separate workspace with its own data, so nothing you do there can touch production.",
     ),
     list([
-      ["Test-mode messages appear in the dashboard's ", b("Test inbox"), " so you can preview exactly what would have gone out."],
-      ["Webhooks still fire for test sends, so you can verify your handlers."],
+      ["Sandbox messages are stored with their full rendered content — read them back over the API, or in the dashboard under ", b("Testing"), "."],
+      ["Webhooks still fire for sandbox sends, so you can verify your handlers."],
       ["Sandbox sends are free forever and don't count toward any quota."],
     ]),
-    callout("tip", "Point your CI's ROOTMAIL_API_KEY at a test key. Your test suite can assert on real responses without emailing anyone."),
+    callout(
+      "warn",
+      "What the sandbox can't prove: delivery. Nothing is handed to a provider, so a green sandbox run says your code is right — not that your mail arrives.",
+    ),
+
+    h("Test recipients: the real path, safely"),
+    p(
+      "Every address at ",
+      c("test.rootmail.dev"),
+      " is a scenario. Mail sent to one takes the ",
+      b("real"),
+      " send path — your DKIM key, your sending provider, your webhooks — but is delivered to the provider's mailbox simulator. No person receives it, and it's excluded from your sender reputation, so you can force a hard bounce as often as you like at no cost.",
+    ),
+    params(
+      [
+        { name: "delivered@test.rootmail.dev", type: "delivered", desc: ["A clean delivery, with a real ", c("message.delivered"), " event."] },
+        { name: "bounced@test.rootmail.dev", type: "bounced", desc: ["A permanent rejection. The address is auto-suppressed, exactly as a real hard bounce would be."] },
+        { name: "complained@test.rootmail.dev", type: "complained", desc: ["The recipient reports spam — proves complaint handling and auto-suppression."] },
+        { name: "suppressed@test.rootmail.dev", type: "suppressed", desc: ["Already on the provider's suppression list; the send is refused before it goes anywhere."] },
+        { name: "away@test.rootmail.dev", type: "delivered", desc: ["Delivers, then returns an out-of-office auto-reply — useful for reply handling."] },
+      ],
+      "Scenarios",
+    ),
+    code(
+      "ts",
+      `// Prove your bounce handling, end to end.
+const { data } = await mail.testing.list();
+const bounce = data.find((t) => t.slug === "bounced")!;
+
+await mail.messages.create({
+  to: bounce.email,             // bounced@test.rootmail.dev
+  subject: "Bounce me",
+  html: "<p>This should never arrive.</p>",
+});
+// → message.sent, then message.bounced on your webhook,
+//   and the address lands on your suppression list.
+
+// Bounce tests suppress the address. Clear them to run again:
+await mail.testing.reset();`,
+      "test-recipients.ts",
+    ),
+    ...reqres("GET", "/v1/test-recipients", "List every scenario and the address that triggers it.", {
+      response: `{
+  "object": "list",
+  "domain": "test.rootmail.dev",
+  "data": [
+    {
+      "object": "test_recipient",
+      "slug": "bounced",
+      "email": "bounced@test.rootmail.dev",
+      "label": "Hard bounce",
+      "description": "The address rejects permanently…",
+      "outcome": "bounced"
+    }
+  ]
+}`,
+    }),
+    ...reqres("POST", "/v1/test-recipients/reset", "Clear suppressions for the test domain so scenarios can be re-run.", {
+      response: `{
+  "object": "test_recipients_reset",
+  "cleared": 2,
+  "emails": ["bounced@test.rootmail.dev", "complained@test.rootmail.dev"]
+}`,
+    }),
+    callout(
+      "note",
+      "Test recipients work from a live workspace (an ordinary send against your quota) and from the sandbox, where they still go out for real — free, up to 50 a day.",
+    ),
+    callout("tip", "Point your CI's ROOTMAIL_API_KEY at a test key, and assert on real responses without emailing anyone. Reach for a test recipient when the thing under test is delivery itself."),
   ],
 };
 

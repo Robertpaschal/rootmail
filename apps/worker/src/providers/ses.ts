@@ -1,5 +1,5 @@
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
-import { env } from "@rootmail/core";
+import { env, resolveDeliveryAddress } from "@rootmail/core";
 import { buildMimeMessage } from "./mime";
 import type { MailProvider, OutboundEmail, SendResult } from "./types";
 
@@ -34,17 +34,25 @@ export class SesProvider implements MailProvider {
     // SNS event destinations, enforced at staff-activation time).
     const ConfigurationSetName = email.configurationSet || env.SES_CONFIGURATION_SET || undefined;
 
+    // A rootmail test alias (bounced@test.rootmail.dev …) is swapped for its SES
+    // mailbox-simulator address HERE, at the last hop — so the send is genuinely
+    // real (same API call, same Easy-DKIM signing, same event webhooks) while the
+    // message record everywhere else keeps the friendly address the user typed.
+    // Simulator traffic is excluded from SES reputation, so forcing a bounce on
+    // purpose is safe. Non-test addresses pass through untouched.
+    const destination = resolveDeliveryAddress(email.to);
+
     const command = hasAttachments
       ? new SendEmailCommand({
           FromEmailAddress: formatAddress(email.from.email, email.from.name),
-          Destination: { ToAddresses: [email.to] },
+          Destination: { ToAddresses: [destination] },
           ReplyToAddresses: email.replyTo ? [email.replyTo] : undefined,
           ConfigurationSetName,
-          Content: { Raw: { Data: Buffer.from(buildMimeMessage(email), "utf8") } },
+          Content: { Raw: { Data: Buffer.from(buildMimeMessage({ ...email, to: destination }), "utf8") } },
         })
       : new SendEmailCommand({
           FromEmailAddress: formatAddress(email.from.email, email.from.name),
-          Destination: { ToAddresses: [email.to] },
+          Destination: { ToAddresses: [destination] },
           ReplyToAddresses: email.replyTo ? [email.replyTo] : undefined,
           ConfigurationSetName,
           Content: {

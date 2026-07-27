@@ -44,6 +44,7 @@ import type {
   ScimTokenResult,
   SsoConnection,
   SupportTicket,
+  TestRecipient,
   SsoConnectionInput,
   SsoConnectionResult,
   SequenceStepDef,
@@ -189,9 +190,13 @@ type MessageType = "transactional" | "marketing" | "sales";
 type Priority = "high" | "normal" | "low";
 
 export const api = {
-  listMessages: (q: { limit?: number; status?: MessageStatus; sandbox?: boolean } = {}) =>
+  listMessages: (q: { limit?: number; status?: MessageStatus; sandbox?: boolean; test?: boolean } = {}) =>
     rmFetch<ListResponse<Message>>("/v1/messages", {
-      query: { ...q, sandbox: q.sandbox === undefined ? undefined : String(q.sandbox) },
+      query: {
+        ...q,
+        sandbox: q.sandbox === undefined ? undefined : String(q.sandbox),
+        test: q.test === undefined ? undefined : String(q.test),
+      },
     }),
   getMessage: (id: string) => rmFetch<Message>(`/v1/messages/${id}`),
   getAudit: (id: string) => rmFetch<AuditTrail>(`/v1/messages/${id}/audit`),
@@ -605,6 +610,12 @@ export const api = {
     rmFetch<SupportTicket & { ticket_id: string }>("/v1/support", { method: "POST", body }),
   /** The customer half of support: read the thread and write back in-app. */
   listSupportTickets: () => rmFetch<ListResponse<SupportTicket>>("/v1/support"),
+
+  /** Test recipients — real sends to the SES mailbox simulator (safe, reputation-free). */
+  listTestRecipients: () =>
+    rmFetch<{ object: "list"; domain: string; data: TestRecipient[] }>("/v1/test-recipients"),
+  resetTestRecipients: () =>
+    rmFetch<{ cleared: number; emails: string[] }>("/v1/test-recipients/reset", { method: "POST" }),
   getSupportTicket: (id: string) => rmFetch<SupportTicket>(`/v1/support/${id}`),
   replySupportTicket: (id: string, body: { message: string }) =>
     rmFetch<SupportTicket>(`/v1/support/${id}/reply`, { method: "POST", body }),

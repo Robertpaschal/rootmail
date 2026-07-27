@@ -4,13 +4,14 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ExternalLink, FileText, Film, ImageIcon, Loader2, Paperclip, RefreshCw, Send, X } from "lucide-react";
-import { sendMessage, uploadAttachmentAction, type SendState } from "../actions";
+import { sendMessage, sendTestMessage, uploadAttachmentAction, type SendState } from "../actions";
+import { SendTest } from "@/components/app/send-test";
 import { ComposeEditor } from "./compose-editor";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import type { SubTenant } from "@/lib/types";
+import type { SubTenant, TestRecipient } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 export interface ComposeTemplate {
@@ -68,12 +69,18 @@ export function SendForm({
   senders,
   initialTo = "",
   initialSubject = "",
+  testRecipients = [],
+  myEmail = null,
 }: {
   tenants: SubTenant[];
   templates: ComposeTemplate[];
   senders: { email: string; display_name: string | null }[];
   initialTo?: string;
   initialSubject?: string;
+  /** Reserved addresses that force a known delivery outcome (real path). */
+  testRecipients?: TestRecipient[];
+  /** The signed-in user's own address — the "send it to me" destination. */
+  myEmail?: string | null;
 }) {
   const [state, formAction, pending] = useActionState<SendState | null, FormData>(sendMessage, null);
   const router = useRouter();
@@ -308,6 +315,22 @@ export function SendForm({
                   One-to-one email · uses your transactional sends
                 </span>
               </div>
+              {/* Prove it before you send it for real — same path, safe destination. */}
+              <SendTest
+                recipients={testRecipients}
+                myEmail={myEmail}
+                openUp
+                disabled={pending || uploading}
+                onSend={(dest) =>
+                  sendTestMessage({
+                    to: dest,
+                    subject,
+                    html: bodyHtml,
+                    template: startFrom || undefined,
+                    from_email: senders[0]?.email,
+                  })
+                }
+              />
               <input ref={fileRef} type="file" multiple accept=".pdf,image/png,image/jpeg,image/gif,image/webp,video/mp4" className="hidden" onChange={(e) => onFiles(e.target.files)} />
               <button type="button" onClick={() => fileRef.current?.click()} title="Attach a file"
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">

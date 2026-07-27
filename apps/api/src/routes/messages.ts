@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, like, not, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
@@ -14,8 +14,11 @@ import {
   newId,
   PRIORITIES,
   render,
+  SANDBOX_TEST_SENDS_PER_DAY,
   sha256Hex,
   signProof,
+  TEST_RECIPIENT_DOMAIN,
+  testRecipientFor,
   unsubscribeUrl,
 } from "@rootmail/core";
 import {
@@ -84,6 +87,10 @@ const listQuery = z.object({
   status: z.enum(MESSAGE_STATUSES).optional(),
   // "true" → only sandbox sends (the test inbox); "false" → only live mail.
   sandbox: z.enum(["true", "false"]).optional(),
+  // "true" → only sends to a reserved test recipient (the forced-outcome
+  // addresses). Those are real sends, so they're otherwise indistinguishable
+  // from live mail in this list.
+  test: z.enum(["true", "false"]).optional(),
 });
 
 const eventBody = z.object({
@@ -119,6 +126,32 @@ async function getScopedMessage(req: FastifyRequest, id: string): Promise<Messag
     .limit(1);
   if (!message) throw Errors.notFound(`Message ${id} not found`);
   return message;
+}
+
+/**
+ * Sandbox mail is simulated and free — except mail to a reserved test recipient,
+ * which takes the real provider path so the sandbox can prove actual delivery.
+ * Free + real needs a bound: cap those at SANDBOX_TEST_SENDS_PER_DAY per day.
+ */
+async function assertSandboxTestCapacity(workspaceId: string): Promise<void> {
+  const since = new Date();
+  since.setUTCHours(0, 0, 0, 0);
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(messages)
+    .where(
+      and(
+        eq(messages.workspaceId, workspaceId),
+        eq(messages.sandbox, true),
+        like(messages.toEmail, `%@${TEST_RECIPIENT_DOMAIN}`),
+        gte(messages.createdAt, since),
+      ),
+    );
+  if ((row?.n ?? 0) >= SANDBOX_TEST_SENDS_PER_DAY) {
+    throw Errors.rateLimited(
+      `Sandbox test sends are limited to ${SANDBOX_TEST_SENDS_PER_DAY} per day. They're free but they really do go out, so the allowance resets at midnight UTC — or run them from your live workspace, where they count as ordinary sends.`,
+    );
+  }
 }
 
 export async function messageRoutes(app: FastifyInstance): Promise<void> {
@@ -197,6 +230,10 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // Verify the sender, then atomically reserve quota (transactional only). The
     // reserve is the single source of truth for the cap (no read-then-write race);
     // replays are short-circuited by the idempotency check above.
+    // A sandbox send to a reserved test recipient is REAL — bound it.
+    if (mode === "test" && testRecipientFor(toEmail)) {
+      await assertSandboxTestCapacity(workspace.id);
+    }
     if (mode === "live" && org) {
       await assertEmailVerified(org);
       if (sendKind === "transactional") {
@@ -444,6 +481,10 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     const conditions = [eq(messages.workspaceId, req.auth.workspace.id)];
     if (q.status) conditions.push(eq(messages.status, q.status));
     if (q.sandbox) conditions.push(eq(messages.sandbox, q.sandbox === "true"));
+    if (q.test) {
+      const isTest = like(messages.toEmail, `%@${TEST_RECIPIENT_DOMAIN}`);
+      conditions.push(q.test === "true" ? isTest : not(isTest));
+    }
     const rows = await db
       .select()
       .from(messages)

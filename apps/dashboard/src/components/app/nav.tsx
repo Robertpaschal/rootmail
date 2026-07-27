@@ -39,7 +39,7 @@ type NavGroup = { label?: string; items: NavItem[] };
  * PRICING and metering dimension (billing pages, analytics scopes, usage
  * meters), not a navigation wall. Sections that only make sense against real
  * infrastructure (deliverability, client domains) hide in sandbox, and the
- * sandbox-only test inbox hides in live — the nav always reflects what can
+ * live-only sections hide in the sandbox — the nav always reflects what can
  * actually function right now.
  */
 function buildGroups(opts: { sandbox: boolean; workspaceName: string | null }): NavGroup[] {
@@ -76,14 +76,16 @@ function buildGroups(opts: { sandbox: boolean; workspaceName: string | null }): 
       ],
     },
     {
-      // Everything code-facing in one place; the sandbox-only test inbox appears
+      // Everything code-facing in one place; testing appears
       // exactly when the workspace can use it.
       label: "Developers",
       items: [
         { href: "/api-keys", label: "API keys", icon: KeyRound },
         { href: "/webhooks", label: "Webhooks", icon: Webhook },
         { href: "/docs", label: "Docs", icon: BookOpen },
-        ...(sandbox ? [{ href: "/test-inbox", label: "Test inbox", icon: FlaskConical }] : []),
+        // Testing is useful in BOTH modes: the sandbox rehearses your integration,
+        // and test recipients prove real delivery from either workspace.
+        { href: "/testing", label: "Testing", icon: FlaskConical },
       ],
     },
     {

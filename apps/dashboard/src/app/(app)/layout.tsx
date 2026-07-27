@@ -31,8 +31,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const impersonating = me?.impersonating ?? false;
   // The nav adapts to the workspace the user is IN: its name titles the
   // workspace group (the "product", not an abstract "Workspace"), and sandbox
-  // vs live decides which sections can actually function (test inbox vs
-  // deliverability/client domains).
+  // vs live decides which sections can actually function (deliverability and
+  // client domains need real sending).
   const ws = me?.active_workspace ?? me?.workspaces?.[0] ?? null;
   const navCtx = { workspaceName: ws?.name ?? null, sandbox: ws?.environment === "test" };
 

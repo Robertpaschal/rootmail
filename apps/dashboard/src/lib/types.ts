@@ -43,6 +43,8 @@ export interface Message {
   reply_to: string | null;
   subject: string;
   sub_tenant_id: string | null;
+  /** Set when this went to a rootmail test alias — the real path, safe destination. */
+  test_recipient: string | null;
   /** The contact this reached (if a saved contact) + where it came from. */
   to_contact_id: string | null;
   campaign_id: string | null;
@@ -1095,4 +1097,14 @@ export interface SupportTicket {
   created_at: string;
   /** Present on GET /v1/support/:id and after a reply. */
   messages?: SupportMessage[];
+}
+
+/** A reserved test address: the real send path, to a destination that can't be harmed. */
+export interface TestRecipient {
+  object: "test_recipient";
+  slug: string;
+  email: string;
+  label: string;
+  description: string;
+  outcome: "delivered" | "bounced" | "complained" | "suppressed" | "delivered_ooto";
 }

@@ -4,6 +4,7 @@ import {
   enqueueWebhookEvent,
   newId,
   type SendJobData,
+  testRecipientFor,
   WEBHOOK_EVENTS,
 } from "@rootmail/core";
 import { auditEntries, db, type Message, type MessageAttachment, messages, organizations, subTenants, suppressions, workspaces } from "@rootmail/db";
@@ -136,9 +137,12 @@ export async function processSend(data: SendJobData): Promise<void> {
 
   // Route real sends through the org's dedicated IP when it has one active — its
   // SES configuration set points at the dedicated IP pool. Sandbox sends use the
-  // mock provider and never touch SES, so skip the lookup there.
+  // mock provider and never touch SES, so skip the lookup there — unless this is
+  // a reserved test recipient, which takes the live path even from the sandbox.
+  const scenario = testRecipientFor(message.toEmail);
+  const livePath = !message.sandbox || scenario != null;
   let configurationSet: string | null = null;
-  if (!message.sandbox) {
+  if (livePath) {
     const [org] = await db
       .select({ status: organizations.dedicatedIpStatus, configSet: organizations.dedicatedIpConfigSet })
       .from(organizations)
@@ -148,7 +152,7 @@ export async function processSend(data: SendJobData): Promise<void> {
     if (org?.status === "active" && org.configSet) configurationSet = org.configSet;
   }
 
-  const provider = getProviderFor(message.sandbox);
+  const provider = getProviderFor(message.sandbox, message.toEmail);
   try {
     // Inside the try: if an attachment can't be fetched, the send fails cleanly
     // (status "failed" + reason) instead of throwing past the catch and leaving
@@ -179,9 +183,18 @@ export async function processSend(data: SendJobData): Promise<void> {
         updatedAt: new Date(),
       })
       .where(eq(messages.id, message.id));
+    // Record the test-alias → simulator mapping on the trail, so the audit shows
+    // exactly where a test send actually went (never a hidden rewrite).
     await audit(message, "sent", {
       provider: result.provider,
       providerMessageId: result.providerMessageId,
+      metadata: scenario
+        ? {
+            test_recipient: scenario.slug,
+            delivered_to: scenario.simulator,
+            expected_outcome: scenario.outcome,
+          }
+        : {},
     });
 
     // The mock provider has no async feedback, so simulate delivery inline.

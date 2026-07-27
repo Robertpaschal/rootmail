@@ -8,6 +8,7 @@ import { Imports } from "./resources/imports";
 import { AnalyticsResource, DeliverabilityResource } from "./resources/insights";
 import { Lists } from "./resources/lists";
 import { Suppressions } from "./resources/suppressions";
+import { Testing } from "./resources/testing";
 import { Messages } from "./resources/messages";
 import { Sequences } from "./resources/sequences";
 import { SubTenants } from "./resources/sub-tenants";
@@ -60,6 +61,7 @@ export class RootMail {
   readonly assistant: Assistant;
   readonly suppressions: Suppressions;
   readonly billing: Billing;
+  readonly testing: Testing;
 
   private readonly apiKey: string;
   private readonly baseUrl: string;
@@ -95,6 +97,7 @@ export class RootMail {
     this.assistant = new Assistant(this);
     this.suppressions = new Suppressions(this);
     this.billing = new Billing(this);
+    this.testing = new Testing(this);
   }
 
   /** Returns a client scoped to a sub-tenant. */

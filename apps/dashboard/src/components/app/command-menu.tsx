@@ -43,7 +43,7 @@ const DEVELOPERS: Item[] = [
   { label: "API keys", href: "/api-keys", kw: "developer secret token integrate" },
   { label: "Webhooks", href: "/webhooks", kw: "events callbacks notifications" },
   { label: "Docs", href: "/docs", kw: "api reference developer guide" },
-  { label: "Test inbox", href: "/test-inbox", kw: "sandbox preview safe" },
+  { label: "Testing", href: "/testing", kw: "test inbox sandbox preview safe bounce simulator" },
 ];
 
 const WORKSPACE: Item[] = [

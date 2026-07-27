@@ -136,3 +136,36 @@ export async function uploadAttachmentAction(
   }
 }
 
+
+/**
+ * Send the composer's current draft as a TEST — a real send on the real path,
+ * to either the user's own address or a reserved outcome-forcing address.
+ * Deliberately reuses the same send endpoint: a test that took a special code
+ * path wouldn't prove anything about the real one.
+ */
+export async function sendTestMessage(input: {
+  to: string;
+  subject: string;
+  html: string;
+  template?: string;
+  from_email?: string;
+}): Promise<string | null> {
+  if (!input.subject && !input.template) return "Add a subject (or pick a template) first.";
+  if (!input.html && !input.template) return "Write something in the body first.";
+  try {
+    await api.send({
+      to: input.to,
+      type: "transactional", // a one-to-one test IS transactional, by definition
+      subject: input.subject || undefined,
+      html: input.html || undefined,
+      template: input.template || undefined,
+      from: input.from_email || undefined,
+      tags: ["test"],
+    });
+    revalidatePath("/messages");
+    return null;
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return err.message;
+    return "Couldn't send the test. Please try again.";
+  }
+}

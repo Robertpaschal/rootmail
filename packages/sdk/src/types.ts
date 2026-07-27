@@ -351,3 +351,21 @@ export interface Billing {
   };
   usage: { period: string; used: number; quota: number; remaining: number; overage: number };
 }
+
+/** A reserved test address: the real send path, to a destination that can't be harmed. */
+export interface TestRecipient {
+  object: "test_recipient";
+  /** The local part: `<slug>@test.rootmail.dev`. */
+  slug: string;
+  email: string;
+  label: string;
+  description: string;
+  outcome: "delivered" | "bounced" | "complained" | "suppressed" | "delivered_ooto";
+}
+
+export interface TestRecipientsReset {
+  object: "test_recipients_reset";
+  /** How many test-domain suppressions were cleared. */
+  cleared: number;
+  emails: string[];
+}

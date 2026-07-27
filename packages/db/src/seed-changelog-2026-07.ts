@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Test recipients: prove your email really works, without risking anyone",
+    date: "2026-07-27",
+    changes: [
+      {
+        kind: "New",
+        text: "Five reserved addresses at test.rootmail.dev each force a known outcome — clean delivery, hard bounce, spam complaint, provider suppression, out-of-office auto-reply. Mail to them takes the REAL send path (your DKIM key, your provider, your webhooks) but lands on a mailbox simulator, so no person receives it and your sending reputation is untouched even when you bounce on purpose.",
+      },
+      {
+        kind: "New",
+        text: "A new Testing section under Developers: pick what you want to prove, hit Run, and watch the expected outcome sit next to what actually happened. One button clears test suppressions so bounce scenarios can be run again.",
+      },
+      {
+        kind: "New",
+        text: "\"Send a test\" now lives in the composer — send the email you're writing to your own address to see how it really lands, or to a scenario address to force an outcome.",
+      },
+      {
+        kind: "Improved",
+        text: "The sandbox is honest about itself: it proves your integration, not delivery — and it now says so. The one exception is a test recipient, which really does go out from the sandbox too (free, up to 50 a day).",
+      },
+      {
+        kind: "Improved",
+        text: "Test sends are labelled as such in Messages and on the message page, so a deliberate bounce is never mistaken for a deliverability problem. The audit trail records exactly where each test went.",
+      },
+    ],
+  },
+  {
     title: "Two counters, made obvious — plus trend lines and a true sandbox",
     date: "2026-07-25",
     changes: [

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, ChevronDown, Megaphone, MessageSquare, Paperclip, Send, User, Workflow } from "lucide-react";
+import { ArrowRight, ChevronDown, FlaskConical, Megaphone, MessageSquare, Paperclip, Send, User, Workflow } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { CopyButton } from "@/components/app/copy-button";
 import { PageHeader } from "@/components/app/page-header";
@@ -13,7 +13,7 @@ import { relativeTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { AuditEntry, ContactDetail, Message, Thread } from "@/lib/types";
+import type { AuditEntry, ContactDetail, Message, TestRecipient, Thread } from "@/lib/types";
 import { STAGE_META } from "@/lib/stages";
 import { cn } from "@/lib/utils";
 
@@ -65,11 +65,12 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
   // The relationship around this email — the contact it reached, where it came
   // from (campaign / sequence / a direct one-to-one send), and any live
   // conversation with this person. All best-effort: the message stands alone.
-  const [contactR, campaignR, sequenceR, threadsR] = await Promise.allSettled([
+  const [contactR, campaignR, sequenceR, threadsR, testR] = await Promise.allSettled([
     message.to_contact_id ? api.contactDetail(message.to_contact_id) : Promise.resolve(null),
     message.campaign_id ? api.getCampaign(message.campaign_id) : Promise.resolve(null),
     message.sequence_id ? api.getSequence(message.sequence_id) : Promise.resolve(null),
     api.listThreads(),
+    message.test_recipient ? api.listTestRecipients() : Promise.resolve(null),
   ]);
   const settled = <T,>(r: PromiseSettledResult<T | null>) => (r.status === "fulfilled" ? r.value : null);
   const contact: ContactDetail | null = settled(contactR);
@@ -84,11 +85,34 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
   const baseSubject = (s: string) => s.replace(/^((re|fwd?):\s*)+/i, "").trim().toLowerCase();
   const conversation =
     threads.find((t) => baseSubject(t.subject) === baseSubject(message.subject || "")) ?? threads[0] ?? null;
+  // A test send: real mail, safe destination. Name the scenario so a deliberate
+  // bounce is never mistaken for a deliverability problem.
+  const scenario: TestRecipient | null =
+    (settled(testR)?.data ?? []).find((t: TestRecipient) => t.slug === message.test_recipient) ?? null;
   const otherSends = (contact?.recent_messages ?? []).filter((m) => m.id !== message.id).slice(0, 3);
 
   return (
     <>
       <PageHeader title={message.subject || "(no subject)"} description={`To ${message.to}`} backHref="/messages" backLabel="Messages" />
+
+      {scenario ? (
+        <div className="mb-6 flex flex-wrap items-start gap-3 rounded-xl border border-sky-500/30 bg-sky-500/[0.07] p-4">
+          <FlaskConical className="mt-0.5 size-5 shrink-0 text-sky-600 dark:text-sky-400" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold">Test send · {scenario.label}</p>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {scenario.description} This took the real send path to your provider&apos;s mailbox simulator — no
+              person received it, and it doesn&apos;t count against your sending reputation.
+            </p>
+          </div>
+          <Link
+            href="/testing"
+            className="shrink-0 self-center text-sm font-medium text-sky-700 hover:underline dark:text-sky-400"
+          >
+            Testing <ArrowRight className="inline size-3.5" />
+          </Link>
+        </div>
+      ) : null}
 
       {/* The send tracker — advances on its own; sandbox gets its own treatment. */}
       <div className="mb-6">

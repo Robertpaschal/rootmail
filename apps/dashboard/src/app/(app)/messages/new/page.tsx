@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ArrowRight, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { api } from "@/lib/rootmail";
-import type { SubTenant } from "@/lib/types";
+import type { SubTenant, TestRecipient } from "@/lib/types";
 import { SendForm, type ComposeTemplate } from "./send-form";
 
 // Supports prefill via query params (?to=&subject=) so the Replies inbox can open
@@ -17,15 +17,23 @@ export default async function NewMessagePage({
   let tenants: SubTenant[] = [];
   let templates: ComposeTemplate[] = [];
   let senders: { email: string; display_name: string | null }[] = [];
+  // "Send a test" needs somewhere safe to send: the user's own address, and the
+  // reserved addresses that force a known delivery outcome.
+  let testRecipients: TestRecipient[] = [];
+  let myEmail: string | null = null;
   try {
     // Each list degrades independently — client domains are a gated add-on, and a
     // 402 there must never blank the templates/senders of a free-tier composer.
-    const [t, tpl, sn] = await Promise.all([
+    const [t, tpl, sn, tr, me] = await Promise.all([
       api.listSubTenants().catch(() => ({ data: [] as SubTenant[] })),
       api.listTemplates(),
       api.listSenders().catch(() => ({ data: [] })),
+      api.listTestRecipients().catch(() => ({ data: [] as TestRecipient[] })),
+      api.me().catch(() => null),
     ]);
     tenants = t.data;
+    testRecipients = tr.data;
+    myEmail = me?.user.email ?? null;
     templates = tpl.data.map((x) => ({
       slug: x.slug,
       name: x.name,
@@ -68,7 +76,15 @@ export default async function NewMessagePage({
           </Link>
         </div>
       ) : null}
-      <SendForm tenants={tenants} templates={templates} senders={senders} initialTo={initialTo} initialSubject={initialSubject} />
+      <SendForm
+        tenants={tenants}
+        templates={templates}
+        senders={senders}
+        initialTo={initialTo}
+        initialSubject={initialSubject}
+        testRecipients={testRecipients}
+        myEmail={myEmail}
+      />
     </>
   );
 }

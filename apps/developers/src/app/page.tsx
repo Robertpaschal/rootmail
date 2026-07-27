@@ -81,7 +81,7 @@ const surface = [
 const guarantees = [
   "snake_case JSON over HTTPS — Bearer auth, no surprises",
   "Idempotency keys on every send — retries never double-send",
-  "Test-mode keys & a hosted test inbox — sandbox sends are always free",
+  "Free sandbox keys, plus test recipients that force a real bounce or complaint",
   "Signed webhooks with delivery logs you can replay",
   "Append-only audit trail on every message",
   "One-command migration: SendGrid, Postmark, Mailgun exports",
