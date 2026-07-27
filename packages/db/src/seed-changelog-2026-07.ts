@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A calmer dashboard: developer tools out of the way, testing where you write",
+    date: "2026-07-27",
+    changes: [
+      {
+        kind: "Improved",
+        text: "The sidebar now runs in the order you actually work: Overview and Assistant, then Email, then Insights, then your product's account. Developer tooling (API keys, webhooks, docs, sandbox) moved to the bottom and folds away — one click to open, and it stays open once you do.",
+      },
+      {
+        kind: "Improved",
+        text: "The sandbox is no longer offered beside your live workspace in the workspace picker. It's a developer rehearsal room, not a second product, so you open it deliberately from Developers → Testing — and every screen inside it has a one-click way back.",
+      },
+      {
+        kind: "New",
+        text: "\"Send a test\" is now in the template studio too, next to Save: see the design you're building land in your own inbox, rendered by a real mail client.",
+      },
+      {
+        kind: "Improved",
+        text: "Test sends that took the real path can no longer be overwritten by a simulated event — their delivery, bounce and complaint results come from your provider, and stay that way.",
+      },
+    ],
+  },
+  {
     title: "Test recipients: prove your email really works, without risking anyone",
     date: "2026-07-27",
     changes: [

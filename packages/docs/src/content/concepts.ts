@@ -148,7 +148,9 @@ export const sandbox: DocPage = {
       b("never delivers"),
       " and ",
       b("never bills"),
-      ". It's a separate workspace with its own data, so nothing you do there can touch production.",
+      ". It's a separate workspace with its own data, so nothing you do there can touch production. Open it in the dashboard from ",
+      b("Developers → Testing"),
+      " — it's deliberately kept out of the workspace picker, since it isn't a product you run.",
     ),
     list([
       ["Sandbox messages are stored with their full rendered content — read them back over the API, or in the dashboard under ", b("Testing"), "."],

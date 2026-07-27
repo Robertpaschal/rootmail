@@ -1,11 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutGroup, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
 import {
   BarChart3,
   BookOpen,
+  ChevronRight,
   CreditCard,
   FileCheck2,
   FileText,
@@ -30,7 +32,14 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type NavItem = { href: string; label: string; icon: typeof Mail; exact?: boolean };
-type NavGroup = { label?: string; items: NavItem[] };
+type NavGroup = {
+  label?: string;
+  items: NavItem[];
+  /** Folded away until asked for — see the Developers group. */
+  collapsible?: boolean;
+  /** One line under the group header, shown while it's folded. */
+  hint?: string;
+};
 
 /**
  * ONE sidebar, grouped by what things are FOR — no transactional/marketing flip.
@@ -76,28 +85,33 @@ function buildGroups(opts: { sandbox: boolean; workspaceName: string | null }): 
       ],
     },
     {
-      // Everything code-facing in one place; testing appears
-      // exactly when the workspace can use it.
-      label: "Developers",
-      items: [
-        { href: "/api-keys", label: "API keys", icon: KeyRound },
-        { href: "/webhooks", label: "Webhooks", icon: Webhook },
-        { href: "/docs", label: "Docs", icon: BookOpen },
-        // Testing is useful in BOTH modes: the sandbox rehearses your integration,
-        // and test recipients prove real delivery from either workspace.
-        { href: "/testing", label: "Testing", icon: FlaskConical },
-      ],
-    },
-    {
-      // Titled by the workspace the user is actually in ("Production", not the
-      // abstract "Workspace"). Team carries roles + SSO inside; client domains
-      // (the agency surface) needs real DNS + sending, so it's live-only.
+      // The account behind the product, titled by the workspace the user is
+      // actually in ("Production", not the abstract "Workspace"). Team carries
+      // roles + SSO inside; client domains (the agency surface) needs real DNS
+      // and sending, so it's live-only.
       label: workspaceName ?? "Workspace",
       items: [
         { href: "/billing", label: "Plan & usage", icon: CreditCard },
         { href: "/members", label: "Team", icon: UserCog },
         ...(sandbox ? [] : [{ href: "/sub-tenants", label: "Client domains", icon: Network }]),
         { href: "/settings", label: "Settings", icon: Settings },
+      ],
+    },
+    {
+      // LAST, and folded away by default: most people who send email here never
+      // touch an API key. It opens itself when you're inside it, and stays open
+      // once you've opened it — so the people who live here pay no toll, and
+      // everyone else isn't asked to scroll past tools they'll never use.
+      label: "Developers",
+      collapsible: true,
+      hint: "API keys, webhooks, docs, sandbox",
+      items: [
+        { href: "/api-keys", label: "API keys", icon: KeyRound },
+        { href: "/webhooks", label: "Webhooks", icon: Webhook },
+        { href: "/docs", label: "Docs", icon: BookOpen },
+        // Testing is the hub: the everyday half (send yourself a real test) is
+        // surfaced in the composer and studio; the sandbox lives in here.
+        { href: "/testing", label: "Testing & sandbox", icon: FlaskConical },
       ],
     },
   ];
@@ -143,6 +157,84 @@ function NavLink({
   );
 }
 
+const DEV_OPEN_KEY = "rm_nav_developers_open";
+
+/**
+ * A folded nav group. Developer tooling is a minority of this product's users,
+ * so it sits behind one click instead of costing everyone a screenful — the
+ * pattern people already know from Vercel, Stripe and Supabase.
+ *
+ * It never hides where you are: being inside the group opens it, and the choice
+ * to open it sticks across sessions.
+ */
+function CollapsibleGroup({
+  group,
+  isActive,
+  hasActive,
+}: {
+  group: NavGroup;
+  isActive: (h: string, e?: boolean) => boolean;
+  hasActive: boolean;
+}) {
+  // Start open only when the current page lives inside — matching on the server
+  // and the client, so there's no hydration flash. The stored preference is
+  // applied after mount.
+  const [open, setOpen] = useState(hasActive);
+  useEffect(() => {
+    if (hasActive) return setOpen(true);
+    setOpen(window.localStorage.getItem(DEV_OPEN_KEY) === "1");
+  }, [hasActive]);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    window.localStorage.setItem(DEV_OPEN_KEY, next ? "1" : "0");
+  };
+
+  return (
+    <div className="space-y-1">
+      <button
+        type="button"
+        onClick={toggle}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 rounded-md px-3 pb-1 pt-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+      >
+        <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.15 }} className="flex">
+          <ChevronRight className="size-3" />
+        </motion.span>
+        <span className="truncate">{group.label}</span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div
+            key="items"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="space-y-1 overflow-hidden"
+          >
+            {group.items.map((it) => (
+              <NavLink key={it.href} item={it} isActive={isActive} indicatorId="nav-active" />
+            ))}
+          </motion.div>
+        ) : group.hint ? (
+          <motion.p
+            key="hint"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="px-3 pb-1 text-[11px] leading-snug text-muted-foreground/60"
+          >
+            {group.hint}
+          </motion.p>
+        ) : null}
+      </AnimatePresence>
+    </div>
+  );
+}
+
 export interface NavContext {
   /** The active workspace's name — the "product" the user is inside. */
   workspaceName?: string | null;
@@ -173,18 +265,27 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
         </div>
 
         <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
-          {groups.map((g, i) => (
-            <div key={g.label ?? `top-${i}`} className="space-y-1">
-              {g.label ? (
-                <p className="truncate px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                  {g.label}
-                </p>
-              ) : null}
-              {g.items.map((it) => (
-                <NavLink key={it.href} item={it} isActive={isActive} indicatorId="nav-active" />
-              ))}
-            </div>
-          ))}
+          {groups.map((g, i) =>
+            g.collapsible ? (
+              <CollapsibleGroup
+                key={g.label ?? `top-${i}`}
+                group={g}
+                isActive={isActive}
+                hasActive={g.items.some((it) => isActive(it.href, it.exact))}
+              />
+            ) : (
+              <div key={g.label ?? `top-${i}`} className="space-y-1">
+                {g.label ? (
+                  <p className="truncate px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                    {g.label}
+                  </p>
+                ) : null}
+                {g.items.map((it) => (
+                  <NavLink key={it.href} item={it} isActive={isActive} indicatorId="nav-active" />
+                ))}
+              </div>
+            ),
+          )}
         </nav>
       </LayoutGroup>
 

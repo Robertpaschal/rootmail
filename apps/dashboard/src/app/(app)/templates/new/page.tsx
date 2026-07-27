@@ -1,7 +1,16 @@
 import { PageHeader } from "@/components/app/page-header";
+import { api } from "@/lib/rootmail";
+import type { TestRecipient } from "@/lib/types";
 import { TemplateEditor } from "../template-editor";
 
-export default function NewTemplatePage() {
+export default async function NewTemplatePage() {
+  // "Send a test" needs somewhere safe to send: your own address, and the
+  // reserved addresses that force a known outcome. Both degrade to nothing.
+  const [tr, me] = await Promise.all([
+    api.listTestRecipients().catch(() => ({ data: [] as TestRecipient[] })),
+    api.me().catch(() => null),
+  ]);
+
   return (
     <>
       <PageHeader
@@ -10,7 +19,7 @@ export default function NewTemplatePage() {
         backHref="/templates"
         backLabel="Templates"
       />
-      <TemplateEditor />
+      <TemplateEditor testRecipients={tr.data} myEmail={me?.user.email ?? null} />
     </>
   );
 }

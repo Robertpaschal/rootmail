@@ -191,7 +191,11 @@ export function LiveStatus({
   const meta = STATUS_META[displayStatus] ?? STATUS_META.queued;
   const stages = stagesFor(message, trail);
   const live = INFLIGHT.has(message.status);
-  const sandbox = message.sandbox;
+  // A sandbox send is simulated — UNLESS it went to a reserved test recipient,
+  // which takes the real provider path even from the sandbox. Those get a real
+  // outcome from the provider, so neither the "didn't go anywhere" note nor the
+  // lifecycle simulator applies to them.
+  const simulated = message.sandbox && !message.test_recipient;
   const errorish = meta.tone === "error" || meta.tone === "warn";
   const HeadIcon = EVENT_ICON[displayStatus] ?? Inbox;
 
@@ -201,11 +205,11 @@ export function LiveStatus({
   return (
     <Card>
       <CardContent className="space-y-5 p-6">
-        {sandbox ? (
+        {simulated ? (
           <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3.5 py-2.5 text-sm">
             <FlaskConical className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
             <p className="text-muted-foreground">
-              <span className="font-medium text-foreground">Test send.</span> This didn&apos;t go to a real inbox — it&apos;s a sandbox message for previewing and trying the delivery lifecycle.
+              <span className="font-medium text-foreground">Sandbox send.</span> This was rendered and recorded but never handed to a provider — it reached no one. Use it to try the delivery lifecycle.
             </p>
           </div>
         ) : null}
@@ -272,7 +276,7 @@ export function LiveStatus({
           </div>
         ) : null}
 
-        {sandbox ? <SimulatePanel id={id} onUpdate={apply} status={message.status} /> : null}
+        {simulated ? <SimulatePanel id={id} onUpdate={apply} status={message.status} /> : null}
       </CardContent>
     </Card>
   );

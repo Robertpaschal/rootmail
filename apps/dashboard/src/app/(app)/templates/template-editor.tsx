@@ -19,6 +19,8 @@ import { StarterGallery } from "./starter-gallery";
 import type { BasicLayout, Starter, StarterWing } from "./starters";
 import { EmailCanvas, StudioPanel, useEmailEditor, useSelectedBlock } from "./email-studio";
 import { MediaLibraryHost } from "./media-library";
+import { SendTest } from "@/components/app/send-test";
+import { sendTestMessage } from "../messages/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +38,7 @@ import {
   type DocNode,
   type EmailTheme,
 } from "@/lib/email-doc";
-import type { Template, TemplateType } from "@/lib/types";
+import type { Template, TemplateType, TestRecipient } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const NEW_HTML = `<h1>Hello {{name}} 👋</h1>
@@ -94,7 +96,17 @@ function detectVars(...texts: string[]): string[] {
   return [...found];
 }
 
-export function TemplateEditor({ template }: { template?: Template }) {
+export function TemplateEditor({
+  template,
+  testRecipients = [],
+  myEmail = null,
+}: {
+  template?: Template;
+  /** Reserved addresses that force a known delivery outcome (real path). */
+  testRecipients?: TestRecipient[];
+  /** The signed-in user's own address — the "send it to me" destination. */
+  myEmail?: string | null;
+}) {
   const editing = template != null;
   const action = editing ? updateTemplate : createTemplate;
   const [state, formAction, pending] = useActionState<TemplateFormState | null, FormData>(action, null);
@@ -256,6 +268,19 @@ export function TemplateEditor({ template }: { template?: Template }) {
               {state?.saved ? (
                 <span className="flex items-center gap-1.5 text-sm text-emerald-600"><Check className="size-4" /> Saved</span>
               ) : null}
+              {/* See the design land in a real inbox, from where you're designing it. */}
+              <SendTest
+                recipients={testRecipients}
+                myEmail={myEmail}
+                disabled={pending}
+                onSend={(dest) =>
+                  sendTestMessage({
+                    to: dest,
+                    subject: subject || name || "Template test",
+                    html: effectiveHtml,
+                  })
+                }
+              />
               <Button type="submit" disabled={pending} size="sm">
                 {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                 {pending ? "Saving…" : editing ? "Save changes" : "Create template"}

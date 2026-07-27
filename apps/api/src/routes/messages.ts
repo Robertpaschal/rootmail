@@ -584,6 +584,15 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     const message = await getScopedMessage(req, id);
     const body = parse(eventBody, req.body);
 
+    // A send to a reserved test recipient took the REAL provider path, so its
+    // outcome arrives from the provider. Letting a simulated event overwrite it
+    // would make the one honest signal in the sandbox a lie.
+    if (testRecipientFor(message.toEmail)) {
+      throw Errors.badRequest(
+        "This went out through your real provider, so its delivery events come from the provider — they can't be simulated.",
+      );
+    }
+
     await writeAudit(db, {
       workspaceId: message.workspaceId,
       subTenantId: message.subTenantId,

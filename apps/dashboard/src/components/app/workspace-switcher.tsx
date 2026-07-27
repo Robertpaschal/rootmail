@@ -2,11 +2,19 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, ChevronsUpDown, Pencil, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, ChevronsUpDown, FlaskConical, Pencil, Plus, Trash2, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Workspace, WorkspaceLimit } from "@/lib/types";
 import { createWorkspace, deleteWorkspace, renameWorkspace, switchWorkspace } from "./workspace-actions";
 
+/**
+ * The workspace picker lists the PRODUCTS you run — never the sandbox.
+ *
+ * The sandbox is a developer rehearsal environment, not a peer of your live
+ * workspace, and offering it here made every user ask what it was for. You enter
+ * it deliberately from Developers → Testing; while you're in it, it's listed
+ * (you must be able to get out) with a one-click way back to live.
+ */
 export function WorkspaceSwitcher({
   workspaces,
   activeId,
@@ -27,6 +35,10 @@ export function WorkspaceSwitcher({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const active = workspaces.find((w) => w.id === activeId) ?? workspaces[0] ?? null;
+  const inSandbox = active?.environment === "test";
+  // Live workspaces only — plus the sandbox itself when that's where you are.
+  const listed = workspaces.filter((w) => w.environment === "live" || w.id === active?.id);
+  const firstLive = workspaces.find((w) => w.environment === "live") ?? null;
   const canCreate = limit?.can_create ?? false;
   const unlimited = (limit?.capacity ?? -1) === -1;
 
@@ -135,13 +147,17 @@ export function WorkspaceSwitcher({
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
-        className="inline-flex max-w-[12rem] items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
-        title="Switch workspace"
+        className={cn(
+          "inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent",
+          inSandbox && "border-amber-500/50 bg-amber-500/10",
+        )}
+        title={inSandbox ? "You're in the sandbox" : "Switch workspace"}
       >
+        {inSandbox ? <FlaskConical className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" /> : null}
         <span className="truncate">{active.name}</span>
-        {active.environment === "test" ? (
-          <span className="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
-            test
+        {inSandbox ? (
+          <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+            sandbox
           </span>
         ) : null}
         <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
@@ -152,11 +168,27 @@ export function WorkspaceSwitcher({
           role="menu"
           className="absolute left-0 z-50 mt-1.5 w-64 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
         >
+          {inSandbox && firstLive ? (
+            <button
+              type="button"
+              disabled={pending}
+              onClick={() => onSwitch(firstLive.id)}
+              className="flex w-full items-center gap-2 border-b bg-amber-500/10 px-3 py-2.5 text-left text-sm font-medium text-amber-700 transition-colors hover:bg-amber-500/20 disabled:opacity-60 dark:text-amber-400"
+            >
+              <ArrowLeft className="size-4 shrink-0" />
+              <span className="min-w-0">
+                <span className="block truncate">Leave the sandbox</span>
+                <span className="block truncate text-[11px] font-normal opacity-80">
+                  Back to {firstLive.name}
+                </span>
+              </span>
+            </button>
+          ) : null}
           <div className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
             Workspaces
           </div>
           <ul className="max-h-64 overflow-y-auto px-1 pb-1">
-            {workspaces.map((w) => (
+            {listed.map((w) => (
               <li key={w.id} className="group flex items-center gap-0.5">
                 {editingId === w.id ? (
                   <div className="flex min-w-0 flex-1 items-center gap-1 px-1 py-1">
@@ -214,8 +246,8 @@ export function WorkspaceSwitcher({
                       <span className="flex min-w-0 items-center gap-2">
                         <span className="truncate">{w.name}</span>
                         {w.environment === "test" ? (
-                          <span className="rounded bg-muted px-1 py-0.5 text-[10px] font-medium text-muted-foreground">
-                            test
+                          <span className="rounded bg-amber-500/15 px-1 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                            sandbox
                           </span>
                         ) : null}
                       </span>

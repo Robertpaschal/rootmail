@@ -64,7 +64,14 @@ export function ApiKeysManager({ keys, currentKey }: Props) {
           <div className="flex flex-wrap items-center justify-between gap-2 border-b px-5 py-3">
             <div>
               <p className="text-sm font-semibold">Your API keys</p>
-              <p className="text-xs text-muted-foreground">Keys inherit this workspace&apos;s mode — test keys hit the sandbox, live keys send real mail.</p>
+              <p className="text-xs text-muted-foreground">
+                Keys inherit this workspace&apos;s mode — live keys send real mail. For a test key, open the
+                sandbox from{" "}
+                <Link href="/testing" className="font-medium text-foreground hover:underline">
+                  Testing
+                </Link>{" "}
+                and create one there.
+              </p>
             </div>
             {!creating ? (
               <Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" /> Create key</Button>

@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { PageHeader } from "@/components/app/page-header";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { Template } from "@/lib/types";
+import type { Template, TestRecipient } from "@/lib/types";
 import { TemplateEditor } from "../template-editor";
 
 export default async function EditTemplatePage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,6 +28,12 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
     );
   }
 
+  // "Send a test" from inside the studio — a real send to your own inbox.
+  const [tr, me] = await Promise.all([
+    api.listTestRecipients().catch(() => ({ data: [] as TestRecipient[] })),
+    api.me().catch(() => null),
+  ]);
+
   return (
     <>
       <PageHeader
@@ -36,7 +42,7 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
         backHref="/templates"
         backLabel="Templates"
       />
-      <TemplateEditor template={template} />
+      <TemplateEditor template={template} testRecipients={tr.data} myEmail={me?.user.email ?? null} />
     </>
   );
 }

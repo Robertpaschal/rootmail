@@ -35,6 +35,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // client domains need real sending).
   const ws = me?.active_workspace ?? me?.workspaces?.[0] ?? null;
   const navCtx = { workspaceName: ws?.name ?? null, sandbox: ws?.environment === "test" };
+  // The sandbox always offers the way back to a real workspace.
+  const live = me?.workspaces?.find((w) => w.environment === "live") ?? null;
 
   return (
     <div className="min-h-screen">
@@ -43,7 +45,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="md:pl-72">
         <Topbar />
         <MobileNav {...navCtx} />
-        {navCtx.sandbox ? <SandboxBanner workspaceName={navCtx.workspaceName} /> : null}
+        {navCtx.sandbox ? (
+          <SandboxBanner
+            workspaceName={navCtx.workspaceName}
+            liveId={live?.id ?? null}
+            liveName={live?.name ?? null}
+          />
+        ) : null}
         {impersonating && me ? <ImpersonationBanner email={me.user.email} /> : null}
         {unverified ? <VerifyEmailBanner /> : null}
         <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
