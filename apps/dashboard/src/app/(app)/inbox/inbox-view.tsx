@@ -32,14 +32,18 @@ import { loadConversations, sendReply, simulateInbound } from "./actions";
 // contact level keeps the relationship in one place so threads never sprawl.
 // ---------------------------------------------------------------------------
 
+// The internal type distinction, made legible: bulk kinds (Campaign / Sequence /
+// Broadcast) are marketing sends; "One-to-one" is transactional — the moment a
+// conversation turns personal it can't be unsubscribed from and meters against
+// sends, not marketing volume. The user never has to CHOOSE this; we just show it.
 const KIND: Record<ThreadMessageKind, { label: string; Icon: typeof Megaphone }> = {
   campaign: { label: "Campaign", Icon: Megaphone },
   sequence: { label: "Sequence", Icon: Workflow },
-  transactional: { label: "Email", Icon: Send },
+  transactional: { label: "One-to-one", Icon: Send },
   marketing: { label: "Broadcast", Icon: Megaphone },
-  sales: { label: "Email", Icon: Send },
-  message: { label: "Email", Icon: Send },
-  reply: { label: "Reply", Icon: CornerUpLeft },
+  sales: { label: "One-to-one", Icon: Send },
+  message: { label: "One-to-one", Icon: Send },
+  reply: { label: "Their reply", Icon: CornerUpLeft },
 };
 
 const STATUS_TONE: Record<string, string> = {
@@ -202,10 +206,13 @@ export function InboxView({
   threads: initialThreads,
   initialDetails,
   initialContact,
+  sandbox = false,
 }: {
   threads: Thread[];
   initialDetails: Thread[];
   initialContact: string | null;
+  /** Sandbox workspaces get demo tools (simulate a reply); live stays truly live. */
+  sandbox?: boolean;
 }) {
   const [threads, setThreads] = useState(initialThreads);
   const [details, setDetails] = useState<Record<string, Thread>>(() =>
@@ -449,8 +456,22 @@ export function InboxView({
                           {/* Reply composer — scoped to THIS subject-thread. */}
                           <div className="rounded-lg border bg-muted/20 p-3">
                             <p className="mb-2 text-[11px] text-muted-foreground">
-                              Replying on <span className="font-medium text-foreground">“{t.subject}”</span> — sends as a real
-                              email to {contact.email} and counts toward your plan.
+                              {det?.messages?.some((m) => m.kind === "campaign" || m.kind === "sequence" || m.kind === "marketing") ? (
+                                <>
+                                  This conversation started from a{" "}
+                                  {det.messages.some((m) => m.kind === "sequence") && !det.messages.some((m) => m.kind === "campaign")
+                                    ? "sequence"
+                                    : "campaign"}
+                                  . Replies here are <span className="font-medium text-foreground">one-to-one</span> — they
+                                  use your transactional sends, never your marketing volume, and a personal conversation
+                                  can&apos;t be unsubscribed from.
+                                </>
+                              ) : (
+                                <>
+                                  Replying on <span className="font-medium text-foreground">“{t.subject}”</span> — sends as a
+                                  real one-to-one email to {contact.email} and uses your transactional sends.
+                                </>
+                              )}
                             </p>
                             {error ? <p className="mb-2 text-sm text-destructive">{error}</p> : null}
                             <div className="flex items-end gap-2">
@@ -483,13 +504,17 @@ export function InboxView({
                                 </Link>{" "}
                                 — it lands on this thread.
                               </span>
-                              <button
-                                onClick={simulate}
-                                disabled={sending}
-                                className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
-                              >
-                                <Sparkles className="size-3" /> Simulate a reply
-                              </button>
+                              {sandbox ? (
+                                // A demo tool for the sandbox only — in live, everything in the
+                                // inbox is a real email from a real person.
+                                <button
+                                  onClick={simulate}
+                                  disabled={sending}
+                                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                                >
+                                  <Sparkles className="size-3" /> Simulate a reply
+                                </button>
+                              ) : null}
                             </div>
                           </div>
                         </div>

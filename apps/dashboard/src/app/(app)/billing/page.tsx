@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { LocalTime } from "@/components/app/local-time";
+import { InfoHint } from "@/components/app/info-hint";
 import { PageHeader } from "@/components/app/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -76,8 +77,13 @@ export default async function BillingPage({
   const allAddons = billing.addons_catalog;
 
   const txPct = Math.round((usage.used / Math.max(1, usage.quota)) * 100);
-  const ctPct = usage.contacts_limit > 0 ? Math.round((usage.contacts_used / usage.contacts_limit) * 100) : 4;
+  const txDailyPct =
+    usage.daily_limit > 0 ? Math.round((usage.used_today / usage.daily_limit) * 100) : 0;
   const mkPct = usage.marketing_allowance > 0 ? Math.round((usage.marketing_sent / usage.marketing_allowance) * 100) : 0;
+  const mkDailyPct =
+    usage.marketing_daily_limit > 0
+      ? Math.round((usage.marketing_sent_today / usage.marketing_daily_limit) * 100)
+      : 0;
   const aiPct = usage.ai_credits > 0 ? Math.round((usage.ai_used / usage.ai_credits) * 100) : 0;
 
   // ---- The financial dashboard (tab 1) — everything the user is billed, explicit.
@@ -104,19 +110,48 @@ export default async function BillingPage({
         </CardContent>
       </Card>
 
-      {/* The two wing meters + AI credits — every metered thing, side by side. */}
+      {/* The two wing meters + AI credits — every metered thing, side by side.
+          Each carries its own definition behind an (i), so the meaning is one
+          hover away from the number it explains. */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex-row items-center gap-2 space-y-0 pb-3">
             <Zap className="size-4 text-muted-foreground" />
             <CardTitle className="text-sm">Transactional</CardTitle>
+            <InfoHint label="What counts as a transactional send">
+              <span className="font-medium text-foreground">Transactional sends</span> are one-to-one emails a
+              person can&apos;t unsubscribe from — receipts, password resets, alerts, and your personal replies
+              in a conversation. It doesn&apos;t matter where the send comes from: your app via the API, the
+              SDK, the CLI, or writing one here. Metered against your monthly send blocks, with a per-day
+              burst cap.
+            </InfoHint>
           </CardHeader>
           <CardContent className="space-y-2">
             <div className="flex items-baseline justify-between text-sm">
               <span className="font-medium">{num(usage.used)} / {num(usage.quota)}</span>
-              <span className="text-xs text-muted-foreground">sends</span>
+              <span className="text-xs text-muted-foreground">sends this month</span>
             </div>
             <Meter pct={txPct} tone={usage.over_limit ? "bg-destructive" : txPct > 80 ? "bg-amber-500" : "bg-primary"} />
+            {usage.daily_limit !== -1 ? (
+              <>
+                <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+                  <span>Today</span>
+                  <span>
+                    {num(usage.used_today)} / {num(usage.daily_limit)} daily cap
+                  </span>
+                </div>
+                <Meter
+                  pct={txDailyPct}
+                  tone={
+                    usage.used_today >= usage.daily_limit
+                      ? "bg-destructive"
+                      : txDailyPct > 80
+                        ? "bg-amber-500"
+                        : "bg-primary/60"
+                  }
+                />
+              </>
+            ) : null}
             <p className="text-xs text-muted-foreground">
               {txBlocks > 0 ? `${num(txBlocks)} block${txBlocks === 1 ? "" : "s"}` : "Free allowance"}
               {usage.over_limit && txBlocks > 0 ? ` · ${num(usage.overage)} over (~${money(usage.overage_cost)})` : ""}
@@ -131,17 +166,53 @@ export default async function BillingPage({
           <CardHeader className="flex-row items-center gap-2 space-y-0 pb-3">
             <Megaphone className="size-4 text-muted-foreground" />
             <CardTitle className="text-sm">Marketing</CardTitle>
+            <InfoHint label="What counts as a marketing send">
+              <span className="font-medium text-foreground">Marketing sends</span> are bulk mail to an audience
+              — campaigns, sequences, promos — always carrying an unsubscribe. They draw on their own monthly
+              allowance <span className="font-medium text-foreground">and</span> a daily cap, both scaled by
+              your contact size. Never mixed with transactional: if a campaign turns into a one-on-one
+              conversation, those replies count as transactional.
+            </InfoHint>
           </CardHeader>
           <CardContent className="space-y-2">
+            {/* The MARKETING SEND meters lead — monthly allowance, then the daily
+                cap. Contacts are the pricing base, stated underneath. */}
             <div className="flex items-baseline justify-between text-sm">
               <span className="font-medium">
-                {num(usage.contacts_used)}{usage.contacts_limit === -1 ? "" : ` / ${num(usage.contacts_limit)}`}
+                {num(usage.marketing_sent)} / {num(usage.marketing_allowance)}
               </span>
-              <span className="text-xs text-muted-foreground">contacts</span>
+              <span className="text-xs text-muted-foreground">sends this month</span>
             </div>
-            <Meter pct={ctPct} tone={usage.contacts_limit !== -1 && usage.contacts_used >= usage.contacts_limit ? "bg-destructive" : ctPct > 80 ? "bg-amber-500" : "bg-primary"} />
+            <Meter
+              pct={mkPct}
+              tone={
+                usage.marketing_allowance > 0 && usage.marketing_sent >= usage.marketing_allowance
+                  ? "bg-destructive"
+                  : mkPct > 80
+                    ? "bg-amber-500"
+                    : "bg-primary"
+              }
+            />
+            <div className="flex items-baseline justify-between text-xs text-muted-foreground">
+              <span>Today</span>
+              <span>
+                {num(usage.marketing_sent_today)} / {num(usage.marketing_daily_limit)} daily cap
+              </span>
+            </div>
+            <Meter
+              pct={mkDailyPct}
+              tone={
+                usage.marketing_daily_limit > 0 && usage.marketing_sent_today >= usage.marketing_daily_limit
+                  ? "bg-destructive"
+                  : mkDailyPct > 80
+                    ? "bg-amber-500"
+                    : "bg-primary/60"
+              }
+            />
             <p className="text-xs text-muted-foreground">
-              {num(usage.marketing_sent)}/{num(usage.marketing_allowance)} emails this month · {mkPct}% used
+              Priced by audience size — {num(usage.contacts_used)}
+              {usage.contacts_limit === -1 ? "" : ` of ${num(usage.contacts_limit)}`} contacts. Both caps grow
+              with it.
             </p>
             <Link href="/billing/marketing" className="inline-flex items-center text-xs font-medium text-primary hover:underline">
               Manage <ArrowRight className="ml-0.5 size-3" />

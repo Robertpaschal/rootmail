@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Two counters, made obvious — plus trend lines and a true sandbox",
+    date: "2026-07-25",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Your two send counters are now unmistakable everywhere: transactional sends (one-to-one, can't be unsubscribed from) and marketing sends (bulk, with a monthly allowance AND a daily cap, both scaled by your audience size). The Overview's marketing panel now shows send volume and today's cap — and Plan & usage states the definitions right next to the meters.",
+      },
+      {
+        kind: "New",
+        text: "Trend lines: Analytics charts sent, delivered, opened and clicked day by day, and Deliverability gains a daily delivery-health graph (deliveries vs bounces) plus levers that show YOUR standing — domains verified, volume, list health, engagement — each with a button that goes exactly where you act.",
+      },
+      {
+        kind: "Improved",
+        text: "Conversations teach the flow: when a thread starts from a campaign, the reply box says it plainly — replies are one-to-one, use your transactional sends, and a personal conversation can't be unsubscribed from.",
+      },
+      {
+        kind: "Improved",
+        text: "The sandbox is now unmissable and honest: a clear banner, only tools that actually work there, and \"Simulate a reply\" lives only in the sandbox — a live inbox contains real email from real people, enforced server-side.",
+      },
+      {
+        kind: "Improved",
+        text: "The Overview's workspace card shows what you're actually billed this month in one number, with the full breakdown one click away.",
+      },
+    ],
+  },
+  {
     title: "One dashboard — organized by what you're doing, with every email in its relationship",
     date: "2026-07-24",
     changes: [

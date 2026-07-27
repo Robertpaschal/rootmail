@@ -295,12 +295,19 @@ export function SendForm({
               ) : null}
             </div>
 
-            {/* Send bar */}
+            {/* Send bar. The internal type never needs choosing here: a composed
+                email to one person IS a one-to-one (transactional) send — it
+                meters against sends, never marketing volume. Say so quietly. */}
             <div className="flex items-center justify-between gap-3 border-t px-5 py-3">
-              <Button type="submit" disabled={pending || uploading}>
-                {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                {pending ? "Sending…" : "Send"}
-              </Button>
+              <div className="flex items-center gap-3">
+                <Button type="submit" disabled={pending || uploading}>
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                  {pending ? "Sending…" : "Send"}
+                </Button>
+                <span className="hidden text-[11px] text-muted-foreground sm:inline">
+                  One-to-one email · uses your transactional sends
+                </span>
+              </div>
               <input ref={fileRef} type="file" multiple accept=".pdf,image/png,image/jpeg,image/gif,image/webp,video/mp4" className="hidden" onChange={(e) => onFiles(e.target.files)} />
               <button type="button" onClick={() => fileRef.current?.click()} title="Attach a file"
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">

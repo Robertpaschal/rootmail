@@ -3,6 +3,7 @@ import { AssistantLauncher } from "@/components/app/assistant-launcher";
 import { CommandMenu } from "@/components/app/command-menu";
 import { ImpersonationBanner } from "@/components/app/impersonation-banner";
 import { MobileNav, Sidebar } from "@/components/app/nav";
+import { SandboxBanner } from "@/components/app/sandbox-banner";
 import { Topbar } from "@/components/app/topbar";
 import { VerifyEmailBanner } from "@/components/app/verify-email-banner";
 import { api } from "@/lib/rootmail";
@@ -42,6 +43,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="md:pl-72">
         <Topbar />
         <MobileNav {...navCtx} />
+        {navCtx.sandbox ? <SandboxBanner workspaceName={navCtx.workspaceName} /> : null}
         {impersonating && me ? <ImpersonationBanner email={me.user.email} /> : null}
         {unverified ? <VerifyEmailBanner /> : null}
         <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>

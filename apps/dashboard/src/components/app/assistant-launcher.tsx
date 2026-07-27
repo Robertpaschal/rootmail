@@ -217,6 +217,18 @@ export function AssistantLauncher() {
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </form>
+        {/* Help lives WITH the assistant — the same escalation path in every mode,
+            so the sidebar doesn't need a permanent support corner. */}
+        <p className="mt-2 px-1 text-center text-[11px] text-muted-foreground">
+          Need a human?{" "}
+          <Link
+            href="/contact?topic=support"
+            onClick={() => setOpen(false)}
+            className="font-medium text-primary hover:underline"
+          >
+            Contact support
+          </Link>
+        </p>
       </div>
     </>
   );

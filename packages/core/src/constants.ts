@@ -639,6 +639,14 @@ export type Wing = (typeof WINGS)[number];
 export const BLOCK_SIZE = 25_000;
 /** Free transactional allowance (no blocks purchased). */
 export const FREE_TX_SENDS = 3_000;
+/** Per-DAY transactional cap on the Free allowance — a burst guard, not a
+ * throttle: the whole monthly allowance is still reachable, just not in one
+ * afternoon (which is what abuse looks like). */
+export const FREE_TX_DAILY = 500;
+/** Per-DAY transactional cap each purchased BLOCK grants. Deliberately ~6× the
+ * linear share (25,000/mo ≈ 833/day) so real spikes — a launch, a password-reset
+ * storm — sail through while runaway loops still hit a wall. */
+export const TX_DAILY_PER_BLOCK = 5_000;
 /** Volume-discounted per-block $/mo — the whole quantity bills at its bracket's
  * rate (Stripe `tiers_mode: "volume"`). Past the last bracket → contact sales. */
 export const BLOCK_BRACKETS: { upToBlocks: number; perBlock: number }[] = [
@@ -714,6 +722,17 @@ export function marketingDailyLimit(tier: TierDef, contacts: number): number {
   const base = Math.max(contacts, tier.id === "mk_free" ? FREE_MK_CONTACTS : 0);
   return base * (tier.dailyPerContact ?? 0);
 }
+
+/**
+ * Per-day TRANSACTIONAL cap: blocks × the tier's per-block daily allowance, or
+ * the Free daily cap when no blocks are purchased. The exact number the pricing
+ * pages market — one source of truth for what's sold and what's enforced.
+ */
+export function txDailyLimit(tier: TierDef, blocks: number): number {
+  if (tier.includedSends === -1) return -1; // unlimited plans aren't day-capped
+  if (blocks > 0) return blocks * (tier.dailyPerBlock ?? TX_DAILY_PER_BLOCK);
+  return tier.includedDailySends ?? FREE_TX_DAILY;
+}
 /** Stripe quantity (in CONTACT_UNIT units) for a contact size. */
 export function contactUnits(contacts: number): number {
   return Math.max(1, Math.ceil(contacts / CONTACT_UNIT));
@@ -744,6 +763,10 @@ export interface TierDef {
   trialDays: number;
   // --- Transactional (metric = monthly sends) ---
   includedSends?: number; // -1 = unlimited
+  /** Per-day cap with NO blocks (the Free allowance). -1 = uncapped. */
+  includedDailySends?: number;
+  /** Per-day cap each purchased block adds (the paid ladder). */
+  dailyPerBlock?: number;
   blockSize?: number; // sends per purchasable block (drives the estimator UI)
   allowOverage?: boolean;
   overagePer1000?: number; // USD per 1,000 sends past included
@@ -779,8 +802,8 @@ export const WING_TIERS: TierDef[] = [
   // BLOCK_BRACKETS rates; org's block count lives on organizations.transactional_blocks).
   // Blocks are pure VOLUME — audit + suppression are baseline; client domains and a
   // dedicated IP are add-ons folded into the purchase.
-  { id: "tx_free", wing: "transactional", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["audit", "suppression", "threads"], trialDays: 0, includedSends: FREE_TX_SENDS, blockSize: BLOCK_SIZE, allowOverage: false, overagePer1000: 0, includedSubTenants: 0 },
-  { id: "tx_blocks", wing: "transactional", name: "Send blocks", rank: 1, priceMonthly: BLOCK_BRACKETS[0].perBlock, priceYearly: BLOCK_BRACKETS[0].perBlock * 10, aiCredits: 0, features: ["audit", "suppression", "threads"], trialDays: 0, includedSends: 0 /* = blocks × BLOCK_SIZE */, blockSize: BLOCK_SIZE, allowOverage: true, overagePer1000: 0.4, includedSubTenants: 0 },
+  { id: "tx_free", wing: "transactional", name: "Free", rank: 0, priceMonthly: 0, priceYearly: 0, aiCredits: 0, features: ["audit", "suppression", "threads"], trialDays: 0, includedSends: FREE_TX_SENDS, includedDailySends: FREE_TX_DAILY, dailyPerBlock: TX_DAILY_PER_BLOCK, blockSize: BLOCK_SIZE, allowOverage: false, overagePer1000: 0, includedSubTenants: 0 },
+  { id: "tx_blocks", wing: "transactional", name: "Send blocks", rank: 1, priceMonthly: BLOCK_BRACKETS[0].perBlock, priceYearly: BLOCK_BRACKETS[0].perBlock * 10, aiCredits: 0, features: ["audit", "suppression", "threads"], trialDays: 0, includedSends: 0 /* = blocks × BLOCK_SIZE */, includedDailySends: FREE_TX_DAILY, dailyPerBlock: TX_DAILY_PER_BLOCK, blockSize: BLOCK_SIZE, allowOverage: true, overagePer1000: 0.4, includedSubTenants: 0 },
   // Marketing — the CONTACT SIZE is the base; the tier multiplies it into price,
   // monthly sends, and a daily cap (perContactCents / sendsPerContact / dailyPerContact).
   // Objective, enforced dimensions only: audience size (contacts), monthly + daily

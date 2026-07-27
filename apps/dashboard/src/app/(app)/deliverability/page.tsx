@@ -15,6 +15,7 @@ import { ConnectionError as ConnectionErrorCard } from "@/components/app/connect
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { Reveal } from "@/components/app/motion";
+import { TrendChart } from "@/components/app/trend-chart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
@@ -72,8 +73,8 @@ const PILLARS = [
     icon: TrendingUp,
     title: "Build reputation",
     body: "Send steady volume from a stable identity. Sudden spikes from a cold sender look like spam and get throttled.",
-    href: null,
-    cta: null,
+    href: "/analytics?scope=all",
+    cta: "Watch your volume trend",
   },
   {
     icon: Sparkles,
@@ -137,7 +138,20 @@ function DedicatedIpBanner({
   );
 }
 
-function PillarCard({ p }: { p: (typeof PILLARS)[number] }) {
+function PillarCard({
+  p,
+}: {
+  p: {
+    icon: (typeof PILLARS)[number]["icon"];
+    title: string;
+    body: string;
+    href: string | null;
+    cta: string | null;
+    /** YOUR current standing on this lever — makes the card about the user, not theory. */
+    state?: string;
+    stateTone?: "good" | "warn";
+  };
+}) {
   return (
     <Card className="h-full">
       <CardContent className="flex h-full flex-col p-5">
@@ -145,8 +159,18 @@ function PillarCard({ p }: { p: (typeof PILLARS)[number] }) {
           <p.icon className="size-4" />
         </span>
         <p className="text-sm font-semibold">{p.title}</p>
+        {p.state ? (
+          <p
+            className={cn(
+              "mt-0.5 text-xs font-medium",
+              p.stateTone === "warn" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400",
+            )}
+          >
+            {p.state}
+          </p>
+        ) : null}
         <p className="mt-1 flex-1 text-xs leading-relaxed text-muted-foreground">{p.body}</p>
-        {p.href ? (
+        {p.href && p.cta ? (
           <Link
             href={p.href}
             className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
@@ -186,6 +210,8 @@ export default async function DeliverabilityPage({
   // Best-effort: the dedicated-IP add-on's provisioning status, if purchased.
   const org = await api.getOrganization().catch(() => null);
   const dip = org?.dedicated_ip_status ?? "none";
+  // Daily outcomes for the health trend + the engagement pillar's real numbers.
+  const trend = await api.getAnalytics({ window_days: d.window_days }).catch(() => null);
   const meta = STATUS_META[d.status];
   const noData = d.status === "no_data" || d.volume.total === 0;
 
@@ -298,6 +324,28 @@ export default async function DeliverabilityPage({
           </CardContent>
         </Card>
       </Reveal>
+
+      {/* The health trend — deliveries vs bounces, day by day. A healthy sender
+          shows the green line tracking sends and the red line hugging zero. */}
+      {trend && trend.series.some((s) => s.sent > 0) ? (
+        <Reveal delay={0.08}>
+          <Card className="mb-6">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Delivery health · daily</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <TrendChart
+                dates={trend.series.map((s) => s.date)}
+                series={[
+                  { label: "Sent", className: "text-muted-foreground/70", values: trend.series.map((s) => s.sent) },
+                  { label: "Delivered", className: "text-emerald-500", values: trend.series.map((s) => s.delivered ?? 0) },
+                  { label: "Bounced / spam", className: "text-red-500", values: trend.series.map((s) => s.bounced ?? 0) },
+                ]}
+              />
+            </CardContent>
+          </Card>
+        </Reveal>
+      ) : null}
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Factors */}
@@ -427,14 +475,47 @@ export default async function DeliverabilityPage({
         </Reveal>
       </div>
 
-      {/* The story, always in reach: the four levers of inbox placement. */}
+      {/* The four levers of inbox placement — each card carries YOUR standing on
+          that lever and a button that goes exactly where you act on it. */}
       <Reveal delay={0.3}>
         <div className="mt-8">
           <h2 className="text-sm font-semibold text-muted-foreground">What moves inbox placement</h2>
           <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {PILLARS.map((p) => (
-              <PillarCard key={p.title} p={p} />
-            ))}
+            <PillarCard
+              p={{
+                ...PILLARS[0],
+                state:
+                  d.domains.total === 0
+                    ? "No sending domain yet"
+                    : `${d.domains.verified} of ${d.domains.total} domains verified`,
+                stateTone: d.domains.total > 0 && d.domains.unverified === 0 ? "good" : "warn",
+                href: "/settings/sender",
+                cta: d.domains.unverified > 0 || d.domains.total === 0 ? "Finish verification" : "Manage sending",
+              }}
+            />
+            <PillarCard
+              p={{
+                ...PILLARS[1],
+                state: `${d.volume.total.toLocaleString()} sent in ${d.window_days} days`,
+                stateTone: "good",
+              }}
+            />
+            <PillarCard
+              p={{
+                ...PILLARS[2],
+                state: `${d.suppressions.total.toLocaleString()} bad address${d.suppressions.total === 1 ? "" : "es"} auto-blocked`,
+                stateTone: "good",
+              }}
+            />
+            <PillarCard
+              p={{
+                ...PILLARS[3],
+                state: trend ? `${Math.round(trend.rates.open)}% open · ${Math.round(trend.rates.click)}% click` : undefined,
+                stateTone: trend && trend.rates.open >= 20 ? "good" : "warn",
+                href: "/analytics?scope=all",
+                cta: "See engagement",
+              }}
+            />
           </div>
         </div>
       </Reveal>

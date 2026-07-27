@@ -410,6 +410,24 @@ export const marketingDailyUsage = pgTable(
   (t) => [uniqueIndex("marketing_daily_org_day_uq").on(t.organizationId, t.day)],
 );
 
+/** The transactional twin of marketingDailyUsage — both wings carry a monthly
+ * allowance AND a per-day burst cap, so both need a day counter. Separate tables
+ * keep each wing's meter independent (they never mix, by doctrine). */
+export const transactionalDailyUsage = pgTable(
+  "transactional_daily_usage",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    day: text("day").notNull(), // "YYYY-MM-DD" UTC
+    sent: integer("sent").notNull().default(0),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("transactional_daily_org_day_uq").on(t.organizationId, t.day)],
+);
+
 export const workspaces = pgTable(
   "workspaces",
   {

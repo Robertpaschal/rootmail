@@ -441,6 +441,9 @@ export interface WingTier {
   trial_days: number;
   included_sends: number | null;
   block_size: number | null;
+  /** Transactional per-day burst cap: flat (no blocks) and per purchased block. */
+  included_daily_sends: number | null;
+  daily_per_block: number | null;
   allow_overage: boolean;
   overage_per_1000: number;
   included_sub_tenants: number | null;
@@ -466,6 +469,8 @@ export interface TransactionalLadder extends WingLadder {
   blocks: number;
   block_size: number;
   free_sends: number;
+  free_daily_sends: number;
+  daily_per_block: number;
   max_blocks: number;
   brackets: BlockBracket[];
 }
@@ -506,6 +511,9 @@ export interface Billing {
     used: number;
     quota: number;
     remaining: number;
+    /** Transactional sends today vs the block-scaled per-day burst cap (-1 = uncapped). */
+    used_today: number;
+    daily_limit: number;
     overage: number;
     overage_cost: number;
     over_limit: boolean;
@@ -987,7 +995,15 @@ export interface Analytics {
   scope: { sub_tenant_id: string | null; type?: "transactional" | "marketing" | null };
   funnel: { sent: number; delivered: number; opened: number; clicked: number };
   rates: { delivery: number; open: number; click: number; click_to_open: number; bounce: number };
-  series: { date: string; sent: number }[];
+  /** Daily outcomes — sends, deliveries, engagement, and bounces per day. */
+  series: {
+    date: string;
+    sent: number;
+    delivered?: number;
+    opened?: number;
+    clicked?: number;
+    bounced?: number;
+  }[];
   top_templates: {
     template_id: string | null;
     name: string;

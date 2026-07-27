@@ -278,8 +278,16 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
     return serializeThread(await getScopedThread(req, id));
   });
 
-  // --- Simulate an inbound reply (demo; no real inbound provider yet) ------
+  // --- Simulate an inbound reply (a SANDBOX demo tool) ---------------------
   app.post("/v1/threads/:id/simulate-reply", async (req) => {
+    // Live inboxes hold only real email from real people — simulation is a
+    // sandbox affordance, enforced here so no client (API/SDK/CLI/web) can
+    // fabricate a "reply" into a live conversation.
+    if (req.auth.mode === "live") {
+      throw Errors.forbidden(
+        "Simulated replies are a sandbox tool. Switch to your Sandbox workspace to demo the inbox — live conversations only ever contain real email.",
+      );
+    }
     const { id } = req.params as { id: string };
     const body = parse(simulateBody, req.body);
     const thread = await getScopedThread(req, id);

@@ -407,6 +407,13 @@
       "when": 1784720077394,
       "tag": "0057_magical_major_mapleleaf",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1785135776327,
+      "tag": "0058_clumsy_revanche",
+      "breakpoints": true
     }
   ]
 }

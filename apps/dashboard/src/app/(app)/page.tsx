@@ -88,7 +88,8 @@ export default async function OverviewPage() {
   const workspace = me.active_workspace ?? me.workspaces[0] ?? null;
   const usage = billing?.usage;
   const problems = messages.filter((m) => ["bounced", "complained", "failed"].includes(m.status)).length;
-  const recent = messages.slice(0, 6);
+  // Latest 10 — a glance at what's moving, never a page-swallowing table.
+  const recent = messages.slice(0, 10);
 
   // The 30-day journey of ALL your email, as a connected flow — each stage carries
   // its count AND the rate from the stage before, ending in a sender-health chip.
@@ -115,12 +116,22 @@ export default async function OverviewPage() {
   const lastCampaign = campaigns[0] ?? null;
 
   const usedPct = usage && usage.quota > 0 ? Math.min(100, Math.round((usage.used / usage.quota) * 100)) : 0;
-  const contactsPct =
-    usage && usage.contacts_limit > 0
-      ? Math.min(100, Math.round((usage.contacts_used / usage.contacts_limit) * 100))
-      : usage && usage.contacts_used > 0
-        ? 4
-        : 0;
+  const txDailyPct =
+    usage && usage.daily_limit > 0
+      ? Math.min(100, Math.round((usage.used_today / usage.daily_limit) * 100))
+      : 0;
+  // The marketing meter is SEND VOLUME (monthly allowance + daily cap) — its own
+  // counter, fully distinct from the transactional block meter. Contacts are the
+  // pricing base, shown as a stat, not the headline.
+  const mkMonthlyPct =
+    usage && usage.marketing_allowance > 0
+      ? Math.min(100, Math.round((usage.marketing_sent / usage.marketing_allowance) * 100))
+      : 0;
+  const mkDailyPct =
+    usage && usage.marketing_daily_limit > 0
+      ? Math.min(100, Math.round((usage.marketing_sent_today / usage.marketing_daily_limit) * 100))
+      : 0;
+  const money = (n: number) => `$${n.toFixed(2)}`;
 
   const quickActions = [
     { href: "/contacts?add=import", label: "Import contacts", icon: Upload },
@@ -137,14 +148,7 @@ export default async function OverviewPage() {
             <Greeting name={firstName} />
           </h1>
           <p className="text-sm text-muted-foreground">
-            Here&apos;s how {workspace?.name ?? "your workspace"} is doing
-            {billing ? (
-              <>
-                {" "}
-                on the <span className="font-medium text-foreground">{billing.plan.name}</span> plan
-              </>
-            ) : null}{" "}
-            — across both wings.
+            Here&apos;s how {workspace?.name ?? "your workspace"} is doing this period.
           </p>
         </div>
         <Link href="/assistant" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
@@ -259,7 +263,22 @@ export default async function OverviewPage() {
           blurb="Receipts, resets and alerts your app sends one person at a time."
           headline={
             usage
-              ? { value: fmt(usage.used), of: `of ${fmt(usage.quota)} sends`, pct: usedPct, over: usage.over_limit }
+              ? {
+                  value: fmt(usage.used),
+                  of: `of ${fmt(usage.quota)} transactional sends`,
+                  pct: usedPct,
+                  over: usage.over_limit,
+                }
+              : null
+          }
+          secondary={
+            usage && usage.daily_limit !== -1
+              ? {
+                  label: "Today",
+                  text: `${fmt(usage.used_today)} of ${fmt(usage.daily_limit)} daily cap`,
+                  pct: txDailyPct,
+                  over: usage.used_today >= usage.daily_limit,
+                }
               : null
           }
           headlineEmpty="Usage appears here once you start sending."
@@ -293,17 +312,32 @@ export default async function OverviewPage() {
           headline={
             usage
               ? {
-                  value: fmt(usage.contacts_used),
-                  of: usage.contacts_limit === -1 ? "contacts" : `of ${fmt(usage.contacts_limit)} contacts`,
-                  pct: contactsPct,
-                  over: usage.contacts_limit !== -1 && usage.contacts_used >= usage.contacts_limit,
+                  value: fmt(usage.marketing_sent),
+                  of: `of ${fmt(usage.marketing_allowance)} marketing sends`,
+                  pct: mkMonthlyPct,
+                  over: usage.marketing_allowance > 0 && usage.marketing_sent >= usage.marketing_allowance,
+                }
+              : null
+          }
+          secondary={
+            usage
+              ? {
+                  label: "Today",
+                  text: `${fmt(usage.marketing_sent_today)} of ${fmt(usage.marketing_daily_limit)} daily cap`,
+                  pct: mkDailyPct,
+                  over: usage.marketing_daily_limit > 0 && usage.marketing_sent_today >= usage.marketing_daily_limit,
                 }
               : null
           }
           headlineEmpty="Grow an audience to start marketing."
           stats={[
             { label: "Open rate", value: mkStats ? pct(mkOpen) : "—" },
-            { label: "Sent · 30d", value: fmt(mkSent30) },
+            {
+              label: "Contacts",
+              value: usage
+                ? `${fmt(usage.contacts_used)}${usage.contacts_limit === -1 ? "" : ` / ${fmt(usage.contacts_limit)}`}`
+                : fmt(0),
+            },
           ]}
           recent={
             lastCampaign ? (
@@ -404,22 +438,28 @@ export default async function OverviewPage() {
             </Link>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Billing */}
+            {/* What you're billed — the headline number, not the pricing scheme.
+                The full breakdown (and the transactional-vs-marketing definitions)
+                lives on Plan & usage. */}
             <Link
               href="/billing"
               className="-mx-2 flex items-center justify-between rounded-md px-2 py-2 transition-colors hover:bg-secondary/60"
             >
               <span className="flex items-center gap-2 text-sm text-muted-foreground">
-                <CreditCard className="size-4" /> Plan &amp; billing
+                <CreditCard className="size-4" /> Your bill this month
               </span>
               <span className="flex items-center gap-1 text-sm font-semibold">
-                {billing?.plan.name ?? "—"} <ArrowRight className="size-3.5 text-muted-foreground" />
+                {billing ? (billing.summary.custom ? "Custom" : `${money(billing.summary.total)}/mo`) : "—"}
+                <ArrowRight className="size-3.5 text-muted-foreground" />
               </span>
             </Link>
-            {usage ? (
+            {billing && !billing.summary.custom ? (
               <p className="px-0.5 text-xs text-muted-foreground">
-                {fmt(usage.used)}/{fmt(usage.quota)} sends · {fmt(usage.contacts_used)}
-                {usage.contacts_limit === -1 ? "" : `/${fmt(usage.contacts_limit)}`} contacts this period
+                {billing.summary.lines.length + billing.summary.add_ons.length > 0
+                  ? `${billing.summary.lines.length + billing.summary.add_ons.length} item${
+                      billing.summary.lines.length + billing.summary.add_ons.length === 1 ? "" : "s"
+                    } — full breakdown in Plan & usage.`
+                  : "You're on the free allowances — nothing billed."}
               </p>
             ) : null}
 
@@ -450,6 +490,7 @@ function WingCard({
   name,
   blurb,
   headline,
+  secondary,
   headlineEmpty,
   stats,
   recent,
@@ -463,6 +504,8 @@ function WingCard({
   name: string;
   blurb: string;
   headline: { value: string; of: string; pct: number; over: boolean } | null;
+  /** A slim second meter under the headline (e.g. the marketing DAILY cap). */
+  secondary?: { label: string; text: string; pct: number; over: boolean } | null;
   headlineEmpty: string;
   stats: WingStat[];
   recent: React.ReactNode;
@@ -500,6 +543,25 @@ function WingCard({
                 style={{ width: `${headline.pct}%` }}
               />
             </div>
+            {secondary ? (
+              <div className="mt-2.5">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>{secondary.label}</span>
+                  <span className={cn(secondary.over && "font-medium text-red-600 dark:text-red-400")}>
+                    {secondary.text}
+                  </span>
+                </div>
+                <div className="mt-1 h-1 w-full overflow-hidden rounded-full bg-secondary">
+                  <div
+                    className={cn(
+                      "h-full rounded-full",
+                      secondary.over ? "bg-red-500" : secondary.pct > 80 ? "bg-amber-500" : "bg-primary/60",
+                    )}
+                    style={{ width: `${secondary.pct}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
           </div>
         ) : (
           <p className="text-sm text-muted-foreground">{headlineEmpty}</p>

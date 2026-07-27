@@ -15,6 +15,7 @@ import {
   type PlanFeature,
   type PlanId,
   type TierDef,
+  txDailyLimit,
   type Wing,
   WING_TIERS,
 } from "@rootmail/core";
@@ -118,6 +119,12 @@ export function txSendAllowance(org: WingOrg): number {
   const blocks = org.transactionalBlocks ?? 0;
   if (blocks > 0) return blocks * (tx.blockSize ?? BLOCK_SIZE);
   return tx.includedSends ?? 0;
+}
+
+/** Per-DAY transactional cap: blocks × the tier's per-block daily allowance (or
+ * the Free daily cap with no blocks). The same number the pricing pages market. */
+export function txDailyLimitForOrg(org: WingOrg): number {
+  return txDailyLimit(txTierFor(org), org.transactionalBlocks ?? 0);
 }
 
 // --- Marketing: contact SIZE is the base; the tier multiplies it ---------------

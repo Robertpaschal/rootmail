@@ -14,7 +14,6 @@ import {
   Inbox,
   KeyRound,
   LayoutDashboard,
-  LifeBuoy,
   Mail,
   Megaphone,
   Network,
@@ -187,20 +186,8 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
         </nav>
       </LayoutGroup>
 
-      <div className="space-y-2 border-t px-5 py-3">
-        <Link
-          href="/assistant"
-          className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <Sparkles className="size-3.5" /> Ask the assistant for help
-        </Link>
-        <Link
-          href="/contact?topic=support"
-          className="flex items-center gap-2 text-xs text-muted-foreground transition-colors hover:text-foreground"
-        >
-          <LifeBuoy className="size-3.5" /> Contact support
-        </Link>
-      </div>
+      {/* No fixed footer: help (assistant + contact support) rides in the
+          floating Ask-AI launcher, in context on every page. */}
     </aside>
   );
 }

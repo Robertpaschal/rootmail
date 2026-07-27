@@ -120,6 +120,12 @@ export function TransactionalBilling({
               {current > 0
                 ? `You're paying for ${num(current)} block${current === 1 ? "" : "s"} — ${money(currentMonthly)}/mo · ${num(usage.quota)} sends/mo`
                 : `Free allowance · ${num(usage.quota)} sends/mo`}
+              {usage.daily_limit !== -1 ? (
+                <span className="font-normal text-muted-foreground">
+                  {" "}
+                  · up to {num(usage.daily_limit)}/day
+                </span>
+              ) : null}
             </p>
             <p className="text-sm text-muted-foreground">
               {usage.over_limit
@@ -324,7 +330,8 @@ export function TransactionalBilling({
                   <span className="text-muted-foreground">
                     Send blocks ×{clamped}
                     <span className="block text-xs">
-                      {num(sends)} emails/mo
+                      {/* Both limits, exactly as enforced — what's marketed is what runs. */}
+                      {num(sends)} emails/mo · up to {num(clamped * tx.daily_per_block)}/day
                       {changingBlocks ? ` · replaces your ${num(current)}` : ""}
                     </span>
                   </span>
@@ -370,7 +377,7 @@ export function TransactionalBilling({
               </Button>
               {current > 0 ? <FreeButton /> : (
                 <p className="mt-2 text-center text-[11px] text-muted-foreground">
-                  Or stay on Free — {num(tx.free_sends)} sends/mo, no card.
+                  Or stay on Free — {num(tx.free_sends)} sends/mo (up to {num(tx.free_daily_sends)}/day), no card.
                 </p>
               )}
             </CardContent>

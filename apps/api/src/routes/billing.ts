@@ -15,8 +15,10 @@ import {
   FREE_MK_CONTACTS,
   MAX_SELF_SERVE_CONTACTS,
   Errors,
+  FREE_TX_DAILY,
   FREE_TX_SENDS,
   MAX_SELF_SERVE_BLOCKS,
+  TX_DAILY_PER_BLOCK,
   newId,
   type PlanDef,
   saleActive,
@@ -88,6 +90,9 @@ function serializeTier(t: TierDef) {
     features: t.features,
     trial_days: t.trialDays,
     included_sends: t.includedSends ?? null,
+    // Transactional: the per-day burst cap the plan markets AND enforces.
+    included_daily_sends: t.includedDailySends ?? null,
+    daily_per_block: t.dailyPerBlock ?? null,
     block_size: t.blockSize ?? null,
     allow_overage: t.allowOverage ?? false,
     overage_per_1000: t.overagePer1000 ?? 0,
@@ -111,6 +116,8 @@ function wingsPayload(org: Organization) {
       blocks: org.transactionalBlocks,
       block_size: BLOCK_SIZE,
       free_sends: FREE_TX_SENDS,
+      free_daily_sends: FREE_TX_DAILY,
+      daily_per_block: TX_DAILY_PER_BLOCK,
       max_blocks: MAX_SELF_SERVE_BLOCKS,
       brackets: BLOCK_BRACKETS.map((b) => ({ up_to_blocks: b.upToBlocks, per_block: b.perBlock })),
       tiers: tiersForWing("transactional").map(serializeTier),
@@ -244,6 +251,9 @@ async function billingPayload(org: Organization, usage: QuotaState) {
       used: usage.used,
       quota: usage.quota,
       remaining: usage.remaining,
+      // Transactional volume carries a per-day burst cap alongside the monthly one.
+      used_today: usage.used_today,
+      daily_limit: usage.daily_limit,
       overage: usage.overage,
       overage_cost: usage.overage_cost,
       over_limit: usage.over_limit,
@@ -314,6 +324,8 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
       wings: {
         transactional: {
           free_sends: FREE_TX_SENDS,
+          free_daily_sends: FREE_TX_DAILY,
+          daily_per_block: TX_DAILY_PER_BLOCK,
           block_size: BLOCK_SIZE,
           max_blocks: MAX_SELF_SERVE_BLOCKS,
           brackets: BLOCK_BRACKETS.map((b) => ({ up_to_blocks: b.upToBlocks, per_block: b.perBlock })),

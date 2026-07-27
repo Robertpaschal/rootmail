@@ -14,7 +14,7 @@ import {
   WEBHOOK_EVENTS,
   wingBrandingRequired,
 } from "@rootmail/core";
-import { activeReplyDomain, auditEntries, contacts, db, marketingDailyUsage, messages, openConversationForSend, organizations, resolveReplyTo, suppressions, usageRecords } from "@rootmail/db";
+import { activeReplyDomain, auditEntries, contacts, db, marketingDailyUsage, messages, openConversationForSend, organizations, resolveReplyTo, suppressions, transactionalDailyUsage, usageRecords } from "@rootmail/db";
 
 // Shared send primitive for worker-driven automation (sequences + campaigns).
 // Mirrors the API's dispatchMessage (apps/api/src/lib/dispatch.ts) but lives in
@@ -234,14 +234,25 @@ export async function automationSend(
           ? { marketingSent: sql`${usageRecords.marketingSent} + 1`, updatedAt: new Date() }
           : { emailsSent: sql`${usageRecords.emailsSent} + 1`, updatedAt: new Date() },
       });
+    // Both wings carry a per-DAY cap as well as the monthly one, so both day
+    // counters advance here (capacity was asserted up front at the campaign /
+    // sequence entry point).
+    const day = new Date().toISOString().slice(0, 10);
     if (isMarketing) {
-      const day = new Date().toISOString().slice(0, 10);
       await db
         .insert(marketingDailyUsage)
         .values({ id: newId("usage"), organizationId: input.organizationId, day, sent: 1 })
         .onConflictDoUpdate({
           target: [marketingDailyUsage.organizationId, marketingDailyUsage.day],
           set: { sent: sql`${marketingDailyUsage.sent} + 1`, updatedAt: new Date() },
+        });
+    } else {
+      await db
+        .insert(transactionalDailyUsage)
+        .values({ id: newId("usage"), organizationId: input.organizationId, day, sent: 1 })
+        .onConflictDoUpdate({
+          target: [transactionalDailyUsage.organizationId, transactionalDailyUsage.day],
+          set: { sent: sql`${transactionalDailyUsage.sent} + 1`, updatedAt: new Date() },
         });
     }
   }

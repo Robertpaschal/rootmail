@@ -37,8 +37,9 @@ import { writeAudit } from "../lib/audit";
 import {
   assertEmailVerified,
   assertMarketingSendCapacity,
-  planFor,
+  assertTransactionalSendCapacity,
   recordMarketingSend,
+  recordTransactionalDaily,
   recordSend,
   sendKindOf,
   tryConsumeMarketing,
@@ -199,12 +200,11 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     if (mode === "live" && org) {
       await assertEmailVerified(org);
       if (sendKind === "transactional") {
+        // Transactional volume is metered against the monthly allowance AND the
+        // per-day burst cap — same two walls whether this call came from the web
+        // app, the SDK, the CLI, or a raw HTTP request.
         if (!(await tryConsumeQuota(org))) {
-          const plan = planFor(org);
-          throw Errors.quotaExceeded(
-            `You've used your free ${plan.monthlyQuota.toLocaleString()} transactional emails this month. Buy send blocks (25,000 emails each) to keep sending.`,
-            { quota: plan.monthlyQuota, wing: "transactional", upgrade_url: "/billing/transactional" },
-          );
+          await assertTransactionalSendCapacity(org, 1); // throws the specific 402 (monthly vs daily)
         }
       } else if (!(await tryConsumeMarketing(org))) {
         // Marketing volume is metered against the contact-scaled monthly + daily caps.
@@ -368,7 +368,10 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       // did) — refund the reservation so the duplicate doesn't over-count.
       if (mode === "live" && org) {
         if (sendKind === "marketing") await recordMarketingSend(org.id, -1);
-        else await recordSend(org.id, -1, sendKind);
+        else {
+          await recordSend(org.id, -1, sendKind);
+          await recordTransactionalDaily(org.id, -1); // the day counter too
+        }
       }
       void reply.header("Idempotent-Replayed", "true");
       return reply.status(200).send(serializeMessage(existing));

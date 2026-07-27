@@ -60,20 +60,65 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
     const opened = await engagement("opened");
     const clicked = await engagement("clicked");
 
-    // Daily send series, gap-filled so the chart is evenly spaced.
+    // Daily series — sends AND outcomes per day, gap-filled so charts are evenly
+    // spaced. Delivery/bounce come from message status; opens/clicks from the
+    // audit trail (status stays "delivered"). This powers the engagement trend
+    // lines in Analytics and the delivery-health trend in Deliverability.
     const dayRows = await db
       .select({
         day: sql<string>`to_char(date_trunc('day', ${messages.createdAt}), 'YYYY-MM-DD')`,
+        status: messages.status,
         n: sql<number>`count(*)::int`,
       })
       .from(messages)
       .where(and(...base))
-      .groupBy(sql`date_trunc('day', ${messages.createdAt})`);
-    const counts = new Map(dayRows.map((r) => [r.day, r.n]));
-    const series: { date: string; sent: number }[] = [];
+      .groupBy(sql`date_trunc('day', ${messages.createdAt})`, messages.status);
+    const byDay = new Map<string, { sent: number; delivered: number; bounced: number }>();
+    for (const r of dayRows) {
+      const d = byDay.get(r.day) ?? { sent: 0, delivered: 0, bounced: 0 };
+      // "Sent" = left for the provider (same definition as the headline funnel).
+      if (["delivered", "bounced", "complained", "sent"].includes(r.status)) d.sent += r.n;
+      if (r.status === "delivered") d.delivered += r.n;
+      if (r.status === "bounced" || r.status === "complained") d.bounced += r.n;
+      byDay.set(r.day, d);
+    }
+    const engRows = await db
+      .select({
+        day: sql<string>`to_char(date_trunc('day', ${auditEntries.occurredAt}), 'YYYY-MM-DD')`,
+        event: auditEntries.event,
+        n: sql<number>`count(distinct ${auditEntries.messageId})::int`,
+      })
+      .from(auditEntries)
+      .innerJoin(messages, eq(auditEntries.messageId, messages.id))
+      .where(and(inArray(auditEntries.event, ["opened", "clicked"]), ...base))
+      .groupBy(sql`date_trunc('day', ${auditEntries.occurredAt})`, auditEntries.event);
+    const engByDay = new Map<string, { opened: number; clicked: number }>();
+    for (const r of engRows) {
+      const d = engByDay.get(r.day) ?? { opened: 0, clicked: 0 };
+      if (r.event === "opened") d.opened += r.n;
+      else d.clicked += r.n;
+      engByDay.set(r.day, d);
+    }
+    const series: {
+      date: string;
+      sent: number;
+      delivered: number;
+      opened: number;
+      clicked: number;
+      bounced: number;
+    }[] = [];
     for (let i = q.window_days - 1; i >= 0; i--) {
       const d = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
-      series.push({ date: d, sent: counts.get(d) ?? 0 });
+      const day = byDay.get(d);
+      const eng = engByDay.get(d);
+      series.push({
+        date: d,
+        sent: day?.sent ?? 0,
+        delivered: day?.delivered ?? 0,
+        opened: eng?.opened ?? 0,
+        clicked: eng?.clicked ?? 0,
+        bounced: day?.bounced ?? 0,
+      });
     }
 
     // Top templates by volume in the window.

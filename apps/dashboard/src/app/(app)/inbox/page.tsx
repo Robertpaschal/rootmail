@@ -11,6 +11,10 @@ export default async function InboxPage() {
   let threads: Thread[] = [];
   let failed: string | null = null;
   let isApiErr = false;
+  // Demo tools (simulate a reply) exist only in the sandbox — live is truly live.
+  const me = await api.me().catch(() => null);
+  const ws = me?.active_workspace ?? me?.workspaces?.[0] ?? null;
+  const sandbox = ws?.environment === "test";
   try {
     threads = (await api.listThreads()).data;
   } catch (err) {
@@ -40,7 +44,7 @@ export default async function InboxPage() {
       {failed ? (
         <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
       ) : (
-        <InboxView threads={threads} initialDetails={initialDetails} initialContact={firstContact} />
+        <InboxView threads={threads} initialDetails={initialDetails} initialContact={firstContact} sandbox={sandbox} />
       )}
     </>
   );

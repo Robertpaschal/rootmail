@@ -2,6 +2,7 @@ import Link from "next/link";
 import { CheckCircle2, Eye, Megaphone, MousePointerClick, Send, TriangleAlert, Zap } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { PageHeader } from "@/components/app/page-header";
+import { TrendChart } from "@/components/app/trend-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
@@ -95,7 +96,6 @@ export default async function AnalyticsPage({
     { label: "Clicked", value: a.funnel.clicked, hint: `${a.rates.click}% click rate`, icon: MousePointerClick },
     { label: "Bounced / spam", value: `${a.rates.bounce}%`, hint: "of sent — keep under 2%", icon: TriangleAlert, tone: bounceTone },
   ] as { label: string; value: number | string; hint: string; icon: typeof Send; tone?: string }[];
-  const maxDay = Math.max(1, ...a.series.map((d) => d.sent));
   const noData = a.funnel.sent === 0;
 
   return (
@@ -136,23 +136,20 @@ export default async function AnalyticsPage({
           <>
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Sends per day</CardTitle>
+                <CardTitle className="text-base">Trends · last {a.window_days} days</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex h-36 items-end gap-0.5">
-                  {a.series.map((d) => (
-                    <div
-                      key={d.date}
-                      className="flex-1 rounded-t bg-primary/80 transition-colors hover:bg-primary"
-                      style={{ height: `${Math.max(2, (d.sent / maxDay) * 100)}%` }}
-                      title={`${d.date}: ${d.sent} sent`}
-                    />
-                  ))}
-                </div>
-                <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-                  <span>{a.series[0]?.date}</span>
-                  <span>{a.series[a.series.length - 1]?.date}</span>
-                </div>
+                {/* The journey as lines, day by day — sent, delivered, opened,
+                    clicked move together when things are healthy. */}
+                <TrendChart
+                  dates={a.series.map((d) => d.date)}
+                  series={[
+                    { label: "Sent", className: "text-muted-foreground/70", values: a.series.map((d) => d.sent) },
+                    { label: "Delivered", className: "text-emerald-500", values: a.series.map((d) => d.delivered ?? 0) },
+                    { label: "Opened", className: "text-sky-500", values: a.series.map((d) => d.opened ?? 0) },
+                    { label: "Clicked", className: "text-violet-500", values: a.series.map((d) => d.clicked ?? 0) },
+                  ]}
+                />
               </CardContent>
             </Card>
 

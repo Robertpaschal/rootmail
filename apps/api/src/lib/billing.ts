@@ -7,6 +7,7 @@ import {
   marketingDailyUsage,
   memberships,
   type Organization,
+  transactionalDailyUsage,
   usageRecords,
   users,
   workspaces,
@@ -20,6 +21,7 @@ import {
   marketingDailyLimitForOrg,
   marketingSendAllowanceForOrg,
   mkTierFor,
+  txDailyLimitForOrg,
   type WingOrg,
 } from "./wings";
 
@@ -133,6 +135,36 @@ export async function audienceCapacityForOrg(org: BillableOrg): Promise<number> 
 /** UTC day key "YYYY-MM-DD" for the per-day marketing cap. */
 export function currentDay(d = new Date()): string {
   return d.toISOString().slice(0, 10);
+}
+
+/** Transactional sends TODAY (against the block-scaled daily burst cap). */
+export async function getTransactionalDaily(
+  organizationId: string,
+  day = currentDay(),
+): Promise<number> {
+  const [row] = await db
+    .select({ n: transactionalDailyUsage.sent })
+    .from(transactionalDailyUsage)
+    .where(
+      and(
+        eq(transactionalDailyUsage.organizationId, organizationId),
+        eq(transactionalDailyUsage.day, day),
+      ),
+    )
+    .limit(1);
+  return row?.n ?? 0;
+}
+
+/** Add `n` to today's transactional counter (upsert). Negative `n` refunds. */
+export async function recordTransactionalDaily(organizationId: string, n = 1): Promise<void> {
+  const day = currentDay();
+  await db
+    .insert(transactionalDailyUsage)
+    .values({ id: newId("usage"), organizationId, day, sent: n })
+    .onConflictDoUpdate({
+      target: [transactionalDailyUsage.organizationId, transactionalDailyUsage.day],
+      set: { sent: sql`${transactionalDailyUsage.sent} + ${n}`, updatedAt: new Date() },
+    });
 }
 
 /** Marketing sends TODAY (against the contact-scaled daily cap). */
@@ -288,28 +320,88 @@ export async function assertContactCapacity(org: BillableOrg, adding = 1): Promi
  */
 export async function tryConsumeQuota(org: BillableOrg, n = 1): Promise<boolean> {
   const plan = planFor(org);
+  const daily = txDailyLimitForOrg(org);
+  const period = currentPeriod();
+  const day = currentDay();
+
+  // 1) Monthly. Block customers are never volume-blocked (excess bills as
+  //    overage); the Free allowance is a hard, atomically-checked cap.
   if (plan.allowOverage) {
     await recordSend(org.id, n);
+  } else {
+    await db
+      .insert(usageRecords)
+      .values({ id: newId("usage"), organizationId: org.id, period, emailsSent: 0 })
+      .onConflictDoNothing({ target: [usageRecords.organizationId, usageRecords.period] });
+    const updated = await db
+      .update(usageRecords)
+      .set({ emailsSent: sql`${usageRecords.emailsSent} + ${n}`, updatedAt: new Date() })
+      .where(
+        and(
+          eq(usageRecords.organizationId, org.id),
+          eq(usageRecords.period, period),
+          sql`${usageRecords.emailsSent} + ${n} <= ${plan.monthlyQuota}`,
+        ),
+      )
+      .returning({ id: usageRecords.id });
+    if (updated.length === 0) return false;
+  }
+
+  // 2) Daily burst cap — applies to EVERY transactional plan (a block customer
+  //    with a runaway loop still hits a wall). -1 = uncapped.
+  if (daily === -1) {
+    await recordTransactionalDaily(org.id, n);
     return true;
   }
-  const period = currentPeriod();
-  // Ensure the counter row exists, then increment only if it stays within cap.
   await db
-    .insert(usageRecords)
-    .values({ id: newId("usage"), organizationId: org.id, period, emailsSent: 0 })
-    .onConflictDoNothing({ target: [usageRecords.organizationId, usageRecords.period] });
-  const updated = await db
-    .update(usageRecords)
-    .set({ emailsSent: sql`${usageRecords.emailsSent} + ${n}`, updatedAt: new Date() })
+    .insert(transactionalDailyUsage)
+    .values({ id: newId("usage"), organizationId: org.id, day, sent: 0 })
+    .onConflictDoNothing({ target: [transactionalDailyUsage.organizationId, transactionalDailyUsage.day] });
+  const d = await db
+    .update(transactionalDailyUsage)
+    .set({ sent: sql`${transactionalDailyUsage.sent} + ${n}`, updatedAt: new Date() })
     .where(
       and(
-        eq(usageRecords.organizationId, org.id),
-        eq(usageRecords.period, period),
-        sql`${usageRecords.emailsSent} + ${n} <= ${plan.monthlyQuota}`,
+        eq(transactionalDailyUsage.organizationId, org.id),
+        eq(transactionalDailyUsage.day, day),
+        sql`${transactionalDailyUsage.sent} + ${n} <= ${daily}`,
       ),
     )
-    .returning({ id: usageRecords.id });
-  return updated.length > 0;
+    .returning({ id: transactionalDailyUsage.id });
+  if (d.length === 0) {
+    // Daily cap hit → hand the monthly reservation back so it isn't burned.
+    await recordSend(org.id, -n);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * The specific 402 for a blocked transactional send — monthly allowance vs the
+ * daily burst cap, so the message tells the caller which wall they hit and what
+ * to do. Called after tryConsumeQuota returns false.
+ */
+export async function assertTransactionalSendCapacity(org: BillableOrg, n = 1): Promise<void> {
+  const plan = planFor(org);
+  const daily = txDailyLimitForOrg(org);
+  const [used, usedToday] = await Promise.all([getUsage(org.id), getTransactionalDaily(org.id)]);
+  if (!plan.allowOverage && used + n > plan.monthlyQuota) {
+    throw Errors.quotaExceeded(
+      `You've used your free ${plan.monthlyQuota.toLocaleString()} transactional emails this month. Buy send blocks (25,000 emails each) to keep sending.`,
+      { quota: plan.monthlyQuota, used, wing: "transactional", upgrade_url: "/billing/transactional" },
+    );
+  }
+  if (daily !== -1 && usedToday + n > daily) {
+    throw Errors.quotaExceeded(
+      `This send would pass your ${daily.toLocaleString()}/day transactional cap (${Math.max(0, daily - usedToday).toLocaleString()} left today). It resets at midnight UTC — or add send blocks to raise it.`,
+      {
+        transactional_daily_used: usedToday,
+        transactional_daily_limit: daily,
+        wing: "transactional",
+        upgrade_url: "/billing/transactional",
+      },
+    );
+  }
 }
 
 /** AI template drafts used this calendar month (metered against AI credits). */
@@ -402,6 +494,9 @@ export interface QuotaState {
   used: number;
   quota: number;
   remaining: number;
+  /** Transactional sends today vs the block-scaled per-day burst cap. */
+  used_today: number;
+  daily_limit: number;
   overage: number;
   overage_cost: number;
   over_limit: boolean;
@@ -420,9 +515,10 @@ export interface QuotaState {
 
 export async function quotaState(org: Organization): Promise<QuotaState> {
   const plan = planFor(org);
-  const [used, marketingSent, marketingToday, contactsUsed, audiencesUsed, contactPacks, audiencePacks] =
+  const [used, usedToday, marketingSent, marketingToday, contactsUsed, audiencesUsed, contactPacks, audiencePacks] =
     await Promise.all([
       getUsage(org.id),
+      getTransactionalDaily(org.id),
       getMarketingUsage(org.id),
       getMarketingDaily(org.id),
       billableContacts(org.id),
@@ -438,6 +534,8 @@ export async function quotaState(org: Organization): Promise<QuotaState> {
     used,
     quota: plan.monthlyQuota,
     remaining: plan.monthlyQuota - used,
+    used_today: usedToday,
+    daily_limit: txDailyLimitForOrg(org),
     overage,
     // Overage billed per started 1,000.
     overage_cost: Math.ceil(overage / 1000) * plan.overagePer1000,
@@ -484,13 +582,7 @@ export async function assertEmailVerified(org: Organization): Promise<void> {
  */
 export async function assertCanSend(org: Organization): Promise<void> {
   await assertEmailVerified(org);
-  const plan = planFor(org);
-  if (plan.allowOverage) return;
-  const used = await getUsage(org.id);
-  if (used >= plan.monthlyQuota) {
-    throw Errors.quotaExceeded(
-      `You've used your free ${plan.monthlyQuota.toLocaleString()} transactional emails this month. Buy send blocks (25,000 emails each) to keep sending.`,
-      { quota: plan.monthlyQuota, wing: "transactional", upgrade_url: "/billing/transactional" },
-    );
-  }
+  // Both walls, every time: the monthly allowance AND the per-day burst cap.
+  // (assertTransactionalSendCapacity throws the specific 402 for whichever is hit.)
+  await assertTransactionalSendCapacity(org, 1);
 }
