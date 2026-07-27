@@ -29,7 +29,10 @@ import { relativeTime } from "@/lib/format";
 import { api } from "@/lib/rootmail";
 import { cn } from "@/lib/utils";
 
-const fmt = (n: number) => n.toLocaleString();
+// Tolerate a missing number: the dashboard and API deploy separately, so a
+// newer page must never white-screen against a field an older API hasn't
+// started sending yet.
+const fmt = (n: number | undefined | null) => (n ?? 0).toLocaleString();
 const pct = (n: number) => `${Math.round(n)}%`;
 
 function gradeTone(grade: string | null): string {
@@ -116,10 +119,10 @@ export default async function OverviewPage() {
   const lastCampaign = campaigns[0] ?? null;
 
   const usedPct = usage && usage.quota > 0 ? Math.min(100, Math.round((usage.used / usage.quota) * 100)) : 0;
+  // Older API → no daily fields; show the monthly meter alone rather than break.
+  const txDaily = usage?.daily_limit ?? -1;
   const txDailyPct =
-    usage && usage.daily_limit > 0
-      ? Math.min(100, Math.round((usage.used_today / usage.daily_limit) * 100))
-      : 0;
+    usage && txDaily > 0 ? Math.min(100, Math.round(((usage.used_today ?? 0) / txDaily) * 100)) : 0;
   // The marketing meter is SEND VOLUME (monthly allowance + daily cap) — its own
   // counter, fully distinct from the transactional block meter. Contacts are the
   // pricing base, shown as a stat, not the headline.
@@ -272,12 +275,12 @@ export default async function OverviewPage() {
               : null
           }
           secondary={
-            usage && usage.daily_limit !== -1
+            usage && txDaily > 0
               ? {
                   label: "Today",
-                  text: `${fmt(usage.used_today)} of ${fmt(usage.daily_limit)} daily cap`,
+                  text: `${fmt(usage.used_today)} of ${fmt(txDaily)} daily cap`,
                   pct: txDailyPct,
-                  over: usage.used_today >= usage.daily_limit,
+                  over: (usage.used_today ?? 0) >= txDaily,
                 }
               : null
           }

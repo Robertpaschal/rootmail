@@ -77,8 +77,9 @@ export default async function BillingPage({
   const allAddons = billing.addons_catalog;
 
   const txPct = Math.round((usage.used / Math.max(1, usage.quota)) * 100);
-  const txDailyPct =
-    usage.daily_limit > 0 ? Math.round((usage.used_today / usage.daily_limit) * 100) : 0;
+  // An older API may not send the daily fields yet — hide that meter, don't crash.
+  const txDaily = usage.daily_limit ?? -1;
+  const txDailyPct = txDaily > 0 ? Math.round(((usage.used_today ?? 0) / txDaily) * 100) : 0;
   const mkPct = usage.marketing_allowance > 0 ? Math.round((usage.marketing_sent / usage.marketing_allowance) * 100) : 0;
   const mkDailyPct =
     usage.marketing_daily_limit > 0
@@ -132,18 +133,18 @@ export default async function BillingPage({
               <span className="text-xs text-muted-foreground">sends this month</span>
             </div>
             <Meter pct={txPct} tone={usage.over_limit ? "bg-destructive" : txPct > 80 ? "bg-amber-500" : "bg-primary"} />
-            {usage.daily_limit !== -1 ? (
+            {txDaily > 0 ? (
               <>
                 <div className="flex items-baseline justify-between text-xs text-muted-foreground">
                   <span>Today</span>
                   <span>
-                    {num(usage.used_today)} / {num(usage.daily_limit)} daily cap
+                    {num(usage.used_today ?? 0)} / {num(txDaily)} daily cap
                   </span>
                 </div>
                 <Meter
                   pct={txDailyPct}
                   tone={
-                    usage.used_today >= usage.daily_limit
+                    (usage.used_today ?? 0) >= txDaily
                       ? "bg-destructive"
                       : txDailyPct > 80
                         ? "bg-amber-500"

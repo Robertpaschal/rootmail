@@ -1070,3 +1070,29 @@ export interface Deliverability {
   factors: DeliverabilityFactor[];
   recommendations: string[];
 }
+
+/** A support conversation with the rootmail team (human, not the AI assistant). */
+export interface SupportMessage {
+  object: "support_message";
+  id: string;
+  ticket_id: string;
+  author: "customer" | "staff";
+  staff_user_id: string | null;
+  body: string;
+  created_at: string;
+}
+
+export interface SupportTicket {
+  object: "support_ticket";
+  id: string;
+  organization_id: string | null;
+  email: string;
+  name: string | null;
+  subject: string | null;
+  status: "open" | "closed";
+  handled_by_staff_id: string | null;
+  last_message_at: string;
+  created_at: string;
+  /** Present on GET /v1/support/:id and after a reply. */
+  messages?: SupportMessage[];
+}

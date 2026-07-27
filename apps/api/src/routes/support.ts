@@ -83,6 +83,64 @@ export async function supportRoutes(app: FastifyInstance): Promise<void> {
     return { ...serializeTicket(ticket), ticket_id: ticket.id };
   });
 
+  // ---- Customer: my conversations with the support team -------------------
+  // The customer half of the ticket system: staff already reply + close from the
+  // admin inbox, but until now a customer could only ever FILE. These three make
+  // it a real two-way conversation in the product.
+  app.get("/v1/support", async (req) => {
+    requireUser(req);
+    const org = await loadOrg(req);
+    const rows = await db
+      .select()
+      .from(supportTickets)
+      .where(eq(supportTickets.organizationId, org.id))
+      .orderBy(desc(supportTickets.lastMessageAt))
+      .limit(50);
+    return { object: "list", data: rows.map(serializeTicket) };
+  });
+
+  app.get("/v1/support/:id", async (req) => {
+    requireUser(req);
+    const org = await loadOrg(req);
+    const { id } = req.params as { id: string };
+    const [ticket] = await db.select().from(supportTickets).where(eq(supportTickets.id, id)).limit(1);
+    // Scope to the caller's org — a ticket id is never enough on its own.
+    if (!ticket || ticket.organizationId !== org.id) throw Errors.notFound(`Ticket ${id} not found`);
+    const msgs = await db
+      .select()
+      .from(supportMessages)
+      .where(eq(supportMessages.ticketId, ticket.id))
+      .orderBy(asc(supportMessages.createdAt));
+    return { ...serializeTicket(ticket), messages: msgs.map(serializeMessage) };
+  });
+
+  app.post("/v1/support/:id/reply", async (req) => {
+    requireUser(req);
+    const org = await loadOrg(req);
+    const { id } = req.params as { id: string };
+    const body = parse(z.object({ message: z.string().trim().min(1).max(8000) }), req.body);
+    const [ticket] = await db.select().from(supportTickets).where(eq(supportTickets.id, id)).limit(1);
+    if (!ticket || ticket.organizationId !== org.id) throw Errors.notFound(`Ticket ${id} not found`);
+    await db.insert(supportMessages).values({
+      id: newId("supportMessage"),
+      ticketId: ticket.id,
+      author: "customer",
+      body: body.message,
+    });
+    // A customer reply reopens a closed conversation — writing back IS the ask.
+    const [updated] = await db
+      .update(supportTickets)
+      .set({ status: "open", lastMessageAt: new Date(), updatedAt: new Date() })
+      .where(eq(supportTickets.id, ticket.id))
+      .returning();
+    const msgs = await db
+      .select()
+      .from(supportMessages)
+      .where(eq(supportMessages.ticketId, ticket.id))
+      .orderBy(asc(supportMessages.createdAt));
+    return { ...serializeTicket(updated), messages: msgs.map(serializeMessage) };
+  });
+
   // ---- Staff: support inbox (support.manage) ------------------------------
   app.get("/v1/admin/support", async (req) => {
     requireStaffPermission(await requireStaff(req), "support.manage");

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import { ArrowUpRight, GripHorizontal, Loader2, PanelRight, PictureInPicture2, Send, Sparkles, X } from "lucide-react";
+import { ArrowUpRight, GripHorizontal, Headset, Loader2, MessagesSquare, PanelRight, PictureInPicture2, Send, Sparkles, X } from "lucide-react";
 import {
   createChat,
   getAiCredits,
@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/components/app/ai-credit-meter";
+import { SupportPane } from "@/components/app/support-pane";
 import { cn } from "@/lib/utils";
 
 // Context-aware starters: what the assistant can do RIGHT HERE, keyed by the
@@ -36,12 +37,17 @@ const DEFAULT_CTX = { hint: "your email", prompts: ["Set up a welcome sequence",
 type Mode = "float" | "drawer";
 const MODE_KEY = "rm_assistant_mode";
 
+/** The bubble is ONE door to two conversations: the AI assistant and a real
+ * person on the support team. Which one you're in is always explicit. */
+type Pane = "assistant" | "support";
+
 let tmp = 0;
 const tempId = () => `l_${Date.now()}_${tmp++}`;
 
 export function AssistantLauncher() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const [pane, setPane] = useState<Pane>("assistant");
   const [mode, setMode] = useState<Mode>("float");
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
@@ -131,12 +137,30 @@ export function AssistantLauncher() {
     >
       <div className="flex min-w-0 items-center gap-2">
         {floating ? <GripHorizontal className="size-4 shrink-0 text-muted-foreground/40" /> : null}
-        <span className="grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-          <Sparkles className="size-4" />
+        {/* WHO you're talking to — the AI or a person — never ambiguous. */}
+        <span
+          className={cn(
+            "grid size-7 shrink-0 place-items-center rounded-lg",
+            pane === "assistant"
+              ? "bg-primary/10 text-primary"
+              : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+          )}
+        >
+          {pane === "assistant" ? <Sparkles className="size-4" /> : <Headset className="size-4" />}
         </span>
         <div className="min-w-0 leading-tight">
-          <p className="truncate text-sm font-semibold">Assistant</p>
-          {credits ? <CreditMeter credits={credits} /> : <span className="text-[11px] text-muted-foreground">Here to help with {ctx.hint}</span>}
+          <p className="truncate text-sm font-semibold">
+            {pane === "assistant" ? "AI assistant" : "Support team"}
+          </p>
+          {pane === "assistant" ? (
+            credits ? (
+              <CreditMeter credits={credits} />
+            ) : (
+              <span className="text-[11px] text-muted-foreground">Here to help with {ctx.hint}</span>
+            )
+          ) : (
+            <span className="text-[11px] text-muted-foreground">You&apos;re talking to a real person</span>
+          )}
         </div>
       </div>
       {/* Controls must not start a drag. */}
@@ -160,7 +184,39 @@ export function AssistantLauncher() {
     </div>
   );
 
-  const body = (
+  // The pane switch — two tabs, like every chat product: talk to the AI, or talk
+  // to a person, without losing either conversation.
+  const paneTabs = (
+    <div className="flex shrink-0 gap-1 border-b px-3 py-2">
+      {([
+        { id: "assistant" as const, label: "AI assistant", Icon: Sparkles },
+        { id: "support" as const, label: "Support", Icon: Headset },
+      ]).map((t) => {
+        const on = pane === t.id;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            onClick={() => setPane(t.id)}
+            aria-pressed={on}
+            className={cn(
+              "relative inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+              on ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {on ? (
+              <motion.span layoutId="help-pane-tab" className="absolute inset-0 rounded-md bg-secondary" transition={{ type: "spring", stiffness: 400, damping: 32 }} />
+            ) : null}
+            <span className="relative z-10 flex items-center gap-1.5">
+              <t.Icon className="size-3.5" /> {t.label}
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const assistantBody = (
     <>
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 ? (
@@ -217,19 +273,33 @@ export function AssistantLauncher() {
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
           </Button>
         </form>
-        {/* Help lives WITH the assistant — the same escalation path in every mode,
-            so the sidebar doesn't need a permanent support corner. */}
-        <p className="mt-2 px-1 text-center text-[11px] text-muted-foreground">
-          Need a human?{" "}
-          <Link
-            href="/contact?topic=support"
-            onClick={() => setOpen(false)}
-            className="font-medium text-primary hover:underline"
-          >
-            Contact support
-          </Link>
-        </p>
+        {/* The handoff: escalate to a person WITHOUT losing what you just said —
+            the transcript rides along so support lands mid-problem. */}
+        <button
+          type="button"
+          onClick={() => setPane("support")}
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md py-1 text-[11px] text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+        >
+          <Headset className="size-3" />
+          {messages.length > 0 ? "Talk to a human about this instead" : "Talk to a human instead"}
+        </button>
       </div>
+    </>
+  );
+
+  // The handoff transcript — the last few turns, so the team sees the context.
+  const handoff =
+    messages.length > 0
+      ? messages
+          .slice(-6)
+          .map((m) => `${m.role === "user" ? "Me" : "Assistant"}: ${m.content}`)
+          .join("\n")
+      : undefined;
+
+  const body = (
+    <>
+      {paneTabs}
+      {pane === "assistant" ? assistantBody : <SupportPane handoffContext={handoff} />}
     </>
   );
 
@@ -248,9 +318,10 @@ export function AssistantLauncher() {
             whileHover={{ y: -2 }}
             whileTap={{ scale: 0.95 }}
             className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full bg-primary py-3 pl-3.5 pr-4 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90"
-            aria-label="Ask the assistant"
+            aria-label="Get help — AI assistant or the support team"
           >
-            <Sparkles className="size-4" /> Ask AI
+            {/* ONE door to both conversations, so the label can't imply only one. */}
+            <MessagesSquare className="size-4" /> Help
           </motion.button>
         ) : null}
       </AnimatePresence>

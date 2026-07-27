@@ -466,12 +466,12 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
               {credits ? <CreditMeter credits={credits} className="shrink-0" /> : null}
             </div>
           </form>
-          {/* Same escalation path as the floating + docked modes: help is always
-              one line under the composer, never a separate sidebar corner. */}
+          {/* Same escalation path as the floating + docked modes — one tap from
+              the AI to a real person, without leaving the help surface. */}
           <p className="mt-2 text-center text-[11px] text-muted-foreground">
             Need a human?{" "}
-            <Link href="/contact?topic=support" className="font-medium text-primary hover:underline">
-              Contact support
+            <Link href="/assistant?pane=support" className="font-medium text-primary hover:underline">
+              Talk to the support team
             </Link>
           </p>
         </CardContent>

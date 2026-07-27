@@ -43,6 +43,7 @@ import type {
   SequenceAnalytics,
   ScimTokenResult,
   SsoConnection,
+  SupportTicket,
   SsoConnectionInput,
   SsoConnectionResult,
   SequenceStepDef,
@@ -601,7 +602,12 @@ export const api = {
   // Support is customer care, NOT a sales lead — it files a ticket under the
   // signed-in user's org; staff reply (emailed) + close from the admin support inbox.
   createSupportTicket: (body: { subject?: string; message: string }) =>
-    rmFetch<{ ticket_id: string }>("/v1/support", { method: "POST", body }),
+    rmFetch<SupportTicket & { ticket_id: string }>("/v1/support", { method: "POST", body }),
+  /** The customer half of support: read the thread and write back in-app. */
+  listSupportTickets: () => rmFetch<ListResponse<SupportTicket>>("/v1/support"),
+  getSupportTicket: (id: string) => rmFetch<SupportTicket>(`/v1/support/${id}`),
+  replySupportTicket: (id: string, body: { message: string }) =>
+    rmFetch<SupportTicket>(`/v1/support/${id}/reply`, { method: "POST", body }),
 };
 
 /**
