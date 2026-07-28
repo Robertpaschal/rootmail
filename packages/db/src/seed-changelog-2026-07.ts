@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A message now reads like an email, not a stack of boxes",
+    date: "2026-07-28",
+    changes: [
+      {
+        kind: "Improved",
+        text: "The message page used to split one email across four cards — Content, Recipient, Details, Developer details — in two columns. They're now one thing: who it went to at the top, the message in the middle, attachments at the bottom, the way a mail client shows it.",
+      },
+      {
+        kind: "Improved",
+        text: "Everything else hides behind the header chevron you already know from Gmail: click it for from / reply-to / to / date / subject / what it was sent as — and the developer identifiers sit one layer deeper inside that, so you only ever see the layer you asked for.",
+      },
+      {
+        kind: "Improved",
+        text: "Activity is now collapsible and complete. It folds away by default (the progress bar above already tells the story) and, when you open it, shows every step including the ones the tracker abstracts — queued, sending, retries — each with the provider that handled it and the reason a bounce gave.",
+      },
+    ],
+  },
+  {
     title: "Not right for one person? Change just their copy",
     date: "2026-07-28",
     changes: [

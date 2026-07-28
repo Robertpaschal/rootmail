@@ -2,9 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronRight,
   Eye,
   FlaskConical,
   Inbox,
@@ -199,8 +201,11 @@ export function LiveStatus({
   const errorish = meta.tone === "error" || meta.tone === "warn";
   const HeadIcon = EVENT_ICON[displayStatus] ?? Inbox;
 
-  // A concise, human timeline (no actor ids / provider metadata).
-  const timeline = trail.filter((e) => STATUS_META[e.event] && e.event !== "sending");
+  // The FULL trail, newest last — including the machine steps (queued, sending,
+  // retried) that the headline tracker abstracts away. Folded up by default:
+  // the tracker above already tells the story, and this is what you open when
+  // the story isn't enough.
+  const timeline = trail;
 
   return (
     <Card>
@@ -248,37 +253,98 @@ export function LiveStatus({
           </Link>
         ) : null}
 
-        {/* Plain-language timeline */}
-        {timeline.length > 0 ? (
-          <div>
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground/70">Activity</p>
-            <ol className="space-y-2.5">
-              {timeline.map((e, i) => {
+        {/* The full trail, on demand. */}
+        {timeline.length > 0 ? <ActivityTrail entries={timeline} /> : null}
+
+        {simulated ? <SimulatePanel id={id} onUpdate={apply} status={message.status} /> : null}
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Every step this email actually went through — the machine ones included.
+ *
+ * The tracker above answers "where is it?"; this answers "what happened, and
+ * who did it?", which is only ever asked when something looks wrong. So it's
+ * folded away by default and carries the detail the tracker deliberately drops:
+ * the provider that handled it, the reason a bounce gave, the URL that was
+ * clicked, and whether an event came from the provider or was simulated.
+ */
+function ActivityTrail({ entries }: { entries: AuditEntry[] }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="border-t pt-4">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        className="flex w-full items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground/70 transition-colors hover:text-foreground"
+      >
+        <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.15 }} className="flex">
+          <ChevronRight className="size-3.5" />
+        </motion.span>
+        Activity
+        <span className="font-normal normal-case tracking-normal">· {entries.length} step{entries.length === 1 ? "" : "s"}</span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.ol
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="overflow-hidden"
+          >
+            <div className="mt-3 space-y-0">
+              {entries.map((e, i) => {
                 const m = STATUS_META[e.event];
                 const Icon = EVENT_ICON[e.event] ?? Inbox;
-                // Bounces carry a reason; clicks carry the link that was clicked.
                 const reason =
                   typeof e.metadata?.reason === "string"
                     ? e.metadata.reason
                     : typeof e.metadata?.url === "string"
                       ? e.metadata.url
-                      : undefined;
+                      : typeof e.metadata?.error === "string"
+                        ? e.metadata.error
+                        : undefined;
+                // Where the step came from, in the user's words.
+                const source = e.metadata?.simulated === true
+                  ? "simulated"
+                  : e.provider
+                    ? `via ${e.provider}`
+                    : e.actor && e.actor !== "system"
+                      ? e.actor
+                      : null;
                 return (
-                  <li key={`${e.event}-${i}`} className="flex items-center gap-2.5 text-sm">
-                    <Icon className={cn("size-4 shrink-0", TONE_TEXT[m.tone])} />
-                    <span className="font-medium">{m.label}</span>
-                    {reason ? <span className="truncate text-muted-foreground">· {reason}</span> : null}
-                    <span className="ml-auto shrink-0 text-xs text-muted-foreground" title={absTime(e.timestamp)}>{relTime(e.timestamp)}</span>
+                  <li key={`${e.event}-${i}`} className="relative flex gap-3 pb-3 last:pb-0">
+                    {/* The connecting spine — a trail, not a list. */}
+                    {i < entries.length - 1 ? (
+                      <span className="absolute left-[7px] top-5 h-full w-px bg-border" aria-hidden />
+                    ) : null}
+                    <span className={cn("relative z-10 mt-0.5 flex size-4 shrink-0 items-center justify-center", m ? TONE_TEXT[m.tone] : "text-muted-foreground")}>
+                      <Icon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-sm font-medium">{m?.label ?? e.event}</span>
+                        {source ? <span className="text-[11px] text-muted-foreground">{source}</span> : null}
+                        <span className="ml-auto shrink-0 text-xs text-muted-foreground" title={absTime(e.timestamp)}>
+                          {relTime(e.timestamp)}
+                        </span>
+                      </div>
+                      {reason ? <p className="mt-0.5 break-all text-xs text-muted-foreground">{reason}</p> : null}
+                    </div>
                   </li>
                 );
               })}
-            </ol>
-          </div>
+            </div>
+          </motion.ol>
         ) : null}
-
-        {simulated ? <SimulatePanel id={id} onUpdate={apply} status={message.status} /> : null}
-      </CardContent>
-    </Card>
+      </AnimatePresence>
+    </div>
   );
 }
 
