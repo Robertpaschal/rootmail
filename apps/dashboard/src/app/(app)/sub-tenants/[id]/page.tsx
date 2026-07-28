@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { notFound } from "next/navigation";
-import { AlertTriangle, CheckCircle2, Info, ShieldCheck, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Info, ShieldCheck, XCircle } from "lucide-react";
 import { verifySubTenant } from "../actions";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { CopyButton } from "@/components/app/copy-button";
@@ -69,8 +69,11 @@ export default async function SubTenantDetailPage({
         actions={<SubTenantStatusBadge status={st.status} />}
       />
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      {/* One domain, one column. The DNS values here are long TXT records — they
+          deserve the full width more than a rail of identifiers does. Those move
+          behind a disclosure at the foot, the way the message page handles the
+          same problem. */}
+      <div className="space-y-6">
           <Card>
             <CardHeader className="flex-row items-start justify-between space-y-0">
               <div>
@@ -161,13 +164,14 @@ export default async function SubTenantDetailPage({
               </CardContent>
             </Card>
           ) : null}
-        </div>
 
-        <Card className="h-fit">
-          <CardHeader>
-            <CardTitle className="text-base">Details</CardTitle>
-          </CardHeader>
-          <CardContent className="divide-y pt-0">
+        {/* Identifiers and dates — the deeper layer, on request. */}
+        <details className="group rounded-xl border bg-card">
+          <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium">
+            Domain details
+            <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+          </summary>
+          <dl className="grid gap-x-8 gap-y-1 px-5 pb-4 sm:grid-cols-2">
             <DetailRow label="Sub-tenant ID">
               <span className="inline-flex items-center gap-1">
                 <span className="font-mono text-xs">{st.id}</span>
@@ -196,8 +200,8 @@ export default async function SubTenantDetailPage({
             {st.last_checked_at ? (
               <DetailRow label="Last checked"><LocalTime iso={st.last_checked_at} /></DetailRow>
             ) : null}
-          </CardContent>
-        </Card>
+          </dl>
+        </details>
       </div>
 
       <p className="mt-4 text-xs text-muted-foreground">

@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Replies: give one conversation the whole screen",
+    date: "2026-07-28",
+    changes: [
+      {
+        kind: "New",
+        text: "The list of people folds away to a strip of faces, so a long exchange with one contact can have the full width. Switching person stays one click away while it's collapsed, and it remembers how you left it.",
+      },
+      {
+        kind: "New",
+        text: "Search your conversations by name, address, or anything said in them — plus a \"Needs reply\" filter that shows, at a glance, how many people are waiting on you.",
+      },
+      {
+        kind: "Improved",
+        text: "The conversation header now says who you're talking to and whether they're waiting, and links straight to their record. The paragraph that used to sit above every reply box is one short line with the detail behind an (i).",
+      },
+      {
+        kind: "Improved",
+        text: "Client domains: the DNS records you actually came to copy now get the full width, and the identifiers and dates moved behind a \"Domain details\" disclosure.",
+      },
+    ],
+  },
+  {
     title: "A message now reads like an email, not a stack of boxes",
     date: "2026-07-28",
     changes: [

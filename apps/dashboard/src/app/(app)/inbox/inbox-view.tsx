@@ -9,12 +9,17 @@ import {
   Inbox,
   Loader2,
   Megaphone,
+  PanelLeftClose,
+  PanelLeftOpen,
   Paperclip,
   PenSquare,
+  Search,
   Send,
   Sparkles,
   Workflow,
+  X,
 } from "lucide-react";
+import { InfoHint } from "@/components/app/info-hint";
 import { LocalTime } from "@/components/app/local-time";
 import { ThreadStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
@@ -81,6 +86,8 @@ interface ContactGroup {
   needsReply: boolean;
   preview: string | null;
 }
+
+const RAIL_KEY = "rm_inbox_rail_open";
 
 function groupByContact(threads: Thread[]): ContactGroup[] {
   const byEmail = new Map<string, ContactGroup>();
@@ -224,13 +231,45 @@ export function InboxView({
   const [expandedThread, setExpandedThread] = useState<string | null>(null);
   const [openEmails, setOpenEmails] = useState<Set<string>>(new Set());
   const [showList, setShowList] = useState(true);
+  // The people rail folds to a strip of avatars so ONE conversation can have the
+  // whole width — reading a long exchange shouldn't cost you 320px of names you
+  // aren't looking at. Collapsed still lets you switch person in one click.
+  const [railOpen, setRailOpen] = useState(true);
+  const [query, setQuery] = useState("");
+  const [onlyNeedsReply, setOnlyNeedsReply] = useState(false);
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, startLoad] = useTransition();
   const [sending, startSend] = useTransition();
   const loadedFor = useRef<Set<string>>(new Set());
 
+  useEffect(() => {
+    const stored = window.localStorage.getItem(RAIL_KEY);
+    if (stored != null) setRailOpen(stored === "1");
+  }, []);
+  const toggleRail = (next: boolean) => {
+    setRailOpen(next);
+    window.localStorage.setItem(RAIL_KEY, next ? "1" : "0");
+  };
+
   const contact = contacts.find((c) => c.email === selectedEmail) ?? null;
+  const needsReplyCount = contacts.filter((c) => c.needsReply).length;
+
+  // Finding a person shouldn't mean scrolling. Name, address, and what they last
+  // said are all fair game — you remember conversations by any of the three.
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return contacts.filter((c) => {
+      if (onlyNeedsReply && !c.needsReply) return false;
+      if (!q) return true;
+      return (
+        c.email.toLowerCase().includes(q) ||
+        (c.name ?? "").toLowerCase().includes(q) ||
+        (c.preview ?? "").toLowerCase().includes(q) ||
+        c.threads.some((t) => t.subject.toLowerCase().includes(q))
+      );
+    });
+  }, [contacts, query, onlyNeedsReply]);
 
   // Default the accordion to the thread that most needs attention.
   useEffect(() => {
@@ -323,14 +362,117 @@ export function InboxView({
 
   return (
     <div className="flex h-[calc(100vh-8.5rem)] overflow-hidden rounded-xl border bg-card">
+      {/* Collapsed: a strip of faces. Switching person stays one click away even
+          when the conversation has the width. */}
+      {!railOpen ? (
+        <aside className="hidden w-14 shrink-0 flex-col items-center gap-1 border-r py-3 md:flex">
+          <button
+            type="button"
+            onClick={() => toggleRail(true)}
+            title="Show conversations"
+            className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <PanelLeftOpen className="size-4" />
+          </button>
+          <span className="my-1 h-px w-6 bg-border" />
+          <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
+            {contacts.map((c) => (
+              <button
+                key={c.email}
+                onClick={() => {
+                  setSelectedEmail(c.email);
+                  setError(null);
+                }}
+                title={`${c.name ?? c.email}${c.needsReply ? " · needs reply" : ""}`}
+                className={cn(
+                  "relative grid size-9 place-items-center rounded-full text-xs font-semibold transition-colors",
+                  c.email === selectedEmail
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-primary/10 text-primary hover:bg-primary/20",
+                )}
+              >
+                {initials(c.name, c.email)}
+                {c.needsReply ? (
+                  <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-card bg-amber-500" />
+                ) : null}
+              </button>
+            ))}
+          </div>
+        </aside>
+      ) : null}
+
       {/* Left: the people you're talking to (their whole relationship in one row). */}
-      <aside className={cn("w-full shrink-0 flex-col border-r md:flex md:w-80", showList ? "flex" : "hidden")}>
-        <div className="flex items-center justify-between border-b px-4 py-3">
-          <p className="text-sm font-semibold">Conversations</p>
-          <span className="text-xs text-muted-foreground">{contacts.length}</span>
+      <aside
+        className={cn(
+          "w-full shrink-0 flex-col border-r md:w-80",
+          showList ? "flex" : "hidden",
+          railOpen ? "md:flex" : "md:hidden",
+        )}
+      >
+        <div className="space-y-2.5 border-b px-4 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold">
+              Conversations <span className="font-normal text-muted-foreground">{contacts.length}</span>
+            </p>
+            <button
+              type="button"
+              onClick={() => toggleRail(false)}
+              title="Collapse — give the conversation the full width"
+              className="hidden rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:block"
+            >
+              <PanelLeftClose className="size-4" />
+            </button>
+          </div>
+
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search people or subjects"
+              className="h-8 w-full rounded-md border border-input bg-background pl-8 pr-7 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {query ? (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+              >
+                <X className="size-3.5" />
+              </button>
+            ) : null}
+          </div>
+
+          {/* The only filter worth a permanent control: who is waiting on you. */}
+          <div className="flex gap-1">
+            {([
+              { id: false, label: "All", n: contacts.length },
+              { id: true, label: "Needs reply", n: needsReplyCount },
+            ] as const).map((f) => (
+              <button
+                key={f.label}
+                type="button"
+                onClick={() => setOnlyNeedsReply(f.id)}
+                className={cn(
+                  "rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors",
+                  onlyNeedsReply === f.id
+                    ? "border-primary bg-primary/10 text-foreground"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {f.label} {f.n > 0 ? <span className="opacity-70">{f.n}</span> : null}
+              </button>
+            ))}
+          </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {contacts.map((c) => {
+          {visible.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-muted-foreground">
+              {onlyNeedsReply ? "Nobody is waiting on you." : "No one matches that."}
+            </p>
+          ) : null}
+          {visible.map((c) => {
             const active = c.email === selectedEmail;
             return (
               <button
@@ -377,13 +519,36 @@ export function InboxView({
               <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setShowList(true)} aria-label="Back to list">
                 <ArrowLeft className="size-4" />
               </Button>
+              {!railOpen ? (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="hidden md:inline-flex"
+                  onClick={() => toggleRail(true)}
+                  aria-label="Show conversations"
+                  title="Show conversations"
+                >
+                  <PanelLeftOpen className="size-4" />
+                </Button>
+              ) : null}
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                 {initials(contact.name, contact.email)}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold">{contact.name ?? contact.email}</p>
+                <div className="flex items-center gap-2">
+                  <p className="truncate text-sm font-semibold">{contact.name ?? contact.email}</p>
+                  {contact.needsReply ? (
+                    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                      <span className="size-1.5 rounded-full bg-amber-500" /> waiting on you
+                    </span>
+                  ) : null}
+                </div>
                 <p className="truncate text-xs text-muted-foreground">
                   {contact.email} · {contact.threads.length === 1 ? "1 subject" : `${contact.threads.length} subjects`}
+                  {" · "}
+                  <Link href={`/contacts?q=${encodeURIComponent(contact.email)}`} className="hover:text-foreground hover:underline">
+                    their record
+                  </Link>
                 </p>
               </div>
               {/* A brand-new subject = a brand-new thread — full composer, prefilled. */}
@@ -455,23 +620,14 @@ export function InboxView({
 
                           {/* Reply composer — scoped to THIS subject-thread. */}
                           <div className="rounded-lg border bg-muted/20 p-3">
-                            <p className="mb-2 text-[11px] text-muted-foreground">
-                              {det?.messages?.some((m) => m.kind === "campaign" || m.kind === "sequence" || m.kind === "marketing") ? (
-                                <>
-                                  This conversation started from a{" "}
-                                  {det.messages.some((m) => m.kind === "sequence") && !det.messages.some((m) => m.kind === "campaign")
-                                    ? "sequence"
-                                    : "campaign"}
-                                  . Replies here are <span className="font-medium text-foreground">one-to-one</span> — they
-                                  use your transactional sends, never your marketing volume, and a personal conversation
-                                  can&apos;t be unsubscribed from.
-                                </>
-                              ) : (
-                                <>
-                                  Replying on <span className="font-medium text-foreground">“{t.subject}”</span> — sends as a
-                                  real one-to-one email to {contact.email} and uses your transactional sends.
-                                </>
-                              )}
+                            <p className="mb-2 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+                              Replying to {contact.name?.split(" ")[0] ?? contact.email} on{" "}
+                              <span className="font-medium text-foreground">“{t.subject}”</span>
+                              <InfoHint label="What a reply costs and counts as">
+                                {det?.messages?.some((m) => m.kind === "campaign" || m.kind === "sequence" || m.kind === "marketing")
+                                  ? "This conversation started from a bulk send, but a reply is one-to-one: it uses your transactional sends, never your marketing volume, and a personal conversation can't be unsubscribed from."
+                                  : "A real one-to-one email — it uses your transactional sends, and a personal conversation can't be unsubscribed from."}
+                              </InfoHint>
                             </p>
                             {error ? <p className="mb-2 text-sm text-destructive">{error}</p> : null}
                             <div className="flex items-end gap-2">
