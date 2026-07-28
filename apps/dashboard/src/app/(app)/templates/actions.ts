@@ -62,21 +62,34 @@ export async function createTemplate(
   const invalid = validate(f);
   if (invalid) return { error: invalid };
 
+  // The slug is DERIVED from the name — the studio never asks for it — so a
+  // collision is our problem to solve, not something to hand back to someone
+  // who never chose the value. Take the next free suffix.
   let id: string;
-  try {
-    const t = await api.createTemplate({
-      name: f.name,
-      slug: f.slug,
-      type: f.type,
-      subject: f.subject,
-      html: f.html,
-      text: f.text || undefined,
-      blocks: f.blocks,
-    });
-    id = t.id;
-  } catch (err) {
-    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
-    return { error: "Failed to create the template." };
+  let attempt = 0;
+  for (;;) {
+    const slug = attempt === 0 ? f.slug : `${f.slug}-${attempt + 1}`;
+    try {
+      const t = await api.createTemplate({
+        name: f.name,
+        slug,
+        type: f.type,
+        subject: f.subject,
+        html: f.html,
+        text: f.text || undefined,
+        blocks: f.blocks,
+      });
+      id = t.id;
+      break;
+    } catch (err) {
+      const taken = err instanceof ApiError && err.status === 409;
+      if (taken && attempt < 20) {
+        attempt++;
+        continue;
+      }
+      if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+      return { error: "Failed to create the template." };
+    }
   }
 
   revalidatePath("/templates");
