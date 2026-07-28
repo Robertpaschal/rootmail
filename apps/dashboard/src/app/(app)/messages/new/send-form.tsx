@@ -1,16 +1,26 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ExternalLink, FileText, Film, ImageIcon, Loader2, Paperclip, RefreshCw, Send, X } from "lucide-react";
-import { sendMessage, sendTestMessage, uploadAttachmentAction, type SendState } from "../actions";
+import { ArrowLeft, ArrowRight, ExternalLink, Eye, FileText, Film, ImageIcon, Loader2, Paperclip, RefreshCw, Send, X } from "lucide-react";
+import { lookupRecipient, sendMessage, sendTestMessage, uploadAttachmentAction, type SendState } from "../actions";
 import { SendTest } from "@/components/app/send-test";
+import { EmailPreview } from "@/components/app/email-preview";
+import { StageRail, StageScene, type Stage } from "@/components/app/stage-rail";
+import {
+  certainVariables,
+  missingVariables,
+  placeholderPerson,
+  suggestFor,
+  usedVariables,
+  type PreviewPerson,
+} from "@/lib/sample-vars";
 import { ComposeEditor } from "./compose-editor";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import type { SubTenant, TestRecipient } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -36,18 +46,6 @@ interface Attachment {
 // those are developer concerns handled by the API/SDK; the dashboard sends a
 // generated idempotency key for you (shown afterward in the message's details).
 
-/** Fill {{placeholders}} for the preview only — the server renders the real send. */
-function fillVars(html: string, varsRaw: string): string {
-  let vars: Record<string, unknown> = {};
-  try {
-    const parsed: unknown = JSON.parse(varsRaw || "{}");
-    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) vars = parsed as Record<string, unknown>;
-  } catch {
-    /* typing in progress — leave placeholders visible */
-  }
-  return html.replace(/\{\{\s*(\w+)\s*\}\}/g, (m, k: string) => (vars[k] != null ? String(vars[k]) : m));
-}
-
 const PREVIEW_WRAP_START =
   '<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:15px;line-height:1.6;color:#1a1a1a;padding:8px 4px;">';
 
@@ -71,6 +69,7 @@ export function SendForm({
   initialSubject = "",
   testRecipients = [],
   myEmail = null,
+  productName = null,
 }: {
   tenants: SubTenant[];
   templates: ComposeTemplate[];
@@ -81,6 +80,8 @@ export function SendForm({
   testRecipients?: TestRecipient[];
   /** The signed-in user's own address — the "send it to me" destination. */
   myEmail?: string | null;
+  /** The org / product name — fills {{product}} in the preview. */
+  productName?: string | null;
 }) {
   const [state, formAction, pending] = useActionState<SendState | null, FormData>(sendMessage, null);
   const router = useRouter();
@@ -102,6 +103,31 @@ export function SendForm({
   // Set after mount (client-only) to avoid an SSR/hydration mismatch.
   const [idemKey, setIdemKey] = useState("");
   useEffect(() => setIdemKey(crypto.randomUUID()), []);
+
+  // Write → Review. The preview is worth a whole scene: it's the last moment
+  // before a real person receives this.
+  const [phase, setPhase] = useState<0 | 1>(0);
+  const [dir, setDir] = useState(1);
+  const [person, setPerson] = useState<PreviewPerson | null>(null);
+  const [resolving, startResolve] = useTransition();
+  // Values for the {{variables}} we genuinely can't know. Asked for ONLY here,
+  // one plain field each, and only when the draft actually contains one.
+  const [blanks, setBlanks] = useState<Record<string, string>>({});
+
+  const goReview = () => {
+    setDir(1);
+    startResolve(async () => {
+      const r = await lookupRecipient(to);
+      setPerson({ email: r.email, name: r.name, extra: r.extra, real: r.real });
+      setPhase(1);
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    });
+  };
+  const goWrite = () => {
+    setDir(-1);
+    setPhase(0);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const template = templates.find((t) => t.slug === startFrom) ?? null;
   const hasPlaceholders = template ? /\{\{\s*\w+\s*\}\}/.test(template.html + template.subject) : false;
@@ -126,11 +152,43 @@ export function SendForm({
 
   const composedHtml = PREVIEW_WRAP_START + (bodyHtml || "<p></p>") + "</div>";
 
-  // What the recipient sees — the preview mirrors the send path.
-  const previewHtml = useMemo(() => {
-    if (template) return fillVars(template.html, varsRaw);
-    return composedHtml;
-  }, [template, varsRaw, composedHtml]);
+  // The raw source that will be rendered for this recipient.
+  const sourceHtml = template ? template.html : composedHtml;
+  const sourceSubject = template && !subject ? template.subject : subject;
+
+  const previewPerson = person ?? placeholderPerson(to || myEmail);
+
+  // What the send path will REALLY substitute for this person. Anything a
+  // template asks for beyond this is a genuine gap — and the preview must show
+  // it as a gap rather than invent something the recipient will never see.
+  const certain = useMemo(() => certainVariables(previewPerson), [previewPerson]);
+
+  // Everything the draft asks for that we can't promise. Asked for once, in
+  // plain words, with our best guess already typed in — so the value the sender
+  // confirms is the value that actually travels with the send.
+  const unknowns = useMemo(
+    () => usedVariables(sourceSubject, sourceHtml).filter((k) => certain[k] == null || certain[k] === ""),
+    [sourceSubject, sourceHtml, certain],
+  );
+  // Seed each blank with a suggestion the first time we meet it.
+  useEffect(() => {
+    setBlanks((b) => {
+      let changed = false;
+      const next = { ...b };
+      for (const k of unknowns) {
+        if (next[k] === undefined) {
+          next[k] = suggestFor(k, { product: productName });
+          changed = true;
+        }
+      }
+      return changed ? next : b;
+    });
+  }, [unknowns, productName]);
+
+  const previewVars = useMemo(() => {
+    const filled = Object.fromEntries(Object.entries(blanks).filter(([, v]) => v.trim() !== ""));
+    return { ...certain, ...filled };
+  }, [certain, blanks]);
 
   const onFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -153,12 +211,44 @@ export function SendForm({
       ? (tenants.find((t) => t.id === from.slice(3))?.sending_domain ?? "your domain")
       : "your workspace address";
 
+  const stages: Stage[] = [
+    { id: "write", label: "Write", hint: "Who it's for and what it says. Nothing is sent yet." },
+    {
+      id: "review",
+      label: "Review & send",
+      hint: "The exact email this person receives, with their details filled in.",
+    },
+  ];
+
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
-      {/* The email */}
+    <div className="pb-24">
+      <StageRail stages={stages} current={phase} furthest={phase} onJump={(i) => (i === 0 ? goWrite() : goReview())} />
+
+      <form action={formAction}>
+        {/* Internalized: a generated idempotency key (no field to fill). */}
+        <input type="hidden" name="idempotency_key" value={idemKey} />
+        <input type="hidden" name="attachments" value={JSON.stringify(attachments.map((a) => a.id))} />
+        {!template ? <input type="hidden" name="html" value={composedHtml} /> : null}
+        {/* Hoisted out of the Write scene: that scene unmounts on Review, and a
+            named input inside it would drop out of the submission with it. */}
+        <input type="hidden" name="to" value={to} />
+        <input type="hidden" name="subject" value={sourceSubject} />
+        {template ? <input type="hidden" name="template" value={template.slug} /> : null}
+        {from.startsWith("id:") ? <input type="hidden" name="from_email" value={from.slice(3)} /> : null}
+        {from.startsWith("st:") ? <input type="hidden" name="sub_tenant_id" value={from.slice(3)} /> : null}
+        {/* Everything the sender filled in for the blanks travels as variables. */}
+        <input
+          type="hidden"
+          name="variables"
+          value={JSON.stringify(Object.fromEntries(Object.entries(blanks).filter(([, v]) => v.trim() !== "")))}
+        />
+
+        <AnimatePresence mode="wait" initial={false}>
+        {phase === 0 ? (
+        <StageScene keyId="write" direction={dir}>
       <Card>
         <CardContent className="p-0">
-          <form action={formAction}>
+          <div>
             {/* Internalized: a generated idempotency key (no field to fill). */}
             <input type="hidden" name="idempotency_key" value={idemKey} />
             <input type="hidden" name="attachments" value={JSON.stringify(attachments.map((a) => a.id))} />
@@ -184,21 +274,19 @@ export function SendForm({
                     <Link href="/settings/sender" className="text-xs text-muted-foreground underline hover:text-foreground">send from your own address</Link>
                   </span>
                 )}
-                {from.startsWith("id:") ? <input type="hidden" name="from_email" value={from.slice(3)} /> : null}
-                {from.startsWith("st:") ? <input type="hidden" name="sub_tenant_id" value={from.slice(3)} /> : null}
               </div>
 
               {/* To */}
               <div className="flex items-center gap-3 px-5 py-3">
                 <span className="w-16 shrink-0 text-sm text-muted-foreground">To</span>
-                <input name="to" type="email" required value={to} onChange={(e) => setTo(e.target.value)} placeholder="ada@example.com"
+                <input type="email" required value={to} onChange={(e) => setTo(e.target.value)} placeholder="ada@example.com"
                   className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50" />
               </div>
 
               {/* Subject */}
               <div className="flex items-center gap-3 px-5 py-3">
                 <span className="w-16 shrink-0 text-sm text-muted-foreground">Subject</span>
-                <input name="subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="What's this about?"
+                <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="What's this about?"
                   className="flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50" />
               </div>
 
@@ -256,7 +344,6 @@ export function SendForm({
                 >
                   <RefreshCw className="size-3.5" />
                 </button>
-                {template ? <input type="hidden" name="template" value={template.slug} /> : null}
               </div>
 
               {/* Body */}
@@ -267,16 +354,10 @@ export function SendForm({
                       Using the <span className="font-medium text-foreground">{template.name}</span> template — the preview shows its content.
                     </p>
                     {hasPlaceholders ? (
-                      <div className="space-y-1.5">
-                        <label htmlFor="variables" className="text-sm font-medium">Personalization</label>
-                        <Textarea id="variables" name="variables" rows={2} value={varsRaw} onChange={(e) => setVarsRaw(e.target.value)} placeholder={'{"name":"Ada"}'} />
-                        <p className="text-xs text-muted-foreground">
-                          Optional overrides for the template&apos;s <span className="font-mono">{"{{placeholders}}"}</span> — watch the
-                          preview update. Sending to a saved contact? Their details (<span className="font-mono">{"{{name}}"}</span>,{" "}
-                          <span className="font-mono">{"{{first_name}}"}</span>, custom fields) fill in automatically at send;
-                          anything you set here wins.
-                        </p>
-                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Its <span className="font-mono">{"{{placeholders}}"}</span> fill in from this person&apos;s contact record.
+                        Anything we can&apos;t know, you&apos;ll be asked for once — on the next step, next to the preview.
+                      </p>
                     ) : null}
                   </div>
                 ) : (
@@ -302,67 +383,112 @@ export function SendForm({
               ) : null}
             </div>
 
-            {/* Send bar. The internal type never needs choosing here: a composed
-                email to one person IS a one-to-one (transactional) send — it
-                meters against sends, never marketing volume. Say so quietly. */}
-            <div className="flex items-center justify-between gap-3 border-t px-5 py-3">
-              <div className="flex items-center gap-3">
-                <Button type="submit" disabled={pending || uploading}>
-                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                  {pending ? "Sending…" : "Send"}
-                </Button>
+            {/* The internal type never needs choosing: a composed email to one
+                person IS a one-to-one (transactional) send. Say so quietly. */}
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3">
+              <div className="flex items-center gap-4">
+                <input ref={fileRef} type="file" multiple accept=".pdf,image/png,image/jpeg,image/gif,image/webp,video/mp4" className="hidden" onChange={(e) => onFiles(e.target.files)} />
+                <button type="button" onClick={() => fileRef.current?.click()} title="Attach a file"
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                  <Paperclip className="size-3.5" /> Attach
+                </button>
                 <span className="hidden text-[11px] text-muted-foreground sm:inline">
                   One-to-one email · uses your transactional sends
                 </span>
               </div>
-              {/* Prove it before you send it for real — same path, safe destination. */}
-              <SendTest
-                recipients={testRecipients}
-                myEmail={myEmail}
-                openUp
-                disabled={pending || uploading}
-                onSend={(dest) =>
-                  sendTestMessage({
-                    to: dest,
-                    subject,
-                    html: bodyHtml,
-                    template: startFrom || undefined,
-                    from_email: senders[0]?.email,
-                  })
-                }
-              />
-              <input ref={fileRef} type="file" multiple accept=".pdf,image/png,image/jpeg,image/gif,image/webp,video/mp4" className="hidden" onChange={(e) => onFiles(e.target.files)} />
-              <button type="button" onClick={() => fileRef.current?.click()} title="Attach a file"
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
-                <Paperclip className="size-3.5" /> Attach
-              </button>
+              <Button type="button" disabled={!to.trim() || uploading || resolving} onClick={goReview}>
+                {resolving ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}
+                See what they get <ArrowRight className="size-4" />
+              </Button>
             </div>
 
             {attachError ? <p className="border-t px-5 py-2 text-xs text-amber-600">{attachError} <span className="text-muted-foreground">Files up to 15MB — for a big video, share a link instead.</span></p> : null}
-            {state?.error ? <p className="border-t px-5 py-3 text-sm text-destructive">{state.error}</p> : null}
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* The preview — exactly what lands in their inbox */}
-      <Card className="h-fit lg:sticky lg:top-6">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-medium text-muted-foreground">What {to || "your recipient"} will see</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="overflow-hidden rounded-lg border">
-            <div className="space-y-0.5 border-b bg-muted/40 px-4 py-2.5 text-xs">
-              <p><span className="text-muted-foreground">From:</span> {fromLabel}</p>
-              <p><span className="text-muted-foreground">To:</span> {to || "—"}</p>
-              <p className="font-medium">{subject || "(no subject)"}</p>
-              {attachments.length > 0 ? (
-                <p className="flex items-center gap-1 pt-0.5 text-muted-foreground"><Paperclip className="size-3" /> {attachments.length} attachment{attachments.length > 1 ? "s" : ""}</p>
-              ) : null}
-            </div>
-            <iframe title="Email preview" sandbox="" srcDoc={previewHtml} className="h-[420px] w-full bg-white" />
           </div>
         </CardContent>
       </Card>
+        </StageScene>
+        ) : (
+
+        <StageScene keyId="review" direction={dir}>
+          <div className="space-y-5">
+            {/* Only what we genuinely can't know — one plain field each, and the
+                preview updates as you type. No JSON, no "detected variables". */}
+            {unknowns.length > 0 ? (
+              <Card>
+                <CardContent className="space-y-3 p-5">
+                  <div>
+                    <p className="text-sm font-semibold">Fill in the blanks</p>
+                    <p className="text-xs text-muted-foreground">
+                      Everything else came from {previewPerson.real ? "their contact record" : "your account"}. These are the
+                      only pieces we can&apos;t know.
+                    </p>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {unknowns.map((v) => (
+                      <label key={v} className="grid gap-1.5">
+                        <span className="text-xs font-medium capitalize">{v.replace(/_/g, " ")}</span>
+                        <input
+                          value={blanks[v] ?? ""}
+                          onChange={(e) => setBlanks((b) => ({ ...b, [v]: e.target.value }))}
+                          placeholder={`Value for {{${v}}}`}
+                          className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        />
+                      </label>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            <EmailPreview
+              html={sourceHtml}
+              subject={sourceSubject}
+              fromLabel={fromLabel}
+              person={previewPerson}
+              variables={previewVars}
+            />
+
+            {attachments.length > 0 ? (
+              <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Paperclip className="size-3.5" /> {attachments.length} attachment{attachments.length > 1 ? "s" : ""} ride along:{" "}
+                {attachments.map((a) => a.filename).join(", ")}
+              </p>
+            ) : null}
+
+            {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
+
+            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+              <Button type="button" variant="ghost" onClick={goWrite}>
+                <ArrowLeft className="size-4" /> Back to writing
+              </Button>
+              <div className="flex items-center gap-3">
+                {/* Prove it before a person gets it — same path, safe destination. */}
+                <SendTest
+                  recipients={testRecipients}
+                  myEmail={myEmail}
+                  openUp
+                  disabled={pending || uploading}
+                  onSend={(dest) =>
+                    sendTestMessage({
+                      to: dest,
+                      subject: sourceSubject,
+                      html: bodyHtml,
+                      template: startFrom || undefined,
+                      from_email: senders[0]?.email,
+                    })
+                  }
+                />
+                <Button type="submit" disabled={pending || uploading}>
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                  {pending ? "Sending…" : `Send to ${previewPerson.name ?? to}`}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </StageScene>
+        )}
+        </AnimatePresence>
+      </form>
     </div>
   );
 }

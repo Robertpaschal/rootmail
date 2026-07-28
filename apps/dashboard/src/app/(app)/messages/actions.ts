@@ -169,3 +169,26 @@ export async function sendTestMessage(input: {
     return "Couldn't send the test. Please try again.";
   }
 }
+
+/**
+ * Who is this going to, really?
+ *
+ * Before showing a "this is what they'll receive" preview we look the address up
+ * in the audience, so the preview is rendered with THEIR name and custom fields
+ * — the same values the send path will substitute. An unknown address still
+ * previews; it just fills in less.
+ */
+export async function lookupRecipient(
+  email: string,
+): Promise<{ email: string; name: string | null; extra: Record<string, unknown>; real: boolean }> {
+  const clean = email.trim().toLowerCase();
+  if (!clean) return { email: "", name: null, extra: {}, real: false };
+  try {
+    const r = await api.browseContacts({ q: clean, limit: 5 });
+    const hit = r.data.find((c) => c.email.toLowerCase() === clean);
+    if (hit) return { email: hit.email, name: hit.name, extra: hit.metadata, real: true };
+  } catch {
+    /* previewing must never depend on the audience being reachable */
+  }
+  return { email: clean, name: null, extra: {}, real: false };
+}

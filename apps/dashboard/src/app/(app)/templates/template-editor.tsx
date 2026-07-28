@@ -45,7 +45,7 @@ import {
   type DocNode,
   type EmailTheme,
 } from "@/lib/email-doc";
-import { placeholderPerson, sampleVariables, type PreviewPerson } from "@/lib/sample-vars";
+import { placeholderPerson, suggestedVariables, usedVariables, type PreviewPerson } from "@/lib/sample-vars";
 import type { Template, TemplateType, TestRecipient } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -175,9 +175,12 @@ export function TemplateEditor({
   const effectiveSlug = slug || slugify(name) || "untitled";
 
   const person = previewPerson ?? placeholderPerson(myEmail);
+  // A DESIGN preview: no recipient exists yet, so filling every placeholder with
+  // a plausible value is honest — it answers "does this look right?", which is
+  // the only question this stage can answer.
   const variables = useMemo(
-    () => sampleVariables({ product: productName, person }),
-    [productName, person],
+    () => suggestedVariables({ product: productName, person }, usedVariables(subject, effectiveHtml)),
+    [productName, person, subject, effectiveHtml],
   );
 
   function onName(value: string) {

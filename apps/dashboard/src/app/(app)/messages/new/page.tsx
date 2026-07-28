@@ -21,19 +21,22 @@ export default async function NewMessagePage({
   // reserved addresses that force a known delivery outcome.
   let testRecipients: TestRecipient[] = [];
   let myEmail: string | null = null;
+  let productName: string | null = null;
   try {
     // Each list degrades independently — client domains are a gated add-on, and a
     // 402 there must never blank the templates/senders of a free-tier composer.
-    const [t, tpl, sn, tr, me] = await Promise.all([
+    const [t, tpl, sn, tr, me, org] = await Promise.all([
       api.listSubTenants().catch(() => ({ data: [] as SubTenant[] })),
       api.listTemplates(),
       api.listSenders().catch(() => ({ data: [] })),
       api.listTestRecipients().catch(() => ({ data: [] as TestRecipient[] })),
       api.me().catch(() => null),
+      api.getOrganization().catch(() => null),
     ]);
     tenants = t.data;
     testRecipients = tr.data;
     myEmail = me?.user.email ?? null;
+    productName = org?.name ?? null;
     templates = tpl.data.map((x) => ({
       slug: x.slug,
       name: x.name,
@@ -84,6 +87,7 @@ export default async function NewMessagePage({
         initialSubject={initialSubject}
         testRecipients={testRecipients}
         myEmail={myEmail}
+        productName={productName}
       />
     </>
   );
