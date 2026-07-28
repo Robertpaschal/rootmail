@@ -4,6 +4,7 @@ import { CommandMenu } from "@/components/app/command-menu";
 import { ImpersonationBanner } from "@/components/app/impersonation-banner";
 import { MobileNav, Sidebar } from "@/components/app/nav";
 import { SandboxBanner } from "@/components/app/sandbox-banner";
+import { PeekBackdrop, ShellMain, SidebarProvider } from "@/components/app/sidebar-shell";
 import { Topbar } from "@/components/app/topbar";
 import { VerifyEmailBanner } from "@/components/app/verify-email-banner";
 import { api } from "@/lib/rootmail";
@@ -39,25 +40,29 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const live = me?.workspaces?.find((w) => w.environment === "live") ?? null;
 
   return (
-    <div className="min-h-screen">
-      <CommandMenu />
-      <Sidebar {...navCtx} />
-      <div className="md:pl-72">
-        <Topbar />
-        <MobileNav {...navCtx} />
-        {navCtx.sandbox ? (
-          <SandboxBanner
-            workspaceName={navCtx.workspaceName}
-            liveId={live?.id ?? null}
-            liveName={live?.name ?? null}
-          />
-        ) : null}
-        {impersonating && me ? <ImpersonationBanner email={me.user.email} /> : null}
-        {unverified ? <VerifyEmailBanner /> : null}
-        <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
+    <SidebarProvider>
+      <div className="min-h-screen">
+        <CommandMenu />
+        {/* The scrim sits under the panel and over the page it floats above. */}
+        <PeekBackdrop />
+        <Sidebar {...navCtx} />
+        <ShellMain>
+          <Topbar />
+          <MobileNav {...navCtx} />
+          {navCtx.sandbox ? (
+            <SandboxBanner
+              workspaceName={navCtx.workspaceName}
+              liveId={live?.id ?? null}
+              liveName={live?.name ?? null}
+            />
+          ) : null}
+          {impersonating && me ? <ImpersonationBanner email={me.user.email} /> : null}
+          {unverified ? <VerifyEmailBanner /> : null}
+          <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
+        </ShellMain>
       </div>
       {/* The assistant, one tap away on every page (hides itself on /assistant). */}
       <AssistantLauncher />
-    </div>
+    </SidebarProvider>
   );
 }

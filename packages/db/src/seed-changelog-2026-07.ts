@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Hide the sidebar — and get it back by brushing the edge",
+    date: "2026-07-28",
+    changes: [
+      {
+        kind: "New",
+        text: "The main sidebar hides. Press ⌘\\ (Ctrl+\\), or use the new button in the top bar, and the page takes the full width. Your choice is remembered.",
+      },
+      {
+        kind: "New",
+        text: "With it hidden, move your cursor to the left edge and it slides back over the page on a frosted panel — the way macOS reveals a hidden dock. The page underneath doesn't reflow, so nothing you were reading jumps. Scroll it, click through it, and it leaves on its own when you move away; pin it from its header to keep it.",
+      },
+      {
+        kind: "Improved",
+        text: "Escape dismisses the revealed panel, following a link from it puts it away, and while hidden it's properly out of the way for keyboard and screen-reader users rather than merely off-screen.",
+      },
+    ],
+  },
+  {
     title: "Replies: give one conversation the whole screen",
     date: "2026-07-28",
     changes: [

@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, LayoutGroup, motion } from "framer-motion";
+import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "framer-motion";
 import {
   BarChart3,
   BookOpen,
   ChevronRight,
   CreditCard,
+  PanelLeftClose,
+  Pin,
   FileCheck2,
   FileText,
   FlaskConical,
@@ -28,8 +30,12 @@ import {
   Workflow,
 } from "lucide-react";
 import { Logo } from "./logo";
+import { useSidebar } from "./sidebar-shell";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+/** The sidebar's width in px — shared by the slide animation and the shell inset. */
+export const SIDEBAR_W = 288;
 
 type NavItem = { href: string; label: string; icon: typeof Mail; exact?: boolean };
 type NavGroup = {
@@ -129,15 +135,19 @@ function NavLink({
   item,
   isActive,
   indicatorId,
+  onNavigate,
 }: {
   item: NavItem;
   isActive: (h: string, e?: boolean) => boolean;
   indicatorId: string;
+  /** Called on click — lets a floating sidebar dismiss itself after you pick. */
+  onNavigate?: () => void;
 }) {
   const active = isActive(item.href, item.exact);
   return (
     <Link
       href={item.href}
+      onClick={onNavigate}
       className={cn(
         "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         active ? "text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
@@ -171,10 +181,12 @@ function CollapsibleGroup({
   group,
   isActive,
   hasActive,
+  onNavigate,
 }: {
   group: NavGroup;
   isActive: (h: string, e?: boolean) => boolean;
   hasActive: boolean;
+  onNavigate?: () => void;
 }) {
   // Start open only when the current page lives inside — matching on the server
   // and the client, so there's no hydration flash. The stored preference is
@@ -216,7 +228,7 @@ function CollapsibleGroup({
             className="space-y-1 overflow-hidden"
           >
             {group.items.map((it) => (
-              <NavLink key={it.href} item={it} isActive={isActive} indicatorId="nav-active" />
+              <NavLink key={it.href} item={it} isActive={isActive} indicatorId="nav-active" onNavigate={onNavigate} />
             ))}
           </motion.div>
         ) : group.hint ? (
@@ -245,21 +257,68 @@ export interface NavContext {
 export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
   const isActive = useIsActive();
   const groups = buildGroups({ sandbox, workspaceName });
+  const { collapsed, overlay, setCollapsed, closePeek } = useSidebar();
+  const reduce = useReducedMotion();
 
   return (
     // w-72 so long labels ("Proof & compliance") render in full — no ellipsis.
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r bg-card md:flex">
-      <div className="flex h-16 items-center border-b px-5">
+    // Hidden, it parks just off-screen and slides back on the edge reveal; it is
+    // never unmounted, so scroll position and the folded Developers group
+    // survive a peek.
+    <motion.aside
+      initial={false}
+      // Pixels, not "-100%": animating a percentage to a unitless 0 is a unit
+      // mismatch framer can't interpolate, and the panel sticks off-screen.
+      animate={{ x: collapsed && !overlay ? -SIDEBAR_W : 0 }}
+      transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 40 }}
+      // Parked off-screen it must be unreachable, not merely invisible —
+      // otherwise Tab walks into a sidebar the user can't see.
+      aria-hidden={collapsed && !overlay}
+      inert={collapsed && !overlay}
+      className={cn(
+        "group/sidebar fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r md:flex",
+        overlay
+          ? "bg-card/80 shadow-2xl backdrop-blur-xl supports-[backdrop-filter]:bg-card/70"
+          : "bg-card",
+      )}
+    >
+      <div className="flex h-16 items-center justify-between border-b px-5">
         <Link href="/" aria-label="rootmail">
           <Logo />
         </Link>
+        {/* Floating: pin it back. Docked: put it away. */}
+        {overlay ? (
+          <button
+            type="button"
+            onClick={() => setCollapsed(false)}
+            title="Keep the sidebar open"
+            aria-label="Keep the sidebar open"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          >
+            <Pin className="size-4" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setCollapsed(true)}
+            title="Hide sidebar  ⌘\"
+            aria-label="Hide sidebar"
+            className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/sidebar:opacity-100"
+          >
+            <PanelLeftClose className="size-4" />
+          </button>
+        )}
       </div>
 
       <LayoutGroup id="sidebar">
         <div className="space-y-3 px-3 py-4">
           {/* One neutral compose action: a one-off email from here is a one-to-one
               (transactional) send; bulk lives in Campaigns. */}
-          <Link href="/messages/new" className={cn(buttonVariants({ size: "sm" }), "w-full gap-2")}>
+          <Link
+            href="/messages/new"
+            onClick={overlay ? () => closePeek(true) : undefined}
+            className={cn(buttonVariants({ size: "sm" }), "w-full gap-2")}
+          >
             <Send className="size-4" /> Compose
           </Link>
         </div>
@@ -272,6 +331,7 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
                 group={g}
                 isActive={isActive}
                 hasActive={g.items.some((it) => isActive(it.href, it.exact))}
+                onNavigate={overlay ? () => closePeek(true) : undefined}
               />
             ) : (
               <div key={g.label ?? `top-${i}`} className="space-y-1">
@@ -281,7 +341,13 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
                   </p>
                 ) : null}
                 {g.items.map((it) => (
-                  <NavLink key={it.href} item={it} isActive={isActive} indicatorId="nav-active" />
+                  <NavLink
+                    key={it.href}
+                    item={it}
+                    isActive={isActive}
+                    indicatorId="nav-active"
+                    onNavigate={overlay ? () => closePeek(true) : undefined}
+                  />
                 ))}
               </div>
             ),
@@ -291,7 +357,7 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
 
       {/* No fixed footer: help (assistant + contact support) rides in the
           floating Ask-AI launcher, in context on every page. */}
-    </aside>
+    </motion.aside>
   );
 }
 
