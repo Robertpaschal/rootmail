@@ -1108,3 +1108,19 @@ export interface TestRecipient {
   description: string;
   outcome: "delivered" | "bounced" | "complained" | "suppressed" | "delivered_ooto";
 }
+
+/** One recipient's actual copy of a campaign, resolved BEFORE it's sent.
+ * (Distinct from CampaignRecipient, which is post-send engagement.) */
+export interface CampaignPreviewRecipient {
+  object: "campaign_recipient";
+  email: string;
+  name: string | null;
+  tags: string[];
+  /** The A/B variant tag their tags selected, if any. */
+  variant_tag: string | null;
+  template_name: string;
+  /** Fully rendered for THIS person — the same output the worker produces. */
+  subject: string;
+  html: string;
+  text: string;
+}

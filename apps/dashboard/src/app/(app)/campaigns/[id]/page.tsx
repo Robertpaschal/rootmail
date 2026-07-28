@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { ApiError, api } from "@/lib/rootmail";
-import type { Campaign, CampaignAnalytics, CampaignRecipient } from "@/lib/types";
+import type { Campaign, CampaignAnalytics, CampaignPreviewRecipient, CampaignRecipient } from "@/lib/types";
 import { deleteCampaign, sendCampaign } from "../actions";
 import { CampaignLive } from "./campaign-live";
+import { PreFlight } from "./pre-flight";
 import { FollowUp } from "./follow-up";
 
 export const metadata: Metadata = { title: "Campaign" };
@@ -32,11 +33,17 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     if (err instanceof ApiError && err.status === 404) notFound();
     throw err;
   }
-  const [analytics, recipientsRes, sendersRes, sequencesRes] = await Promise.all([
+  const notYetSent = campaign.status === "draft" || campaign.status === "scheduled";
+  const [analytics, recipientsRes, sendersRes, sequencesRes, previewRes] = await Promise.all([
     api.campaignAnalytics(id).catch(() => null as CampaignAnalytics | null),
     api.campaignRecipients(id, { limit: 100 }).catch(() => ({ data: [] as CampaignRecipient[], total: 0 })),
     api.listSenders().catch(() => ({ data: [] })),
     api.listSequences().catch(() => ({ data: [] })),
+    // Pre-flight only matters before it goes out — afterwards, the real messages
+    // are the record and CampaignLive shows them.
+    notYetSent
+      ? api.campaignPreview(id, 25).catch(() => ({ data: [] as CampaignPreviewRecipient[], total: 0 }))
+      : Promise.resolve({ data: [] as CampaignPreviewRecipient[], total: 0 }),
   ]);
 
   // The address the campaign sends from (and replies go to): its own, else the
@@ -114,6 +121,11 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           ) : null}
         </CardContent>
       </Card>
+
+      {/* Before it goes: read each person's actual copy. */}
+      {notYetSent ? (
+        <PreFlight recipients={previewRes.data} total={previewRes.total} fromLabel={fromLabel} />
+      ) : null}
 
       {/* What's happening — live status, funnel, and per-recipient engagement. */}
       <CampaignLive

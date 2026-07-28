@@ -14,6 +14,36 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "See the exact email before it goes — templates, messages and campaigns",
+    date: "2026-07-28",
+    changes: [
+      {
+        kind: "New",
+        text: "The template studio is now a journey: Start → Design → Review & save. The canvas takes the whole width (the Blocks/Design/Inspect panel folds to the edge and stays how you leave it), and the preview is a real stage — a mail-client frame, desktop/tablet/mobile, light and dark, plus the plain-text part.",
+      },
+      {
+        kind: "New",
+        text: "Previews are filled in with your real details instead of raw {{braces}} — your company name, and a real person from your audience. You see a finished email, not a form with holes in it.",
+      },
+      {
+        kind: "New",
+        text: "Writing an email is now Write → Review & send. Review renders the message as the actual recipient, using their contact record — their name, and any custom fields you keep on them.",
+      },
+      {
+        kind: "New",
+        text: "Campaigns get a pre-flight: step through your audience and read each person's actual copy, including which A/B variant their tags select and why, before you press send.",
+      },
+      {
+        kind: "Improved",
+        text: "We stopped asking for things we can work out. Picking a template starter sets what it's for; the API name and the plain-text version are generated; the \"variables detected\" list and the personalization JSON box are gone. You're asked only for what we genuinely can't know — like an order number — one plain field each, with our best guess already filled in.",
+      },
+      {
+        kind: "Improved",
+        text: "Save and \"Send a test\" now sit at the END of the flow, where there's something to save and something to test.",
+      },
+    ],
+  },
+  {
     title: "A calmer dashboard: developer tools out of the way, testing where you write",
     date: "2026-07-27",
     changes: [

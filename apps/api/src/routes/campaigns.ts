@@ -1,7 +1,7 @@
-import { and, desc, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { enqueueCampaignSend, Errors, newId } from "@rootmail/core";
+import { contactVariables, enqueueCampaignSend, Errors, newId, render } from "@rootmail/core";
 import { auditEntries, type Campaign, campaigns, contacts, db, listContacts, lists, messages, sequenceEnrollments, sequences, templates } from "@rootmail/db";
 import { assertContactCapacity, assertEmailVerified, assertMarketingSendCapacity } from "../lib/billing";
 import { loadOrg, requireFeature } from "../lib/features";
@@ -57,6 +57,10 @@ function serialize(c: Campaign) {
     created_at: c.createdAt.toISOString(),
   };
 }
+
+const previewQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(25),
+});
 
 const variantBody = z.object({
   tag: z.string().min(1).max(80),
@@ -139,6 +143,73 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/campaigns/:id", async (req) => {
     const { id } = req.params as { id: string };
     return serialize(await getScoped(req, id));
+  });
+
+  // --- Pre-flight: what each recipient will actually receive ---------------
+  // Before a campaign goes out, the sender should be able to step through their
+  // audience and read each person's copy. This resolves EXACTLY what the worker
+  // will: the A/B variant their tags select, and the variables their contact
+  // record supplies. Read-only; it neither sends nor records anything.
+  app.get("/v1/campaigns/:id/preview", async (req) => {
+    const { id } = req.params as { id: string };
+    const q = parse(previewQuery, req.query);
+    const c = await getScoped(req, id);
+
+    // Both are nullable (ON DELETE SET NULL), so a campaign whose template or
+    // audience was deleted can't be previewed — say which, plainly.
+    if (!c.templateId) throw Errors.badRequest("This campaign has no template — pick one before reviewing it.");
+    if (!c.listId) throw Errors.badRequest("This campaign has no audience — pick one before reviewing it.");
+
+    const [tpl] = await db.select().from(templates).where(eq(templates.id, c.templateId)).limit(1);
+    if (!tpl) throw Errors.notFound("The campaign's template no longer exists");
+
+    const defs = (c.variants ?? []).filter((v) => v.tag && v.template_id);
+    const variantTemplates = new Map<string, typeof tpl>();
+    if (defs.length > 0) {
+      const rows = await db
+        .select()
+        .from(templates)
+        .where(inArray(templates.id, [...new Set(defs.map((v) => v.template_id))]));
+      for (const t of rows) if (t.workspaceId === c.workspaceId) variantTemplates.set(t.id, t);
+    }
+
+    const all = await db
+      .select({
+        email: contacts.email,
+        name: contacts.name,
+        tags: contacts.tags,
+        phone: contacts.phone,
+        metadata: contacts.metadata,
+      })
+      .from(listContacts)
+      .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
+      .where(eq(listContacts.listId, c.listId));
+
+    const segment = c.segmentTag;
+    const members = segment ? all.filter((m) => (m.tags ?? []).includes(segment)) : all;
+
+    const data = members.slice(0, q.limit).map((m) => {
+      // Same rule as the worker: the first variant whose tag they carry wins.
+      const hit = defs.find((v) => (m.tags ?? []).includes(v.tag));
+      const vTpl = hit ? variantTemplates.get(hit.template_id) : undefined;
+      const useTpl = vTpl ?? tpl;
+      const useSubject = vTpl ? (hit?.subject ?? vTpl.subject) : (c.subject ?? tpl.subject);
+      const variables = contactVariables(m, m.email);
+      const rendered = render({ subject: useSubject, html: useTpl.html, text: useTpl.text, variables });
+      return {
+        object: "campaign_recipient" as const,
+        email: m.email,
+        name: m.name,
+        tags: m.tags ?? [],
+        variant_tag: hit?.tag ?? null,
+        template_name: useTpl.name,
+        subject: rendered.subject,
+        html: rendered.html,
+        text: rendered.text,
+      };
+    });
+
+    return { object: "list", total: members.length, data };
   });
 
   // Per-campaign engagement: the sent → delivered → opened → clicked funnel over
