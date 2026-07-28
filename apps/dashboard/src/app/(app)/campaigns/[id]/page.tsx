@@ -124,7 +124,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
 
       {/* Before it goes: read each person's actual copy. */}
       {notYetSent ? (
-        <PreFlight recipients={previewRes.data} total={previewRes.total} fromLabel={fromLabel} />
+        <PreFlight campaignId={campaign.id} recipients={previewRes.data} total={previewRes.total} fromLabel={fromLabel} />
       ) : null}
 
       {/* What's happening — live status, funnel, and per-recipient engagement. */}

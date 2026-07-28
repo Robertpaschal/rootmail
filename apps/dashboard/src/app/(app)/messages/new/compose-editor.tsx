@@ -43,15 +43,29 @@ interface AiState {
   busy: boolean;
 }
 
-export function ComposeEditor({ onHtml, onSubject }: { onHtml: (html: string) => void; onSubject?: (s: string) => void }) {
+export function ComposeEditor({
+  onHtml,
+  onSubject,
+  initialHtml,
+  placeholder,
+}: {
+  onHtml: (html: string) => void;
+  onSubject?: (s: string) => void;
+  /** Start from existing content — e.g. editing one recipient's copy. */
+  initialHtml?: string;
+  placeholder?: string;
+}) {
   const [ai, setAi] = useState<AiState>({ open: false, prompt: "", busy: false });
 
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({ link: { openOnClick: false, HTMLAttributes: { rel: "noopener" } } }),
-      Placeholder.configure({ placeholder: "Write your email…   ( press / for a menu — or to ask AI )" }),
+      Placeholder.configure({
+        placeholder: placeholder ?? "Write your email…   ( press / for a menu — or to ask AI )",
+      }),
     ],
+    content: initialHtml,
     editorProps: { attributes: { class: "min-h-[220px] focus:outline-none text-sm leading-relaxed" } },
     onUpdate: ({ editor }) => onHtml(editor.getHTML()),
   });

@@ -1119,6 +1119,8 @@ export interface CampaignPreviewRecipient {
   /** The A/B variant tag their tags selected, if any. */
   variant_tag: string | null;
   template_name: string;
+  /** True when someone edited this person's copy by hand. */
+  edited: boolean;
   /** Fully rendered for THIS person — the same output the worker produces. */
   subject: string;
   html: string;

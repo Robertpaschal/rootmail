@@ -414,6 +414,13 @@
       "when": 1785135776327,
       "tag": "0058_clumsy_revanche",
       "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1785210506664,
+      "tag": "0059_bouncy_magus",
+      "breakpoints": true
     }
   ]
 }

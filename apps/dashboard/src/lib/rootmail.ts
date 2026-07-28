@@ -613,6 +613,15 @@ export const api = {
   listSupportTickets: () => rmFetch<ListResponse<SupportTicket>>("/v1/support"),
 
   /** Test recipients — real sends to the SES mailbox simulator (safe, reputation-free). */
+  /** Edit one recipient's copy of a campaign (draft/scheduled only). */
+  setCampaignOverride: (id: string, body: { email: string; subject?: string; html?: string }) =>
+    rmFetch<{ object: "campaign_override" }>(`/v1/campaigns/${id}/overrides`, { method: "PUT", body }),
+  clearCampaignOverride: (id: string, email: string) =>
+    rmFetch<{ object: "campaign_override"; deleted: boolean }>(`/v1/campaigns/${id}/overrides`, {
+      method: "DELETE",
+      query: { email },
+    }),
+
   /** Pre-flight: each recipient's actual copy of a campaign, before it goes. */
   campaignPreview: (id: string, limit = 25) =>
     rmFetch<{ object: "list"; total: number; data: CampaignPreviewRecipient[] }>(

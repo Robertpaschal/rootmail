@@ -33,6 +33,7 @@ export const ID_PREFIXES = {
   contactEvent: "cev",
   contactNote: "cnt",
   campaign: "cmp",
+  campaignOverride: "cov",
   role: "rol",
   authToken: "atk",
   staffUser: "stf",

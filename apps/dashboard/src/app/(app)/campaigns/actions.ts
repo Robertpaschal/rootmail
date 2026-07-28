@@ -132,3 +132,42 @@ export async function deleteCampaign(formData: FormData): Promise<void> {
   // the list so nobody is stranded on a dead URL. (From the list it's a no-op hop.)
   redirect("/campaigns");
 }
+
+/**
+ * Change one recipient's copy of a campaign — the thing you do when the
+ * pre-flight shows you something you don't like for one person. Their edit wins
+ * over the template and over any A/B variant when the campaign goes out.
+ */
+export async function saveRecipientCopy(input: {
+  campaignId: string;
+  email: string;
+  subject: string;
+  html: string;
+}): Promise<{ error?: string }> {
+  if (!input.subject.trim()) return { error: "A subject is required." };
+  if (!input.html.trim()) return { error: "The message can't be empty." };
+  try {
+    await api.setCampaignOverride(input.campaignId, {
+      email: input.email,
+      subject: input.subject,
+      html: input.html,
+    });
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't save this person's copy." };
+  }
+  revalidatePath(`/campaigns/${input.campaignId}`);
+  return {};
+}
+
+/** Put a recipient back on the campaign's normal copy. */
+export async function resetRecipientCopy(campaignId: string, email: string): Promise<{ error?: string }> {
+  try {
+    await api.clearCampaignOverride(campaignId, email);
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't reset this person's copy." };
+  }
+  revalidatePath(`/campaigns/${campaignId}`);
+  return {};
+}

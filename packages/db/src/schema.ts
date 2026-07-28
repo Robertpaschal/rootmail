@@ -894,6 +894,38 @@ export const campaigns = pgTable(
   (t) => [index("campaigns_ws_idx").on(t.workspaceId, t.status)],
 );
 
+/**
+ * A single recipient's edited copy of a campaign.
+ *
+ * The pre-flight lets you read each person's email before it goes; this is what
+ * happens when you don't like what you read. Keyed by EMAIL rather than contact
+ * id so an override survives a contact being removed and re-added, and so it
+ * lines up with how the worker walks the audience.
+ *
+ * `subject`/`html` are stored ALREADY RENDERED (what you saw and edited). The
+ * worker still runs them through render(), so a {{variable}} you type by hand
+ * keeps working.
+ */
+export const campaignOverrides = pgTable(
+  "campaign_overrides",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    campaignId: text("campaign_id")
+      .notNull()
+      .references(() => campaigns.id, { onDelete: "cascade" }),
+    /** Lowercased recipient address this override applies to. */
+    email: text("email").notNull(),
+    subject: text("subject"),
+    html: text("html"),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("campaign_overrides_unique").on(t.campaignId, t.email)],
+);
+
 // ---------------------------------------------------------------------------
 // Messages — the atomic unit
 // ---------------------------------------------------------------------------
@@ -1284,6 +1316,7 @@ export type NewList = typeof lists.$inferInsert;
 export type ListContact = typeof listContacts.$inferSelect;
 export type NewListContact = typeof listContacts.$inferInsert;
 export type Campaign = typeof campaigns.$inferSelect;
+export type CampaignOverride = typeof campaignOverrides.$inferSelect;
 export type NewCampaign = typeof campaigns.$inferInsert;
 export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;

@@ -1,5 +1,5 @@
 import type { RootMail } from "../client";
-import type { Campaign, CampaignAnalytics, ListResponse } from "../types";
+import type { Campaign, CampaignAnalytics, CampaignPreviewRecipient, ListResponse } from "../types";
 
 export class Campaigns {
   constructor(private readonly client: RootMail) {}
@@ -52,6 +52,42 @@ export class Campaigns {
       method: "POST",
       path: `/v1/campaigns/${id}/send`,
       body: { scheduled_at: scheduledAt },
+    });
+  }
+
+  /**
+   * Pre-flight: each recipient's actual copy, resolved by the same rules the
+   * send uses — their contact fields and the A/B variant their tags select.
+   * Read-only; it sends nothing.
+   */
+  preview(
+    id: string,
+    params: { limit?: number } = {},
+  ): Promise<{ total: number; data: CampaignPreviewRecipient[] }> {
+    return this.client.request({
+      method: "GET",
+      path: `/v1/campaigns/${id}/preview`,
+      query: { limit: params.limit },
+    });
+  }
+
+  /**
+   * Change one recipient's copy. Their version wins over the template AND over
+   * any A/B variant. Draft/scheduled campaigns only.
+   */
+  setRecipientCopy(
+    id: string,
+    params: { email: string; subject?: string; html?: string },
+  ): Promise<{ object: "campaign_override" }> {
+    return this.client.request({ method: "PUT", path: `/v1/campaigns/${id}/overrides`, body: params });
+  }
+
+  /** Put a recipient back on the campaign's normal copy. */
+  clearRecipientCopy(id: string, email: string): Promise<{ deleted: boolean }> {
+    return this.client.request({
+      method: "DELETE",
+      path: `/v1/campaigns/${id}/overrides`,
+      query: { email },
     });
   }
 

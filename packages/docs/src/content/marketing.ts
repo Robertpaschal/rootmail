@@ -1,4 +1,4 @@
-import { c, callout, code, DocPage, endpoint, h, p } from "../types";
+import { b, c, callout, code, DocPage, endpoint, h, p, reqres } from "../types";
 
 export const campaigns: DocPage = {
   slug: "campaigns",
@@ -44,6 +44,66 @@ const funnel = await mail.campaigns.analytics(c.id);`,
   ]
 }`,
       "campaign-ab.json",
+    ),
+
+    h("Pre-flight: read (and change) each person's copy"),
+    p(
+      "A campaign reaches everyone at once, so there's no checking it afterwards. ",
+      c("GET /v1/campaigns/:id/preview"),
+      " resolves each recipient's ACTUAL email — the variant their tags select, rendered with their contact fields — by the same rules the send applies. It's read-only.",
+    ),
+    p(
+      "If one person's copy isn't right, replace it. ",
+      c("PUT /v1/campaigns/:id/overrides"),
+      " stores a subject and/or body against a single recipient; theirs wins over the template ",
+      b("and"),
+      " over any A/B variant. Draft and scheduled campaigns only — an override on a campaign that already went out is refused rather than silently ignored.",
+    ),
+    ...reqres("GET", "/v1/campaigns/:id/preview", "Each recipient's actual copy, before it goes.", {
+      response: `{
+  "object": "list",
+  "total": 3,
+  "data": [
+    {
+      "object": "campaign_recipient",
+      "email": "grace@example.com",
+      "name": "Grace Hopper",
+      "tags": ["vip"],
+      "variant_tag": "vip",
+      "template_name": "Newsletter VIP",
+      "edited": false,
+      "subject": "VIP news, Grace",
+      "html": "<p>Hi Grace — as an Enterprise customer…</p>",
+      "text": "Hi Grace — as an Enterprise customer…"
+    }
+  ]
+}`,
+    }),
+    ...reqres("PUT", "/v1/campaigns/:id/overrides", "Replace one recipient's copy.", {
+      request: `{
+  "email": "linus@example.com",
+  "subject": "Just for you, {{first_name}}",
+  "html": "<p>Hi {{first_name}} — a hand-written note only you get.</p>"
+}`,
+    }),
+    endpoint("DELETE", "/v1/campaigns/:id/overrides?email=…", "Put a recipient back on the normal copy."),
+    code(
+      "ts",
+      `// Check everyone, then fix the one that reads wrong.
+const { data } = await mail.campaigns.preview(c.id);
+const odd = data.find((r) => r.subject.includes("undefined"));
+if (odd) {
+  await mail.campaigns.setRecipientCopy(c.id, {
+    email: odd.email,
+    subject: "A quick note",
+    html: "<p>Hi there — here's the update.</p>",
+  });
+}`,
+      "preflight.ts",
+    ),
+    callout(
+      "note",
+      "An edited copy still goes through the normal send path: {{variables}} you type are filled from the contact's record, and the compliance footer (postal address + unsubscribe) is still appended.",
     ),
   ],
 };

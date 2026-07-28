@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { contactVariables, enqueueCampaignSend, Errors, newId, render } from "@rootmail/core";
-import { auditEntries, type Campaign, campaigns, contacts, db, listContacts, lists, messages, sequenceEnrollments, sequences, templates } from "@rootmail/db";
+import { auditEntries, type Campaign, campaignOverrides, campaigns, contacts, db, listContacts, lists, messages, sequenceEnrollments, sequences, templates } from "@rootmail/db";
 import { assertContactCapacity, assertEmailVerified, assertMarketingSendCapacity } from "../lib/billing";
 import { loadOrg, requireFeature } from "../lib/features";
 import { messageFunnel } from "../lib/funnel";
@@ -188,6 +188,14 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     const segment = c.segmentTag;
     const members = segment ? all.filter((m) => (m.tags ?? []).includes(segment)) : all;
 
+    // A recipient whose copy was edited by hand gets that, verbatim.
+    const overrides = new Map(
+      (await db.select().from(campaignOverrides).where(eq(campaignOverrides.campaignId, c.id))).map((o) => [
+        o.email,
+        o,
+      ]),
+    );
+
     const data = members.slice(0, q.limit).map((m) => {
       // Same rule as the worker: the first variant whose tag they carry wins.
       const hit = defs.find((v) => (m.tags ?? []).includes(v.tag));
@@ -195,7 +203,14 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       const useTpl = vTpl ?? tpl;
       const useSubject = vTpl ? (hit?.subject ?? vTpl.subject) : (c.subject ?? tpl.subject);
       const variables = contactVariables(m, m.email);
-      const rendered = render({ subject: useSubject, html: useTpl.html, text: useTpl.text, variables });
+      const ov = overrides.get(m.email.toLowerCase());
+      const rendered = render({
+        subject: ov?.subject ?? useSubject,
+        html: ov?.html ?? useTpl.html,
+        // An edited copy has no separate text part — derive it from the HTML.
+        text: ov?.html ? null : useTpl.text,
+        variables,
+      });
       return {
         object: "campaign_recipient" as const,
         email: m.email,
@@ -203,6 +218,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
         tags: m.tags ?? [],
         variant_tag: hit?.tag ?? null,
         template_name: useTpl.name,
+        edited: ov != null,
         subject: rendered.subject,
         html: rendered.html,
         text: rendered.text,
@@ -210,6 +226,75 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     });
 
     return { object: "list", total: members.length, data };
+  });
+
+  // --- Edit one person's copy ---------------------------------------------
+  // What you do when the pre-flight shows you something you don't like for one
+  // recipient. Only meaningful before the campaign goes out, so it's refused
+  // afterwards rather than silently having no effect.
+  const overrideBody = z.object({
+    email: z.string().email(),
+    subject: z.string().min(1).max(500).optional(),
+    html: z.string().min(1).optional(),
+  });
+
+  app.put("/v1/campaigns/:id/overrides", async (req) => {
+    const { id } = req.params as { id: string };
+    await requirePermission(req, "content.manage");
+    const c = await getScoped(req, id);
+    if (c.status !== "draft" && c.status !== "scheduled") {
+      throw Errors.badRequest("This campaign has already gone out — its recipients' copies can't be changed.");
+    }
+    const body = parse(overrideBody, req.body);
+    if (body.subject === undefined && body.html === undefined) {
+      throw Errors.badRequest("Provide a subject, a body, or both.");
+    }
+    const email = body.email.trim().toLowerCase();
+
+    const [existing] = await db
+      .select()
+      .from(campaignOverrides)
+      .where(and(eq(campaignOverrides.campaignId, c.id), eq(campaignOverrides.email, email)))
+      .limit(1);
+
+    if (existing) {
+      const [row] = await db
+        .update(campaignOverrides)
+        .set({
+          subject: body.subject ?? existing.subject,
+          html: body.html ?? existing.html,
+          updatedAt: new Date(),
+        })
+        .where(eq(campaignOverrides.id, existing.id))
+        .returning();
+      return { object: "campaign_override", ...row };
+    }
+
+    const [row] = await db
+      .insert(campaignOverrides)
+      .values({
+        id: newId("campaignOverride"),
+        workspaceId: req.auth.workspace.id,
+        campaignId: c.id,
+        email,
+        subject: body.subject ?? null,
+        html: body.html ?? null,
+      })
+      .returning();
+    return { object: "campaign_override", ...row };
+  });
+
+  app.delete("/v1/campaigns/:id/overrides", async (req) => {
+    const { id } = req.params as { id: string };
+    await requirePermission(req, "content.manage");
+    const c = await getScoped(req, id);
+    const { email } = parse(z.object({ email: z.string().email() }), req.query);
+    await db
+      .delete(campaignOverrides)
+      .where(
+        and(eq(campaignOverrides.campaignId, c.id), eq(campaignOverrides.email, email.trim().toLowerCase())),
+      );
+    return { object: "campaign_override", deleted: true };
   });
 
   // Per-campaign engagement: the sent → delivered → opened → clicked funnel over

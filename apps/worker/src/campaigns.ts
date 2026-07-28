@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { type CampaignJob, contactVariables, env } from "@rootmail/core";
-import { campaigns, contacts, db, listContacts, senderIdentities, subTenants, templates, workspaces, type Template } from "@rootmail/db";
+import { campaignOverrides, campaigns, contacts, db, listContacts, senderIdentities, subTenants, templates, workspaces, type Template } from "@rootmail/db";
 import { automationSend } from "./send";
 
 /** Fan a campaign out to every contact on its list, metered + suppression-aware.
@@ -69,6 +69,16 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
   // Segmented campaigns only reach members carrying the tag.
   const members = c.segmentTag ? all.filter((m) => (m.tags ?? []).includes(c.segmentTag!)) : all;
 
+  // Someone read this person's copy in the pre-flight and changed it. Their
+  // edit wins over the template AND over any A/B variant — it is, by
+  // definition, the version chosen for that recipient.
+  const overrides = new Map(
+    (await db.select().from(campaignOverrides).where(eq(campaignOverrides.campaignId, c.id))).map((o) => [
+      o.email,
+      o,
+    ]),
+  );
+
   let sent = 0;
   let suppressed = 0;
   let failed = 0;
@@ -77,7 +87,11 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
     const hit = variants.find((v) => (m.tags ?? []).includes(v.tag));
     const vTpl = hit ? variantTemplates.get(hit.template_id) : undefined;
     const useTpl = vTpl ?? tpl;
-    const useSubject = (vTpl ? (hit?.subject ?? vTpl.subject) : (c.subject ?? tpl.subject));
+    const ov = overrides.get(m.email.toLowerCase());
+    const useSubject = ov?.subject ?? (vTpl ? (hit?.subject ?? vTpl.subject) : (c.subject ?? tpl.subject));
+    const useHtml = ov?.html ?? useTpl.html;
+    // An edited copy carries no separate plain-text part — let it be derived.
+    const useText = ov?.html ? null : useTpl.text;
     try {
       const res = await automationSend({
         workspaceId: c.workspaceId,
@@ -95,8 +109,8 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
         // phone, and any custom fields on the contact record.
         variables: contactVariables(m),
         subject: useSubject,
-        html: useTpl.html,
-        text: useTpl.text,
+        html: useHtml,
+        text: useText,
         templateId: useTpl.id,
         templateVersion: useTpl.currentVersion,
         campaignId: c.id,

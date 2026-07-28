@@ -369,3 +369,19 @@ export interface TestRecipientsReset {
   cleared: number;
   emails: string[];
 }
+
+/** One recipient's actual copy of a campaign, resolved before it's sent. */
+export interface CampaignPreviewRecipient {
+  object: "campaign_recipient";
+  email: string;
+  name: string | null;
+  tags: string[];
+  /** The A/B variant tag their tags selected, if any. */
+  variant_tag: string | null;
+  template_name: string;
+  /** True when someone edited this person's copy by hand. */
+  edited: boolean;
+  subject: string;
+  html: string;
+  text: string;
+}

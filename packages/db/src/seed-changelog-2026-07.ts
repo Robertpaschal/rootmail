@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Not right for one person? Change just their copy",
+    date: "2026-07-28",
+    changes: [
+      {
+        kind: "New",
+        text: "The campaign pre-flight now lets you edit one recipient's email. Open their copy, rewrite the subject or the message in the normal editor, and save — only they get that version. Everyone else keeps the campaign's normal copy.",
+      },
+      {
+        kind: "New",
+        text: "An edited copy wins over the template AND over any A/B variant, so it's genuinely the version chosen for that person. Edited recipients are marked in the list, and one click puts them back on the normal copy.",
+      },
+      {
+        kind: "Improved",
+        text: "Edits go through the normal send path: {{variables}} you type still fill in from that contact's record, and the required postal address + unsubscribe footer is still added. Editing is refused on a campaign that's already gone out, rather than quietly having no effect.",
+      },
+    ],
+  },
+  {
     title: "See the exact email before it goes — templates, messages and campaigns",
     date: "2026-07-28",
     changes: [
