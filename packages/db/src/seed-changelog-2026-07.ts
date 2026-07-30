@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Replies that move with you",
+    date: "2026-07-30",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Opening and closing a conversation no longer snaps. Threads and individual emails unfold and fold on a spring, so you keep your place instead of hunting for it after the page jumps.",
+      },
+      {
+        kind: "Improved",
+        text: "The reply box grows as you write, up to a comfortable limit, rather than staying a two-line slot you have to scroll inside. The Reply button now says what it's doing — Reply, Sending, Sent — without changing size or shifting the layout.",
+      },
+      {
+        kind: "Improved",
+        text: "A reply you send slides into the thread as a new email instead of appearing out of nowhere, and folding the people list away is now one continuous movement from the full list to the strip of faces.",
+      },
+      {
+        kind: "Improved",
+        text: "Filtering and switching people got quieter: the selected filter pill travels between All and Needs reply, a single marker slides to whoever you're reading, and rows close the gap as they filter out. If your system asks for reduced motion, all of it is off.",
+      },
+    ],
+  },
+  {
     title: "Hide the sidebar — and get it back by brushing the edge",
     date: "2026-07-28",
     changes: [
