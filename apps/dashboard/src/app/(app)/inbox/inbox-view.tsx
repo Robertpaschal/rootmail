@@ -519,18 +519,6 @@ export function InboxView({
               <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setShowList(true)} aria-label="Back to list">
                 <ArrowLeft className="size-4" />
               </Button>
-              {!railOpen ? (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="hidden md:inline-flex"
-                  onClick={() => toggleRail(true)}
-                  aria-label="Show conversations"
-                  title="Show conversations"
-                >
-                  <PanelLeftOpen className="size-4" />
-                </Button>
-              ) : null}
               <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                 {initials(contact.name, contact.email)}
               </span>

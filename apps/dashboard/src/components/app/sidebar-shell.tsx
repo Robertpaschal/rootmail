@@ -2,7 +2,9 @@
 
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import Link from "next/link";
 import { PanelLeft } from "lucide-react";
+import { Logo } from "./logo";
 import { cn } from "@/lib/utils";
 
 /**
@@ -191,7 +193,24 @@ export function PeekBackdrop() {
   );
 }
 
-/** Show/hide the sidebar from the top bar — the discoverable half of ⌘\. */
+/**
+ * The rootmail mark, in the top bar, whenever the sidebar isn't carrying it.
+ *
+ * The brand used to live only in the sidebar header — so hiding the sidebar took
+ * the product's own name off the screen. Wherever you are, and whatever you've
+ * hidden, you should be able to see what you're using and click home.
+ */
+export function BrandMark() {
+  const { collapsed } = useSidebar();
+  if (!collapsed) return null;
+  return (
+    <Link href="/" aria-label="rootmail" className="hidden shrink-0 md:block">
+      <Logo />
+    </Link>
+  );
+}
+
+/** Show/hide the sidebar from the top bar — the ONE control for it, plus ⌘\. */
 export function SidebarToggle({ className }: { className?: string }) {
   const { collapsed, toggle } = useSidebar();
   return (

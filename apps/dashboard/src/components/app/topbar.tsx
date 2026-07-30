@@ -7,7 +7,7 @@ import type { Workspace, WorkspaceLimit } from "@/lib/types";
 import { CommandTrigger } from "./command-menu";
 import { Logo } from "./logo";
 import { QuickCreate } from "./quick-create";
-import { SidebarToggle } from "./sidebar-shell";
+import { BrandMark, SidebarToggle } from "./sidebar-shell";
 import { ThemeToggle } from "./theme-toggle";
 import { WorkspaceSwitcher } from "./workspace-switcher";
 
@@ -46,8 +46,13 @@ export async function Topbar() {
           <Logo />
         </Link>
       </div>
-      {/* Hiding the sidebar has to be findable without knowing ⌘\. */}
-      <SidebarToggle className="-ml-1" />
+      {/* The brand never leaves the screen: the sidebar carries it when docked,
+          the top bar picks it up the moment it's hidden. */}
+      <div className="flex min-w-0 items-center gap-2">
+        <BrandMark />
+        {/* Hiding the sidebar has to be findable without knowing ⌘\. */}
+        <SidebarToggle className="-ml-1" />
+      </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
         <QuickCreate />

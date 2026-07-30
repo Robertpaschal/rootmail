@@ -9,8 +9,6 @@ import {
   BookOpen,
   ChevronRight,
   CreditCard,
-  PanelLeftClose,
-  Pin,
   FileCheck2,
   FileText,
   FlaskConical,
@@ -257,7 +255,7 @@ export interface NavContext {
 export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
   const isActive = useIsActive();
   const groups = buildGroups({ sandbox, workspaceName });
-  const { collapsed, overlay, setCollapsed, closePeek } = useSidebar();
+  const { collapsed, overlay, closePeek } = useSidebar();
   const reduce = useReducedMotion();
 
   return (
@@ -276,38 +274,18 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
       aria-hidden={collapsed && !overlay}
       inert={collapsed && !overlay}
       className={cn(
-        "group/sidebar fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r md:flex",
+        "fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r md:flex",
         overlay
           ? "bg-card/80 shadow-2xl backdrop-blur-xl supports-[backdrop-filter]:bg-card/70"
           : "bg-card",
       )}
     >
-      <div className="flex h-16 items-center justify-between border-b px-5">
-        <Link href="/" aria-label="rootmail">
+      {/* Just the brand. Hiding and showing live on ONE control in the top bar
+          (plus ⌘\) — a second pair in here was the same job twice. */}
+      <div className="flex h-16 items-center border-b px-5">
+        <Link href="/" aria-label="rootmail" onClick={overlay ? () => closePeek(true) : undefined}>
           <Logo />
         </Link>
-        {/* Floating: pin it back. Docked: put it away. */}
-        {overlay ? (
-          <button
-            type="button"
-            onClick={() => setCollapsed(false)}
-            title="Keep the sidebar open"
-            aria-label="Keep the sidebar open"
-            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-          >
-            <Pin className="size-4" />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setCollapsed(true)}
-            title="Hide sidebar  ⌘\"
-            aria-label="Hide sidebar"
-            className="rounded-md p-1.5 text-muted-foreground opacity-0 transition-all hover:bg-accent hover:text-foreground focus-visible:opacity-100 group-hover/sidebar:opacity-100"
-          >
-            <PanelLeftClose className="size-4" />
-          </button>
-        )}
       </div>
 
       <LayoutGroup id="sidebar">
