@@ -17,6 +17,28 @@ import { ensureAddons, ensurePlans } from "./seed-catalog";
 // first-run bootstrap (POST /v1/admin/auth/bootstrap), so there's never a
 // hardcoded admin login in any environment.
 
+/**
+ * What the demo org is entitled to.
+ *
+ * `plan` is a VESTIGIAL label — since the two-wings pricing rework, entitlements
+ * are resolved purely from the per-wing tier columns (`synthesizePlan()` in
+ * apps/api/src/lib/wings.ts). An org with `plan: "scale"` and null wing tiers
+ * silently falls back to the FREE tier on both wings — which is how the seeded
+ * org lost `sequences` despite looking like a paid account, and why the smoke
+ * test started 402ing on it.
+ *
+ * So name the wings explicitly. Marketing at Growth is the LOWEST tier carrying
+ * sequences — the demo org should hold what it needs, not the top of the
+ * catalog. (Transactional stays on its free allowance on purpose: every tx tier
+ * carries the same features, so paying for blocks would buy quota, not access.)
+ */
+const DEMO_MK_TIER = "mk_growth";
+const DEMO_ENTITLEMENTS = {
+  plan: "scale",
+  marketingTier: DEMO_MK_TIER,
+  marketingContacts: 1_000,
+} as const;
+
 async function ensureOrganization(): Promise<Organization> {
   const [existing] = await db
     .select()
@@ -24,22 +46,22 @@ async function ensureOrganization(): Promise<Organization> {
     .where(eq(organizations.slug, "acme"))
     .limit(1);
   if (existing) {
-    // Normalize the demo org to Scale so the SDK smoke test and dashboard demo
-    // exercise the full feature set (sub-tenants, threads, RBAC). Fresh signups
-    // still start on Free, where feature-gating is demonstrable.
-    if (existing.plan !== "scale") {
+    // Normalize the demo org so the SDK smoke test and dashboard demo exercise
+    // the full feature set. Fresh signups still start on Free, where
+    // feature-gating is demonstrable.
+    if (existing.plan !== "scale" || existing.marketingTier !== DEMO_MK_TIER) {
       await db
         .update(organizations)
-        .set({ plan: "scale", updatedAt: new Date() })
+        .set({ ...DEMO_ENTITLEMENTS, updatedAt: new Date() })
         .where(eq(organizations.id, existing.id));
-      existing.plan = "scale";
+      Object.assign(existing, DEMO_ENTITLEMENTS);
     }
     return existing;
   }
 
   const [row] = await db
     .insert(organizations)
-    .values({ id: newId("organization"), name: "Acme Inc", slug: "acme", plan: "scale" })
+    .values({ id: newId("organization"), name: "Acme Inc", slug: "acme", ...DEMO_ENTITLEMENTS })
     .returning();
   return row;
 }

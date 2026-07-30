@@ -52,6 +52,11 @@ jobs:
       DATABASE_URL: postgres://rootmail:rootmail@localhost:5432/rootmail
       REDIS_URL: redis://localhost:6379
       MAIL_PROVIDER: mock
+      # Absolute, because CI has no .env: `rootDir` (which a relative MAILDIR is
+      # resolved against) falls back to process.cwd(), and the worker runs with
+      # pnpm --filter, so its cwd is apps/worker while the smoke looks at the
+      # repo root. Pinning the path makes both agree.
+      MAILDIR: ${{ github.workspace }}/.maildir
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
