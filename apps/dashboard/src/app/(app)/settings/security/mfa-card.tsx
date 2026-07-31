@@ -40,11 +40,10 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
   if (enabled) {
     return (
       <form action={disableAction} className="space-y-4">
-        <p className="flex items-center gap-2 text-sm font-medium text-emerald-600">
-          <ShieldCheck className="size-4" /> Two-factor authentication is on.
-        </p>
+        {/* The row already shows "On" — don't say it a second time. What it
+            can't say is that turning it off needs proof it's really you. */}
         <p className="text-sm text-muted-foreground">
-          To turn it off, confirm with a current code or your password.
+          Turning it off needs a current code from your authenticator, or your password.
         </p>
         <div className="flex flex-col gap-2 sm:flex-row">
           <Input
@@ -107,12 +106,13 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
     );
   }
 
-  // Initial — off.
+  // Initial — off. The row above already states "Off" and explains what 2FA is,
+  // so this says only the thing the row can't: what you'll need to hand.
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Two-factor authentication is <span className="font-medium text-foreground">off</span>. Add a layer of
-        protection with an authenticator app (Google Authenticator, 1Password, etc.).
+        You&apos;ll need an authenticator app — Google Authenticator, 1Password, Authy or similar. Takes
+        about a minute.
       </p>
       {startError ? <p className="text-sm text-destructive">{startError}</p> : null}
       <Button

@@ -1,18 +1,21 @@
 import type { Metadata } from "next";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Organization, SenderIdentity } from "@/lib/types";
+import { SettingsItem, SettingsSection, StateBadge } from "../setting-item";
 import { OwnReplyDomain } from "./own-reply-domain";
+import { PostalAddress } from "./postal-address";
 import { ReplySettings } from "./reply-settings";
-import { SenderForm } from "./sender-form";
 import { SendersManager } from "./senders-manager";
 
 export const metadata: Metadata = { title: "Sending · Settings" };
 
-// Everything about WHO your email comes from: the from-addresses you own (so
-// mail carries your name, and replies land in your real inbox) and the postal
-// address anti-spam law requires on marketing mail.
+// Everything about WHO your email comes from. Three different KINDS of thing, so
+// three different shapes rather than three identical cards:
+//   • addresses — a collection you manage, so it keeps a section of its own
+//   • replies   — a choice + an optional DNS setup, so: rows that state the
+//                 current answer and unfold to change it
+//   • postal    — one value, so: a row that shows it and edits on demand
 export default async function SenderSettingsPage() {
   let org: Organization;
   let senders: SenderIdentity[] = [];
@@ -36,59 +39,87 @@ export default async function SenderSettingsPage() {
     );
   }
 
+  const verified = senders.filter((s) => s.status === "verified").length;
+  const pending = senders.filter((s) => s.status === "pending").length;
+  const hasPostal = Boolean(org.postal_address?.trim());
+  const domainActive = org.reply_domain_status === "active";
+
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Your sending addresses</CardTitle>
-          <CardDescription>
-            Send email as yourself — hello@yourcompany.com instead of a rootmail address. We email
-            that inbox a confirmation link; once clicked, it appears in compose&apos;s From menu,
-            and replies go straight to your real inbox.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <div className="space-y-8">
+      {/* A collection, not a setting — it gets room to be a list. */}
+      <SettingsSection
+        title="Your sending addresses"
+        hint="Send as hello@yourcompany.com instead of a rootmail address. We email that inbox a confirmation link; once it's clicked, the address appears in the From menu when you compose."
+      >
+        <div className="p-4">
           <SendersManager senders={senders} />
-        </CardContent>
-      </Card>
+        </div>
+      </SettingsSection>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">When people reply</CardTitle>
-          <CardDescription>
-            Every email opens a conversation. Choose where a reply goes when someone writes back — into
-            your <strong>Replies</strong> inbox here (one thread per person, answer in-app), or straight
-            to your own mailbox.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-5">
+      <SettingsSection
+        title="When people reply"
+        hint="Every email you send opens a conversation. These decide where the other half of it goes."
+      >
+        <SettingsItem
+          label="Where replies land"
+          description="Into your Replies inbox here, where each person is one thread you can answer in-app — or straight to your own mailbox."
+          value={
+            <StateBadge tone="ok">
+              {org.reply_mode === "own_mailbox" ? "Your own mailbox" : "Replies inbox"}
+            </StateBadge>
+          }
+        >
           <ReplySettings initial={org.reply_mode} />
-          <div className="border-t pt-5">
-            <p className="mb-1 text-sm font-medium">Replies on your own domain <span className="font-normal text-muted-foreground">· optional</span></p>
-            <p className="mb-3 text-xs text-muted-foreground">
-              By default replies come in on a rootmail address. Point a subdomain of yours at us and recipients reply to
-              your brand instead — still captured in the inbox above.
-            </p>
-            <OwnReplyDomain initial={org} />
-          </div>
-        </CardContent>
-      </Card>
+        </SettingsItem>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Postal address</CardTitle>
-          <CardDescription>
-            The physical postal address for {org.name || "your organization"}, added automatically —
-            with the unsubscribe link — to the footer of every <strong>marketing</strong> and{" "}
-            <strong>sales</strong> send, as anti-spam law requires. Receipts and other transactional
-            mail never get the footer. A street address, P.O. box, or registered agent address all
-            qualify.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <SenderForm initial={org.postal_address ?? ""} />
-        </CardContent>
-      </Card>
+        <SettingsItem
+          label="Replies on your own domain"
+          description="By default people reply to a rootmail address. Point a subdomain of yours at us and they reply to your brand instead — still captured in the inbox above."
+          value={
+            domainActive ? (
+              <StateBadge tone="ok">{org.reply_domain ?? "Active"}</StateBadge>
+            ) : org.reply_domain_status === "pending" ? (
+              <StateBadge tone="warn">Awaiting DNS</StateBadge>
+            ) : (
+              <StateBadge tone="muted">Optional</StateBadge>
+            )
+          }
+          openLabel={org.reply_domain_status === "none" ? "Set up" : "Manage"}
+          closeLabel="Close"
+          // Mid-setup is the one state you'd open this for — DNS is waiting on you.
+          defaultOpen={org.reply_domain_status === "pending"}
+        >
+          <OwnReplyDomain initial={org} />
+        </SettingsItem>
+      </SettingsSection>
+
+      <SettingsSection title="Required on marketing mail">
+        <SettingsItem
+          label="Postal address"
+          description={
+            <>
+              A physical address for {org.name || "your organization"} goes in the footer of every{" "}
+              <strong>marketing</strong> and <strong>sales</strong> send, next to the unsubscribe link,
+              as anti-spam law requires. Receipts and other transactional mail never get a footer. A
+              street address, P.O. box or registered agent address all qualify.
+            </>
+          }
+          value={hasPostal ? <StateBadge tone="ok">Set</StateBadge> : <StateBadge tone="warn">Missing</StateBadge>}
+          openLabel={hasPostal ? "Edit" : "Add address"}
+          closeLabel="Close"
+          defaultOpen={!hasPostal}
+        >
+          <PostalAddress initial={org.postal_address ?? ""} />
+        </SettingsItem>
+      </SettingsSection>
+
+      {/* One quiet line of orientation, since verified > 0 is what actually
+          unlocks sending as yourself. */}
+      <p className="text-xs text-muted-foreground">
+        {verified > 0
+          ? `${verified} address${verified === 1 ? "" : "es"} verified${pending ? ` · ${pending} still awaiting confirmation` : ""}.`
+          : "Until an address is verified, your mail goes out from a rootmail address."}
+      </p>
     </div>
   );
 }

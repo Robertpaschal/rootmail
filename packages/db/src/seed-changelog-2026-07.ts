@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Settings pages that show you the answer first",
+    date: "2026-07-31",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Every setting used to sit in its own card with the editor already open — so an account you finished configuring months ago still looked like a half-filled form. Now each one states what it's set to, and the editor opens when you ask for it.",
+      },
+      {
+        kind: "Improved",
+        text: "Your postal address is shown as an address, with a preview of the footer it produces, instead of a permanently open text box. Same for your sending addresses: the list is the page, and the add form appears when you want to add one.",
+      },
+      {
+        kind: "Improved",
+        text: "Security is two plain rows now — two-factor with an On/Off badge, and a real switch for announcements — rather than two cards wrapped around two switches. If two-factor is off, that row opens itself, because that's the one thing there worth doing.",
+      },
+      {
+        kind: "Fixed",
+        text: "The reply settings still said your own reply domain was “coming soon”. It shipped a while ago — and it's the setting immediately below.",
+      },
+    ],
+  },
+  {
     title: "Settings now has a front page",
     date: "2026-07-31",
     changes: [

@@ -1,7 +1,8 @@
 "use client";
 
-import { useActionState, useState, useTransition } from "react";
-import { Check, Loader2, MailPlus, RefreshCw, Star, Trash2 } from "lucide-react";
+import { useActionState, useEffect, useState, useTransition } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { Check, Loader2, MailPlus, Plus, RefreshCw, Star, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,17 @@ export function SendersManager({ senders }: { senders: SenderIdentity[] }) {
   const [state, action] = useActionState<SenderState, FormData>(addSenderAction, {});
   const [rowError, setRowError] = useState<string | null>(null);
   const [pending, start] = useTransition();
+  const reduce = useReducedMotion();
+  // View-first: with addresses on file, the form is a deliberate "add another",
+  // not furniture under a list you came to read. With none, there is nothing to
+  // view, so the form IS the content.
+  const [adding, setAdding] = useState(senders.length === 0);
+
+  // A successful add puts the form away — the new row below is the confirmation.
+  useEffect(() => {
+    if (state.ok && senders.length > 0) setAdding(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   const verified = senders.filter((s) => s.status === "verified");
   const hasDefault = verified.some((s) => s.is_default);
@@ -101,17 +113,45 @@ export function SendersManager({ senders }: { senders: SenderIdentity[] }) {
       ) : null}
       {rowError ? <p className="text-sm text-destructive">{rowError}</p> : null}
 
-      <form action={action} className="flex flex-wrap items-end gap-3">
-        <div className="space-y-1.5">
-          <Label htmlFor="snd-email">Email address</Label>
-          <Input id="snd-email" name="email" type="email" placeholder="hello@yourcompany.com" className="w-64" required />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="snd-name">Display name</Label>
-          <Input id="snd-name" name="display_name" placeholder="Acme (optional)" className="w-44" />
-        </div>
-        <AddButton />
-      </form>
+      {senders.length > 0 && !adding ? (
+        <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
+          <Plus className="size-4" /> Add another address
+        </Button>
+      ) : null}
+
+      <AnimatePresence initial={false}>
+        {adding ? (
+          <motion.div
+            key="add-form"
+            initial={senders.length === 0 ? false : { height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={reduce ? { duration: 0 } : { height: { type: "spring", stiffness: 380, damping: 34 }, opacity: { duration: 0.16 } }}
+            className="overflow-hidden"
+          >
+            <form action={action} className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="snd-email">Email address</Label>
+                <Input id="snd-email" name="email" type="email" placeholder="hello@yourcompany.com" className="w-64" required />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="snd-name">Display name</Label>
+                <Input id="snd-name" name="display_name" placeholder="Acme (optional)" className="w-44" />
+              </div>
+              <AddButton />
+              {senders.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setAdding(false)}
+                  className="pb-2 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
+                </button>
+              ) : null}
+            </form>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
       {state.ok ? (
         <p className="text-sm text-emerald-600">

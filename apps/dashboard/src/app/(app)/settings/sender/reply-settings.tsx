@@ -84,7 +84,10 @@ export function ReplySettings({ initial }: { initial: Mode }) {
             <Check className="size-3.5" /> Saved
           </span>
         ) : (
-          <span>Replies come in on a secure rootmail address today — your own domain is coming for verified domains.</span>
+          // Was "your own domain is coming" — it shipped, and it's the row
+          // directly below this one. Promising a feature that already exists
+          // two inches away is worse than saying nothing.
+          <span>Takes effect on your next send. Changing it never touches conversations you already have.</span>
         )}
         {error ? <span className="text-destructive">{error}</span> : null}
       </div>
