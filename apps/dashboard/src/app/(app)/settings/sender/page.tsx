@@ -86,8 +86,6 @@ export default async function SenderSettingsPage() {
           }
           openLabel={org.reply_domain_status === "none" ? "Set up" : "Manage"}
           closeLabel="Close"
-          // Mid-setup is the one state you'd open this for — DNS is waiting on you.
-          defaultOpen={org.reply_domain_status === "pending"}
         >
           <OwnReplyDomain initial={org} />
         </SettingsItem>
@@ -107,7 +105,6 @@ export default async function SenderSettingsPage() {
           value={hasPostal ? <StateBadge tone="ok">Set</StateBadge> : <StateBadge tone="warn">Missing</StateBadge>}
           openLabel={hasPostal ? "Edit" : "Add address"}
           closeLabel="Close"
-          defaultOpen={!hasPostal}
         >
           <PostalAddress initial={org.postal_address ?? ""} />
         </SettingsItem>

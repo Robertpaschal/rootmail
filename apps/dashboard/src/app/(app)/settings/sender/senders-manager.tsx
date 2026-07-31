@@ -19,14 +19,14 @@ export function SendersManager({ senders }: { senders: SenderIdentity[] }) {
   const [rowError, setRowError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const reduce = useReducedMotion();
-  // View-first: with addresses on file, the form is a deliberate "add another",
-  // not furniture under a list you came to read. With none, there is nothing to
-  // view, so the form IS the content.
-  const [adding, setAdding] = useState(senders.length === 0);
+  // The form NEVER opens itself — not even with zero addresses on file. An open
+  // form is a demand; an empty state with a button is an invitation, and it
+  // leaves room to say what the thing is for first.
+  const [adding, setAdding] = useState(false);
 
   // A successful add puts the form away — the new row below is the confirmation.
   useEffect(() => {
-    if (state.ok && senders.length > 0) setAdding(false);
+    if (state.ok) setAdding(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
@@ -113,6 +113,19 @@ export function SendersManager({ senders }: { senders: SenderIdentity[] }) {
       ) : null}
       {rowError ? <p className="text-sm text-destructive">{rowError}</p> : null}
 
+      {senders.length === 0 && !adding ? (
+        <div className="rounded-lg border border-dashed px-4 py-8 text-center">
+          <p className="text-sm font-medium">No sending address yet</p>
+          <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+            Until you add one, your mail goes out from a rootmail address. Add yours and recipients see
+            your name — and their replies reach your real inbox.
+          </p>
+          <Button type="button" size="sm" className="mt-4" onClick={() => setAdding(true)}>
+            <MailPlus className="size-4" /> Add your first address
+          </Button>
+        </div>
+      ) : null}
+
       {senders.length > 0 && !adding ? (
         <Button type="button" variant="outline" size="sm" onClick={() => setAdding(true)}>
           <Plus className="size-4" /> Add another address
@@ -123,7 +136,7 @@ export function SendersManager({ senders }: { senders: SenderIdentity[] }) {
         {adding ? (
           <motion.div
             key="add-form"
-            initial={senders.length === 0 ? false : { height: 0, opacity: 0 }}
+            initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={reduce ? { duration: 0 } : { height: { type: "spring", stiffness: 380, damping: 34 }, opacity: { duration: 0.16 } }}
@@ -139,15 +152,13 @@ export function SendersManager({ senders }: { senders: SenderIdentity[] }) {
                 <Input id="snd-name" name="display_name" placeholder="Acme (optional)" className="w-44" />
               </div>
               <AddButton />
-              {senders.length > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => setAdding(false)}
-                  className="pb-2 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  Cancel
-                </button>
-              ) : null}
+              <button
+                type="button"
+                onClick={() => setAdding(false)}
+                className="pb-2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
             </form>
           </motion.div>
         ) : null}

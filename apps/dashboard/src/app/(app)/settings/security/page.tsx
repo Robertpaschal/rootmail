@@ -32,9 +32,6 @@ export default async function SecuritySettingsPage() {
           }
           openLabel={mfaEnabled ? "Manage" : "Set up"}
           closeLabel="Close"
-          // Off is the state worth acting on, so that row starts open rather than
-          // hiding the one thing we'd like you to do behind another click.
-          defaultOpen={!mfaEnabled}
         >
           <MfaCard enabled={mfaEnabled} />
         </SettingsItem>

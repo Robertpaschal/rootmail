@@ -2,7 +2,6 @@
 
 import { type ChangeEvent, useActionState, useEffect, useRef, useState, useTransition } from "react";
 import { Camera, Check, Loader2, Pencil, Trash2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { SettingsSection } from "./setting-item";
 import { Input } from "@/components/ui/input";
@@ -28,15 +27,11 @@ function initials(name: string, email: string): string {
 export function ProfileCard({
   name,
   email,
-  verified,
   avatarUrl,
-  workspace,
 }: {
   name: string;
   email: string;
-  verified: boolean;
   avatarUrl: string | null;
-  workspace: string;
 }) {
   // View-first: the profile is presented, and editing is a deliberate step.
   const [editing, setEditing] = useState(false);
@@ -107,21 +102,11 @@ export function ProfileCard({
     </span>
   );
 
-  const IdentityGrid = (
-    <div className="grid gap-5 border-t pt-5 sm:grid-cols-2">
-      <div>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Email</p>
-        <p className="mt-1 flex items-center gap-2 text-sm font-medium">
-          <span className="truncate">{email || "—"}</span>
-          {verified ? <Badge variant="success">Verified</Badge> : <Badge variant="warning">Unverified</Badge>}
-        </p>
-      </div>
-      <div>
-        <p className="text-xs uppercase tracking-wide text-muted-foreground">Workspace</p>
-        <p className="mt-1 text-sm font-medium">{workspace || "—"}</p>
-      </div>
-    </div>
-  );
+  // The email + workspace grid that used to live here is gone: it printed a bare
+  // "EMAIL" with no hint of WHICH email (sign-in? the one recipients see?), and a
+  // single "WORKSPACE" when almost every account has at least two. Both now have
+  // properly labelled homes on the page — sign-in under "Your sign-in", and the
+  // full list under "Your workspaces". This component is name + picture only.
 
   // Speaks the same vocabulary as the other settings pages: a section heading
   // rather than a card that re-announces "Profile" on the page already titled
@@ -145,7 +130,6 @@ export function ProfileCard({
                 <p className="truncate text-sm text-muted-foreground">{email}</p>
               </div>
             </div>
-            {IdentityGrid}
           </>
         ) : (
           <>
@@ -212,7 +196,6 @@ export function ProfileCard({
               {nameState?.error ? <p className="text-sm text-destructive">{nameState.error}</p> : null}
             </form>
 
-            {IdentityGrid}
           </>
         )}
       </div>

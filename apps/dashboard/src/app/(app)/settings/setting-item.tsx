@@ -53,7 +53,12 @@ export function SettingsItem({
   /** Label for the disclosure button. Omit when there's nothing to open. */
   openLabel = "Change",
   closeLabel = "Done",
-  /** Start open — for a row whose whole point is unfinished (nothing set yet). */
+  /**
+   * Start open. Settings deliberately passes this NOWHERE: the owner's rule is
+   * that nothing in this section opens itself. A page of half-unfolded editors
+   * is noise, and "we decided this one matters" is a judgement the reader
+   * should get to make. Kept on the API for surfaces outside settings.
+   */
   defaultOpen = false,
   children,
 }: {

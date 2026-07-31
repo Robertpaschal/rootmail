@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A profile that actually tells you who you are here",
+    date: "2026-07-31",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Profile showed an email with no label, leaving you to guess which one it was. It now says plainly: this is the address you sign in with and where we send you account mail — and it is not the address your recipients see, which is a sending address, and you can have several.",
+      },
+      {
+        kind: "New",
+        text: "Every workspace you can open is listed, not just the one you're in — each marked Live or Sandbox, with what that means, and a button to switch. Profile used to print a single “Workspace” value even though almost every account has at least two.",
+      },
+      {
+        kind: "New",
+        text: "Your sign-in section also shows whether your email is verified, whether two-factor is on, and when you joined.",
+      },
+      {
+        kind: "Fixed",
+        text: "Nothing in Settings opens itself any more. Two-factor setup and the postal address editor used to be unfolded before you asked, and the sending-address form sat open even when you had nothing to add — it's an empty state with an invitation now.",
+      },
+    ],
+  },
+  {
     title: "Settings pages that show you the answer first",
     date: "2026-07-31",
     changes: [
