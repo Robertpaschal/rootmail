@@ -49,7 +49,7 @@ const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
       },
       {
         kind: "Improved",
-        text: "Security is two plain rows now — two-factor with an On/Off badge, and a real switch for announcements — rather than two cards wrapped around two switches. If two-factor is off, that row opens itself, because that's the one thing there worth doing.",
+        text: "Security is two plain rows now — two-factor with an On/Off badge, and a real switch for announcements — rather than two cards wrapped around two switches.",
       },
       {
         kind: "Fixed",
