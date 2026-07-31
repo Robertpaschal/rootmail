@@ -10,10 +10,12 @@ export default function SettingsLayout({ children }: { children: ReactNode }) {
     <>
       <PageHeader
         title="Settings"
-        description="Your account, sign-in, and sending compliance."
+        description="You, how your email is sent, and everything else you can change — with what it's set to right now."
       />
       <SettingsTabs />
-      <div className="mt-6 max-w-3xl">{children}</div>
+      {/* 3xl was sized for a single form column. The map wants room for a value
+          on the right of every row, so the section reads at one width. */}
+      <div className="mt-6 max-w-4xl">{children}</div>
     </>
   );
 }

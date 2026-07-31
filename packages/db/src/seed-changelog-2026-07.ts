@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Settings now has a front page",
+    date: "2026-07-31",
+    changes: [
+      {
+        kind: "New",
+        text: "Opening Settings used to drop you straight into Profile, so there was nowhere that answered “what can I change?”. There's now a map: every setting listed once, in plain language, grouped by what it's for.",
+      },
+      {
+        kind: "New",
+        text: "Each row shows what it's set to right now — whether two-factor is on, how many sending addresses are verified, where replies go, whether your postal address is filled in. You read it instead of opening four pages to find out.",
+      },
+      {
+        kind: "New",
+        text: "Search across all of it. Type “2fa”, “unsubscribe”, “okta” or “dns” and the right setting comes up, wherever it lives.",
+      },
+      {
+        kind: "Improved",
+        text: "Anything unfinished floats to the top under “Worth finishing” — a missing postal address, for instance, which marketing sends legally need in the footer.",
+      },
+      {
+        kind: "Improved",
+        text: "Settings that live in their own sections — your team and SSO, plan and usage, client domains, proof and retention, API keys and webhooks — are listed here too, labelled with where they actually are. Looking for SSO in Settings now finds it instead of finding nothing.",
+      },
+    ],
+  },
+  {
     title: "Pricing pages that say what you actually get",
     date: "2026-07-31",
     changes: [
