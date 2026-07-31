@@ -76,11 +76,18 @@ export function MarketingBilling({
     { label: "Daily send limit", value: (t) => `${num(dailyFor(t, clamped, free))}/day` },
     { label: "Audiences", hint: "Distinct lists you can send to", value: (t) => (t.included_audiences === -1 ? "Unlimited" : `${t.included_audiences ?? 0}`) },
     { label: "Contacts", value: (t) => (t.id === "mk_free" ? `up to ${num(free)}` : num(clamped)) },
-    { label: "Campaigns & scheduling", value: (t) => t.features.includes("campaigns") },
-    { label: "Engagement analytics funnel", value: () => true },
-    { label: "Sequences & automation", hint: "Multi-step drips that stop on reply", value: (t) => t.features.includes("sequences") },
-    { label: "Replies & shared inbox", value: (t) => t.features.includes("threads") },
-    { label: "No rootmail footer", value: (t) => t.id !== "mk_free" },
+    // Rows are phrased as what you can DO, and every unlock is read from live
+    // tier data — so a tier change in the catalog can never leave this table
+    // claiming something the gate won't honour.
+    { label: "Send a campaign, now or scheduled", value: (t) => t.features.includes("campaigns") },
+    { label: "Design it visually, no code", value: () => true },
+    { label: "Preview the exact email each person gets", value: () => true },
+    { label: "Grow the list — signup page, embedded form, opt-in confirmation", hint: "Collect subscribers straight into an audience", value: () => true },
+    { label: "Contact records — tags, notes, lifecycle stages", hint: "Every subscriber is a record you can work, not just an address", value: () => true },
+    { label: "See who opened and clicked, per campaign and per person", value: () => true },
+    { label: "Replies come back to your inbox", hint: "Baseline on both wings — you never lose a reply", value: (t) => t.features.includes("threads") },
+    { label: "Multi-step follow-up sequences", hint: "Drips that stop the moment someone replies", value: (t) => t.features.includes("sequences") },
+    { label: "No rootmail footer on your emails", value: (t) => t.id !== "mk_free" },
   ];
 
   return (

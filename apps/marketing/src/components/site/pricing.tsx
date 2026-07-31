@@ -9,19 +9,22 @@ import { BlocksCalculator, ContactPricer } from "./pricing-calculators";
 // The floor every account shares — so the two wings are about what THEY do,
 // not table stakes.
 const baseline = [
+  "A visual studio to design every email — no code",
   "The AI assistant — builds, sends & explains",
+  "Every reply comes back to your inbox",
   "Delivery health score & full engagement stats",
-  "A complete, tamper-proof history of every email",
   "Unsubscribes & bounces respected automatically",
+  "A complete, tamper-proof history of every email",
   "1-click move-in from Mailchimp-style exports",
   "A free practice mode — test sends never cost anything",
-  "A visual studio to design every email",
   "Full developer access included (developers.gateml.io)",
 ];
 
 /**
  * Pricing sells the REAL model: two independent wings (transactional = send
- * volume, marketing = audience size) + wing-agnostic add-ons priced per one.
+ * volume, marketing = audience size) + add-ons priced per one. Add-ons are filed
+ * under a wing in the catalog, but that is a pricing detail — any of them can be
+ * bought on its own, and buying one never touches a wing's bill.
  * Numbers come live from the public catalog (sales included), so this page and
  * the in-app purchase flow can never disagree.
  */
@@ -49,13 +52,13 @@ export async function Pricing() {
           <ContactPricer mk={pricing.wings.marketing} />
         </Reveal>
 
-        {/* Add-ons — wing-agnostic, per one, buyable with a plan or on their own. */}
+        {/* Add-ons — per one, buyable with a plan or entirely on their own. */}
         <Reveal inView delay={0.12} className="mx-auto mt-10 max-w-5xl">
           <div className="mb-5 text-center">
             <h3 className="text-xl font-bold tracking-tight">Add-ons — priced per one, no plan required</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              They work across both wings. Pick them at checkout (one bill) or buy them on their own —
-              and buying more never re-bills what you already have.
+              Take one whether or not you’re on a paid plan. Pick them at checkout (one bill) or buy them
+              on their own — and buying more never re-bills what you already have.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

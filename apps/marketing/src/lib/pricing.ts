@@ -97,7 +97,12 @@ export const FALLBACK_PRICING: PublicPricing = {
     fbAddon("custom_roles", "Custom team roles", "workspace", 15, "Roles that scope exactly what each teammate can do."),
     fbAddon("sso_scim", "SAML SSO + SCIM", "organization", 50, "Sign-in through your identity provider; leavers lose access automatically."),
     fbAddon("proof_exports", "Proof & compliance exports", "organization", 25, "Signed, tamper-evident exports of exactly what you sent."),
-    fbAddon("data_residency", "Data residency", "organization", 40, "Pin your data to a region."),
+    // Keep this list in step with ADD_ONS in packages/core: it is what the public
+    // pricing page shows when the live catalog is unreachable, so anything stale
+    // here is a price we'd advertise and not honour. Data residency was retired
+    // (sellable:false) and must NOT reappear via this fallback.
+    fbAddon("contact_pack", "Contact pack", "pack of 500 contacts", 16, "Room for 500 more contacts without changing your plan."),
+    fbAddon("audience_pack", "Audience pack", "pack of 5 audiences", 12, "Room for 5 more audiences without changing your plan."),
   ],
 };
 

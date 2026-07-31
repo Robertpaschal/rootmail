@@ -7,8 +7,10 @@ import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Billing } from "@/lib/types";
 import { AddonCards } from "../addon-cards";
 
-// Add-ons are wing-AGNOSTIC — any of them can be bought here on their own, with no
-// wing plan attached. They bill monthly on one org-level add-ons subscription.
+// Any add-on can be bought here on its own, with no wing plan attached — that's
+// what makes this page the standalone store. (They are FILED under a wing in the
+// catalog, which is a pricing detail, not a restriction: buying one never touches
+// a wing's bill.) They bill monthly on one org-level add-ons subscription.
 // This page is THE linkable add-on store: upgrade CTAs across the app deep-link
 // here with ?focus=<addon_id> to land on (and highlight) the exact card to buy.
 const num = (n: number) => n.toLocaleString();
@@ -43,9 +45,13 @@ export default async function AddonsPage({
 
   return (
     <>
+      {/* The description deliberately does NOT enumerate add-on ids: that list
+          went stale the moment Data residency was retired, and it left the page
+          promising something checkout could no longer sell. The cards below are
+          rendered from the live catalog — let them be the list. */}
       <PageHeader
         title="Add-ons"
-        description="Extras that work across both wings — seats, workspaces, team roles, SSO, proof exports, residency, and AI credits. Add exactly what you need; each is priced per one."
+        description="Room for more — extra teammates, extra workspaces, bigger audiences, AI credits and the compliance pieces. Take only what you need; each is priced one at a time and you can drop it just as easily."
         backHref="/billing"
         backLabel="Plan & usage"
       />
@@ -66,7 +72,7 @@ export default async function AddonsPage({
                 </span>
               </p>
               <p className="text-xs text-muted-foreground">
-                These are shared foundation features — buying one changes only your add-ons bill, never a wing&apos;s.
+                Shared across everything you send — buying one changes only your add-ons bill, never a wing&apos;s.
               </p>
             </div>
           </div>
@@ -81,7 +87,7 @@ export default async function AddonsPage({
             <Zap className="size-4 text-muted-foreground" />
             <span>
               <span className="font-medium">Transactional</span>
-              <span className="ml-1 text-muted-foreground">— send blocks + dedicated IP &amp; client domains.</span>
+              <span className="ml-1 text-muted-foreground">— the mail your product owes someone, priced by how much you send.</span>
             </span>
           </span>
           <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
@@ -91,7 +97,7 @@ export default async function AddonsPage({
             <Megaphone className="size-4 text-muted-foreground" />
             <span>
               <span className="font-medium">Marketing</span>
-              <span className="ml-1 text-muted-foreground">— audience email, priced by contact size.</span>
+              <span className="ml-1 text-muted-foreground">— campaigns to an audience, priced by how many contacts you keep.</span>
             </span>
           </span>
           <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />

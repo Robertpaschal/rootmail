@@ -17,14 +17,20 @@ import type { AddonCatalogItem, Billing, BlockBracket } from "@/lib/types";
 const num = (n: number) => n.toLocaleString();
 const money = (n: number) => `$${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
 
+// What every block count gets, in the order a person cares about it. These used
+// to lead with "The send API" — but you can run all of this without writing a
+// line, so the API belongs in the footnote below, not at the top of the list.
 const INCLUDED = [
-  "The send API, templates & test sandbox",
-  "Automatic suppression & bounce handling",
-  "Full append-only audit trail",
-  "Deliverability score, fixes & webhooks",
-  "One-click unsubscribe + compliance footers",
-  "The AI assistant to build, send & diagnose",
+  "Write it yourself or reuse a saved template — no code needed",
+  "Every reply comes back to your inbox",
+  "Bounces and unsubscribes handled automatically, so you never mail a dead address twice",
+  "A record of every email: sent, delivered, opened, bounced — and why",
+  "A deliverability score, with the exact fix when something's off",
+  "An AI assistant to build a send, run it, and explain what went wrong",
 ];
+
+/** The quiet line under INCLUDED — real, free, and deliberately not the headline. */
+const DEV_NOTE = "Building it into your product? The send API, SDKs, webhooks and a free test sandbox are included at every size.";
 
 function rateFor(brackets: BlockBracket[], blocks: number): number {
   for (const b of brackets) if (blocks <= b.up_to_blocks) return b.per_block;
@@ -307,7 +313,7 @@ export function TransactionalBilling({
           {/* What every transactional plan includes — the features, next to the price. */}
           <Card>
             <CardContent className="p-5">
-              <p className="text-sm font-semibold">In every transactional plan</p>
+              <p className="text-sm font-semibold">Included at every size — even the free one</p>
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {INCLUDED.map((f) => (
                   <div key={f} className="flex items-start gap-2 text-sm">
@@ -316,6 +322,7 @@ export function TransactionalBilling({
                   </div>
                 ))}
               </div>
+              <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">{DEV_NOTE}</p>
             </CardContent>
           </Card>
         </div>

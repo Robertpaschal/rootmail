@@ -377,18 +377,29 @@ export default async function BillingPage({
   // ---- Compare plans (tab 2) — centered pill + add-ons everywhere.
   const plansSlot = (
     <div className="space-y-10">
-      <ComparePlans addonCatalog={allAddons} addonQty={addonQty} initialSegment={initialSegment} />
+      <ComparePlans
+        addonCatalog={allAddons}
+        addonQty={addonQty}
+        initialSegment={initialSegment}
+        wings={billing.wings ?? null}
+      />
 
+      {/* What every account can DO — in the order a person cares about it.
+          This block used to open with "Full REST API & Node SDK", which reads
+          as though the product is a library you integrate. It isn't: you can
+          run the whole thing without writing a line. The API is real and it's
+          free on every plan — it just isn't the headline, so it sits at the
+          foot, pointed at the docs, for the people who want it. */}
       <div className="rounded-lg border bg-card p-4">
-        <p className="text-xs font-semibold">Every account includes</p>
+        <p className="text-xs font-semibold">On every plan, free ones included</p>
         <ul className="mt-2 grid gap-1.5 text-xs text-muted-foreground sm:grid-cols-2 lg:grid-cols-3">
           {[
-            "Full REST API & Node SDK",
-            "Append-only audit trail",
-            "Automatic suppression handling",
-            "Webhooks & delivery events",
-            "Sandbox (test-mode) keys — always free",
-            "The AI assistant across both wings",
+            "Write and send without touching code",
+            "Design emails visually and save them as templates",
+            "Every reply lands in your inbox — both wings",
+            "See what happened to each email, and why",
+            "Rehearse a real send before it goes out",
+            "An AI assistant that builds, sends and explains",
           ].map((f) => (
             <li key={f} className="flex items-start gap-2">
               <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
@@ -396,6 +407,14 @@ export default async function BillingPage({
             </li>
           ))}
         </ul>
+        <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
+          Rather wire it up yourself? The REST API, official SDKs, webhooks and a free test sandbox are on
+          every plan too —{" "}
+          <Link href="/docs" className="font-medium text-primary hover:underline">
+            read the developer docs
+          </Link>
+          .
+        </p>
       </div>
 
       <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">

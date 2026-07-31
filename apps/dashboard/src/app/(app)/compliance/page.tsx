@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Clock, Globe2, ShieldCheck } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/components/app/feature-locked";
@@ -128,10 +129,19 @@ export default async function CompliancePage() {
                     <span className="font-medium">{REGION_LABELS[org.data_region] ?? org.data_region}</span>{" "}
                     <span className="font-mono text-xs text-muted-foreground">({org.data_region})</span>
                   </p>
+                  {/* This used to pitch the "Data residency add-on". That add-on was
+                      retired as unsellable (sellable: false — single-region infra
+                      can't honour it), so it no longer appears in the catalog and
+                      the CTA led nowhere. Say the true thing instead: one region
+                      today, and talk to us if you need another. */}
                   <p className="text-muted-foreground">
-                    Residency is pinned per organization and changed only by rootmail staff. Need a
-                    specific region? The Data residency add-on pins your data where your compliance
-                    posture requires — raise it with support to arrange the move.
+                    Residency is pinned per organization and changed only by rootmail staff. We run a
+                    single region today, so there is nothing to buy here — if your compliance posture
+                    needs your data somewhere specific,{" "}
+                    <Link href="/contact" className="font-medium text-primary hover:underline">
+                      talk to us
+                    </Link>{" "}
+                    and we&apos;ll scope it with you.
                   </p>
                 </CardContent>
               </Card>

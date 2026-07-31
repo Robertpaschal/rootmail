@@ -7,7 +7,7 @@ import { Pricing } from "@/components/site/pricing";
 export const metadata: Metadata = {
   title: "Pricing",
   description:
-    "Two products, each priced by what it uses: transactional email by send volume, marketing email by audience size. Add-ons per one. Start free — no card.",
+    "Two products, each priced by what it uses: transactional email by send volume, marketing email by audience size. Each is free until you outgrow it, and each bills on its own. Add-ons per one, no plan required. Start free — no card.",
 };
 
 export default function PricingPage() {

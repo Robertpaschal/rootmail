@@ -14,6 +14,36 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Pricing pages that say what you actually get",
+    date: "2026-07-31",
+    changes: [
+      {
+        kind: "Fixed",
+        text: "Comparing plans quoted “from $6/block” when the first block is $8 — $6 is the rate at high volume. Every number on these pages now comes from the live price list, so what you read is what checkout charges.",
+      },
+      {
+        kind: "Fixed",
+        text: "Client sending domains and a dedicated IP were listed among what Transactional includes. They're add-ons you buy separately. Each product now shows what it includes and, kept clearly apart, what you can add on top.",
+      },
+      {
+        kind: "Fixed",
+        text: "Marketing implied every plan had multi-step sequences; they start on Growth, and the page now says so by name. The replies inbox was filed as a marketing perk — it's free on both sides, always.",
+      },
+      {
+        kind: "Improved",
+        text: "The list of what every plan includes used to open with the REST API and SDK, which made rootmail look like something you have to code against. It leads with what you can do without writing anything — design, send, see what happened, ask the assistant — and the API, SDKs and webhooks are still there, free, in a line at the end for the people who want them.",
+      },
+      {
+        kind: "Improved",
+        text: "Marketing's plan comparison now covers the things the wing actually grew: collecting subscribers with a signup page or embedded form, contact records with tags and lifecycle stages, and previewing the exact email each person will get.",
+      },
+      {
+        kind: "Fixed",
+        text: "Add-ons and Compliance still advertised a Data residency add-on that was retired — nothing to buy, and the link went nowhere. Compliance now states plainly that we run a single region and points you at us if you need another.",
+      },
+    ],
+  },
+  {
     title: "Replies that move with you",
     date: "2026-07-30",
     changes: [
