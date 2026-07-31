@@ -4,7 +4,7 @@ import { type ChangeEvent, useActionState, useEffect, useRef, useState, useTrans
 import { Camera, Check, Loader2, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { SettingsSection } from "./setting-item";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -123,21 +123,19 @@ export function ProfileCard({
     </div>
   );
 
+  // Speaks the same vocabulary as the other settings pages: a section heading
+  // rather than a card that re-announces "Profile" on the page already titled
+  // Profile, inside the section already titled Settings.
   return (
-    <Card>
-      <CardHeader className="flex-row items-start justify-between space-y-0">
-        <div>
-          <CardTitle className="text-base">Profile</CardTitle>
-          <CardDescription>Your name and picture, shown across rootmail.</CardDescription>
-        </div>
+    <SettingsSection title="Your account" hint="Your name and picture, shown across rootmail and on the mail you send.">
+      <div className="space-y-6 p-4">
         {!editing ? (
-          <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
-            <Pencil className="size-4" /> Edit
-          </Button>
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
+              <Pencil className="size-4" /> Edit
+            </Button>
+          </div>
         ) : null}
-      </CardHeader>
-
-      <CardContent className="space-y-6">
         {!editing ? (
           <>
             <div className="flex items-center gap-4">
@@ -217,7 +215,7 @@ export function ProfileCard({
             {IdentityGrid}
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </SettingsSection>
   );
 }
