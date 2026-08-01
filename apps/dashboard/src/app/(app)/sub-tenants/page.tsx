@@ -1,24 +1,26 @@
 import Link from "next/link";
-import { KeyRound, Network, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, KeyRound, Network, Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
 import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/components/app/feature-locked";
 import { PageHeader } from "@/components/app/page-header";
 import { Reveal } from "@/components/app/motion";
-import { InlineReveal } from "@/components/app/reveal-panel";
 import { SubTenantStatusBadge } from "@/components/app/status-badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { SubTenant } from "@/lib/types";
-import { CreateSubTenantForm } from "./create-form";
+import { cn } from "@/lib/utils";
 
 const DESC =
   "Give each client or brand their own verified sending domain, with DKIM and email reputation kept separate. (Sending from your own address instead? Set that under Settings → Sending.)";
 
-// Plain-English "how it works" so a first-time user knows what a client domain is
-// and the three steps to a live one — before facing a form.
+// The three stages of /sub-tenants/new, shown here as a preview of the journey.
+// They used to be a static explainer with the create form opening UNDERNEATH
+// them — describing a process the page didn't actually walk you through. Now
+// they're what the flow does, and the button starts it.
 const STEPS = [
   { icon: Network, title: "Add the client's domain", body: "Name the client and enter the domain they'll send from, e.g. news.acme.com." },
   { icon: KeyRound, title: "Publish the DNS records", body: "We generate DKIM + SPF records; the client (or you) adds them at their DNS host — we show exactly what to paste." },
@@ -72,11 +74,9 @@ export default async function SubTenantsPage() {
         description={DESC}
         actions={
           !empty ? (
-            <InlineReveal triggerLabel="Add client domain">
-              <div className="mt-4 w-full">
-                <CreateSubTenantForm />
-              </div>
-            </InlineReveal>
+            <Link href="/sub-tenants/new" className={cn(buttonVariants({ size: "sm" }))}>
+              <Plus className="size-4" /> Add client domain
+            </Link>
           ) : undefined
         }
       />
@@ -103,12 +103,10 @@ export default async function SubTenantsPage() {
               </Card>
             ))}
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <InlineReveal triggerLabel="Add your first client domain" defaultOpen>
-              <div className="mt-4 w-full max-w-md">
-                <CreateSubTenantForm />
-              </div>
-            </InlineReveal>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link href="/sub-tenants/new" className={cn(buttonVariants({ size: "lg" }))}>
+              Set up your first client domain <ArrowRight className="size-4" />
+            </Link>
             <Link href="/docs/client-domains" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
               <Sparkles className="size-3.5" /> How client domains work in the docs
             </Link>

@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Adding a client domain is a guided setup now",
+    date: "2026-07-31",
+    changes: [
+      {
+        kind: "Improved",
+        text: "The page used to explain the three steps in a row of cards and then open the create form underneath them — so the steps described a process the page didn't actually walk you through, and everything after step one happened somewhere else after a redirect.",
+      },
+      {
+        kind: "New",
+        text: "Adding a client domain is now a proper setup: name the client and their domain, get the DNS records to publish right there with copy buttons on each one, then verify — moving forward a step at a time, with the same progress rail you already see when writing a message or launching a campaign.",
+      },
+      {
+        kind: "Improved",
+        text: "Verification tells you what actually happened. If the records haven't spread yet it says so and offers to check again, rather than looking like a failure. And you can stop after any step — the domain is saved and waiting under Client domains.",
+      },
+    ],
+  },
+  {
     title: "A profile that actually tells you who you are here",
     date: "2026-07-31",
     changes: [

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
+import type { SubTenant } from "@/lib/types";
 
 export interface CreateState {
   error?: string;
@@ -50,4 +51,65 @@ export async function verifySubTenant(formData: FormData): Promise<void> {
   }
   revalidatePath(`/sub-tenants/${id}`);
   revalidatePath("/sub-tenants");
+}
+
+// ---------------------------------------------------------------------------
+// The staged /sub-tenants/new journey.
+//
+// `createSubTenant` above REDIRECTS on success, which is right for a one-shot
+// form but fatal for a flow: the stage that shows you the DNS records has to be
+// reached without a navigation, or the journey is over before it starts. These
+// two return data instead and let the client advance the rail.
+// ---------------------------------------------------------------------------
+
+export interface StagedCreateState {
+  error?: string;
+  subTenant?: SubTenant;
+}
+
+export async function createSubTenantStaged(input: {
+  name: string;
+  sending_domain: string;
+  external_id?: string;
+}): Promise<StagedCreateState> {
+  const name = input.name.trim();
+  const sending_domain = input.sending_domain.trim().toLowerCase();
+  const external_id = (input.external_id ?? "").trim();
+
+  if (!name) return { error: "Give the client a name so you can tell their domains apart." };
+  if (!/^[a-z0-9.-]+\.[a-z]{2,}$/i.test(sending_domain)) {
+    return { error: "That doesn't look like a domain. Try something like news.acme.com." };
+  }
+
+  try {
+    const st = await api.createSubTenant({
+      name,
+      sending_domain,
+      external_id: external_id || undefined,
+    });
+    revalidatePath("/sub-tenants");
+    return { subTenant: st };
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't create the client domain." };
+  }
+}
+
+export interface StagedVerifyState {
+  error?: string;
+  subTenant?: SubTenant;
+}
+
+/** Re-check DNS and hand back the fresh record, so the stage can react to it. */
+export async function verifySubTenantStaged(id: string): Promise<StagedVerifyState> {
+  if (!id) return { error: "Missing domain." };
+  try {
+    const st = await api.verifySubTenant(id);
+    revalidatePath("/sub-tenants");
+    revalidatePath(`/sub-tenants/${id}`);
+    return { subTenant: st };
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't check the DNS records just now." };
+  }
 }
