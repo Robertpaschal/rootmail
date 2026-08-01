@@ -12,7 +12,7 @@ import { deleteCampaign, sendCampaign } from "../actions";
 import { CampaignLive } from "./campaign-live";
 import { PreFlight } from "./pre-flight";
 import { FollowUp } from "./follow-up";
-import { CampaignStages, LaunchPanel, type Blocker } from "./launch";
+import { CampaignJourney, LaunchPanel, phaseForStatus, type Blocker } from "./launch";
 
 export const metadata: Metadata = { title: "Campaign" };
 
@@ -111,7 +111,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         }
       />
 
-      <CampaignStages status={campaign.status} />
+      <CampaignJourney phase={phaseForStatus(campaign.status)} />
 
       {/* Before it goes: is it ready, who does it reach, and say so out loud. */}
       {notYetSent ? (

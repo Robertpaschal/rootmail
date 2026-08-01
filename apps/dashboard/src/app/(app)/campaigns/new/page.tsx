@@ -4,6 +4,7 @@ import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/compon
 import { PageHeader } from "@/components/app/page-header";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import { CampaignComposer, type ComposerList, type ComposerTemplate } from "../composer";
+import { CampaignJourney } from "../[id]/launch";
 
 export const metadata: Metadata = { title: "New campaign" };
 
@@ -61,10 +62,14 @@ export default async function NewCampaignPage() {
     <>
       <PageHeader
         title="New campaign"
-        description="Pick who it goes to and what they get — then review and send."
+        description="Pick who it goes to and what they get. Nothing sends until you review it on the next screen."
         backHref="/campaigns"
         backLabel="Campaigns"
       />
+      {/* The same rail the campaign itself shows — so building is visibly the
+          FIRST leg of one journey, not a separate form that happens to redirect
+          into a flow that had already started without you. */}
+      <CampaignJourney phase="Build" />
       <CampaignComposer lists={lists} templates={templates} sendsFrom={sendsFrom} />
     </>
   );

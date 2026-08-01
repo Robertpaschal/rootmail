@@ -31,7 +31,7 @@ const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
       },
       {
         kind: "New",
-        text: "Every campaign shows where it is in its life — Draft, Sending, Delivered, Engagement — so you can see at a glance what stage you're looking at.",
+        text: "One progress rail runs the whole way — Build, Review, Sending, Delivered, Engagement — and it starts on the New campaign screen, so writing one is visibly the first leg of the journey rather than a separate form that drops you into a flow already underway.",
       },
       {
         kind: "Improved",

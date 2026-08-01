@@ -186,16 +186,26 @@ export function LaunchPanel({
   );
 }
 
-/** The lifecycle, as a rail — where this campaign is, at a glance. */
-export function CampaignStages({ status }: { status: "draft" | "scheduled" | "sending" | "sent" }) {
+/**
+ * The whole life of a campaign, as one rail — used on BOTH the new-campaign
+ * screen and the campaign itself.
+ *
+ * It used to start at "Draft", which quietly said that creating a campaign
+ * happened somewhere outside the flow: you filled in a separate form, got
+ * redirected, and only then saw a progress rail — as if the journey began after
+ * the work. Building it IS the first half. One rail, six marks, shown from the
+ * moment you start.
+ */
+const JOURNEY = ["Build", "Review", "Sending", "Delivered", "Engagement"] as const;
+export type CampaignPhase = (typeof JOURNEY)[number];
+
+export function CampaignJourney({ phase }: { phase: CampaignPhase }) {
   const reduce = useReducedMotion();
-  const stages = ["Draft", "Sending", "Delivered", "Engagement"] as const;
-  // "scheduled" is still pre-send; sending and sent map onto the later marks.
-  const at = status === "draft" || status === "scheduled" ? 0 : status === "sending" ? 1 : 2;
+  const at = JOURNEY.indexOf(phase);
 
   return (
     <ol className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs">
-      {stages.map((s, i) => {
+      {JOURNEY.map((s, i) => {
         const done = i < at;
         const now = i === at;
         return (
@@ -214,10 +224,17 @@ export function CampaignStages({ status }: { status: "draft" | "scheduled" | "se
               {done ? <Check className="size-3" /> : null}
               {s}
             </motion.span>
-            {i < stages.length - 1 ? <span className="text-muted-foreground/50">→</span> : null}
+            {i < JOURNEY.length - 1 ? <span className="text-muted-foreground/50">→</span> : null}
           </li>
         );
       })}
     </ol>
   );
+}
+
+/** Where a saved campaign sits on that rail. */
+export function phaseForStatus(status: "draft" | "scheduled" | "sending" | "sent"): CampaignPhase {
+  if (status === "draft" || status === "scheduled") return "Review";
+  if (status === "sending") return "Sending";
+  return "Delivered";
 }
