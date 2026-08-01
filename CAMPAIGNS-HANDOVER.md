@@ -1,6 +1,6 @@
 # Campaigns journey — handover
 
-State as of `85e91b1`. Everything below is committed, CI-green and deployed
+State as of `d46c9b3`. Everything below is committed, CI-green and deployed
 (dashboard + api). Read this before touching campaigns.
 
 ## The through-line we're building
@@ -13,7 +13,7 @@ silently**.
 Build ──► Review ──► Sending ──► Delivered ──► Engagement
   │          │
   │          └─ readiness checks · audience count · confirm · schedule
-  └─ name · audience · message · A/B          (sub-stages: NOT yet staged)
+  └─ 1. Audience → 2. Message → 3. Review     (staged; bars, not pills)
 ```
 
 `CampaignJourney` + `phaseForStatus` live in
@@ -44,36 +44,44 @@ Build ──► Review ──► Sending ──► Delivered ──► Engagemen
 
 ## Not done — in priority order
 
-### 1. Composer → staged scenes  ← the headline gap
-`apps/dashboard/src/app/(app)/campaigns/composer.tsx` (375 lines) is still ONE
-scrolling form. It has a local `Step` component and four numbered sections
-(Name it / Who gets it / What do they get / A-B by tags) — **those are already
-the scene boundaries**, they just all render at once.
+### ~~1. Composer → staged scenes~~  DONE (7836d2c, d46c9b3)
 
-Reuse `StageRail` + `StageScene` from
-`apps/dashboard/src/components/app/stage-rail.tsx` — the template studio and
-message composer already use them, so campaigns will match rather than invent a
-third pattern. Nest them as sub-stages *inside* the `Build` leg of
-`CampaignJourney`.
+Three sub-stages under Build, rendered as **filling bars** (onboarding-wizard
+shape) so they read differently from the main pill rail. Forward is gated on
+what makes the next scene meaningful; completed scenes are clickable.
 
-Watch out for: the form submits via `useActionState(createCampaign)`, and the
-message composer hit a real bug doing this — **fields in unmounted scenes stop
-submitting**. Hoist every submitted field to form level (that fix is in
-`messages/new`, worth copying).
+**Inactive scenes stay MOUNTED and hidden, deliberately** — this form posts via
+`useActionState`, and a field not in the DOM doesn't submit. That's why there's
+no AnimatePresence swap between scenes. If you want the slide transition, hoist
+every submitted field to form level first.
 
-### 2. The swallowed-error sweep (product-wide, not campaigns)
-`sendCampaign` was not an isolated mistake. **24 swallowed catches in 17 action
-files** — every one is a user pressing a button and being told nothing on
-failure:
+### 1. The swallowed-error sweep — NOT a one-line fix, know this before starting
+**24 swallowed catches across 17 action files.** Every one is a user pressing a
+button and being told nothing when it fails.
 
 ```
 grep -rn "catch {$" apps/dashboard/src/app --include="actions.ts"
 ```
 
-Worst offenders: `messages` (4), `lists` (3), `sequences` (3), `campaigns` (2
-remaining). Convention to apply: action returns `{error?: string}`, caller
-surfaces it. This is its own pass and probably the highest-value cleanup in the
-dashboard.
+The trap: **14 of these are `Promise<void>` form actions** (`<form action={fn}>`).
+Returning `{error}` from them changes nothing on its own — a form action's return
+value is discarded. Each one needs its CALLER converted to `useActionState` (or a
+client handler) to have anywhere to show the error. That's a per-call-site
+refactor, not a find-and-replace, which is why it wasn't bundled into the
+campaign work.
+
+Split it that way:
+
+| Shape | Files | Work |
+|---|---|---|
+| Already returns a value | messages (4), inbox, assistant, contact, auth, subscribe | Cheap — surface `{error}` at the existing call site |
+| `Promise<void>` form action | lists (3), sequences (2), contacts, roles, api-keys, members, templates, billing, sub-tenants, campaigns (delete) | Convert caller to `useActionState`, then return `{error}` |
+
+Do the cheap column first — it's real user-facing value for little risk. The
+form-action column is best done section by section, verifying each.
+
+`sendCampaign` (campaigns) is already converted and is the reference
+implementation: action returns `{error?}`, `LaunchPanel` renders it.
 
 ## A trap that already bit once — don't repeat it
 
