@@ -439,6 +439,18 @@ async function runTool(
   return { status: res.statusCode, body };
 }
 
+/**
+ * What a run emits as it happens, for callers that stream.
+ *
+ * A compound request runs several tool rounds and can take tens of seconds. The
+ * non-streaming path returns one blob at the end, so the UI can only show a
+ * spinner and hope. These let it show the actual work: the model's narration as
+ * it's written, and each tool the moment it returns.
+ */
+export type AssistantEvent =
+  | { type: "delta"; text: string }
+  | { type: "tool"; tool: string; status: number };
+
 export interface AssistantResult {
   reply: string;
   actions: Array<{ tool: string; status: number }>;
@@ -529,6 +541,8 @@ export async function runAssistant(
   req: FastifyRequest,
   prompt: string,
   history: PriorTurn[] = [],
+  /** Called as the run progresses. Omit for the plain request/response path. */
+  onEvent?: (e: AssistantEvent) => void,
 ): Promise<AssistantResult> {
   if (!env.ANTHROPIC_API_KEY) return { ...(await mockAssistant(app, req, prompt)), calls: 0 };
 
@@ -555,6 +569,11 @@ export async function runAssistant(
   ];
   const actions: Array<{ tool: string; status: number }> = [];
   let calls = 0;
+  // Each loop step is its own model call with its own text block. Streaming them
+  // back-to-back runs the last sentence of one into the first word of the next
+  // ("…check both for you.The most recent campaign…"), so a step that starts
+  // talking after an earlier one already did gets a paragraph break first.
+  let hasStreamedText = false;
 
   // Agency mode. Every tool call carries the acting-as-client header, so the
   // figures coming back are ONE client's — and an answer that says "you have 5
@@ -584,13 +603,27 @@ export async function runAssistant(
 
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
-      const resp = await client.messages.create({
+      // Stream every step, not just the last: the model narrates before it
+      // reaches for a tool ("Let me check your recent sends…"), and that
+      // narration is the most useful thing to show while a long run is going.
+      // finalMessage() still gives us the same shape create() returned.
+      const pending = client.messages.stream({
         model: env.AI_MODEL,
         max_tokens: 1200, // room for the end-of-run checklist on multi-step builds
         system,
         tools,
         messages,
       });
+      if (onEvent) {
+        let stepHasText = false;
+        pending.on("text", (text) => {
+          if (!stepHasText && hasStreamedText) onEvent({ type: "delta", text: "\n\n" });
+          stepHasText = true;
+          hasStreamedText = true;
+          onEvent({ type: "delta", text });
+        });
+      }
+      const resp = await pending.finalMessage();
       calls++; // bill only calls that actually completed — a call that throws
       // (e.g. a 4xx before any tokens) consumed nothing and isn't charged.
 
@@ -603,6 +636,7 @@ export async function runAssistant(
               ? await runTool(app, req, def, block.input as Record<string, unknown>)
               : { status: 404, body: "unknown tool" };
             actions.push({ tool: block.name, status: out.status });
+            onEvent?.({ type: "tool", tool: block.name, status: out.status });
             results.push({
               type: "tool_result",
               tool_use_id: block.id,

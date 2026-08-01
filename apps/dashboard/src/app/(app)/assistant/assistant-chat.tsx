@@ -8,7 +8,6 @@ import {
   deleteChat,
   loadChat,
   renameChat,
-  sendChatMessage,
   type AssistantChat,
   type AssistantChatMessage,
 } from "./actions";
@@ -18,6 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { AssistantWorking } from "@/components/app/assistant-working";
+import { streamAssistant } from "@/lib/assistant-stream";
 import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/components/app/ai-credit-meter";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -210,25 +210,48 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
           setChats((cs) => [created.chat!, ...cs]);
         }
 
-        const res = await sendChatMessage(chatId, text);
-        if (res.credits) {
-          const { used, allowance } = res.credits;
-          setCredits({ used, allowance, remaining: allowance === -1 ? -1 : Math.max(0, allowance - used) });
-        } else if (res.upgrade) {
-          // 402 from the credit gate — reflect "out" even without a fresh balance.
-          setCredits((c) => (c ? { ...c, used: c.allowance, remaining: 0 } : c));
-        }
+        // Stream the run. A placeholder assistant turn goes in immediately and
+        // fills as the text arrives, so the answer is readable while it's still
+        // being written instead of appearing all at once at the end.
+        const turnId = tempId();
         setMessages((m) => [
           ...m,
           {
             object: "assistant_message",
-            id: tempId(),
+            id: turnId,
             role: "assistant",
-            content: res.error ?? res.reply ?? "Done.",
-            actions: res.actions ?? [],
+            content: "",
+            actions: [],
             created_at: new Date().toISOString(),
           },
         ]);
+        const patch = (fn: (t: AssistantChatMessage) => AssistantChatMessage) =>
+          setMessages((m) => m.map((t) => (t.id === turnId ? fn(t) : t)));
+
+        let title: string | undefined;
+        await streamAssistant(chatId, text, {
+          onDelta: (chunk) => patch((t) => ({ ...t, content: t.content + chunk })),
+          onTool: (a) => patch((t) => ({ ...t, actions: [...(t.actions ?? []), a] })),
+          onDone: (d) => {
+            title = d.chat.title;
+            // Trust the persisted reply over the accumulated deltas — they should
+            // match, and if they ever don't, the stored turn is the real one.
+            patch((t) => ({ ...t, content: d.reply || t.content || "Done.", actions: d.actions }));
+            if (d.credits) {
+              const { used, allowance } = d.credits;
+              setCredits({ used, allowance, remaining: allowance === -1 ? -1 : Math.max(0, allowance - used) });
+            }
+          },
+          onError: (message) => {
+            patch((t) => ({ ...t, content: t.content ? `${t.content}\n\n${message}` : message }));
+            // A refusal is usually the credit gate; reflect "out" so the meter
+            // and nudge stop claiming there's headroom.
+            if (/credit/i.test(message)) {
+              setCredits((c) => (c ? { ...c, used: c.allowance, remaining: 0 } : c));
+            }
+          },
+        });
+
         // Reflect the backend's content-based title (it auto-names on the first
         // message) and move the chat to the top of the rail.
         const id = chatId;
@@ -236,8 +259,10 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
           const moved = cs.find((c) => c.id === id);
           const rest = cs.filter((c) => c.id !== id);
           const nowIso = new Date().toISOString();
-          const title = res.title ?? moved?.title ?? text;
-          return [{ object: "assistant_chat", id, title, created_at: moved?.created_at ?? nowIso, updated_at: nowIso }, ...rest];
+          return [
+            { object: "assistant_chat", id, title: title ?? moved?.title ?? text, created_at: moved?.created_at ?? nowIso, updated_at: nowIso },
+            ...rest,
+          ];
         });
       });
     },
@@ -257,6 +282,12 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Has the in-flight run produced anything yet? Until it has, the working
+  // indicator carries the wait; after that it would just duplicate the answer.
+  const last = messages[messages.length - 1];
+  const streamStarted =
+    last?.role === "assistant" && (last.content.length > 0 || (last.actions?.length ?? 0) > 0);
 
   const hasConversation = messages.length > 0;
   const out = credits ? isOutOfCredits(credits) : false;
@@ -436,7 +467,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                   </div>
                 ))
               )}
-              {pending ? <AssistantWorking /> : null}
+              {pending && !streamStarted ? <AssistantWorking /> : null}
             </div>
 
             {/* In-chat navigation — a collapsible outline of the conversation's prompts. */}

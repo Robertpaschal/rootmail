@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { env, Errors, newId } from "@rootmail/core";
@@ -80,6 +80,9 @@ async function getOwnedChat(req: FastifyRequest, orgId: string, id: string): Pro
         eq(assistantChats.id, id),
         eq(assistantChats.organizationId, orgId),
         eq(assistantChats.userId, user.id),
+        req.auth.subTenant
+          ? eq(assistantChats.subTenantId, req.auth.subTenant.id)
+          : isNull(assistantChats.subTenantId),
       ),
     )
     .limit(1);
@@ -92,6 +95,7 @@ function serializeChat(c: AssistantChat) {
     object: "assistant_chat" as const,
     id: c.id,
     title: c.title,
+    sub_tenant_id: c.subTenantId,
     created_at: c.createdAt.toISOString(),
     updated_at: c.updatedAt.toISOString(),
   };
@@ -168,6 +172,9 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
         id: newId("assistantChat"),
         organizationId: org.id,
         userId: user.id,
+        // Pin the conversation to whatever client the operator was viewing when
+        // they started it — see the column's note in schema.ts.
+        subTenantId: req.auth.subTenant?.id ?? null,
         title: body.title?.trim() || DEFAULT_TITLE,
       })
       .returning();
@@ -182,7 +189,17 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
     const rows = await db
       .select()
       .from(assistantChats)
-      .where(and(eq(assistantChats.organizationId, org.id), eq(assistantChats.userId, user.id)))
+      .where(
+        and(
+          eq(assistantChats.organizationId, org.id),
+          eq(assistantChats.userId, user.id),
+          // Same shape as templates/contacts: a client's chats belong to that
+          // client, and the workspace rail shows only workspace-level ones.
+          req.auth.subTenant
+            ? eq(assistantChats.subTenantId, req.auth.subTenant.id)
+            : isNull(assistantChats.subTenantId),
+        ),
+      )
       .orderBy(desc(assistantChats.updatedAt));
     return { object: "list", data: rows.map(serializeChat) };
   });
@@ -266,6 +283,106 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
         chat: { id: chat.id, title },
         credits: { used, allowance },
       };
+    },
+  );
+
+  /**
+   * The same turn, streamed.
+   *
+   * Identical gating, billing and persistence to the route above — the only
+   * difference is that the caller watches it happen instead of waiting on one
+   * blob. Server-Sent Events, because the payload is one-directional and text:
+   *
+   *   event: tool   {"tool":"list_threads","status":200}
+   *   event: delta  {"text":"Let me check your recent sends…"}
+   *   event: done   {"reply":…,"actions":[…],"chat":{…},"credits":{…}}
+   *   event: error  {"error":"…"}
+   *
+   * The plain route stays: the SDK, the mock path and anything that just wants a
+   * response body still use it, and streaming must never become the only way in.
+   */
+  app.post(
+    "/v1/assistant/chats/:id/messages/stream",
+    { config: { rateLimit: { max: 10, timeWindow: "1 minute" } } },
+    async (req, reply) => {
+      await requirePermission(req, "content.manage");
+      const org = await loadOrg(req);
+      const { id } = req.params as { id: string };
+      const chat = await getOwnedChat(req, org.id, id);
+      const { prompt } = parse(z.object({ prompt: z.string().min(1).max(2000) }), req.body);
+
+      const allowance = await aiAllowance(org.id, await aiCreditsForOrg(org));
+      const reserved = await reserveAiCreditOrThrow(org.id, allowance);
+
+      const priors = await db
+        .select()
+        .from(assistantMessages)
+        .where(eq(assistantMessages.chatId, chat.id))
+        .orderBy(asc(assistantMessages.createdAt));
+      const history: PriorTurn[] = priors.map((m) => ({ role: m.role, content: m.content }));
+
+      reply.raw.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+        // nginx buffers proxied responses by default, which would hold every
+        // event until the run ended and defeat the whole exercise.
+        "X-Accel-Buffering": "no",
+      });
+      const send = (event: string, data: unknown) => {
+        reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+      };
+
+      try {
+        const result = await runAssistant(app, req, prompt, history, (e) => {
+          if (e.type === "delta") send("delta", { text: e.text });
+          else send("tool", { tool: e.tool, status: e.status });
+        });
+        const used = await settleAiCredits(org.id, allowance, reserved, result.calls);
+
+        const now = new Date();
+        await db.insert(assistantMessages).values([
+          {
+            id: newId("assistantMessage"),
+            chatId: chat.id,
+            role: "user",
+            content: prompt,
+            actions: null,
+            createdAt: now,
+          },
+          {
+            id: newId("assistantMessage"),
+            chatId: chat.id,
+            role: "assistant",
+            content: result.reply,
+            actions: result.actions,
+            createdAt: new Date(now.getTime() + 1),
+          },
+        ]);
+
+        const title =
+          chat.title === DEFAULT_TITLE ? await generateChatTitle(prompt, result.reply) : chat.title;
+        await db
+          .update(assistantChats)
+          .set({ updatedAt: now, title })
+          .where(eq(assistantChats.id, chat.id));
+
+        send("done", {
+          reply: result.reply,
+          actions: result.actions,
+          source: result.source,
+          chat: { id: chat.id, title },
+          credits: { used, allowance },
+        });
+      } catch (err) {
+        // The reserve already happened, so settle at zero rather than leaving a
+        // credit held against a run that produced nothing.
+        await settleAiCredits(org.id, allowance, reserved, 0).catch(() => {});
+        req.log.error({ err }, "assistant stream failed");
+        send("error", { error: "The assistant couldn't finish that. Nothing was charged." });
+      } finally {
+        reply.raw.end();
+      }
     },
   );
 

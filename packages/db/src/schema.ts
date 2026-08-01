@@ -1077,11 +1077,28 @@ export const assistantChats = pgTable(
     userId: text("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    /**
+     * The client (sub-tenant) this conversation belongs to, or null for the
+     * whole workspace.
+     *
+     * Without this a chat outlives the scope it was held under: you ask about
+     * Acme, switch to Borealis, reopen the chat, and the transcript above reads
+     * as Acme while every new answer is Borealis. Each answer is individually
+     * correct and the conversation as a whole is nonsense. A chat is pinned to
+     * where it happened, and the list only shows the ones for where you are.
+     *
+     * ON DELETE SET NULL, not cascade: losing a client domain shouldn't silently
+     * destroy the operator's own record of the work they did for that client.
+     */
+    subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "set null" }),
     title: text("title").notNull().default("New chat"),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [index("assistant_chats_org_user_idx").on(t.organizationId, t.userId, t.updatedAt)],
+  (t) => [
+    index("assistant_chats_org_user_idx").on(t.organizationId, t.userId, t.updatedAt),
+    index("assistant_chats_scope_idx").on(t.organizationId, t.userId, t.subTenantId),
+  ],
 );
 
 export const assistantMessages = pgTable(

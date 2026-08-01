@@ -8,7 +8,6 @@ import { ArrowUpRight, GripHorizontal, Headset, Loader2, MessagesSquare, PanelRi
 import {
   createChat,
   getAiCredits,
-  sendChatMessage,
   type AssistantChatMessage,
 } from "@/app/(app)/assistant/actions";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/compon
 import { listSupportThreads } from "@/app/(app)/support-actions";
 import { SupportPane } from "@/components/app/support-pane";
 import { AssistantWorking } from "./assistant-working";
+import { streamAssistant } from "@/lib/assistant-stream";
 import { cn } from "@/lib/utils";
 
 // Context-aware starters: what the assistant can do RIGHT HERE, keyed by the
@@ -151,15 +151,35 @@ export function AssistantLauncher() {
           id = created.chat.id;
           setChatId(id);
         }
-        const res = await sendChatMessage(id, text);
-        if (res.credits) setCredits({ used: res.credits.used, allowance: res.credits.allowance, remaining: res.credits.allowance === -1 ? -1 : Math.max(0, res.credits.allowance - res.credits.used) });
-        setMessages((m) => [...m, { object: "assistant_message", id: tempId(), role: "assistant", content: res.error ?? res.reply ?? "Done.", actions: res.actions ?? [], created_at: new Date().toISOString() }]);
+        // Same streamed run as the full page — the drawer is where people ask
+        // the quick questions, so waiting blind matters just as much here.
+        const turnId = tempId();
+        setMessages((m) => [...m, { object: "assistant_message", id: turnId, role: "assistant", content: "", actions: [], created_at: new Date().toISOString() }]);
+        const patch = (fn: (t: AssistantChatMessage) => AssistantChatMessage) =>
+          setMessages((m) => m.map((t) => (t.id === turnId ? fn(t) : t)));
+        await streamAssistant(id, text, {
+          onDelta: (chunk) => patch((t) => ({ ...t, content: t.content + chunk })),
+          onTool: (a) => patch((t) => ({ ...t, actions: [...(t.actions ?? []), a] })),
+          onDone: (d) => {
+            patch((t) => ({ ...t, content: d.reply || t.content || "Done.", actions: d.actions }));
+            if (d.credits) {
+              setCredits({ used: d.credits.used, allowance: d.credits.allowance, remaining: d.credits.allowance === -1 ? -1 : Math.max(0, d.credits.allowance - d.credits.used) });
+            }
+          },
+          onError: (message) => patch((t) => ({ ...t, content: t.content ? `${t.content}\n\n${message}` : message })),
+        });
       });
     },
     [chatId, pending, credits],
   );
 
   if (hidden) return null;
+
+  // Until the run produces text or a tool, the working indicator carries the
+  // wait; after that the answer itself is the progress.
+  const lastTurn = messages[messages.length - 1];
+  const streamStarted =
+    lastTurn?.role === "assistant" && (lastTurn.content.length > 0 || (lastTurn.actions?.length ?? 0) > 0);
 
   const out = credits ? isOutOfCredits(credits) : false;
   const floating = mode === "float";
@@ -282,7 +302,7 @@ export function AssistantLauncher() {
             </div>
           ))
         )}
-        {pending ? <AssistantWorking /> : null}
+        {pending && !streamStarted ? <AssistantWorking /> : null}
       </div>
 
       <div className="border-t p-3">

@@ -26,6 +26,20 @@ function isUpgrade(err: unknown): boolean {
 }
 
 /** Refresh views the assistant may have mutated (sequences/lists/campaigns). */
+/*
+ * NOTE: none of these revalidate "/assistant" itself.
+ *
+ * They used to, and it quietly destroyed the thing it was meant to keep fresh:
+ * revalidating the page you are ON re-renders the server tree and resets the
+ * chat component's state, so the transcript you were reading vanished. Worst on
+ * the FIRST message of a new chat — createChat revalidated, and the answer that
+ * was still streaming in landed in a component that had just been wiped. The
+ * run completed and persisted server-side; you simply never saw it.
+ *
+ * The client already keeps its own rail up to date optimistically, so there was
+ * nothing to gain either. Side-effect pages (sequences/lists/campaigns) still
+ * get revalidated below — those the assistant really can change underneath you.
+ */
 function revalidateAssistantSideEffects(): void {
   revalidatePath("/sequences");
   revalidatePath("/lists");
@@ -83,7 +97,6 @@ export async function createChat(
 ): Promise<{ chat?: AssistantChat; error?: string }> {
   try {
     const chat = await api.createAssistantChat(title);
-    revalidatePath("/assistant");
     return { chat };
   } catch (err) {
     return { error: toError(err) };
@@ -93,7 +106,6 @@ export async function createChat(
 export async function deleteChat(id: string): Promise<{ ok?: boolean; error?: string }> {
   try {
     await api.deleteAssistantChat(id);
-    revalidatePath("/assistant");
     return { ok: true };
   } catch (err) {
     return { error: toError(err) };
@@ -107,7 +119,6 @@ export async function sendChatMessage(id: string, prompt: string): Promise<Assis
   try {
     const r = await api.sendAssistantMessage(id, p);
     revalidateAssistantSideEffects();
-    revalidatePath("/assistant");
     return { reply: r.reply, actions: r.actions, credits: r.credits, title: r.chat?.title };
   } catch (err) {
     return { error: toError(err), upgrade: isUpgrade(err) };
@@ -123,7 +134,6 @@ export async function renameChat(
   if (!t) return { error: "Enter a title." };
   try {
     const chat = await api.renameAssistantChat(id, t);
-    revalidatePath("/assistant");
     return { chat };
   } catch (err) {
     return { error: toError(err) };

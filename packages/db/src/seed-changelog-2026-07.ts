@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Watch the assistant work, instead of watching a spinner",
+    date: "2026-08-01",
+    changes: [
+      {
+        kind: "New",
+        text: "The assistant now answers in front of you. It says what it's about to do, each lookup appears the moment it lands, and the answer writes itself out as it's composed — instead of a still spinner for twenty seconds followed by a wall of text.",
+      },
+      {
+        kind: "New",
+        text: "Conversations belong to whoever you were working as. Chats started while viewing a client stay with that client, and your workspace chats stay yours — so a transcript can't mix one client's figures with another's.",
+      },
+      {
+        kind: "Fixed",
+        text: "The first message in a new conversation could vanish from the screen. The assistant had actually answered and saved it — reopening the chat showed it — but the page reset itself underneath the reply as it arrived.",
+      },
+    ],
+  },
+  {
     title: "The assistant can now see your replies, your audience and your results",
     date: "2026-08-01",
     changes: [
