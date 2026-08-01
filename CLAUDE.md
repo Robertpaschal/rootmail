@@ -72,6 +72,13 @@ ROOTMAIL_API_KEY=rm_live_... pnpm exec tsx scripts/smoke.ts
   stall at their `initial` values and exits never unmount. Assert on DOM text, not
   on animation completion — a faded screenshot there is not a bug.
 
+- **Never `revalidatePath()` the page you are already on.** It re-renders the
+  server tree and resets client state, so anything held in `useState` on that
+  page is destroyed. `createChat` did this and the first message of every new
+  assistant chat vanished from the screen — the run had really completed and
+  really persisted, so the only symptom was the transcript disappearing. Only
+  revalidate OTHER pages the action changed.
+
 ## Conventions
 - Public ids are prefixed: `newId("message")` → `msg_…` (`packages/core/src/ids.ts`).
 - API keys: `rm_live_…` / `rm_test_…`; only the SHA-256 hash is stored. **Signup mints no
