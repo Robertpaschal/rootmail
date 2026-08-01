@@ -533,8 +533,8 @@ export async function runAssistant(
   if (!env.ANTHROPIC_API_KEY) return { ...(await mockAssistant(app, req, prompt)), calls: 0 };
 
   const client = new Anthropic({ apiKey: env.ANTHROPIC_API_KEY });
-  // Prompt caching: the system prompt + these 17 tool defs are static and re-sent
-  // on every loop step (and every request). A cache_control breakpoint on the last
+  // Prompt caching: the system prompt + the tool defs are static and re-sent on
+  // every loop step (and every request). A cache_control breakpoint on the last
   // tool caches the whole tools block; the repeated reads then bill at ~10% of the
   // input cost. The cache is ephemeral (~5min TTL) — perfect for a burst loop.
   const tools = TOOLS.map((t, i) => ({
@@ -556,12 +556,38 @@ export async function runAssistant(
   const actions: Array<{ tool: string; status: number }> = [];
   let calls = 0;
 
+  // Agency mode. Every tool call carries the acting-as-client header, so the
+  // figures coming back are ONE client's — and an answer that says "you have 5
+  // contacts" when it means "Acme has 5" is worse than no answer, because it
+  // reads as the whole business. Naming the client here is what turns a narrowed
+  // assistant into an honest one.
+  //
+  // It's a SEPARATE system block, deliberately: the cached block above must stay
+  // byte-identical across requests or every switch of client throws the prompt
+  // cache away.
+  const system: Anthropic.TextBlockParam[] = [
+    { type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } },
+  ];
+  if (req.auth.subTenant) {
+    system.push({
+      type: "text",
+      text:
+        `ACTING AS A CLIENT. The operator is currently viewing the client "${req.auth.subTenant.name}" ` +
+        `(sending domain ${req.auth.subTenant.sendingDomain}), and every tool you call is scoped to that ` +
+        `client alone. Attribute what you report to them by name — "${req.auth.subTenant.name} has 5 contacts", ` +
+        `not "you have 5 contacts" — and say plainly that a figure covers only this client if that could be ` +
+        `misread as the whole account. If the user asks about the wider workspace, or about another client, ` +
+        `tell them to leave client view (the "Exit client view" band at the top) rather than guessing at ` +
+        `numbers you cannot see from here.`,
+    });
+  }
+
   try {
     for (let step = 0; step < MAX_STEPS; step++) {
       const resp = await client.messages.create({
         model: env.AI_MODEL,
         max_tokens: 1200, // room for the end-of-run checklist on multi-step builds
-        system: [{ type: "text", text: SYSTEM, cache_control: { type: "ephemeral" } }],
+        system,
         tools,
         messages,
       });

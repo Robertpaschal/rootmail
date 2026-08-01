@@ -37,6 +37,10 @@ const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
         kind: "Improved",
         text: "While it works you can see that it's working — and for how long — instead of one motionless spinner through a job that legitimately takes several steps.",
       },
+      {
+        kind: "Improved",
+        text: "If you're viewing one client, the assistant is too. It answers for that client and says so by name, and when you ask something account-wide it tells you to leave client view rather than quietly handing you one client's numbers as if they were the whole business.",
+      },
     ],
   },
   {

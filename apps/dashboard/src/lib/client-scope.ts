@@ -26,19 +26,14 @@ const SCOPED_PREFIXES = [
   "/v1/imports",
   "/v1/analytics",
   "/v1/deliverability",
+  // The assistant belongs here for a reason that isn't obvious: its tools are
+  // not separate queries, they're `app.inject()` calls to the very routes above,
+  // and runTool forwards this header. So scoping the assistant scopes every tool
+  // through the same code path the pages use — there is no second implementation
+  // to keep in step. Without this line the banner says "Viewing Acme" while the
+  // assistant answers for the whole workspace.
+  "/v1/assistant",
 ];
-
-/*
- * KNOWN BOUNDARY: `/v1/assistant` is deliberately NOT in that list, so the AI
- * assistant answers about the whole workspace even while you're viewing one
- * client. That's a choice, not an oversight — its ~17 data tools query by
- * workspace and none of them have been made sub-tenant aware, so half-scoping
- * it would produce answers that are confidently wrong about which client they
- * describe. Broader-but-true beats narrower-but-unreliable.
- *
- * If you make the assistant client-aware, every tool has to be audited, not
- * just this array.
- */
 
 export function isClientScopedPath(path: string): boolean {
   const clean = path.split("?")[0] ?? path;
