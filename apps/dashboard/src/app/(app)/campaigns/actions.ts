@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionState } from "@/components/app/action-form";
 import { redirect } from "next/navigation";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Campaign, CampaignAnalytics, CampaignRecipient, CampaignVariant, ListTag } from "@/lib/types";
@@ -139,18 +140,27 @@ export async function sendCampaign(
   return {};
 }
 
-export async function deleteCampaign(formData: FormData): Promise<void> {
+export async function deleteCampaign(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "Missing id." };
   try {
     await api.deleteCampaign(id);
-  } catch {
-    /* best-effort */
+  } catch (err) {
+    return {
+      error:
+        err instanceof ConnectionError || err instanceof ApiError
+          ? err.message
+          : "That didn't work. Try again.",
+    };
   }
   revalidatePath("/campaigns");
   // Callable from the detail page of the campaign being deleted — always land on
   // the list so nobody is stranded on a dead URL. (From the list it's a no-op hop.)
   redirect("/campaigns");
+  return {};
 }
 
 /**

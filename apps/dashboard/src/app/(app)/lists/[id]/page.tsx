@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ActionForm } from "@/components/app/action-form";
 import { notFound } from "next/navigation";
 import { ChevronLeft, ChevronRight, Search, Trash2, TrendingUp, Upload, UserPlus, Users } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
@@ -95,7 +96,7 @@ export default async function ListDetailPage({
   };
 
   const addForm = (
-    <form action={addContact} className="flex flex-wrap items-end gap-2">
+    <ActionForm action={addContact} className="flex flex-wrap items-end gap-2">
       <input type="hidden" name="id" value={list.id} />
       <label className="flex-1">
         <span className="mb-1 block text-xs font-medium text-muted-foreground">Email</span>
@@ -104,7 +105,7 @@ export default async function ListDetailPage({
       <SubmitButton size="sm" pendingLabel="Adding…">
         <UserPlus className="size-4" /> Add to audience
       </SubmitButton>
-    </form>
+    </ActionForm>
   );
 
   return (
@@ -256,13 +257,13 @@ export default async function ListDetailPage({
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-right text-xs text-muted-foreground">{relativeTime(c.created_at)}</TableCell>
                         <TableCell className="text-right">
-                          <form action={removeContact} className="inline">
+                          <ActionForm action={removeContact} className="inline">
                             <input type="hidden" name="id" value={list.id} />
                             <input type="hidden" name="contact_id" value={c.id} />
                             <Button type="submit" variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Remove ${c.email}`}>
                               <Trash2 className="size-4" />
                             </Button>
-                          </form>
+                          </ActionForm>
                         </TableCell>
                       </TableRow>
                     ))}

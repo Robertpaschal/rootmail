@@ -1,17 +1,22 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionState } from "@/components/app/action-form";
 import { api } from "@/lib/rootmail";
 
 /** Set an add-on quantity (extra seats, dedicated IP, sub-tenant / AI packs). */
-export async function setAddon(formData: FormData): Promise<void> {
+export async function setAddon(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
   const addonId = String(formData.get("addon_id") ?? "");
   const quantity = Number(formData.get("quantity") ?? 0);
-  if (!addonId || Number.isNaN(quantity)) return;
+  if (!addonId || Number.isNaN(quantity)) return { error: "Pick an add-on and a quantity." };
   try {
     await api.setAddon(addonId, Math.max(0, Math.floor(quantity)));
   } catch {
     // Best-effort; the page reflects current state.
   }
   revalidatePath("/billing");
+  return {};
 }

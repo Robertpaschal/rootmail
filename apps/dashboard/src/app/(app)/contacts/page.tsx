@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ActionForm } from "@/components/app/action-form";
 import Link from "next/link";
 import {
   ChevronLeft,
@@ -254,10 +255,10 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                       {person.status === "unsubscribed" ? (
                         <Button variant="outline" size="sm" disabled>Unsubscribed</Button>
                       ) : (
-                        <form action={unsubscribeContact}>
+                        <ActionForm action={unsubscribeContact}>
                           <input type="hidden" name="email" value={person.email} />
                           <SubmitButton variant="outline" size="sm" pendingLabel="Working…">Unsubscribe</SubmitButton>
-                        </form>
+                        </ActionForm>
                       )}
                     </div>
                   </>
@@ -538,12 +539,12 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                           <TableCell className="tabular-nums">{l.contacts.toLocaleString()}</TableCell>
                           <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{relativeTime(l.created_at)}</TableCell>
                           <TableCell className="text-right">
-                            <form action={deleteList} className="inline">
+                            <ActionForm action={deleteList} className="inline">
                               <input type="hidden" name="id" value={l.id} />
                               <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" aria-label={`Delete ${l.name}`}>
                                 <Trash2 className="size-4" />
                               </Button>
-                            </form>
+                            </ActionForm>
                           </TableCell>
                         </TableRow>
                       ))}

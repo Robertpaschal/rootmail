@@ -1,5 +1,6 @@
 "use client";
 
+import { ActionForm } from "@/components/app/action-form";
 import { useActionState, useEffect } from "react";
 import { Loader2, UserPlus, X } from "lucide-react";
 import { toast } from "sonner";
@@ -48,11 +49,11 @@ export function InviteForm({ customRoles = [] }: { customRoles?: { id: string; n
 
 export function RevokeInvite({ id }: { id: string }) {
   return (
-    <form action={revokeInvite}>
+    <ActionForm action={revokeInvite}>
       <input type="hidden" name="id" value={id} />
       <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
         <X className="size-4" /> Revoke
       </Button>
-    </form>
+    </ActionForm>
   );
 }

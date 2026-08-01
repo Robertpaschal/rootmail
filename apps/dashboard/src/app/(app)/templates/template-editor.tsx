@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useMemo, useState } from "react";
+import { useActionState, useEffect, useMemo, useState, useTransition} from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
@@ -533,19 +533,31 @@ export function TemplateEditor({
 }
 
 function DeleteTemplate({ id, name }: { id: string; name: string }) {
+  // Was a submit button with formAction={deleteTemplate} — which can't carry a
+  // returned error anywhere, so a refused delete looked exactly like a done one.
+  const [error, setError] = useState<string | null>(null);
+  const [pending, start] = useTransition();
+
   return (
-    <button
-      type="submit"
-      formAction={deleteTemplate}
-      formNoValidate
-      onClick={(e) => {
-        if (!confirm(`Delete "${name}"? This can't be undone. Sends already made keep their content.`)) {
-          e.preventDefault();
-        }
-      }}
-      className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10"
-    >
-      <Trash2 className="size-4" /> Delete
-    </button>
+    <span className="inline-flex flex-col items-start">
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() => {
+          if (!confirm(`Delete "${name}"? This can't be undone. Sends already made keep their content.`)) return;
+          start(async () => {
+            setError(null);
+            const fd = new FormData();
+            fd.set("id", id);
+            const res = await deleteTemplate(null, fd);
+            if (res?.error) setError(res.error);
+          });
+        }}
+        className="inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-60"
+      >
+        <Trash2 className="size-4" /> {pending ? "Deleting…" : "Delete"}
+      </button>
+      {error ? <span role="alert" className="mt-1 text-xs text-destructive">{error}</span> : null}
+    </span>
   );
 }

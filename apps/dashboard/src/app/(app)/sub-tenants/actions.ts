@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionState } from "@/components/app/action-form";
 import { redirect } from "next/navigation";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { SubTenant } from "@/lib/types";
@@ -41,9 +42,12 @@ export async function createSubTenant(
   redirect(`/sub-tenants/${id}`);
 }
 
-export async function verifySubTenant(formData: FormData): Promise<void> {
+export async function verifySubTenant(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "Missing id." };
   try {
     await api.verifySubTenant(id);
   } catch {
@@ -51,6 +55,7 @@ export async function verifySubTenant(formData: FormData): Promise<void> {
   }
   revalidatePath(`/sub-tenants/${id}`);
   revalidatePath("/sub-tenants");
+  return {};
 }
 
 // ---------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 import { ShieldCheck, Trash2 } from "lucide-react";
+import { ActionForm } from "@/components/app/action-form";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
 import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/components/app/feature-locked";
@@ -92,7 +93,7 @@ export async function RolesSection() {
                   ))}
                 </div>
               </div>
-              <form action={deleteRole}>
+              <ActionForm action={deleteRole}>
                 <input type="hidden" name="id" value={r.id} />
                 <Button
                   type="submit"
@@ -102,7 +103,7 @@ export async function RolesSection() {
                 >
                   <Trash2 className="size-4" />
                 </Button>
-              </form>
+              </ActionForm>
             </div>
           ))}
         </CardContent>

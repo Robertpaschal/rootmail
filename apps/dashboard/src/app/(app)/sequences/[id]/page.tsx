@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { ActionForm } from "@/components/app/action-form";
 import { Trash2, UserPlus } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -77,13 +78,13 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
               <CardTitle className="text-base">Enroll a contact</CardTitle>
             </CardHeader>
             <CardContent>
-              <form action={enrollAction} className="flex gap-2">
+              <ActionForm action={enrollAction} className="flex gap-2">
                 <input type="hidden" name="id" value={sequence.id} />
                 <Input name="email" type="email" placeholder="contact@company.com" required />
                 <Button type="submit" size="icon" aria-label="Enroll">
                   <UserPlus className="size-4" />
                 </Button>
-              </form>
+              </ActionForm>
             </CardContent>
           </Card>
 
@@ -125,12 +126,12 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
             </CardContent>
           </Card>
 
-          <form action={deleteSequenceAction}>
+          <ActionForm action={deleteSequenceAction}>
             <input type="hidden" name="id" value={sequence.id} />
             <Button type="submit" variant="ghost" size="sm" className="text-destructive hover:text-destructive">
               <Trash2 className="size-4" /> Delete sequence
             </Button>
-          </form>
+          </ActionForm>
         </div>
       </div>
     </>

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionState } from "@/components/app/action-form";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 
 export interface InviteState {
@@ -29,13 +30,17 @@ export async function inviteMember(
   return { ok: `Invitation sent to ${email}.` };
 }
 
-export async function revokeInvite(formData: FormData): Promise<void> {
+export async function revokeInvite(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "Missing id." };
   try {
     await api.revokeInvite(id);
   } catch {
     // Best-effort; the list reflects current state.
   }
   revalidatePath("/members");
+  return {};
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ActionForm } from "@/components/app/action-form";
 import { notFound } from "next/navigation";
 import { Send, Trash2 } from "lucide-react";
 import { PageHeader } from "@/components/app/page-header";
@@ -102,12 +103,12 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         // button that was always enabled and reported nothing.
         actions={
           <div className="flex items-center gap-2">
-            <form action={deleteCampaign}>
+            <ActionForm action={deleteCampaign}>
               <input type="hidden" name="id" value={campaign.id} />
               <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
                 <Trash2 className="size-4" />
               </Button>
-            </form>
+            </ActionForm>
           </div>
         }
       />

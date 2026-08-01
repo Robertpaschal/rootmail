@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionState } from "@/components/app/action-form";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 
 export interface RoleFormState {
@@ -23,13 +24,22 @@ export async function createRole(_prev: RoleFormState | null, formData: FormData
   return { ok: true };
 }
 
-export async function deleteRole(formData: FormData): Promise<void> {
+export async function deleteRole(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "Missing id." };
   try {
     await api.deleteRole(id);
-  } catch {
-    /* best-effort */
+  } catch (err) {
+    return {
+      error:
+        err instanceof ConnectionError || err instanceof ApiError
+          ? err.message
+          : "That didn't work. Try again.",
+    };
   }
   revalidatePath("/members");
+  return {};
 }

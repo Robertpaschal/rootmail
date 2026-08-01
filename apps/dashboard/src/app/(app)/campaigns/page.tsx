@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ActionForm } from "@/components/app/action-form";
 import { ArrowRight, BarChart3, Megaphone, Plus, Send, Split, Trash2, Users } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
@@ -183,12 +184,12 @@ export default async function CampaignsPage() {
                               <Send className="size-3.5" /> Review &amp; send
                             </Link>
                           ) : null}
-                          <form action={deleteCampaign} className="inline">
+                          <ActionForm action={deleteCampaign} className="inline">
                             <input type="hidden" name="id" value={c.id} />
                             <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
                               <Trash2 className="size-4" />
                             </Button>
-                          </form>
+                          </ActionForm>
                         </div>
                       </TableCell>
                     </TableRow>

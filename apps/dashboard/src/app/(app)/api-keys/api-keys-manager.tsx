@@ -159,8 +159,10 @@ export function ApiKeysManager({ keys, currentKey }: Props) {
 }
 
 function RevokeButton({ id, name }: { id: string; name: string }) {
+  const [rowError, setRowError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   return (
+    <div className="inline-block text-right">
     <Button
       variant="ghost"
       size="sm"
@@ -170,11 +172,18 @@ function RevokeButton({ id, name }: { id: string; name: string }) {
         if (!confirm(`Revoke "${name}"? Anything using this key will stop working immediately.`)) return;
         const fd = new FormData();
         fd.set("id", id);
-        start(() => revokeApiKey(fd));
+        start(async () => {
+          // Revoking is destructive and the row vanishes on revalidate — if the
+          // API refuses, saying nothing looks exactly like success.
+          const res = await revokeApiKey(null, fd);
+          if (res?.error) setRowError(res.error);
+        });
       }}
     >
       {pending ? <Loader2 className="size-4 animate-spin" /> : <Trash2 className="size-4" />}
       Revoke
     </Button>
+    {rowError ? <p role="alert" className="mt-1 text-xs text-destructive">{rowError}</p> : null}
+    </div>
   );
 }

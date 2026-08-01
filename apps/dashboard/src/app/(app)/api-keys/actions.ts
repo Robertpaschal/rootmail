@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionState } from "@/components/app/action-form";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 
 export interface CreateKeyState {
@@ -27,13 +28,17 @@ export async function createApiKey(
   }
 }
 
-export async function revokeApiKey(formData: FormData): Promise<void> {
+export async function revokeApiKey(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "Missing id." };
   try {
     await api.revokeApiKey(id);
   } catch {
     // Best-effort; the list re-renders to reflect whatever the current state is.
   }
   revalidatePath("/api-keys");
+  return {};
 }

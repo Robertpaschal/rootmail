@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionState } from "@/components/app/action-form";
 import { redirect } from "next/navigation";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Asset, TemplateType } from "@/lib/types";
@@ -180,9 +181,12 @@ export async function aiDraftAction(
   }
 }
 
-export async function deleteTemplate(formData: FormData): Promise<void> {
+export async function deleteTemplate(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "Missing id." };
   try {
     await api.deleteTemplate(id);
   } catch {
@@ -190,4 +194,5 @@ export async function deleteTemplate(formData: FormData): Promise<void> {
   }
   revalidatePath("/templates");
   redirect("/templates");
+  return {};
 }

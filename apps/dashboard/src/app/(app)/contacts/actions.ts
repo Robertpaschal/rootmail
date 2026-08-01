@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionState } from "@/components/app/action-form";
 import { redirect } from "next/navigation";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { ImportResult } from "@/lib/types";
@@ -39,9 +40,12 @@ export async function upsertContact(
   redirect(`/contacts?email=${encodeURIComponent(email)}`);
 }
 
-export async function unsubscribeContact(formData: FormData): Promise<void> {
+export async function unsubscribeContact(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
   const email = String(formData.get("email") ?? "");
-  if (!email) return;
+  if (!email) return { error: "No contact given." };
   try {
     await api.unsubscribe(email);
   } catch {
@@ -49,6 +53,7 @@ export async function unsubscribeContact(formData: FormData): Promise<void> {
   }
   revalidatePath("/contacts");
   redirect(`/contacts?email=${encodeURIComponent(email)}`);
+  return {};
 }
 
 /** Import contacts from the Add-people panel; optionally straight into an

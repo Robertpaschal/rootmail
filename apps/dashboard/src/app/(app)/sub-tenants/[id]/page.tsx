@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { ActionForm } from "@/components/app/action-form";
 import { notFound } from "next/navigation";
 import { AlertTriangle, CheckCircle2, ChevronDown, Info, ShieldCheck, XCircle } from "lucide-react";
 import { verifySubTenant } from "../actions";
@@ -81,12 +82,12 @@ export default async function SubTenantDetailPage({
                 <CardTitle className="text-base">DNS records</CardTitle>
                 <CardDescription>Publish these at your DNS provider, then verify.</CardDescription>
               </div>
-              <form action={verifySubTenant}>
+              <ActionForm action={verifySubTenant}>
                 <input type="hidden" name="id" value={st.id} />
                 <SubmitButton size="sm" pendingLabel="Verifying…">
                   <ShieldCheck className="size-4" /> Verify domain
                 </SubmitButton>
-              </form>
+              </ActionForm>
             </CardHeader>
             <CardContent className="space-y-3">
               {(st.dns_records ?? []).map((r) => (

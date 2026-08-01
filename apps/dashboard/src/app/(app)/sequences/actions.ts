@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import type { ActionState } from "@/components/app/action-form";
 import { redirect } from "next/navigation";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { SequenceStepDef, SequenceTriggerDef } from "@/lib/types";
@@ -54,26 +55,44 @@ export async function saveSequence(
   return { saved: true };
 }
 
-export async function deleteSequenceAction(formData: FormData): Promise<void> {
+export async function deleteSequenceAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
-  if (!id) return;
+  if (!id) return { error: "Missing id." };
   try {
     await api.deleteSequence(id);
-  } catch {
-    /* best-effort */
+  } catch (err) {
+    return {
+      error:
+        err instanceof ConnectionError || err instanceof ApiError
+          ? err.message
+          : "That didn't work. Try again.",
+    };
   }
   revalidatePath("/sequences");
   redirect("/sequences");
+  return {};
 }
 
-export async function enrollAction(formData: FormData): Promise<void> {
+export async function enrollAction(
+  _prev: ActionState | null,
+  formData: FormData,
+): Promise<ActionState> {
   const id = String(formData.get("id") ?? "");
   const email = String(formData.get("email") ?? "").trim();
-  if (!id || !email) return;
+  if (!id || !email) return { error: "Missing details for this action." };
   try {
     await api.enrollContact(id, email);
-  } catch {
-    /* best-effort */
+  } catch (err) {
+    return {
+      error:
+        err instanceof ConnectionError || err instanceof ApiError
+          ? err.message
+          : "That didn't work. Try again.",
+    };
   }
   revalidatePath(`/sequences/${id}`);
+  return {};
 }
