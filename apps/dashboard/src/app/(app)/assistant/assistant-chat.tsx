@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
+import { AssistantWorking } from "@/components/app/assistant-working";
 import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/components/app/ai-credit-meter";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -45,6 +46,17 @@ const ACTION_OVERRIDE: Record<string, string> = {
   check_domain_auth: "Checked domain setup",
   list_sub_tenants: "Reviewed your clients",
   send_test_message: "Sent a test email",
+  // The generic verb+noun fallback turns these into things like "Reviewed
+  // threads" and "Reviewed contact tags", which is both clumsy and jargon.
+  list_contacts: "Looked through your audience",
+  get_contact: "Looked up the contact",
+  list_contact_tags: "Checked your tags",
+  list_senders: "Checked your sending addresses",
+  list_threads: "Checked your replies",
+  get_thread: "Read the conversation",
+  reply_to_thread: "Sent a reply",
+  get_campaign_analytics: "Pulled that campaign's results",
+  get_campaign_recipients: "Checked who it reached",
 };
 function friendlyAction(tool: string): string {
   if (ACTION_OVERRIDE[tool]) return ACTION_OVERRIDE[tool];
@@ -58,7 +70,12 @@ function friendlyAction(tool: string): string {
 const SUGGESTION_GROUPS: { label: string; items: string[] }[] = [
   { label: "Build", items: ["Set up a 3-step welcome sequence", "Create a launch email template"] },
   { label: "Operate", items: ["Add alex@acme.com to my Beta list", "Draft & schedule a launch announcement"] },
-  { label: "Diagnose", items: ["Why did my recent emails bounce?", "Show my recent delivery status"] },
+  // Reply and audience questions were unanswerable until the assistant got tools
+  // for the inbox and contacts — so the prompts never advertised them.
+  { label: "Replies", items: ["What still needs answering?", "Summarise my latest reply"] },
+  { label: "Audience", items: ["How many contacts do I have?", "Who's tagged vip?"] },
+  { label: "Measure", items: ["How did my last campaign do?", "Who opened it?"] },
+  { label: "Diagnose", items: ["Why did my recent emails bounce?", "Am I set up to send?"] },
 ];
 
 let tempCounter = 0;
@@ -348,10 +365,15 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                     <Sparkles className="size-6" />
                   </div>
                   <p className="max-w-md text-sm text-muted-foreground">
-                    I&apos;m your email operator — I can <strong className="font-medium text-foreground">build</strong>{" "}
+                    I&apos;m your email operator. I can <strong className="font-medium text-foreground">build</strong>{" "}
                     sequences and campaigns, <strong className="font-medium text-foreground">operate</strong> (populate
-                    lists, schedule sends), and <strong className="font-medium text-foreground">diagnose</strong> why a
-                    message bounced. I work within your plan and role — I&apos;ll flag anything that needs an upgrade.
+                    lists, schedule sends), answer your{" "}
+                    <strong className="font-medium text-foreground">replies</strong>, tell you about your{" "}
+                    <strong className="font-medium text-foreground">audience</strong> and how a campaign actually{" "}
+                    <strong className="font-medium text-foreground">performed</strong>, and{" "}
+                    <strong className="font-medium text-foreground">diagnose</strong> why a message bounced. I read your
+                    real data rather than guessing, and I work within your plan and role — I&apos;ll flag anything that
+                    needs an upgrade.
                   </p>
                   <div className="flex w-full max-w-lg flex-col gap-3">
                     {SUGGESTION_GROUPS.map((g) => (
@@ -414,13 +436,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                   </div>
                 ))
               )}
-              {pending ? (
-                <div className="flex justify-start">
-                  <div className="rounded-lg bg-secondary px-3 py-2">
-                    <Loader2 className="size-4 animate-spin text-muted-foreground" />
-                  </div>
-                </div>
-              ) : null}
+              {pending ? <AssistantWorking /> : null}
             </div>
 
             {/* In-chat navigation — a collapsible outline of the conversation's prompts. */}

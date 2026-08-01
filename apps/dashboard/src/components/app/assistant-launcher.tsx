@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/components/app/ai-credit-meter";
 import { listSupportThreads } from "@/app/(app)/support-actions";
 import { SupportPane } from "@/components/app/support-pane";
+import { AssistantWorking } from "./assistant-working";
 import { cn } from "@/lib/utils";
 
 // Context-aware starters: what the assistant can do RIGHT HERE, keyed by the
@@ -281,11 +282,7 @@ export function AssistantLauncher() {
             </div>
           ))
         )}
-        {pending ? (
-          <div className="flex justify-start">
-            <div className="rounded-lg bg-secondary px-3 py-2"><Loader2 className="size-4 animate-spin text-muted-foreground" /></div>
-          </div>
-        ) : null}
+        {pending ? <AssistantWorking /> : null}
       </div>
 
       <div className="border-t p-3">

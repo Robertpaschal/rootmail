@@ -99,6 +99,70 @@ const TOOLS: ToolDef[] = [
     method: "GET",
     path: (i) => `/v1/messages${qs({ status: i.status, limit: i.limit })}`,
   },
+  {
+    name: "list_contacts",
+    description:
+      "Browse or search the audience. Optional q (matches email or name), tag, status ('active' | 'unsubscribed' | 'bounced' | 'complained') and stage ('subscriber' | 'engaged' | 'customer' | 'champion' | 'at_risk'). Returns each contact's id, email, name, tags, status and stage. Use for 'how many contacts do I have?', 'who's tagged vip?', 'show me at-risk customers'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        q: { type: "string" },
+        tag: { type: "string" },
+        status: { type: "string", description: "active | unsubscribed | bounced | complained" },
+        stage: { type: "string", description: "subscriber | engaged | customer | champion | at_risk" },
+        limit: { type: "number", description: "1–100, default 50" },
+      },
+    },
+    method: "GET",
+    path: (i) => `/v1/contacts${qs({ q: i.q, tag: i.tag, status: i.status, stage: i.stage, limit: i.limit })}`,
+  },
+  {
+    name: "get_contact",
+    description:
+      "Get one contact by EMAIL — their tags, audiences, lifecycle stage, status and engagement history. Use to answer questions about a specific person before acting on them.",
+    input_schema: { type: "object", properties: { email: { type: "string" } }, required: ["email"] },
+    method: "GET",
+    path: (i) => `/v1/contacts/${seg(i.email)}`,
+  },
+  {
+    name: "list_contact_tags",
+    description:
+      "List every tag in use across the audience, with how many contacts carry each. Use to find the right tag before segmenting a campaign or answering 'what tags do I have?'.",
+    input_schema: { type: "object", properties: {} },
+    method: "GET",
+    path: () => "/v1/contacts/tags",
+  },
+  {
+    name: "list_senders",
+    description:
+      "List the org's sending addresses and whether each is verified (plus which is the default). A campaign or message cannot go out without a verified sender, so check this FIRST when a send is blocked or the user asks why they can't send.",
+    input_schema: { type: "object", properties: {} },
+    method: "GET",
+    path: () => "/v1/senders",
+  },
+  // ---- Replies (the shared inbox) ---------------------------------------
+  {
+    name: "list_threads",
+    description:
+      "List reply conversations in the inbox, newest first. Optional status: 'needs_reply' (someone wrote and nobody has answered), 'open', or 'closed'. Returns each thread's id, contact, subject and status. Use for 'did anyone reply?', 'what needs answering?', 'any responses to my campaign?'.",
+    input_schema: {
+      type: "object",
+      properties: {
+        status: { type: "string", description: "open | needs_reply | closed" },
+        limit: { type: "number", description: "1–100, default 50" },
+      },
+    },
+    method: "GET",
+    path: (i) => `/v1/threads${qs({ status: i.status, limit: i.limit })}`,
+  },
+  {
+    name: "get_thread",
+    description:
+      "Read one reply conversation in full — every message in order, who sent it and when. Use before drafting a reply, or to summarise what a contact actually said.",
+    input_schema: { type: "object", properties: { thread_id: { type: "string" } }, required: ["thread_id"] },
+    method: "GET",
+    path: (i) => `/v1/threads/${seg(i.thread_id)}`,
+  },
   // ---- Diagnose ---------------------------------------------------------
   {
     name: "get_message",
@@ -145,6 +209,22 @@ const TOOLS: ToolDef[] = [
     },
     method: "GET",
     path: (i) => `/v1/analytics${qs({ window_days: i.window_days, sub_tenant_id: i.sub_tenant_id })}`,
+  },
+  {
+    name: "get_campaign_analytics",
+    description:
+      "Get ONE campaign's own results — how many it reached, and its delivered/opened/clicked/bounced figures. Use for 'how did my last campaign do?' or comparing two campaigns; get_analytics is workspace-wide and can't answer that. Find the campaign_id with list_campaigns.",
+    input_schema: { type: "object", properties: { campaign_id: { type: "string" } }, required: ["campaign_id"] },
+    method: "GET",
+    path: (i) => `/v1/campaigns/${seg(i.campaign_id)}/analytics`,
+  },
+  {
+    name: "get_campaign_recipients",
+    description:
+      "List who a campaign actually went to and what each person did (delivered, opened, clicked, bounced). Use for 'who opened it?' or 'who bounced?' on a specific campaign.",
+    input_schema: { type: "object", properties: { campaign_id: { type: "string" } }, required: ["campaign_id"] },
+    method: "GET",
+    path: (i) => `/v1/campaigns/${seg(i.campaign_id)}/recipients`,
   },
   {
     name: "check_domain_auth",
@@ -239,6 +319,22 @@ const TOOLS: ToolDef[] = [
     path: (i) => `/v1/campaigns/${seg(i.campaign_id)}/send`,
   },
   {
+    name: "reply_to_thread",
+    description:
+      "Send a reply in an existing conversation. Provide html (or text). This puts real mail in front of a real person who wrote to them, so read the thread with get_thread first and show the user your draft before sending unless they've already approved the wording.",
+    input_schema: {
+      type: "object",
+      properties: {
+        thread_id: { type: "string" },
+        html: { type: "string" },
+        text: { type: "string" },
+      },
+      required: ["thread_id"],
+    },
+    method: "POST",
+    path: (i) => `/v1/threads/${seg(i.thread_id)}/reply`,
+  },
+  {
     name: "send_test_message",
     description:
       "Send a single email now, or schedule it. Provide to + subject + html, or to + template slug. Pass an ISO-8601 send_at (in the future) to schedule instead of sending immediately.",
@@ -261,10 +357,19 @@ const TOOLS: ToolDef[] = [
 const SYSTEM = `You are rootmail's in-app assistant — the operating layer for the user's email. You can:
 - BUILD: templates, contact lists, drip sequences, and campaigns.
 - OPERATE: add contacts to lists, and send or schedule campaigns and one-off messages.
+- KNOW THE AUDIENCE: browse and search contacts (by text, tag, status or lifecycle stage), look one person
+  up by email, and list the tags in use — so "how many contacts do I have?", "who's tagged vip?" and
+  "tell me about ada@acme.com" are answerable from real data, never guessed.
+- HANDLE REPLIES: list conversations in the shared inbox (especially status 'needs_reply'), read one in
+  full, and reply. Use this for "did anyone respond?", "what still needs answering?", and drafting answers.
+- MEASURE: workspace-wide analytics, and a single campaign's OWN results plus its per-recipient outcomes
+  (who opened, who clicked, who bounced) — get_analytics cannot answer "how did THAT campaign do?".
 - DIAGNOSE: inspect a message's status and error, read its delivery audit trail, check suppression, pull
-  the deliverability score (delivery/bounce/complaint rates + reputation factors), and audit a sending
-  domain's authentication (SPF/DKIM/DMARC/BIMI) — to explain why a send bounced/failed, how the account's
-  sender reputation is doing, or why mail is landing in spam, and exactly how to fix it.
+  the deliverability score (delivery/bounce/complaint rates + reputation factors), audit a sending
+  domain's authentication (SPF/DKIM/DMARC/BIMI), and check the org's sending addresses — to explain why a
+  send bounced/failed, how the account's sender reputation is doing, or why mail is landing in spam.
+  When a send is blocked or the user asks why they can't send, check list_senders early: no VERIFIED
+  sending address is the most common cause, and it's invisible from the message record alone.
 
 Tools execute against the user's own account with their plan and role, so a tool may return an error such
 as 402 "feature_locked" (the capability isn't in their plan), "quota_exceeded" (out of AI credits / send
