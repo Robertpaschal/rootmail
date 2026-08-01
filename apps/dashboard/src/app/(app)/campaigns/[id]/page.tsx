@@ -12,7 +12,8 @@ import { deleteCampaign, sendCampaign } from "../actions";
 import { CampaignLive } from "./campaign-live";
 import { PreFlight } from "./pre-flight";
 import { FollowUp } from "./follow-up";
-import { CampaignJourney, LaunchPanel, phaseForStatus, type Blocker } from "./launch";
+import { CampaignJourney, LaunchPanel, type Blocker } from "./launch";
+import { phaseForStatus } from "../phase";
 
 export const metadata: Metadata = { title: "Campaign" };
 
@@ -130,6 +131,11 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
             <Badge variant={STATUS_VARIANT[campaign.status]}>{campaign.status}</Badge>
             <span className="text-xs text-muted-foreground">
               created <LocalTime iso={campaign.created_at} />
+              {/* A scheduled campaign's whole point is WHEN — say it here rather
+                  than leaving "scheduled" as a status with no time attached. */}
+              {campaign.status === "scheduled" && campaign.scheduled_at ? (
+                <> · goes out <LocalTime iso={campaign.scheduled_at} /></>
+              ) : null}
               {campaign.sent_at ? <> · sent <LocalTime iso={campaign.sent_at} /></> : null}
             </span>
           </div>

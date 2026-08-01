@@ -3,10 +3,11 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { AlertTriangle, ArrowRight, Check, Loader2, Send } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarClock, Check, Loader2, Send } from "lucide-react";
 import { sendCampaign } from "../actions";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { CAMPAIGN_JOURNEY, type CampaignPhase } from "../phase";
 
 /**
  * Everything between "I have a draft" and "it's gone out".
@@ -48,17 +49,22 @@ export function LaunchPanel({
 }) {
   const reduce = useReducedMotion();
   const [confirming, setConfirming] = useState(false);
+  const [scheduling, setScheduling] = useState(false);
+  const [when, setWhen] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, start] = useTransition();
   const ready = blockers.length === 0 && audienceSize > 0;
 
-  const launch = () =>
+  // A local datetime-local value is wall-clock in the user's zone; the API wants
+  // an instant. new Date(value) reads it as local, so toISOString is correct.
+  const launch = (at?: string) =>
     start(async () => {
       setError(null);
-      const res = await sendCampaign(campaignId);
+      const res = await sendCampaign(campaignId, at ? new Date(at).toISOString() : undefined);
       if (res.error) {
         setError(res.error);
         setConfirming(false);
+        setScheduling(false);
         return;
       }
       // Success: the page revalidates and this panel disappears with the draft.
@@ -100,10 +106,21 @@ export function LaunchPanel({
                   Email {audienceSize.toLocaleString()} {audienceSize === 1 ? "person" : "people"}? This
                   can&apos;t be undone.
                 </span>
-                <Button size="sm" onClick={launch} disabled={pending}>
+                <Button size="sm" onClick={() => launch()} disabled={pending}>
                   {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-3.5" />}
                   {pending ? "Sending…" : "Yes, send it"}
                 </Button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirming(false);
+                    setScheduling(true);
+                  }}
+                  disabled={pending}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Schedule instead
+                </button>
                 <button
                   type="button"
                   onClick={() => setConfirming(false)}
@@ -111,6 +128,37 @@ export function LaunchPanel({
                   className="text-xs text-muted-foreground hover:text-foreground"
                 >
                   Not yet
+                </button>
+              </motion.div>
+            ) : scheduling ? (
+              <motion.div
+                key="schedule"
+                initial={reduce ? false : { opacity: 0, x: 8 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0 }}
+                className="flex flex-wrap items-center gap-2"
+              >
+                <label className="text-xs text-muted-foreground" htmlFor="cmp-when">
+                  Send at
+                </label>
+                <input
+                  id="cmp-when"
+                  type="datetime-local"
+                  value={when}
+                  onChange={(e) => setWhen(e.target.value)}
+                  className="h-9 rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+                <Button size="sm" onClick={() => launch(when)} disabled={pending || !when}>
+                  {pending ? <Loader2 className="size-4 animate-spin" /> : <CalendarClock className="size-3.5" />}
+                  {pending ? "Scheduling…" : "Schedule it"}
+                </Button>
+                <button
+                  type="button"
+                  onClick={() => setScheduling(false)}
+                  disabled={pending}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Cancel
                 </button>
               </motion.div>
             ) : (
@@ -196,16 +244,13 @@ export function LaunchPanel({
  * the work. Building it IS the first half. One rail, six marks, shown from the
  * moment you start.
  */
-const JOURNEY = ["Build", "Review", "Sending", "Delivered", "Engagement"] as const;
-export type CampaignPhase = (typeof JOURNEY)[number];
-
 export function CampaignJourney({ phase }: { phase: CampaignPhase }) {
   const reduce = useReducedMotion();
-  const at = JOURNEY.indexOf(phase);
+  const at = CAMPAIGN_JOURNEY.indexOf(phase);
 
   return (
     <ol className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs">
-      {JOURNEY.map((s, i) => {
+      {CAMPAIGN_JOURNEY.map((s, i) => {
         const done = i < at;
         const now = i === at;
         return (
@@ -224,17 +269,10 @@ export function CampaignJourney({ phase }: { phase: CampaignPhase }) {
               {done ? <Check className="size-3" /> : null}
               {s}
             </motion.span>
-            {i < JOURNEY.length - 1 ? <span className="text-muted-foreground/50">→</span> : null}
+            {i < CAMPAIGN_JOURNEY.length - 1 ? <span className="text-muted-foreground/50">→</span> : null}
           </li>
         );
       })}
     </ol>
   );
-}
-
-/** Where a saved campaign sits on that rail. */
-export function phaseForStatus(status: "draft" | "scheduled" | "sending" | "sent"): CampaignPhase {
-  if (status === "draft" || status === "scheduled") return "Review";
-  if (status === "sending") return "Sending";
-  return "Delivered";
 }

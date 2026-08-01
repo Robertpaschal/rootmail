@@ -116,10 +116,20 @@ export async function listTagsAction(listId: string): Promise<{ tags?: ListTag[]
  * nothing happened, with nothing said. For the single most consequential button
  * in the product, that's the worst possible failure mode. It reports now.
  */
-export async function sendCampaign(id: string): Promise<{ error?: string }> {
+export async function sendCampaign(
+  id: string,
+  /** ISO instant to send at. Omitted = send now. */
+  scheduledAt?: string,
+): Promise<{ error?: string }> {
   if (!id) return { error: "Missing campaign." };
+  if (scheduledAt && Number.isNaN(Date.parse(scheduledAt))) {
+    return { error: "That send time isn't a valid date." };
+  }
+  if (scheduledAt && Date.parse(scheduledAt) <= Date.now()) {
+    return { error: "Pick a time in the future — or send it now." };
+  }
   try {
-    await api.sendCampaign(id);
+    await api.sendCampaign(id, scheduledAt);
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
     return { error: "Couldn't start this send." };

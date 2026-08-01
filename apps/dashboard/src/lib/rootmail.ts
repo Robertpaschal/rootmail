@@ -466,8 +466,14 @@ export const api = {
     segment_tag?: string | null;
     variants?: CampaignVariant[];
   }) => rmFetch<Campaign>("/v1/campaigns", { method: "POST", body }),
-  sendCampaign: (id: string) =>
-    rmFetch<Campaign>(`/v1/campaigns/${id}/send`, { method: "POST", body: {} }),
+  /** `scheduledAt` (ISO) queues it for later; omit to send now. The API has
+   *  always accepted this — the dashboard just never passed it, which is why
+   *  the `scheduled` status was unreachable from the product. */
+  sendCampaign: (id: string, scheduledAt?: string) =>
+    rmFetch<Campaign>(`/v1/campaigns/${id}/send`, {
+      method: "POST",
+      body: scheduledAt ? { scheduled_at: scheduledAt } : {},
+    }),
   deleteCampaign: (id: string) =>
     rmFetch<{ deleted: boolean }>(`/v1/campaigns/${id}`, { method: "DELETE" }),
 
