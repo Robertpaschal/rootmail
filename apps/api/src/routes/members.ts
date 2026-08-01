@@ -195,6 +195,82 @@ export async function memberRoutes(app: FastifyInstance): Promise<void> {
     });
   });
 
+  // --- Change a teammate's role -------------------------------------------
+  // Members were invite-only-forever: /v1/members had GET and nothing else, and
+  // the only DELETE was for a PENDING invitation. Once someone accepted they
+  // were in permanently, at whatever role they were invited with. That's an
+  // offboarding hole (a leaver keeps access) and a billing one (their seat keeps
+  // counting), so both operations exist now.
+  //
+  // The one thing neither may do is leave the organization ownerless — demoting
+  // or removing the last owner would lock everyone out of billing and roles with
+  // no way back, so it's refused rather than "confirmed".
+  const assertNotLastOwner = async (orgId: string, membershipId: string): Promise<void> => {
+    const owners = await db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(and(eq(memberships.organizationId, orgId), eq(memberships.role, "owner")));
+    if (owners.length <= 1 && owners.some((o) => o.id === membershipId)) {
+      throw Errors.badRequest(
+        "This is the only owner. Make someone else an owner first, then you can change or remove this one.",
+      );
+    }
+  };
+
+  const scopedMembership = async (orgId: string, id: string) => {
+    const [m] = await db
+      .select()
+      .from(memberships)
+      .where(and(eq(memberships.id, id), eq(memberships.organizationId, orgId)))
+      .limit(1);
+    if (!m) throw Errors.notFound(`Member ${id} not found`);
+    return m;
+  };
+
+  app.patch("/v1/members/:id", async (req) => {
+    const { id } = req.params as { id: string };
+    const org = await loadOrg(req);
+    await requirePermission(req, "members.manage");
+    const body = parse(
+      z.object({
+        role: z.enum(MEMBERSHIP_ROLES).optional(),
+        custom_role_id: z.string().nullable().optional(),
+      }),
+      req.body,
+    );
+    const m = await scopedMembership(org.id, id);
+
+    // Demoting the last owner is the same hazard as deleting them.
+    if (body.role && body.role !== "owner" && m.role === "owner") {
+      await assertNotLastOwner(org.id, m.id);
+    }
+
+    const [updated] = await db
+      .update(memberships)
+      .set({
+        ...(body.role !== undefined ? { role: body.role } : {}),
+        ...(body.custom_role_id !== undefined ? { customRoleId: body.custom_role_id } : {}),
+      })
+      .where(eq(memberships.id, m.id))
+      .returning();
+
+    return { object: "membership", id: updated.id, role: updated.role, custom_role_id: updated.customRoleId };
+  });
+
+  // --- Remove a teammate ---------------------------------------------------
+  app.delete("/v1/members/:id", async (req) => {
+    const { id } = req.params as { id: string };
+    const org = await loadOrg(req);
+    await requirePermission(req, "members.manage");
+    const m = await scopedMembership(org.id, id);
+    await assertNotLastOwner(org.id, m.id);
+    await db.delete(memberships).where(eq(memberships.id, m.id));
+    // The user row stays — they may belong to other organizations, and their
+    // authored content keeps its attribution. Only the membership goes, which is
+    // what frees the seat.
+    return { object: "membership", id: m.id, deleted: true };
+  });
+
   // --- Revoke a pending invite --------------------------------------------
   app.delete("/v1/invitations/:id", async (req) => {
     const { id } = req.params as { id: string };
