@@ -52,6 +52,26 @@ ROOTMAIL_API_KEY=rm_live_... pnpm exec tsx scripts/smoke.ts
   `exports: "./src/index.ts"`; everything runs through `tsx` and type-checks via
   `tsc` with `moduleResolution: bundler`. Only `sdk` builds (tsup).
 
+- **Server components can't call helpers from `"use client"` modules.** Next only
+  lets COMPONENTS cross that boundary. `phaseForStatus()` lived in a client module,
+  a server page called it, and every campaign detail page threw in production —
+  `tsc` is perfectly happy with it. Helpers a server component calls go in a plain
+  module (see `campaigns/phase.ts`). Only walking the page catches this.
+- **A form action's return value is discarded.** `<form action={fn}>` with
+  `fn: Promise<void>` fails silently by construction — returning `{error}` changes
+  nothing. Use `<ActionForm>` (`components/app/action-form.tsx`), which wraps the
+  form in `useActionState` so the error has somewhere to go. This is why deletes
+  used to look like they worked when they'd been refused.
+- **Staged forms must keep every field mounted.** Unmounting a scene stops its
+  fields submitting. The campaign composer hides inactive scenes instead — which
+  is also why it has no slide transition between them.
+- **Never send a real campaign/message from local.** `.env` has
+  `MAIL_PROVIDER=ses`, so a send puts mail on the wire to synthetic addresses.
+  Exercise the blocked path; leave the success path to a real account.
+- **The browser preview pane freezes `requestAnimationFrame`.** Framer entrances
+  stall at their `initial` values and exits never unmount. Assert on DOM text, not
+  on animation completion — a faded screenshot there is not a bug.
+
 ## Conventions
 - Public ids are prefixed: `newId("message")` → `msg_…` (`packages/core/src/ids.ts`).
 - API keys: `rm_live_…` / `rm_test_…`; only the SHA-256 hash is stored. **Signup mints no

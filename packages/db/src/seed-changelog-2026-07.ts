@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "When something doesn't work, we now say so",
+    date: "2026-08-01",
+    changes: [
+      {
+        kind: "Fixed",
+        text: "Thirteen buttons across the dashboard could fail and tell you nothing — deleting an audience or a template, revoking a key or an invitation, unsubscribing someone, changing an add-on. The reason was thrown away before it reached you.",
+      },
+      {
+        kind: "Fixed",
+        text: "The worst of these were the deletes. The row usually disappears from view the moment you click, so a refusal looked exactly like a success — you'd only find out it was still there when you next loaded the page. Now the reason appears next to the button you pressed.",
+      },
+      {
+        kind: "Improved",
+        text: "Actions that were quietly doing nothing when something was missing now say what's missing — “an audience and an email address are both required” rather than a click that goes nowhere.",
+      },
+    ],
+  },
+  {
     title: "Campaigns tell you what's left, and who you're about to email",
     date: "2026-08-01",
     changes: [

@@ -1,6 +1,8 @@
 # Spec — Independent per-wing pricing (Transactional × Marketing × Platform)
 
-Status: **v2 — approach approved by owner (2026-07-07); numbers + v2 delegated to me.** Building.
+Status: **SHIPPED and live in production.** Kept as the design reference for the wing
+model — it's cited from ~13 places in the code (§3b, §3d, Phase D). Update it when the
+model changes; don't delete it.
 Source: owner's 2nd first-principles doc + the two Mailchimp references
 (Transactional = send-volume *blocks*; Marketing = *contacts* + "find my plan").
 
