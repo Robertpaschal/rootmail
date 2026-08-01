@@ -128,36 +128,50 @@ export function CampaignComposer({
 
   return (
     <form action={action} className="max-w-3xl space-y-8">
-      {/* Where you are inside Build — the same vocabulary as the outer journey,
-          one level down. Completed scenes are clickable; ahead of you isn't,
-          because skipping the audience makes the message step meaningless. */}
-      <ol className="flex flex-wrap items-center gap-x-2 gap-y-2 text-xs">
+      {/* Sub-stages read DIFFERENTLY from the main journey on purpose. The outer
+          rail (Build → Engagement) is pills; inside a stage it's filling bars,
+          the same shape as the onboarding wizard — so at a glance you can tell
+          "which leg of the whole thing" from "how far through this leg". */}
+      <div className="flex items-end gap-2">
         {SCENES.map((label, i) => {
           const done = i < scene;
           const now = i === scene;
           const reachable = i <= scene || (i === 1 && canLeaveAudience) || (i === 2 && canLeaveAudience && canLeaveMessage);
           return (
-            <li key={label} className="flex items-center gap-2">
-              <button
-                type="button"
-                disabled={!reachable}
-                onClick={() => reachable && setScene(i)}
+            <button
+              key={label}
+              type="button"
+              disabled={!reachable}
+              onClick={() => reachable && setScene(i)}
+              aria-current={now ? "step" : undefined}
+              className={cn(
+                "group flex flex-1 flex-col gap-1.5 text-left",
+                !reachable && "cursor-not-allowed",
+              )}
+            >
+              <span className="h-1 overflow-hidden rounded-full bg-secondary">
+                <motion.span
+                  initial={false}
+                  animate={{ scaleX: done || now ? 1 : 0 }}
+                  transition={{ type: "spring", stiffness: 260, damping: 32 }}
+                  style={{ originX: 0 }}
+                  className={cn("block h-full rounded-full", done ? "bg-emerald-500" : "bg-primary")}
+                />
+              </span>
+              <span
                 className={cn(
-                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors",
-                  now && "bg-primary text-primary-foreground",
-                  done && "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400",
-                  !now && !done && "bg-muted text-muted-foreground",
-                  !reachable && "cursor-not-allowed opacity-60",
+                  "flex items-center gap-1 text-[11px] transition-colors",
+                  now ? "font-medium text-foreground" : "text-muted-foreground",
+                  reachable && !now && "group-hover:text-foreground",
                 )}
               >
-                {done ? <Check className="size-3" /> : null}
-                {i + 1}. {label}
-              </button>
-              {i < SCENES.length - 1 ? <span className="text-muted-foreground/50">→</span> : null}
-            </li>
+                {done ? <Check className="size-3 text-emerald-600 dark:text-emerald-400" /> : null}
+                {label}
+              </span>
+            </button>
           );
         })}
-      </ol>
+      </div>
       {/* Everything the guided UI chose travels as plain form fields. */}
       <input type="hidden" name="list_id" value={listId} />
       <input type="hidden" name="template_id" value={templateId} />
@@ -175,21 +189,24 @@ export function CampaignComposer({
 
       <Step n={2} title="Who gets it?" hint="pick an audience" delay={0.05}>
         {lists.length === 0 ? (
-          <Card>
-            <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div className="flex items-center gap-3">
-                <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary"><Users className="size-4" /></span>
-                <div>
-                  <p className="text-sm font-medium">No audiences yet</p>
-                  <p className="text-xs text-muted-foreground">An audience is a list of contacts. Create one, or import contacts from a file.</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Link href="/contacts?tab=audiences&create=1" className="inline-flex items-center gap-1 rounded-md border px-3 py-1.5 text-sm font-medium hover:bg-accent"><ListChecks className="size-3.5" /> Create audience</Link>
-                <Link href="/contacts?add=import" className="inline-flex items-center gap-1 rounded-md px-3 py-1.5 text-sm font-medium text-muted-foreground hover:text-foreground">Import contacts</Link>
-              </div>
-            </CardContent>
-          </Card>
+          <div className="rounded-xl border border-dashed px-6 py-10 text-center">
+            <span className="mx-auto grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
+              <Users className="size-5" />
+            </span>
+            <p className="mt-3 text-sm font-medium">You&apos;ll need an audience first</p>
+            <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
+              An audience is a named list of contacts. A campaign sends to one — so this is the one
+              thing you can&apos;t skip. It takes a minute, and you&apos;ll come back here.
+            </p>
+            <div className="mt-4 flex flex-wrap justify-center gap-2">
+              <Link href="/contacts?tab=audiences&create=1" className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+                <ListChecks className="size-4" /> Create an audience
+              </Link>
+              <Link href="/contacts?add=import" className="inline-flex items-center gap-1.5 rounded-md border px-3.5 py-2 text-sm font-medium hover:bg-accent">
+                Import contacts from a file
+              </Link>
+            </div>
+          </div>
         ) : (
           <>
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
@@ -207,7 +224,13 @@ export function CampaignComposer({
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-sm font-medium">{l.name}</span>
-                      <span className="text-xs text-muted-foreground">{l.contacts.toLocaleString()} contact{l.contacts === 1 ? "" : "s"}</span>
+                      {/* An empty audience is a campaign that reaches nobody — say
+                          it on the card, not three screens later at the send. */}
+                      <span className={cn("text-xs", l.contacts === 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
+                        {l.contacts === 0
+                          ? "empty — nobody would receive this"
+                          : `${l.contacts.toLocaleString()} contact${l.contacts === 1 ? "" : "s"}`}
+                      </span>
                     </span>
                     {active ? <Check className="size-4 shrink-0 text-primary" /> : null}
                   </button>
