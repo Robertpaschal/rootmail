@@ -94,6 +94,12 @@ export function middleware(req: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|icon.svg|robots.txt|sitemap.xml|impersonate).*)",
+    // `api` is excluded so route handlers answer for themselves. Redirecting a
+    // fetch() to /login is worse than useless: fetch follows the redirect, gets
+    // 200 with the sign-in PAGE, and the caller parses HTML as if it were the
+    // response it asked for. The stream reader would find no SSE frames in it
+    // and report "the assistant stopped unexpectedly" — when the real answer is
+    // "your session expired". Handlers return a real 401 instead.
+    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|robots.txt|sitemap.xml|impersonate).*)",
   ],
 };

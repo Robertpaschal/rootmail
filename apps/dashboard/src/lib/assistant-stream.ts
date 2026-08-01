@@ -53,6 +53,11 @@ export async function streamAssistant(
     return;
   }
 
+  if (res.status === 401) {
+    handlers.onError?.("You've been signed out. Sign in again and your chats will be here.");
+    return;
+  }
+
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => "");
     // The API's error envelope is {error:{message}}; fall back to raw text.
