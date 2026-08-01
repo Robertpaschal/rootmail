@@ -2,8 +2,10 @@ import Link from "next/link";
 import { LogOut } from "lucide-react";
 import { signOut } from "@/app/actions";
 import { Button } from "@/components/ui/button";
+import { getClientContext } from "@/lib/client-context";
 import { api } from "@/lib/rootmail";
 import type { Workspace, WorkspaceLimit } from "@/lib/types";
+import { ClientSwitcher } from "./client-switcher";
 import { CommandTrigger } from "./command-menu";
 import { Logo } from "./logo";
 import { QuickCreate } from "./quick-create";
@@ -39,6 +41,10 @@ export async function Topbar() {
     // Render a minimal bar; the layout guard handles real auth failures.
   }
 
+  // Agency mode: the workspace's client domains + the acting-as selection
+  // (shared per-request lookup with the scope banner; never throws).
+  const clientCtx = await getClientContext();
+
   return (
     <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-4 border-b bg-card/80 px-4 backdrop-blur md:px-8">
       <div className="md:hidden">
@@ -59,6 +65,13 @@ export async function Topbar() {
         <CommandTrigger />
         {workspaces.length > 0 ? (
           <WorkspaceSwitcher workspaces={workspaces} activeId={activeId} limit={limit} />
+        ) : null}
+        {clientCtx.tenants.length > 0 ? (
+          <ClientSwitcher
+            tenants={clientCtx.tenants}
+            activeId={clientCtx.active?.id ?? null}
+            stale={clientCtx.staleId !== null}
+          />
         ) : null}
         <ThemeToggle />
         {email ? (

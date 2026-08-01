@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Work as one client at a time",
+    date: "2026-08-01",
+    changes: [
+      {
+        kind: "New",
+        text: "If you run email for clients, you can now switch into one of them. Pick a client from the top bar and the whole dashboard narrows to them — their mail, their audience, their campaigns, their numbers — until you switch back. A band across the top always names who you're looking at.",
+      },
+      {
+        kind: "New",
+        text: "Every client domain row has a “View as client” button, so you can go straight from the list into that client's world.",
+      },
+      {
+        kind: "Improved",
+        text: "Client domains used to stop at setup: you could add one and verify it, but there was no way to actually work as that client without calling the API yourself. That gap is closed.",
+      },
+      {
+        kind: "Improved",
+        text: "For developers: the X-Rootmail-Subtenant header now scopes reads as well as sends. Listing messages, analytics and deliverability all return that client's figures alone, so a per-client dashboard needs no filtering of your own.",
+      },
+    ],
+  },
+  {
     title: "When something doesn't work, we now say so",
     date: "2026-08-01",
     changes: [

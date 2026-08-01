@@ -1,3 +1,4 @@
+import { getClientScopeId, isClientScopedPath } from "./client-scope";
 import { getSessionToken } from "./session";
 import type {
   AiDraftResponse,
@@ -106,6 +107,9 @@ export class ConnectionError extends Error {
 interface FetchOpts {
   method?: string;
   body?: unknown;
+  /** Sub-tenant scope for this one call. Undefined = inherit the operator's
+   * acting-as-client selection (rm_client cookie) on scope-aware paths; pass ""
+   * to force the workspace plane even while acting as a client. */
   subTenantId?: string;
   /** Override the session token (e.g. just-issued at signup/login). */
   token?: string;
@@ -117,6 +121,14 @@ interface FetchOpts {
 async function rmFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
   const token = opts.noAuth ? null : (opts.token ?? (await getSessionToken()));
   if (!opts.noAuth && !token) throw new ApiError(401, "Not signed in.");
+
+  // Agency mode: when the operator is acting as a client, every read AND
+  // mutation on client-aware resources carries that client's scope — one
+  // header, same as the public API — so nothing ever half-scopes.
+  let subTenantId = opts.subTenantId;
+  if (subTenantId === undefined && !opts.noAuth && isClientScopedPath(path)) {
+    subTenantId = (await getClientScopeId()) ?? undefined;
+  }
 
   const url = new URL(path, API_URL);
   if (opts.query) {
@@ -132,7 +144,7 @@ async function rmFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...(opts.body ? { "Content-Type": "application/json" } : {}),
-        ...(opts.subTenantId ? { "X-Rootmail-Subtenant": opts.subTenantId } : {}),
+        ...(subTenantId ? { "X-Rootmail-Subtenant": subTenantId } : {}),
       },
       body: opts.body ? JSON.stringify(opts.body) : undefined,
       cache: "no-store",

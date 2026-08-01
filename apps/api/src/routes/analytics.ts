@@ -27,9 +27,12 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/analytics", async (req) => {
     const q = parse(query, req.query);
     const wsId = req.auth.workspace.id;
+    // Explicit ?sub_tenant_id= wins; otherwise the X-Rootmail-Subtenant header
+    // scopes the funnel, matching every other sub-tenant-aware resource.
+    const st = q.sub_tenant_id ?? req.auth.subTenant?.id;
     const since = new Date(Date.now() - q.window_days * 86_400_000);
     const base = [eq(messages.workspaceId, wsId), gte(messages.createdAt, since)];
-    if (q.sub_tenant_id) base.push(eq(messages.subTenantId, q.sub_tenant_id));
+    if (st) base.push(eq(messages.subTenantId, st));
     if (q.type) base.push(inArray(messages.type, WING_TYPES[q.type]));
 
     // Status breakdown.
@@ -149,7 +152,7 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
     return {
       object: "analytics",
       window_days: q.window_days,
-      scope: { sub_tenant_id: q.sub_tenant_id ?? null, type: q.type ?? null },
+      scope: { sub_tenant_id: st ?? null, type: q.type ?? null },
       funnel: { sent, delivered, opened, clicked },
       rates: {
         delivery: pct(delivered, sent),

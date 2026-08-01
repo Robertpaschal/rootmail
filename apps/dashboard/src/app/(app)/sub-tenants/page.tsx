@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, KeyRound, Network, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, Eye, KeyRound, Network, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { ActionForm } from "@/components/app/action-form";
+import { actAsClientForm } from "@/components/app/client-scope-actions";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
 import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/components/app/feature-locked";
@@ -10,6 +12,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
+import { getClientScopeId } from "@/lib/client-scope";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { SubTenant } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -66,6 +69,9 @@ export default async function SubTenantsPage() {
 
   const list = tenants ?? [];
   const empty = list.length === 0;
+  // Which client (if any) the operator is currently acting as, so the row they're
+  // already inside says so instead of offering to switch them there again.
+  const activeClientId = await getClientScopeId();
 
   return (
     <>
@@ -125,20 +131,45 @@ export default async function SubTenantsPage() {
                     <TableHead>Domain</TableHead>
                     <TableHead>Client</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Added</TableHead>
+                    <TableHead>Added</TableHead>
+                    <TableHead className="text-right" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {list.map((t) => (
-                    <TableRow key={t.id}>
-                      <TableCell className="font-mono text-sm">
-                        <Link href={`/sub-tenants/${t.id}`} className="hover:underline">{t.sending_domain}</Link>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{t.name}</TableCell>
-                      <TableCell><SubTenantStatusBadge status={t.status} /></TableCell>
-                      <TableCell className="whitespace-nowrap text-right text-muted-foreground">{relativeTime(t.created_at)}</TableCell>
-                    </TableRow>
-                  ))}
+                  {list.map((t) => {
+                    const acting = t.id === activeClientId;
+                    return (
+                      <TableRow key={t.id} className={cn(acting && "bg-primary/[0.04]")}>
+                        <TableCell className="font-mono text-sm">
+                          <Link href={`/sub-tenants/${t.id}`} className="hover:underline">{t.sending_domain}</Link>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">{t.name}</TableCell>
+                        <TableCell><SubTenantStatusBadge status={t.status} /></TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">{relativeTime(t.created_at)}</TableCell>
+                        <TableCell className="text-right">
+                          {/* Registering a domain was as far as this page went — you
+                              could verify a client and then never actually WORK as
+                              them without calling the API by hand. This is the door
+                              into their mail, audience and numbers. */}
+                          {acting ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                              <Eye className="size-3.5" /> Viewing now
+                            </span>
+                          ) : (
+                            <ActionForm action={actAsClientForm} errorClassName="justify-end">
+                              <input type="hidden" name="id" value={t.id} />
+                              <button
+                                type="submit"
+                                className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent"
+                              >
+                                <Eye className="size-3.5" /> View as client
+                              </button>
+                            </ActionForm>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </CardContent>

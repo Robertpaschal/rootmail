@@ -17,7 +17,9 @@ export async function deliverabilityRoutes(app: FastifyInstance): Promise<void> 
   app.get("/v1/deliverability", async (req) => {
     const q = parse(query, req.query);
     const wsId = req.auth.workspace.id;
-    const st = q.sub_tenant_id;
+    // Explicit ?sub_tenant_id= wins; otherwise the X-Rootmail-Subtenant header
+    // scopes the snapshot, matching every other sub-tenant-aware resource.
+    const st = q.sub_tenant_id ?? req.auth.subTenant?.id;
     const since = new Date(Date.now() - q.window_days * 86_400_000);
 
     // Message outcomes in the window, grouped by status.

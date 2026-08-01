@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { AssistantLauncher } from "@/components/app/assistant-launcher";
+import { ClientScopeBanner } from "@/components/app/client-scope-banner";
 import { CommandMenu } from "@/components/app/command-menu";
 import { ImpersonationBanner } from "@/components/app/impersonation-banner";
 import { MobileNav, Sidebar } from "@/components/app/nav";
@@ -58,7 +59,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           ) : null}
           {impersonating && me ? <ImpersonationBanner email={me.user.email} /> : null}
           {unverified ? <VerifyEmailBanner /> : null}
-          <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
+          {/* Agency mode: while acting as a client, name them on every page. */}
+        <ClientScopeBanner />
+        <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
         </ShellMain>
       </div>
       {/* The assistant, one tap away on every page (hides itself on /assistant). */}

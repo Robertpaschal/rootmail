@@ -166,6 +166,23 @@ await mail.withSubTenant(client.id).messages.create({
 });`,
       "client-domain.ts",
     ),
+    p(
+      "The scope applies to READS as well as sends. With the header set, listing messages, or asking for analytics or deliverability, returns that client's numbers alone — so you can build a per-client view without filtering client-side. Leave it off and you get the whole workspace, every client included.",
+    ),
+    code(
+      "ts",
+      `const acme = mail.withSubTenant(client.id);
+
+await acme.messages.list();      // only Acme's mail
+await acme.analytics.get();      // only Acme's funnel
+await acme.deliverability.get(); // only Acme's reputation
+
+await mail.messages.list();      // everything, all clients`,
+      "per-client-reads.ts",
+    ),
+    p(
+      "In the dashboard this is the client switcher in the top bar: pick a client and every section narrows to them until you leave.",
+    ),
     list([
       ["One client's bounce or complaint never touches another's deliverability."],
       ["Everything rolls up to you for billing and oversight."],

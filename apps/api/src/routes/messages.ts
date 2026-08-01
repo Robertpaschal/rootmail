@@ -479,6 +479,11 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/messages", async (req) => {
     const q = parse(listQuery, req.query);
     const conditions = [eq(messages.workspaceId, req.auth.workspace.id)];
+    // Acting as a client (X-Rootmail-Subtenant) narrows the log to that client's
+    // mail; without it the log stays the whole workspace, sub-tenants included.
+    // (Deliberately unlike templates/contacts, which fall back to workspace-only
+    // rows: a LOG should default to everything that happened, not a slice.)
+    if (req.auth.subTenant) conditions.push(eq(messages.subTenantId, req.auth.subTenant.id));
     if (q.status) conditions.push(eq(messages.status, q.status));
     if (q.sandbox) conditions.push(eq(messages.sandbox, q.sandbox === "true"));
     if (q.test) {
