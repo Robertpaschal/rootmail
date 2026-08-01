@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "The assistant can now see your replies, your audience and your results",
+    date: "2026-08-01",
+    changes: [
+      {
+        kind: "New",
+        text: "Ask it “has anyone replied?” or “what still needs answering?” and it reads your inbox — naming who wrote, quoting what they said, and offering to draft an answer for you to approve before anything goes out.",
+      },
+      {
+        kind: "New",
+        text: "It knows your audience now: how many contacts you have, who carries a tag, who's at risk, and everything on one person's record — read from your real data rather than guessed.",
+      },
+      {
+        kind: "New",
+        text: "Ask how a specific campaign did and you get that campaign's own figures — reached, delivered, opened, clicked, bounced — and who did what. Previously it could only report totals across everything you'd ever sent.",
+      },
+      {
+        kind: "New",
+        text: "“Am I set up to send?” is answerable. It checks your sending addresses, which is the most common reason a send is blocked and the one thing the message record never showed.",
+      },
+      {
+        kind: "Improved",
+        text: "While it works you can see that it's working — and for how long — instead of one motionless spinner through a job that legitimately takes several steps.",
+      },
+    ],
+  },
+  {
     title: "Work as one client at a time",
     date: "2026-08-01",
     changes: [
