@@ -18,7 +18,8 @@ the model are built and verified locally:
 
 - **Layer 1 — Identity & Sending:** workspaces, API + Node SDK, templates
   (no-code editor + AI drafts + uploads), idempotent sends, priorities/scheduling,
-  suppression, append-only audit, **sub-tenancy** (per-tenant domains/DKIM/reputation).
+  suppression, append-only audit, **sub-tenancy** (per-tenant domains/DKIM/reputation,
+  and **agency mode** — act as one client and the whole dashboard scopes to them).
 - **Layer 2 — Conversation:** threads, inbound MIME parsing, shared inbox,
   reply-routing via `Reply-To` token, sequence exit-on-reply.
 - **Layer 3 — Proof:** Ed25519-signed, exportable lifecycle proof bundles + content hash.
