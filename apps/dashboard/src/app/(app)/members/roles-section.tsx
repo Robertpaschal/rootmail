@@ -20,7 +20,7 @@ import { deleteRole } from "../roles/actions";
 export async function RolesSection() {
   let result: RolesResult | null = null;
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   let locked: FeatureLockedInfo | null = null;
   try {
     result = await api.listRoles();
@@ -28,7 +28,7 @@ export async function RolesSection() {
     if (err instanceof ApiError && err.code === "feature_locked") locked = asFeatureLocked(err.details);
     else if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else failed = "An unexpected error occurred.";
   }
 
@@ -42,7 +42,7 @@ export async function RolesSection() {
   }
 
   if (failed || !result) {
-    return <ConnectionErrorCard message={failed ?? "No data."} showReconnect={isApiErr} />;
+    return <ConnectionErrorCard message={failed ?? "No data."} status={errStatus} />;
   }
 
   const empty = result.data.length === 0;

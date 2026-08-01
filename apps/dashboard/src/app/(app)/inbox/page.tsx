@@ -10,7 +10,7 @@ import { InboxView } from "./inbox-view";
 export default async function InboxPage() {
   let threads: Thread[] = [];
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   // Demo tools (simulate a reply) exist only in the sandbox — live is truly live.
   const me = await api.me().catch(() => null);
   const ws = me?.active_workspace ?? me?.workspaces?.[0] ?? null;
@@ -20,7 +20,7 @@ export default async function InboxPage() {
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else {
       failed = "An unexpected error occurred.";
     }
@@ -42,7 +42,7 @@ export default async function InboxPage() {
         description="Every send opens a thread under its contact — one per subject, replies attached where they belong."
       />
       {failed ? (
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       ) : (
         <InboxView threads={threads} initialDetails={initialDetails} initialContact={firstContact} sandbox={sandbox} />
       )}

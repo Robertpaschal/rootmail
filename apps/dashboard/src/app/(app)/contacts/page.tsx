@@ -98,7 +98,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
   let personMissing = false;
   let personSuppressed: boolean | null = null;
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
 
   try {
     [tags, lists] = await Promise.all([
@@ -143,7 +143,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else failed = "An unexpected error occurred.";
   }
 
@@ -151,7 +151,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
     return (
       <>
         <PageHeader title="Audience" description="Everyone you email, in one place." />
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       </>
     );
   }

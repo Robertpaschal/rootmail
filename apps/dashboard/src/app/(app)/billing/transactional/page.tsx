@@ -26,7 +26,7 @@ export default async function TransactionalBillingPage({
     return (
       <>
         <PageHeader title="Transactional plan" backHref="/billing" backLabel="Plan & usage" />
-        <ConnectionErrorCard message={failed ?? "Pricing isn't available right now."} showReconnect />
+        <ConnectionErrorCard message={failed ?? "Pricing isn't available right now."} />
       </>
     );
   }

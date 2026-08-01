@@ -38,7 +38,7 @@ export default async function NewClientDomainPage() {
     return (
       <>
         <PageHeader title="Add a client domain" backHref="/sub-tenants" backLabel="Client domains" />
-        <ConnectionErrorCard message={failed} showReconnect />
+        <ConnectionErrorCard message={failed} />
       </>
     );
   }

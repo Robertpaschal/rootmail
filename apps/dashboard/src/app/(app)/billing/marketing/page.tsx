@@ -23,7 +23,7 @@ export default async function MarketingBillingPage({
     return (
       <>
         <PageHeader title="Marketing plan" backHref="/billing" backLabel="Plan & usage" />
-        <ConnectionErrorCard message={failed ?? "Pricing isn't available right now."} showReconnect />
+        <ConnectionErrorCard message={failed ?? "Pricing isn't available right now."} />
       </>
     );
   }

@@ -12,13 +12,13 @@ import { TemplatesTable, type TemplateRow } from "./templates-table";
 export default async function TemplatesPage() {
   let templates: Template[] | null = null;
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   try {
     templates = (await api.listTemplates()).data;
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else {
       failed = "An unexpected error occurred.";
     }
@@ -54,7 +54,7 @@ export default async function TemplatesPage() {
       />
 
       {failed ? (
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<FileText className="size-6" />}

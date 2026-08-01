@@ -13,6 +13,7 @@ import { LocalTime } from "@/components/app/local-time";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { EmailAuthReport, SubTenant } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { ManageSubTenant } from "./manage";
 
 const authVisual = {
   pass: { badge: "success", icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400" },
@@ -53,7 +54,7 @@ export default async function SubTenantDetailPage({
               ? err.message
               : "An unexpected error occurred."
           }
-          showReconnect={err instanceof ApiError}
+          status={err instanceof ApiError ? err.status : undefined}
         />
       </>
     );
@@ -164,6 +165,10 @@ export default async function SubTenantDetailPage({
               </CardContent>
             </Card>
           ) : null}
+
+        {/* Rename / remove — the rest of this resource's life, which until now
+            simply didn't exist (no PATCH, no DELETE). */}
+        <ManageSubTenant id={st.id} name={st.name} domain={st.sending_domain} />
 
         {/* Identifiers and dates — the deeper layer, on request. */}
         <details className="group rounded-xl border bg-card">

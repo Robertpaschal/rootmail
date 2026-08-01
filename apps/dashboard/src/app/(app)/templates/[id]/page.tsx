@@ -23,7 +23,7 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
               ? err.message
               : "An unexpected error occurred."
           }
-          showReconnect={err instanceof ApiError}
+          status={err instanceof ApiError ? err.status : undefined}
         />
       </>
     );

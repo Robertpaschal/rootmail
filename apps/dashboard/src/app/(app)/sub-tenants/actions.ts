@@ -113,3 +113,30 @@ export async function verifySubTenantStaged(id: string): Promise<StagedVerifySta
     return { error: "Couldn't check the DNS records just now." };
   }
 }
+
+/** Rename a client domain. The sending domain itself is immutable by design —
+ *  DKIM and every verified DNS record are bound to it. */
+export async function renameSubTenant(id: string, name: string): Promise<{ error?: string }> {
+  if (!name.trim()) return { error: "Give the client a name." };
+  try {
+    await api.updateSubTenant(id, { name: name.trim() });
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't rename this client domain." };
+  }
+  revalidatePath("/sub-tenants");
+  revalidatePath(`/sub-tenants/${id}`);
+  return {};
+}
+
+/** Remove a client domain. Redirects to the list — the record it was showing is gone. */
+export async function removeSubTenant(id: string): Promise<{ error?: string }> {
+  try {
+    await api.deleteSubTenant(id);
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't remove this client domain." };
+  }
+  revalidatePath("/sub-tenants");
+  redirect("/sub-tenants");
+}

@@ -30,7 +30,7 @@ const STEPS = [
 export default async function SubTenantsPage() {
   let tenants: SubTenant[] | null = null;
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   let locked: FeatureLockedInfo | null = null;
   try {
     tenants = (await api.listSubTenants()).data;
@@ -38,7 +38,7 @@ export default async function SubTenantsPage() {
     if (err instanceof ApiError && err.code === "feature_locked") locked = asFeatureLocked(err.details);
     else if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else {
       failed = "An unexpected error occurred.";
     }
@@ -59,7 +59,7 @@ export default async function SubTenantsPage() {
     return (
       <>
         <PageHeader title="Client domains" description={DESC} />
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       </>
     );
   }

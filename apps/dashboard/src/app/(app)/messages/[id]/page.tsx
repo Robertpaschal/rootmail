@@ -28,7 +28,7 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
         <PageHeader title="Message" backHref="/messages" backLabel="Messages" />
         <ConnectionErrorCard
           message={err instanceof ConnectionError || err instanceof ApiError ? err.message : "An unexpected error occurred."}
-          showReconnect={err instanceof ApiError}
+          status={err instanceof ApiError ? err.status : undefined}
         />
       </>
     );

@@ -44,7 +44,7 @@ const BEATS = [
 export default async function CampaignsPage() {
   let rows: Campaign[] | null = null;
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   let locked: FeatureLockedInfo | null = null;
   try {
     rows = (await api.listCampaigns()).data;
@@ -52,7 +52,7 @@ export default async function CampaignsPage() {
     if (err instanceof ApiError && err.code === "feature_locked") locked = asFeatureLocked(err.details);
     else if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else failed = "An unexpected error occurred.";
   }
 
@@ -69,7 +69,7 @@ export default async function CampaignsPage() {
     return (
       <>
         <PageHeader title="Campaigns" description="Send one email to a whole audience — a newsletter, a promotion, an announcement." />
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       </>
     );
   }

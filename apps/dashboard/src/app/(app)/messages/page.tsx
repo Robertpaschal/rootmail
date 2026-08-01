@@ -31,7 +31,7 @@ export default async function MessagesPage({
 
   let messages: Message[] = [];
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   try {
     const res = await api.listMessages({
       limit: 100, // the API's validation cap (max 100 per request)
@@ -41,7 +41,7 @@ export default async function MessagesPage({
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else {
       failed = "An unexpected error occurred.";
     }
@@ -88,7 +88,7 @@ export default async function MessagesPage({
       </div>
 
       {failed ? (
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       ) : messages.length === 0 ? (
         <EmptyState
           icon={<Mail className="size-6" />}

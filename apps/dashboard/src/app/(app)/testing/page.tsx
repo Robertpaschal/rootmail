@@ -48,7 +48,7 @@ export default async function TestingPage() {
   let liveId: string | null = null;
   let liveName: string | null = null;
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
 
   try {
     const [cat, me] = await Promise.all([api.listTestRecipients(), api.me().catch(() => null)]);
@@ -69,7 +69,7 @@ export default async function TestingPage() {
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else {
       failed = "An unexpected error occurred.";
     }
@@ -85,7 +85,7 @@ export default async function TestingPage() {
       />
 
       {failed ? (
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       ) : (
         <div className="space-y-10">
           {/* ── The main event: real sends, safe destinations ─────────────── */}

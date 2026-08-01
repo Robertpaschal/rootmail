@@ -74,7 +74,7 @@ export default async function OverviewPage() {
 
   const me = ok(meR);
   if (!me) {
-    return <ConnectionErrorCard message="Couldn't reach the rootmail API." showReconnect />;
+    return <ConnectionErrorCard message="We couldn't load your overview just now." />;
   }
 
   const billing = ok(billR);

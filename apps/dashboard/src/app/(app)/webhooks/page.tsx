@@ -7,13 +7,13 @@ import { WebhookConsole } from "./webhook-console";
 export default async function WebhooksPage() {
   let endpoints: WebhookEndpoint[] = [];
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   try {
     endpoints = (await api.listWebhooks()).data;
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else {
       failed = "An unexpected error occurred.";
     }
@@ -26,7 +26,7 @@ export default async function WebhooksPage() {
         description="Get notified when message events happen — delivered, bounced, opened, and more."
       />
       {failed ? (
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       ) : (
         <WebhookConsole initial={endpoints} />
       )}

@@ -139,7 +139,9 @@ async function rmFetch<T>(path: string, opts: FetchOpts = {}): Promise<T> {
     });
   } catch {
     throw new ConnectionError(
-      `Cannot reach the rootmail API at ${API_URL}. Is \`pnpm api\` running?`,
+      // User-facing. The internal URL and "is the dev server up?" belong in logs,
+      // not on a customer's screen — see components/app/connection-error.tsx.
+      "We couldn't load this just now.",
     );
   }
 
@@ -214,6 +216,10 @@ export const api = {
     rmFetch<SubTenant>("/v1/sub-tenants", { method: "POST", body }),
   verifySubTenant: (id: string) =>
     rmFetch<VerifyResult>(`/v1/sub-tenants/${id}/verify`, { method: "POST" }),
+  updateSubTenant: (id: string, body: { name?: string; external_id?: string | null }) =>
+    rmFetch<SubTenant>(`/v1/sub-tenants/${id}`, { method: "PATCH", body }),
+  deleteSubTenant: (id: string) =>
+    rmFetch<{ deleted: boolean }>(`/v1/sub-tenants/${id}`, { method: "DELETE" }),
 
   upsertContact: (body: {
     email: string;
@@ -297,7 +303,7 @@ export const api = {
         cache: "no-store",
       });
     } catch {
-      throw new ConnectionError(`Cannot reach the rootmail API at ${API_URL}.`);
+      throw new ConnectionError("We couldn't load this just now.");
     }
     const json = await res.json().catch(() => null);
     if (!res.ok) {
@@ -534,7 +540,7 @@ export const api = {
         cache: "no-store",
       });
     } catch {
-      throw new ConnectionError(`Cannot reach the rootmail API at ${API_URL}.`);
+      throw new ConnectionError("We couldn't load this just now.");
     }
     const json = await res.json().catch(() => null);
     if (!res.ok) {
@@ -660,7 +666,7 @@ export async function oauthUpsert(body: {
       cache: "no-store",
     });
   } catch {
-    throw new ConnectionError(`Cannot reach the rootmail API at ${API_URL}.`);
+    throw new ConnectionError("We couldn't load this just now.");
   }
   if (!res.ok) throw new ApiError(res.status, "Social login failed");
   return (await res.json()) as AuthSession;
@@ -679,7 +685,7 @@ async function ssoInternal<T>(path: string, body: unknown): Promise<T> {
       cache: "no-store",
     });
   } catch {
-    throw new ConnectionError(`Cannot reach the rootmail API at ${API_URL}.`);
+    throw new ConnectionError("We couldn't load this just now.");
   }
   if (!res.ok) throw new ApiError(res.status, "SSO request failed");
   return (await res.json()) as T;

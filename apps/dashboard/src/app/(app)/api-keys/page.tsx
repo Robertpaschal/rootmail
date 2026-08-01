@@ -7,13 +7,13 @@ import { ApiKeysManager } from "./api-keys-manager";
 export default async function ApiKeysPage() {
   let keys: ApiKey[] | null = null;
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   try {
     keys = (await api.listApiKeys()).data;
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else {
       failed = "An unexpected error occurred.";
     }
@@ -27,7 +27,7 @@ export default async function ApiKeysPage() {
       />
 
       {failed ? (
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       ) : (
         <ApiKeysManager keys={keys ?? []} currentKey={null} />
       )}

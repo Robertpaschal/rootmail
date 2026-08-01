@@ -138,6 +138,52 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
     return { object: "email_auth", sub_tenant_id: st.id, ...report };
   });
 
+  // --- Rename / retag -----------------------------------------------------
+  // Client domains were create-and-read only: every other collection in the API
+  // (campaigns, contacts, lists, sequences, templates, senders, webhooks, roles)
+  // can be edited and removed, so an agency could add a client and then never
+  // correct a typo in their name or take them off the account. The sending
+  // DOMAIN itself stays immutable — it's what the DKIM key and every verified
+  // DNS record are bound to; changing it would silently invalidate them, so
+  // that case is "remove it and add the right one".
+  app.patch("/v1/sub-tenants/:id", async (req) => {
+    await requirePermission(req, "domains.manage");
+    const { id } = req.params as { id: string };
+    const st = await getScopedSubTenant(req, id);
+    const body = parse(
+      z.object({
+        name: z.string().min(1).max(120).optional(),
+        external_id: z.string().max(120).nullable().optional(),
+        inherits_templates: z.boolean().optional(),
+      }),
+      req.body,
+    );
+
+    const [updated] = await db
+      .update(subTenants)
+      .set({
+        ...(body.name !== undefined ? { name: body.name } : {}),
+        ...(body.external_id !== undefined ? { externalId: body.external_id } : {}),
+        ...(body.inherits_templates !== undefined
+          ? { inheritsTemplates: body.inherits_templates }
+          : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(subTenants.id, st.id))
+      .returning();
+
+    return serializeSubTenant(updated, { includeDns: true });
+  });
+
+  // --- Remove -------------------------------------------------------------
+  app.delete("/v1/sub-tenants/:id", async (req) => {
+    await requirePermission(req, "domains.manage");
+    const { id } = req.params as { id: string };
+    const st = await getScopedSubTenant(req, id);
+    await db.delete(subTenants).where(eq(subTenants.id, st.id));
+    return { object: "sub_tenant", id: st.id, deleted: true };
+  });
+
   // --- Verify domain ------------------------------------------------------
   app.post("/v1/sub-tenants/:id/verify", async (req) => {
     await requirePermission(req, "domains.manage");

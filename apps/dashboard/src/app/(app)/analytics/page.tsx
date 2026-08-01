@@ -77,7 +77,7 @@ export default async function AnalyticsPage({
           message={
             err instanceof ConnectionError || err instanceof ApiError ? err.message : "An unexpected error occurred."
           }
-          showReconnect={err instanceof ApiError}
+          status={err instanceof ApiError ? err.status : undefined}
         />
       </>
     );

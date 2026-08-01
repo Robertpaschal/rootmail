@@ -47,14 +47,14 @@ export default async function BillingPage({
   let billing: Billing | null = null;
   let invoices: Invoice[] = [];
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   try {
     billing = await api.getBilling();
     invoices = await api.getInvoices().then((r) => r.data).catch(() => []);
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else {
       failed = "An unexpected error occurred.";
     }
@@ -64,7 +64,7 @@ export default async function BillingPage({
     return (
       <>
         <PageHeader title="Plan & usage" />
-        <ConnectionErrorCard message={failed ?? "No billing data."} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed ?? "No billing data."} status={errStatus} />
       </>
     );
   }

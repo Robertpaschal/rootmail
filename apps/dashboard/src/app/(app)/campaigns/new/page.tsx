@@ -15,7 +15,7 @@ export default async function NewCampaignPage() {
   let sendsFrom: string | null = null;
   let locked: FeatureLockedInfo | null = null;
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
 
   try {
     // The campaigns endpoint is the gated one — probe it first so a locked page
@@ -35,7 +35,7 @@ export default async function NewCampaignPage() {
     if (err instanceof ApiError && err.code === "feature_locked") locked = asFeatureLocked(err.details);
     else if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else failed = "An unexpected error occurred.";
   }
 
@@ -52,7 +52,7 @@ export default async function NewCampaignPage() {
     return (
       <>
         <PageHeader title="New campaign" backHref="/campaigns" backLabel="Campaigns" />
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       </>
     );
   }

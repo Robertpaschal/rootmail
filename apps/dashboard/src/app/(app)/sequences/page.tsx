@@ -16,7 +16,7 @@ import type { Sequence } from "@/lib/types";
 export default async function SequencesPage() {
   let rows: Sequence[] | null = null;
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   let locked: FeatureLockedInfo | null = null;
   try {
     rows = (await api.listSequences()).data;
@@ -24,7 +24,7 @@ export default async function SequencesPage() {
     if (err instanceof ApiError && err.code === "feature_locked") locked = asFeatureLocked(err.details);
     else if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else failed = "An unexpected error occurred.";
   }
 
@@ -50,7 +50,7 @@ export default async function SequencesPage() {
       />
 
       {failed ? (
-        <ConnectionErrorCard message={failed} showReconnect={isApiErr} />
+        <ConnectionErrorCard message={failed} status={errStatus} />
       ) : rows && rows.length === 0 ? (
         <EmptyState
           icon={<Workflow className="size-6" />}

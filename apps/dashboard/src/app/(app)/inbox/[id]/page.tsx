@@ -20,7 +20,7 @@ export default async function ThreadPage({ params }: { params: Promise<{ id: str
         <PageHeader title="Replies" backHref="/inbox" backLabel="Replies" />
         <ConnectionErrorCard
           message={err instanceof ConnectionError || err instanceof ApiError ? err.message : "An unexpected error occurred."}
-          showReconnect={err instanceof ApiError}
+          status={err instanceof ApiError ? err.status : undefined}
         />
       </>
     );

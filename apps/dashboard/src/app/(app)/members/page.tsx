@@ -60,20 +60,20 @@ function TabStrip({ active }: { active: Tab }) {
 async function PeopleSection() {
   let data: MembersResult | null = null;
   let failed: string | null = null;
-  let isApiErr = false;
+  let errStatus: number | undefined;
   try {
     data = await api.getMembers();
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) {
       failed = err.message;
-      isApiErr = err instanceof ApiError;
+      errStatus = err instanceof ApiError ? err.status : undefined;
     } else {
       failed = "An unexpected error occurred.";
     }
   }
 
   if (failed || !data) {
-    return <ConnectionErrorCard message={failed ?? "No data."} showReconnect={isApiErr} />;
+    return <ConnectionErrorCard message={failed ?? "No data."} status={errStatus} />;
   }
 
   // Custom roles are an add-on — offer them in the picker when available.

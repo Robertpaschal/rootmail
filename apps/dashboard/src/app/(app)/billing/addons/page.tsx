@@ -33,7 +33,7 @@ export default async function AddonsPage({
     return (
       <>
         <PageHeader title="Add-ons" backHref="/billing" backLabel="Plan & usage" />
-        <ConnectionErrorCard message={failed ?? "Add-ons aren't available right now."} showReconnect />
+        <ConnectionErrorCard message={failed ?? "Add-ons aren't available right now."} />
       </>
     );
   }
