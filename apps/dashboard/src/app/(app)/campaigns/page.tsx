@@ -6,13 +6,14 @@ import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/compon
 import { PageHeader } from "@/components/app/page-header";
 import { Reveal } from "@/components/app/motion";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Campaign } from "@/lib/types";
-import { deleteCampaign, sendCampaign } from "./actions";
+import { deleteCampaign } from "./actions";
 
 const STATUS_VARIANT: Record<Campaign["status"], "secondary" | "warning" | "success"> = {
   draft: "secondary",
@@ -171,13 +172,16 @@ export default async function CampaignsPage() {
                       <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{relativeTime(c.created_at)}</TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-1">
+                          {/* Sending from a table row gave no audience count, no readiness
+                              check and no confirm — for the one action that can't be undone.
+                              It goes to the campaign, where all three live. */}
                           {c.status === "draft" || c.status === "scheduled" ? (
-                            <form action={sendCampaign} className="inline">
-                              <input type="hidden" name="id" value={c.id} />
-                              <Button type="submit" size="sm" variant="outline">
-                                <Send className="size-3.5" /> Send
-                              </Button>
-                            </form>
+                            <Link
+                              href={`/campaigns/${c.id}`}
+                              className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
+                            >
+                              <Send className="size-3.5" /> Review &amp; send
+                            </Link>
                           ) : null}
                           <form action={deleteCampaign} className="inline">
                             <input type="hidden" name="id" value={c.id} />

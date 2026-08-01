@@ -12,6 +12,7 @@ import { deleteCampaign, sendCampaign } from "../actions";
 import { CampaignLive } from "./campaign-live";
 import { PreFlight } from "./pre-flight";
 import { FollowUp } from "./follow-up";
+import { CampaignStages, LaunchPanel, type Blocker } from "./launch";
 
 export const metadata: Metadata = { title: "Campaign" };
 
@@ -54,6 +55,34 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
     (def ? (def.display_name ? `${def.display_name} <${def.email}>` : def.email) : "rootmail address (verify your own under Settings → Sending)");
   const replyLabel = def ? def.email : "rootmail — set up a verified address to receive replies yourself";
 
+  // What still stands between this draft and a send. Each one is a real API
+  // refusal we'd otherwise have swallowed; naming it here (with the door that
+  // fixes it) is the difference between a dead button and a next step.
+  const hasVerifiedSender = sendersRes.data.some((s) => s.status === "verified");
+  const audienceSize = previewRes.total ?? previewRes.data.length;
+  const blockers: Blocker[] = [];
+  if (!campaign.list_id) {
+    blockers.push({
+      what: "No audience chosen — there's nobody to send to.",
+      fixHref: "/contacts",
+      fixLabel: "Pick an audience",
+    });
+  }
+  if (!campaign.template_id && !campaign.subject) {
+    blockers.push({
+      what: "Nothing to send — this campaign has no content yet.",
+      fixHref: `/campaigns/new?id=${campaign.id}`,
+      fixLabel: "Write it",
+    });
+  }
+  if (!hasVerifiedSender) {
+    blockers.push({
+      what: "No verified sending address — mail would go out from a rootmail address.",
+      fixHref: "/settings/sender",
+      fixLabel: "Verify yours",
+    });
+  }
+
   const facts: [string, string][] = [
     ["Subject", campaign.subject ?? "the template's subject"],
     ["From", fromLabel],
@@ -67,16 +96,11 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
         title={campaign.name}
         backHref="/campaigns"
         backLabel="Campaigns"
+        // Sending moved into the LaunchPanel below: it needs the audience count,
+        // the readiness checks and a confirm step, none of which fit a header
+        // button that was always enabled and reported nothing.
         actions={
           <div className="flex items-center gap-2">
-            {campaign.status === "draft" || campaign.status === "scheduled" ? (
-              <form action={sendCampaign}>
-                <input type="hidden" name="id" value={campaign.id} />
-                <Button type="submit" size="sm">
-                  <Send className="size-3.5" /> Send now
-                </Button>
-              </form>
-            ) : null}
             <form action={deleteCampaign}>
               <input type="hidden" name="id" value={campaign.id} />
               <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
@@ -86,6 +110,18 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           </div>
         }
       />
+
+      <CampaignStages status={campaign.status} />
+
+      {/* Before it goes: is it ready, who does it reach, and say so out loud. */}
+      {notYetSent ? (
+        <LaunchPanel
+          campaignId={campaign.id}
+          audienceSize={audienceSize}
+          fromLabel={fromLabel}
+          blockers={blockers}
+        />
+      ) : null}
 
       {/* What it is — the facts, compact. */}
       <Card className="mb-6">

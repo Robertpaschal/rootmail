@@ -107,16 +107,26 @@ export async function listTagsAction(listId: string): Promise<{ tags?: ListTag[]
   }
 }
 
-export async function sendCampaign(formData: FormData): Promise<void> {
-  const id = String(formData.get("id") ?? "");
-  if (!id) return;
+/**
+ * Launch a campaign.
+ *
+ * This used to swallow every error — `catch { /* best-effort *\/ }` — so a send
+ * that the API refused (no verified sender, empty audience, over quota, feature
+ * locked) looked identical to one that worked: the page just reloaded and
+ * nothing happened, with nothing said. For the single most consequential button
+ * in the product, that's the worst possible failure mode. It reports now.
+ */
+export async function sendCampaign(id: string): Promise<{ error?: string }> {
+  if (!id) return { error: "Missing campaign." };
   try {
     await api.sendCampaign(id);
-  } catch {
-    /* best-effort; the row reflects current status */
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't start this send." };
   }
   revalidatePath("/campaigns");
   revalidatePath(`/campaigns/${id}`); // the detail page shows status + funnel too
+  return {};
 }
 
 export async function deleteCampaign(formData: FormData): Promise<void> {

@@ -145,7 +145,7 @@ export function CampaignLive({ initial }: { initial: LiveData }) {
       ) : campaign.status === "draft" ? (
         <Card className="border-l-4 border-l-muted-foreground/40">
           <CardContent className="flex items-center gap-2 p-5 text-sm text-muted-foreground">
-            <Send className="size-4" /> Draft — review the details below, then press <span className="font-medium text-foreground">Send now</span>.
+            <Send className="size-4" /> Nothing has gone out yet — the panel above says what&apos;s left and who this reaches.
           </CardContent>
         </Card>
       ) : null}

@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Campaigns tell you what's left, and who you're about to email",
+    date: "2026-08-01",
+    changes: [
+      {
+        kind: "Fixed",
+        text: "Pressing Send on a campaign that wasn't ready did nothing at all — no error, no explanation, the page just reloaded. The reason was thrown away before it reached you. It's shown now.",
+      },
+      {
+        kind: "New",
+        text: "A campaign says whether it's ready before you send. Missing audience, missing content, no verified sending address — each one is named, with a link straight to the page that fixes it, and Send stays disabled until they're done.",
+      },
+      {
+        kind: "New",
+        text: "Send now tells you how many people it reaches, and asks once before it goes. Mail can't be unsent, and the old button never said who it was about to email.",
+      },
+      {
+        kind: "New",
+        text: "Every campaign shows where it is in its life — Draft, Sending, Delivered, Engagement — so you can see at a glance what stage you're looking at.",
+      },
+      {
+        kind: "Improved",
+        text: "The one-click Send in the campaign list is now Review & send, taking you to the campaign where the count, the checks and the confirmation live.",
+      },
+    ],
+  },
+  {
     title: "Adding a client domain is a guided setup now",
     date: "2026-07-31",
     changes: [
