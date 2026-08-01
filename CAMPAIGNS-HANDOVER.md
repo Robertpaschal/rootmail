@@ -1,6 +1,6 @@
 # Campaigns journey — handover
 
-State as of `f4bbf91`. Everything below is committed, CI-green and deployed
+State as of `85e91b1`. Everything below is committed, CI-green and deployed
 (dashboard + api). Read this before touching campaigns.
 
 ## The through-line we're building
@@ -34,6 +34,13 @@ Build ──► Review ──► Sending ──► Delivered ──► Engagemen
   confirmation, because mail can't be unsent.
 - **The list page** no longer one-click sends from a table row — it's
   "Review & send", routing to where the count and checks live.
+- **Scheduling works.** The API had supported it all along (`POST /send` parsed
+  `scheduled_at`, set status `scheduled`, enqueued with a delay) — the dashboard
+  simply never passed it. Now: `sendCampaign(id, scheduledAt?)`, a "Schedule
+  instead" door in `LaunchPanel` with a datetime picker, future-instant
+  validation in the action, and the record states *when* it goes out. Verified
+  against the running API: scheduled 3 days out → status `scheduled` + stored
+  instant, page renders Build ✓ → Review with the date.
 
 ## Not done — in priority order
 
@@ -54,17 +61,7 @@ message composer hit a real bug doing this — **fields in unmounted scenes stop
 submitting**. Hoist every submitted field to form level (that fix is in
 `messages/new`, worth copying).
 
-### 2. Make `scheduled` real
-It's a live enum value and a `campaigns.scheduled_at` column with **no UI that
-can produce it** — a dead state.
-- API: `POST /v1/campaigns/:id/send` takes an optional `scheduled_at`; set
-  status `scheduled` instead of dispatching.
-- Worker: honour `scheduled_at` (there's already a scheduled/lifecycle worker to
-  hang this on).
-- UI: "Send later" beside "Send now" in `LaunchPanel`; the `Review` phase then
-  shows *when* it goes.
-
-### 3. The swallowed-error sweep (product-wide, not campaigns)
+### 2. The swallowed-error sweep (product-wide, not campaigns)
 `sendCampaign` was not an isolated mistake. **24 swallowed catches in 17 action
 files** — every one is a user pressing a button and being told nothing on
 failure:
@@ -77,6 +74,18 @@ Worst offenders: `messages` (4), `lists` (3), `sequences` (3), `campaigns` (2
 remaining). Convention to apply: action returns `{error?: string}`, caller
 surfaces it. This is its own pass and probably the highest-value cleanup in the
 dashboard.
+
+## A trap that already bit once — don't repeat it
+
+`phaseForStatus()` was defined in `launch.tsx` (a `"use client"` module) and
+called from the server page. **Next only lets COMPONENTS cross the client
+boundary, never plain functions** — every campaign detail page threw
+"Attempted to call phaseForStatus() from the server", and it shipped to
+production because `tsc` is perfectly happy with it. It now lives in
+`campaigns/phase.ts`, deliberately not a client module.
+
+Rule: any helper a server component calls must live outside `"use client"`.
+Typecheck will not catch this. Only walking the page will.
 
 ## Verification notes (read before claiming something works)
 
