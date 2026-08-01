@@ -55,33 +55,47 @@ what makes the next scene meaningful; completed scenes are clickable.
 no AnimatePresence swap between scenes. If you want the slide transition, hoist
 every submitted field to form level first.
 
-### 1. The swallowed-error sweep — NOT a one-line fix, know this before starting
-**24 swallowed catches across 17 action files.** Every one is a user pressing a
-button and being told nothing when it fails.
+### 1. The swallowed-error sweep — CORRECTED COUNT: 13, not 24
+
+My earlier "24 swallowed catches" was wrong: I grepped `catch {` without reading
+them. Roughly half are **deliberate, documented graceful degradations** and must
+be left alone — e.g. in messages/actions.ts:
+
+- `simulateEvent` — "best-effort — the refresh below reflects whatever actually
+  changed". There IS a compensating read; nothing is hidden.
+- contact lookup for preview — "previewing must never depend on the audience
+  being reachable". Correct: a preview should degrade, not fail.
+- the variables `JSON.parse` — already returns
+  `{ error: "Variables must be valid JSON." }`. Not a swallow at all.
+
+**The real ones are mutations that return `Promise<void>` and have no
+compensating refresh** — you press a button, it fails, nothing is said:
 
 ```
-grep -rn "catch {$" apps/dashboard/src/app --include="actions.ts"
+contacts/actions.ts     unsubscribeContact()
+lists/actions.ts        deleteList()  addContact()  removeContact()
+roles/actions.ts        deleteRole()
+api-keys/actions.ts     revokeApiKey()
+sequences/actions.ts    deleteSequenceAction()  enrollAction()
+sub-tenants/actions.ts  verifySubTenant()
+campaigns/actions.ts    deleteCampaign()
+templates/actions.ts    deleteTemplate()
+members/actions.ts      revokeInvite()
+billing/actions.ts      setAddon()
 ```
 
-The trap: **14 of these are `Promise<void>` form actions** (`<form action={fn}>`).
-Returning `{error}` from them changes nothing on its own — a form action's return
-value is discarded. Each one needs its CALLER converted to `useActionState` (or a
-client handler) to have anywhere to show the error. That's a per-call-site
-refactor, not a find-and-replace, which is why it wasn't bundled into the
-campaign work.
+Several are destructive (delete a list, revoke a key, delete a template, revoke
+an invite) — the worst kind to fail quietly, because the row often disappears
+from view on revalidate and looks like it worked.
 
-Split it that way:
+**Why this isn't a find-and-replace.** All 13 are `<form action={fn}>` form
+actions, and a form action's return value is discarded. Returning `{error}`
+changes nothing until the CALLER becomes `useActionState` (or a client handler)
+with somewhere to render it. So each is: convert caller → return `{error}` →
+surface → verify. One section at a time.
 
-| Shape | Files | Work |
-|---|---|---|
-| Already returns a value | messages (4), inbox, assistant, contact, auth, subscribe | Cheap — surface `{error}` at the existing call site |
-| `Promise<void>` form action | lists (3), sequences (2), contacts, roles, api-keys, members, templates, billing, sub-tenants, campaigns (delete) | Convert caller to `useActionState`, then return `{error}` |
-
-Do the cheap column first — it's real user-facing value for little risk. The
-form-action column is best done section by section, verifying each.
-
-`sendCampaign` (campaigns) is already converted and is the reference
-implementation: action returns `{error?}`, `LaunchPanel` renders it.
+`sendCampaign` in campaigns/actions.ts is the reference implementation:
+action returns `{error?}`, `LaunchPanel` renders it inline.
 
 ## A trap that already bit once — don't repeat it
 
