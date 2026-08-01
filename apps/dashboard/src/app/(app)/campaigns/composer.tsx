@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import {
+  ArrowLeft,
   ArrowRight,
   Check,
   FileText,
@@ -116,8 +117,47 @@ export function CampaignComposer({
 
   const ready = listId && templateId;
 
+  // Sub-stages of the Build leg. Inactive scenes stay MOUNTED (hidden) rather
+  // than unmounting: this form posts through useActionState, and a field that
+  // isn't in the DOM doesn't submit — the exact bug the message composer hit.
+  // Hiding gives the staged feel with none of the data loss.
+  const [scene, setScene] = useState(0);
+  const SCENES = ["Audience", "Message", "Review"] as const;
+  const canLeaveAudience = Boolean(listId);
+  const canLeaveMessage = Boolean(templateId);
+
   return (
     <form action={action} className="max-w-3xl space-y-8">
+      {/* Where you are inside Build — the same vocabulary as the outer journey,
+          one level down. Completed scenes are clickable; ahead of you isn't,
+          because skipping the audience makes the message step meaningless. */}
+      <ol className="flex flex-wrap items-center gap-x-2 gap-y-2 text-xs">
+        {SCENES.map((label, i) => {
+          const done = i < scene;
+          const now = i === scene;
+          const reachable = i <= scene || (i === 1 && canLeaveAudience) || (i === 2 && canLeaveAudience && canLeaveMessage);
+          return (
+            <li key={label} className="flex items-center gap-2">
+              <button
+                type="button"
+                disabled={!reachable}
+                onClick={() => reachable && setScene(i)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium transition-colors",
+                  now && "bg-primary text-primary-foreground",
+                  done && "bg-emerald-500/15 text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400",
+                  !now && !done && "bg-muted text-muted-foreground",
+                  !reachable && "cursor-not-allowed opacity-60",
+                )}
+              >
+                {done ? <Check className="size-3" /> : null}
+                {i + 1}. {label}
+              </button>
+              {i < SCENES.length - 1 ? <span className="text-muted-foreground/50">→</span> : null}
+            </li>
+          );
+        })}
+      </ol>
       {/* Everything the guided UI chose travels as plain form fields. */}
       <input type="hidden" name="list_id" value={listId} />
       <input type="hidden" name="template_id" value={templateId} />
@@ -128,6 +168,7 @@ export function CampaignComposer({
         value={JSON.stringify(variants.filter((v) => v.tag && v.template_id).map((v) => ({ ...v, subject: v.subject || undefined })))}
       />
 
+      <div className={cn("space-y-8", scene !== 0 && "hidden")}>
       <Step n={1} title="Name it" hint="internal only — recipients never see it">
         <Input id="name" name="name" placeholder="July newsletter" required className="max-w-md" />
       </Step>
@@ -208,6 +249,17 @@ export function CampaignComposer({
         )}
       </Step>
 
+      <div className="flex items-center gap-3 border-t pt-5">
+        <Button type="button" onClick={() => setScene(1)} disabled={!canLeaveAudience}>
+          Next: the message <ArrowRight className="size-4" />
+        </Button>
+        {!canLeaveAudience ? (
+          <span className="text-xs text-muted-foreground">Pick an audience to continue.</span>
+        ) : null}
+      </div>
+      </div>
+
+      <div className={cn("space-y-8", scene !== 1 && "hidden")}>
       <Step n={3} title="What do they get?" hint="pick a template, or design a new one" delay={0.1}>
         {templates.length === 0 ? (
           <Card>
@@ -338,6 +390,44 @@ export function CampaignComposer({
         ) : null}
       </AnimatePresence>
 
+      <div className="flex items-center gap-3 border-t pt-5">
+        <Button type="button" variant="outline" onClick={() => setScene(0)}>
+          <ArrowLeft className="size-4" /> Back
+        </Button>
+        <Button type="button" onClick={() => setScene(2)} disabled={!canLeaveMessage}>
+          Next: review <ArrowRight className="size-4" />
+        </Button>
+        {!canLeaveMessage ? (
+          <span className="text-xs text-muted-foreground">Pick a template to continue.</span>
+        ) : null}
+      </div>
+      </div>
+
+      {/* Scene 3 — what you've built, restated, then the one button that saves
+          it. The old form put this under a 4-section scroll with no recap. */}
+      <div className={cn("space-y-5", scene !== 2 && "hidden")}>
+        <div className="rounded-xl border bg-card">
+          <p className="border-b px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            What you&apos;ve set up
+          </p>
+          <dl className="divide-y text-sm">
+            {[
+              ["Audience", lists.find((l) => l.id === listId)?.name ?? "—"],
+              ["Segment", segmentTag ? `tagged “${segmentTag}”` : "everyone on the audience"],
+              ["Message", templates.find((t) => t.id === templateId)?.name ?? "—"],
+              ["A/B variants", variants.filter((v) => v.tag && v.template_id).length
+                ? `${variants.filter((v) => v.tag && v.template_id).length} variant(s) by tag`
+                : "none — everyone gets the base message"],
+              ["Reaches", reach !== null ? `${reach.toLocaleString()} recipient${reach === 1 ? "" : "s"}` : "—"],
+            ].map(([k, v]) => (
+              <div key={k} className="flex items-baseline justify-between gap-4 px-4 py-2.5">
+                <dt className="shrink-0 text-xs text-muted-foreground">{k}</dt>
+                <dd className="min-w-0 truncate text-right font-medium" title={v}>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -369,7 +459,11 @@ export function CampaignComposer({
           </p>
         </div>
         {state?.error ? <p className="w-full text-sm text-destructive">{state.error}</p> : null}
+        <Button type="button" variant="ghost" size="sm" onClick={() => setScene(1)}>
+          <ArrowLeft className="size-4" /> Back to the message
+        </Button>
       </motion.div>
+      </div>
     </form>
   );
 }
