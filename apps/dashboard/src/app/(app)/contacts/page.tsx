@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Kanban,
   ListChecks,
+  Plus,
   Rows3,
   Search,
   ShieldAlert,
@@ -21,10 +22,11 @@ import {
 } from "lucide-react";
 import { audienceFromTagAction, unsubscribeContact } from "./actions";
 import { deleteList } from "../lists/actions";
-import { AddPeople } from "./add-people";
-import { NewAudience } from "./new-audience";
+import { AddPeople, AddPeopleStandalone } from "./add-people";
+import { NewAudience, NewAudienceForm } from "./new-audience";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
+import { FocusedTask } from "@/components/app/focused-task";
 import { PageHeader } from "@/components/app/page-header";
 import { Reveal } from "@/components/app/motion";
 import { ContactStatusBadge } from "@/components/app/status-badge";
@@ -269,6 +271,27 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
 
           {noPeopleAtAll ? (
             <>
+              {/* Chosen a door? Then show that door, not the hallway. The three
+                  cards below have done their job and would only compete with the
+                  form for attention — which is what stacking them did. */}
+              {sp.add ? (
+                <FocusedTask
+                  title={sp.add === "import" ? "Import your people" : "Add someone"}
+                  description={
+                    sp.add === "import"
+                      ? "Bring a CSV from your old provider — tags and details come along, and you can drop everyone straight into an audience."
+                      : "One person, by hand. Perfect for testing the whole flow end to end before you import."
+                  }
+                  backHref={hubUrl({})}
+                  backLabel="Back to your audience"
+                >
+                  <AddPeopleStandalone
+                    lists={lists.map((l) => ({ id: l.id, name: l.name }))}
+                    initialMode={sp.add === "import" ? "import" : "one"}
+                  />
+                </FocusedTask>
+              ) : (
+              <>
               {/* The empty CRM sells its own doors: grow, bring, or add. */}
               <div className="rounded-xl border border-dashed p-8 text-center">
                 <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
@@ -297,7 +320,8 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                   </Link>
                 </div>
               </div>
-              <AddPeople lists={lists.map((l) => ({ id: l.id, name: l.name }))} defaultOpen={sp.add != null} defaultMode={sp.add === "one" ? "one" : "import"} />
+              </>
+              )}
             </>
           ) : (
             <>
@@ -507,14 +531,33 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
       ) : (
         <Reveal className="space-y-4" delay={0.05}>
           {lists.length === 0 ? (
-            <>
+            // Nothing yet. The empty state ASKS, and choosing replaces it with the
+            // form — rather than unfolding one underneath a card that just said
+            // there's nothing here.
+            sp.create === "1" ? (
+              <FocusedTask
+                title="Create your first audience"
+                description="Name it, and choose who starts in it — nobody yet, or everyone carrying a tag."
+                backHref={hubUrl({ tab: "audiences" })}
+                backLabel="Back to audiences"
+              >
+                <NewAudienceForm tags={tags} />
+              </FocusedTask>
+            ) : (
               <EmptyState
                 icon={<ListChecks className="size-6" />}
                 title="No audiences yet"
                 description="An audience is a named group of your people — “Newsletter subscribers”, “Customers” — and it's what a campaign sends to. Start one empty, or from everyone carrying a tag."
+                action={
+                  <Link
+                    href={hubUrl({ tab: "audiences", create: "1" })}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3.5 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+                  >
+                    <Plus className="size-4" /> Create your first audience
+                  </Link>
+                }
               />
-              <NewAudience tags={tags} defaultOpen />
-            </>
+            )
           ) : (
             <>
               <NewAudience tags={tags} defaultOpen={sp.create === "1"} />

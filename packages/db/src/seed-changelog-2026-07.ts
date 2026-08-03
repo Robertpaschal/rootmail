@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Adding your first people or audience is one thing on the screen",
+    date: "2026-08-03",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Starting your audience used to show you a card saying there was nothing here, with the form to fix that opened underneath it — two things competing, and the actual work pushed below the fold. Now the empty screen asks, and choosing gives the form the whole page.",
+      },
+      {
+        kind: "Improved",
+        text: "Same for adding people: pick Import or Add by hand and you get that, rather than the three choices plus a form stacked under them.",
+      },
+      {
+        kind: "Improved",
+        text: "Each of these is its own link, so it survives a refresh and the browser's Back button takes you out of it.",
+      },
+    ],
+  },
+  {
     title: "A conversation list you can actually read — and put away",
     date: "2026-08-03",
     changes: [

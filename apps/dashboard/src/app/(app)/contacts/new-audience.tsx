@@ -35,7 +35,9 @@ export function NewAudience({ tags, defaultOpen = false }: { tags: ListTag[]; de
             transition={{ duration: 0.2, ease: "easeOut" }}
             className="overflow-hidden"
           >
-            <NewAudienceForm tags={tags} />
+            <div className="mt-3 rounded-lg border bg-muted/20 p-4">
+              <NewAudienceForm tags={tags} />
+            </div>
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -43,7 +45,11 @@ export function NewAudience({ tags, defaultOpen = false }: { tags: ListTag[]; de
   );
 }
 
-function NewAudienceForm({ tags }: { tags: ListTag[] }) {
+/**
+ * The form on its own — used both inside the reveal (when audiences exist) and
+ * as the whole screen (when they don't and you've chosen to make the first).
+ */
+export function NewAudienceForm({ tags }: { tags: ListTag[] }) {
   const [state, formAction, pending] = useActionState<AudienceFormState | null, FormData>(
     createAudienceAction,
     null,
@@ -52,7 +58,7 @@ function NewAudienceForm({ tags }: { tags: ListTag[] }) {
   const seed = tags.find((t) => t.tag === fromTag);
 
   return (
-    <div className="mt-3 rounded-lg border bg-muted/20 p-4">
+    <div>
       <form action={formAction} className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="a-name">Name</Label>

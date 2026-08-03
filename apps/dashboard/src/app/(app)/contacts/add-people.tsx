@@ -53,33 +53,68 @@ export function AddPeople({
             className="overflow-hidden"
           >
             <div className="mt-3 rounded-lg border bg-muted/20 p-4">
-              <div className="mb-4 flex gap-2">
-                {(
-                  [
-                    { id: "one", label: "One person", icon: UserPlus },
-                    { id: "import", label: "Import a file", icon: FileUp },
-                  ] as const
-                ).map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setMode(m.id)}
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
-                      mode === m.id ? "border-primary bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-secondary",
-                    )}
-                  >
-                    <m.icon className="size-4" /> {m.label}
-                  </button>
-                ))}
-              </div>
-              {mode === "one" ? <AddOnePerson /> : <ImportPeople lists={lists} />}
+              <AddPeoplePanel lists={lists} mode={mode} onMode={setMode} />
             </div>
           </motion.div>
         ) : null}
       </AnimatePresence>
     </div>
   );
+}
+
+/**
+ * The mode switcher plus whichever form it selects — no card, no reveal.
+ *
+ * Split out so the same thing can be the WHOLE screen when someone has nothing
+ * yet and has chosen to add their first person, instead of a panel unfolding
+ * beneath an empty state that says there's nothing here.
+ */
+export function AddPeoplePanel({
+  lists,
+  mode,
+  onMode,
+}: {
+  lists: { id: string; name: string }[];
+  mode: Mode;
+  onMode: (m: Mode) => void;
+}) {
+  return (
+    <>
+      <div className="mb-4 flex gap-2">
+        {(
+          [
+            { id: "one", label: "One person", icon: UserPlus },
+            { id: "import", label: "Import a file", icon: FileUp },
+          ] as const
+        ).map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            onClick={() => onMode(m.id)}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
+              mode === m.id ? "border-primary bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-secondary",
+            )}
+          >
+            <m.icon className="size-4" /> {m.label}
+          </button>
+        ))}
+      </div>
+      {mode === "one" ? <AddOnePerson /> : <ImportPeople lists={lists} />}
+    </>
+  );
+}
+
+/** Standalone: owns the mode so the page can drop it into a focused view. */
+export function AddPeopleStandalone({
+  lists,
+  initialMode = "one",
+}: {
+  lists: { id: string; name: string }[];
+  initialMode?: Mode;
+}) {
+  const [mode, setMode] = useState<Mode>(initialMode);
+  return <AddPeoplePanel lists={lists} mode={mode} onMode={setMode} />;
 }
 
 function AddOnePerson() {
