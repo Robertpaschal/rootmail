@@ -14,6 +14,20 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "No more blank space under a short email",
+    date: "2026-08-03",
+    changes: [
+      {
+        kind: "Fixed",
+        text: "A rendered email is now as tall as the email. Every place we show one — a message, a reply, the preview before you send, an imported template — used a fixed height, so a receipt or a two-line reply was followed by a slab of white that looked like the page hadn't finished loading. A two-line reply took 420px to show 63px of text; it now takes what it needs.",
+      },
+      {
+        kind: "Improved",
+        text: "A genuinely long email no longer reads through a letterbox. It fills the space available and then scrolls within itself, so you're scrolling the email rather than a frame that cut it off.",
+      },
+    ],
+  },
+  {
     title: "Room to actually read the email you're replying to",
     date: "2026-08-03",
     changes: [
