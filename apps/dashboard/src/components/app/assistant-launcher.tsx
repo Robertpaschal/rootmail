@@ -623,7 +623,19 @@ export function AssistantLauncher() {
             rows={1}
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder={out ? "Out of AI credits — add more to continue" : "Ask the assistant to do something…"}
+            // A textarea placeholder can't wrap into a one-row box, so anything
+            // longer than the line is simply sliced mid-word — "Ask the
+            // assistant to do somethi". The wider float helps but doesn't fix
+            // it; the sentence has to be short enough to finish.
+            placeholder={
+              out
+                ? floating
+                  ? "Out of AI credits"
+                  : "Out of AI credits — add more to continue"
+                : floating
+                  ? "Ask the assistant…"
+                  : "Ask the assistant to do something…"
+            }
             disabled={out}
             className="max-h-32 min-h-0 resize-none border-0 bg-transparent px-2 py-1.5 shadow-none focus-visible:ring-0"
             onKeyDown={(e) => {
@@ -773,7 +785,12 @@ export function AssistantLauncher() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.92, y: 24 }}
               transition={{ type: "spring", stiffness: 420, damping: 32 }}
-              className="pointer-events-auto fixed bottom-5 right-5 z-50 flex h-[min(34rem,78vh)] w-[23rem] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl"
+              // 23rem was a column: 368px carrying a header, two tabs, a chat
+              // bar, message bubbles and a composer, all of it cramped against
+              // a 34rem height. 27rem gives the content room to sit properly
+              // and brings the box nearer the docked drawer's proportions
+              // without it stopping being a floating box.
+              className="pointer-events-auto fixed bottom-5 right-5 z-50 flex h-[min(34rem,78vh)] w-[27rem] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl"
               role="dialog"
               aria-label="Assistant"
             >
