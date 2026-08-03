@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "An open conversation stays put while you read it",
+    date: "2026-08-03",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Opening a thread in Replies now gives it its own panel: the subject sits at the top of that panel and stays there, and the emails scroll inside it. Before, the subject pinned itself only after the thread's own top edge had already slid off, so it read as a stray bar floating above the conversation rather than the heading of it.",
+      },
+      {
+        kind: "Fixed",
+        text: "Jumping to a conversation from the table of contents lands you at the newest email with the reply box in view, instead of at the oldest message in the thread.",
+      },
+      {
+        kind: "Fixed",
+        text: "Switching between two threads no longer flashes — the one you're leaving gets out of the way immediately rather than holding the space while it fades.",
+      },
+      {
+        kind: "Fixed",
+        text: "The table of contents jittered when you hovered it, opening and closing under the cursor before settling. It opens once, steadily.",
+      },
+    ],
+  },
+  {
     title: "Find your way around a long conversation",
     date: "2026-08-03",
     changes: [
