@@ -80,7 +80,17 @@ export function OutlineRail({
 
   return (
     <div
-      className={cn("absolute right-1 top-1 z-10 flex flex-col items-end", className)}
+      className={cn(
+        // Vertically centred on the right edge, not tucked in the top corner.
+        // The corner is where sticky headers live — the two fought for the same
+        // few pixels and the header (also z-10, and opaque) won, so the outline
+        // was half-hidden behind it and read as a stray bar.
+        //
+        // z-30 puts it above any sticky header; centring means it never has to
+        // compete with one again. It's also where a reader's eye already is.
+        "absolute right-1 top-1/2 z-30 flex -translate-y-1/2 flex-col items-end",
+        className,
+      )}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
     >
@@ -110,7 +120,7 @@ export function OutlineRail({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 6 }}
             transition={{ duration: reduce ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }}
-            className="max-h-[60%] w-56 overflow-y-auto rounded-lg border bg-popover/95 p-1 shadow-lg backdrop-blur"
+            className="max-h-[70vh] w-56 overflow-y-auto rounded-lg border bg-popover/95 p-1 shadow-lg backdrop-blur"
           >
             {sections.map((s) => (
               <button

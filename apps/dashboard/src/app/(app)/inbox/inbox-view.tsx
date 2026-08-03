@@ -163,6 +163,7 @@ function EmailCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -6 }}
       transition={reduce ? { duration: 0 } : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+      data-email-card=""
       className={cn("overflow-hidden rounded-lg border bg-card", !outbound && "border-l-2 border-l-primary")}
     >
       {/* Email header — who, what, when, and how it's doing out there. */}
@@ -388,15 +389,45 @@ export function InboxView({
       landTimer.current = null;
       landAtReplyFor.current = null;
       const pane = threadPaneRef.current;
-      const el = pane?.querySelector<HTMLElement>(`#reply-${CSS.escape(tid)}`);
-      if (!pane || !el) return;
-      // Move THIS pane, by measurement. scrollIntoView picks a scrollable
-      // ancestor itself and here it kept choosing something other than the
-      // thread pane — the call fired on the right element and the pane stayed
-      // at 0 with 201px of scroll going spare. Rects don't guess.
-      const delta = el.getBoundingClientRect().bottom - pane.getBoundingClientRect().bottom + 16;
-      if (delta > 0) {
-        pane.scrollTo({ top: pane.scrollTop + delta, behavior: reduce ? "auto" : "smooth" });
+      const card = pane?.querySelector<HTMLElement>(`#thread-${CSS.escape(tid)}`);
+      const composer = pane?.querySelector<HTMLElement>(`#reply-${CSS.escape(tid)}`);
+      if (!pane || !card || !composer) return;
+
+      // Land on the newest email WITH the reply box — that pair is the whole
+      // reason you came. Showing the box alone cuts off the message you're
+      // answering; showing the email alone leaves the box off-screen.
+      const emails = card.querySelectorAll<HTMLElement>("[data-email-card]");
+      const last = emails[emails.length - 1];
+      const pr = pane.getBoundingClientRect();
+      const top = (last ?? composer).getBoundingClientRect().top;
+      const bottom = composer.getBoundingClientRect().bottom;
+
+      // The subject sticks to the top of the pane, so "the top of the pane" is
+      // not free space — aiming there parks the newest email underneath the
+      // header and you arrive looking at nothing. Measured: pane 242–503,
+      // header 258–327, email landed 254–318, i.e. entirely behind it. Land
+      // below the header instead.
+      const headerH = card.querySelector<HTMLElement>("button")?.offsetHeight ?? 0;
+      const room = pr.height - headerH;
+
+      // Work in CONTENT coordinates, not viewport ones. A delta measured from
+      // current rects drifts, because the sticky subject moves as you scroll —
+      // the correction and the thing being corrected chase each other, and the
+      // email still landed under the header. Converting to a position within
+      // the scrolled content is stable whenever it's measured.
+      const contentTop = (y: number) => y - pr.top + pane.scrollTop;
+
+      // If the newest email and the reply box fit together, show them together,
+      // clear of the sticky subject. If they can't (a very long final email),
+      // favour the end — the box and the tail of what you're answering.
+      const target =
+        bottom - top <= room - 24
+          ? contentTop(top) - headerH - 12
+          : contentTop(bottom) - pr.height + 16;
+
+      const clamped = Math.max(0, Math.min(target, pane.scrollHeight - pane.clientHeight));
+      if (Math.abs(clamped - pane.scrollTop) > 2) {
+        pane.scrollTo({ top: clamped, behavior: reduce ? "auto" : "smooth" });
       }
     }, reduce ? 0 : 380);
   }, [expandedThread, details, reduce]);
