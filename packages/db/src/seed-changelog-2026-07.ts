@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Room to actually read the email you're replying to",
+    date: "2026-08-03",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Opening a conversation now gives it the whole panel instead of sharing it with every other thread on the contact. Those threads each cost height the open one needed — with six of them the reading area was 188px, less than half of a single email — so it shrank the more conversations a contact had. It's now a steady, much larger area whatever the number.",
+      },
+      {
+        kind: "Improved",
+        text: "Every way into a thread — the list, the table of contents, or just arriving at a contact — lands you on the newest email with the reply box already in view. Before, only the table of contents did; the rest dropped you at the oldest message.",
+      },
+      {
+        kind: "Improved",
+        text: "“All conversations” takes you back to the full list, and the table of contents still moves between threads directly.",
+      },
+      {
+        kind: "Fixed",
+        text: "The table of contents sat on top of your email bodies and, in the assistant, your answers — and it grows a mark per conversation, so it covered more the more you had. It now has a column of its own beside the content, and takes no space at all when there's too little to be worth listing.",
+      },
+    ],
+  },
+  {
     title: "An open conversation stays put while you read it",
     date: "2026-08-03",
     changes: [
