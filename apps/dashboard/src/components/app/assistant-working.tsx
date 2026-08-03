@@ -5,28 +5,24 @@ import { motion, useReducedMotion } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 /**
- * What the assistant shows while it's thinking.
+ * The gap before the assistant starts talking.
  *
- * This used to be a bare spinner. That's fine for a request that takes a
- * moment — but this assistant runs a tool loop, and a compound ask ("set up a
- * welcome flow for my beta list") legitimately takes several rounds and tens of
- * seconds. A motionless spinner for that long reads as "it's hung", and the
- * usual reaction is to reload the page, which throws the answer away.
+ * This began as a stand-in for a whole run — the loop took tens of seconds and
+ * showed nothing — so it carried a ladder of reassurances that softened as the
+ * wait grew. The run is streamed now, and the first token lands in a second or
+ * two, which retired most of that: every phase past the first became unreachable
+ * in normal use, describing a state the product no longer has.
  *
- * The honest fix would be streaming each step as it happens. Until the run is
- * streamed, this says only what we can actually know from here: that it's still
- * going, and how long it's been. The wording softens as the wait grows so a long
- * run feels expected rather than broken — but it never invents a step it hasn't
- * been told about, because a fake "Creating template…" would be worse than
- * silence the moment it's wrong.
+ * So it's back to what it can honestly cover: the moment before the first token,
+ * and one acknowledgement for when even that is slow. Once text or a tool
+ * arrives the caller drops this and the answer itself carries the progress.
  */
 
 const PHASES: { after: number; text: string }[] = [
   { after: 0, text: "Working on it" },
-  { after: 5, text: "Looking things up" },
-  { after: 12, text: "Still going — this one needs a few steps" },
-  { after: 25, text: "Nearly there" },
-  { after: 45, text: "Taking longer than usual — still working" },
+  // Reachable only when the model is slow to start (a cold cache, a long
+  // prompt). Rare — but silence for eight seconds needs an answer.
+  { after: 8, text: "Still starting up" },
 ];
 
 export function AssistantWorking({ className }: { className?: string }) {

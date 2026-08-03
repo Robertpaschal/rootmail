@@ -8,6 +8,7 @@ import {
   deleteChat,
   loadChat,
   renameChat,
+  revalidateAssistantSideEffects,
   type AssistantChat,
   type AssistantChatMessage,
 } from "./actions";
@@ -18,52 +19,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { AssistantWorking } from "@/components/app/assistant-working";
+import { friendlyAction } from "@/lib/assistant-actions";
 import { streamAssistant } from "@/lib/assistant-stream";
 import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/components/app/ai-credit-meter";
 import { cn } from "@/lib/utils";
-
-// What the assistant did, in plain language — honest about the steps it took to
-// answer, without the raw tool names or HTTP status codes an end user doesn't need.
-const ACTION_VERB: Record<string, string> = {
-  get: "Looked up",
-  list: "Reviewed",
-  create: "Created",
-  send: "Sent",
-  check: "Checked",
-  update: "Updated",
-  draft: "Drafted",
-  record: "Recorded",
-  delete: "Removed",
-  search: "Searched",
-};
-const ACTION_OVERRIDE: Record<string, string> = {
-  get_message: "Looked up the message",
-  get_message_audit: "Checked the delivery history",
-  get_billing: "Checked plan & usage",
-  get_analytics: "Pulled up analytics",
-  get_deliverability: "Checked deliverability",
-  check_suppression: "Checked the suppression list",
-  check_domain_auth: "Checked domain setup",
-  list_sub_tenants: "Reviewed your clients",
-  send_test_message: "Sent a test email",
-  // The generic verb+noun fallback turns these into things like "Reviewed
-  // threads" and "Reviewed contact tags", which is both clumsy and jargon.
-  list_contacts: "Looked through your audience",
-  get_contact: "Looked up the contact",
-  list_contact_tags: "Checked your tags",
-  list_senders: "Checked your sending addresses",
-  list_threads: "Checked your replies",
-  get_thread: "Read the conversation",
-  reply_to_thread: "Sent a reply",
-  get_campaign_analytics: "Pulled that campaign's results",
-  get_campaign_recipients: "Checked who it reached",
-};
-function friendlyAction(tool: string): string {
-  if (ACTION_OVERRIDE[tool]) return ACTION_OVERRIDE[tool];
-  const [verb, ...rest] = tool.split("_");
-  const v = ACTION_VERB[verb];
-  return v ? `${v} ${rest.join(" ")}` : tool.replace(/_/g, " ");
-}
 
 // Grouped so the assistant's range — it builds, operates, AND diagnoses — is
 // obvious the moment the page opens, not hidden behind a blank prompt box.
@@ -77,6 +36,10 @@ const SUGGESTION_GROUPS: { label: string; items: string[] }[] = [
   { label: "Measure", items: ["How did my last campaign do?", "Who opened it?"] },
   { label: "Diagnose", items: ["Why did my recent emails bounce?", "Am I set up to send?"] },
 ];
+
+/** Tools that change something a page is showing. A read-only run shouldn't
+ * bust every cached list. */
+const MUTATING = /^(create|send|add|reply|update|delete)_/;
 
 let tempCounter = 0;
 const tempId = () => `tmp_${Date.now()}_${tempCounter++}`;
@@ -255,6 +218,11 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
           onTool: (a) => patch((t) => ({ ...t, actions: [...(t.actions ?? []), a] })),
           onDone: (d) => {
             title = d.chat.title;
+            // The assistant may have just built or sent something; the pages
+            // showing it are still serving their cached copy.
+            if (d.actions.some((a) => MUTATING.test(a.tool) && a.status < 400)) {
+              void revalidateAssistantSideEffects();
+            }
             // Trust the persisted reply over the accumulated deltas — they should
             // match, and if they ever don't, the stored turn is the real one.
             patch((t) => ({ ...t, content: d.reply || t.content || "Done.", actions: d.actions }));

@@ -67,7 +67,9 @@ incremental.
 - [x] **1.4 Dead-link sweep** — every footer/nav `href="#"` removed; all signup/
       sign-in CTAs → one configurable dashboard URL; "Contact sales"/contact →
       mailto. Verified clean in `apps/marketing`.
-  - [ ] follow-up: add a CI grep guard so dead `#`/placeholders can't regress.
+  - [x] follow-up: CI guard — `scripts/check-dead-links.sh` runs in CI and fails on
+        `href="#"` / `href={"#"}` / `href=''` / `javascript:` across all four apps.
+        Real in-page anchors (`href="#faq"`) pass. Verified by planting each shape.
   - ◇ ships as one PR: "make it honest." Verified in-browser; typecheck green.
 
 ### 2. Pricing accuracy + UX polish *(branch `feat/pricing-polish`)*

@@ -24,6 +24,10 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      # Cheap and fast, so it runs before the build: a placeholder link is a
+      # content bug the compiler can't see.
+      - name: No placeholder links
+        run: ./scripts/check-dead-links.sh
       - run: pnpm build
 
   e2e:

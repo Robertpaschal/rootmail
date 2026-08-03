@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import { ArrowUpRight, GripHorizontal, Headset, Loader2, MessagesSquare, PanelRight, PictureInPicture2, Send, Sparkles, X } from "lucide-react";
+import { ArrowUpRight, GripHorizontal, Headset, Loader2, MessagesSquare, PanelRight, PictureInPicture2, Send, Sparkles, Square, X } from "lucide-react";
 import {
   createChat,
   getAiCredits,
   type AssistantChatMessage,
+  revalidateAssistantSideEffects,
 } from "@/app/(app)/assistant/actions";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/ui/markdown";
@@ -17,6 +18,7 @@ import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/compon
 import { listSupportThreads } from "@/app/(app)/support-actions";
 import { SupportPane } from "@/components/app/support-pane";
 import { AssistantWorking } from "./assistant-working";
+import { friendlyAction } from "@/lib/assistant-actions";
 import { streamAssistant } from "@/lib/assistant-stream";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +61,7 @@ export function AssistantLauncher() {
   const [input, setInput] = useState("");
   const [credits, setCredits] = useState<Credits | null>(null);
   const [pending, start] = useTransition();
+  const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const seenRef = useRef<string | null>(null);
@@ -133,6 +136,26 @@ export function AssistantLauncher() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, mode]);
 
+  /** Stops the stream, not the run — see the page's note. */
+  const stopRun = useCallback(() => {
+    const ctrl = abortRef.current;
+    if (!ctrl) return;
+    ctrl.abort();
+    abortRef.current = null;
+    setMessages((m) =>
+      m.map((t, i) =>
+        i === m.length - 1 && t.role === "assistant"
+          ? {
+              ...t,
+              content:
+                (t.content ? `${t.content}\n\n` : "") +
+                "_You stopped watching. The assistant finishes this answer either way — reopen the assistant in a moment to read all of it._",
+            }
+          : t,
+      ),
+    );
+  }, []);
+
   const submit = useCallback(
     (prompt: string) => {
       const text = prompt.trim();
@@ -157,17 +180,23 @@ export function AssistantLauncher() {
         setMessages((m) => [...m, { object: "assistant_message", id: turnId, role: "assistant", content: "", actions: [], created_at: new Date().toISOString() }]);
         const patch = (fn: (t: AssistantChatMessage) => AssistantChatMessage) =>
           setMessages((m) => m.map((t) => (t.id === turnId ? fn(t) : t)));
+        const ctrl = new AbortController();
+        abortRef.current = ctrl;
         await streamAssistant(id, text, {
           onDelta: (chunk) => patch((t) => ({ ...t, content: t.content + chunk })),
           onTool: (a) => patch((t) => ({ ...t, actions: [...(t.actions ?? []), a] })),
           onDone: (d) => {
             patch((t) => ({ ...t, content: d.reply || t.content || "Done.", actions: d.actions }));
+            if (d.actions.some((a) => /^(create|send|add|reply|update|delete)_/.test(a.tool) && a.status < 400)) {
+              void revalidateAssistantSideEffects();
+            }
             if (d.credits) {
               setCredits({ used: d.credits.used, allowance: d.credits.allowance, remaining: d.credits.allowance === -1 ? -1 : Math.max(0, d.credits.allowance - d.credits.used) });
             }
           },
           onError: (message) => patch((t) => ({ ...t, content: t.content ? `${t.content}\n\n${message}` : message })),
-        });
+        }, ctrl.signal);
+        abortRef.current = null;
       });
     },
     [chatId, pending, credits],
@@ -298,6 +327,18 @@ export function AssistantLauncher() {
             <div key={t.id} className={cn("flex", t.role === "user" ? "justify-end" : "justify-start")}>
               <div className={cn("max-w-[88%] rounded-lg px-3 py-2 text-sm", t.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary")}>
                 {t.role === "user" ? <p className="whitespace-pre-wrap">{t.content}</p> : <Markdown>{t.content}</Markdown>}
+                {t.role !== "user" && t.actions && t.actions.length > 0 ? (
+                  <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                    <Sparkles className="size-3 shrink-0 opacity-70" />
+                    {t.actions.map((a, j) => (
+                      <span key={j} className={cn("inline-flex items-center gap-1.5", a.status >= 400 && "text-amber-600 dark:text-amber-500")}>
+                        {j > 0 ? <span className="opacity-40">·</span> : null}
+                        {friendlyAction(a.tool)}
+                        {a.status >= 400 ? " (couldn't complete)" : ""}
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
               </div>
             </div>
           ))
@@ -323,9 +364,15 @@ export function AssistantLauncher() {
               if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(input); }
             }}
           />
-          <Button type="submit" size="icon" disabled={pending || !input.trim() || out} aria-label="Send" className="shrink-0">
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-          </Button>
+          {pending ? (
+            <Button type="button" size="icon" variant="outline" onClick={stopRun} aria-label="Stop" title="Stop watching this answer (it still finishes and is saved)" className="shrink-0">
+              <Square className="size-3.5 fill-current" />
+            </Button>
+          ) : (
+            <Button type="submit" size="icon" disabled={!input.trim() || out} aria-label="Send" className="shrink-0">
+              <Send className="size-4" />
+            </Button>
+          )}
         </form>
         {/* The handoff: escalate to a person WITHOUT losing what you just said —
             the transcript rides along so support lands mid-problem. */}

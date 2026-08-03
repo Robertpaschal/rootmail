@@ -4,28 +4,20 @@ import { revalidatePath } from "next/cache";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { AssistantChat, AssistantChatDetail, AssistantChatMessage } from "@/lib/types";
 
-export interface AssistantReply {
-  reply?: string;
-  actions?: { tool: string; status: number }[];
-  credits?: { used: number; allowance: number };
-  /** The chat's current title (auto-set from content on the first message). */
-  title?: string;
-  error?: string;
-  /** True when the send was blocked by the AI-credit gate (402) — UI shows an upgrade CTA. */
-  upgrade?: boolean;
-}
-
 function toError(err: unknown): string {
   if (err instanceof ApiError || err instanceof ConnectionError) return err.message;
   return "The assistant is unavailable right now.";
 }
 
-/** A caught 402 from the assistant endpoint is the AI-credit gate (out of credits). */
-function isUpgrade(err: unknown): boolean {
-  return err instanceof ApiError && err.status === 402;
-}
-
-/** Refresh views the assistant may have mutated (sequences/lists/campaigns). */
+/**
+ * Refresh the views the assistant may have changed underneath you.
+ *
+ * This used to run inside `sendChatMessage`. Streaming moved the end of a run
+ * into the browser, so there is no server action left to hang it on — the client
+ * calls this once a run finishes having actually built or sent something.
+ * Without it the assistant creates a campaign and /campaigns keeps showing the
+ * cached list until a hard reload.
+ */
 /*
  * NOTE: none of these revalidate "/assistant" itself.
  *
@@ -40,26 +32,11 @@ function isUpgrade(err: unknown): boolean {
  * nothing to gain either. Side-effect pages (sequences/lists/campaigns) still
  * get revalidated below — those the assistant really can change underneath you.
  */
-function revalidateAssistantSideEffects(): void {
+export async function revalidateAssistantSideEffects(): Promise<void> {
   revalidatePath("/sequences");
   revalidatePath("/lists");
   revalidatePath("/campaigns");
 }
-
-/** Single-shot (no chat) — kept for callers that don't persist a conversation. */
-export async function askAssistant(prompt: string): Promise<AssistantReply> {
-  const p = prompt.trim();
-  if (!p) return { error: "Type a request first." };
-  try {
-    const r = await api.assistant(p);
-    revalidateAssistantSideEffects();
-    return { reply: r.reply, actions: r.actions, credits: r.credits };
-  } catch (err) {
-    return { error: toError(err), upgrade: isUpgrade(err) };
-  }
-}
-
-/** Current AI-credit balance — for the launcher/meter to nudge proactively. */
 export async function getAiCredits(): Promise<{
   used: number;
   allowance: number;
@@ -111,21 +88,6 @@ export async function deleteChat(id: string): Promise<{ ok?: boolean; error?: st
     return { error: toError(err) };
   }
 }
-
-/** Post a message into a chat; returns the assistant's reply (already persisted). */
-export async function sendChatMessage(id: string, prompt: string): Promise<AssistantReply> {
-  const p = prompt.trim();
-  if (!p) return { error: "Type a request first." };
-  try {
-    const r = await api.sendAssistantMessage(id, p);
-    revalidateAssistantSideEffects();
-    return { reply: r.reply, actions: r.actions, credits: r.credits, title: r.chat?.title };
-  } catch (err) {
-    return { error: toError(err), upgrade: isUpgrade(err) };
-  }
-}
-
-/** Rename a chat. Returns the updated chat so the rail can reflect it. */
 export async function renameChat(
   id: string,
   title: string,
