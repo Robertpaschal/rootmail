@@ -21,6 +21,7 @@ import {
   Workflow,
   X,
 } from "lucide-react";
+import { OutlineRail } from "@/components/app/outline-rail";
 import { InfoHint } from "@/components/app/info-hint";
 import { LocalTime } from "@/components/app/local-time";
 import { ThreadStatusBadge } from "@/components/app/status-badge";
@@ -282,6 +283,7 @@ export function InboxView({
   const loadedFor = useRef<Set<string>>(new Set());
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const reduce = useReducedMotion();
+  const threadPaneRef = useRef<HTMLDivElement>(null);
   const desktop = useDesktop();
   // Switching person should animate; ARRIVING at the page should not — the first
   // conversation is just what's there. (Keying on the contact remounts those
@@ -702,11 +704,26 @@ export function InboxView({
 
             <motion.div
               key={contact.email}
+              ref={threadPaneRef}
               initial={switching ? { opacity: 0, y: 8 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: reduce ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-              className="min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
+              className="relative min-h-0 flex-1 space-y-3 overflow-y-auto px-4 py-4"
             >
+              {/* One expanded thread is tall enough to bury the others, so a
+                  contact with a few conversations needs a way back to them that
+                  isn't scrolling and hoping. */}
+              <OutlineRail
+                containerRef={threadPaneRef}
+                activeId={expandedThread ? `thread-${expandedThread}` : null}
+                minSections={2}
+                label="Jump to a conversation"
+                sections={contact.threads.map((t) => ({
+                  id: `thread-${t.id}`,
+                  label: t.subject || "(no subject)",
+                  meta: relativeTime(t.last_message_at),
+                }))}
+              />
               {loading && contact.threads.every((t) => !details[t.id]) ? (
                 <div className="grid h-40 place-items-center text-muted-foreground">
                   <Loader2 className="size-5 animate-spin" />
@@ -717,7 +734,11 @@ export function InboxView({
                   const det = details[t.id];
                   const count = det?.messages?.length;
                   return (
-                    <div key={t.id} className={cn("rounded-xl border", expanded && "ring-1 ring-primary/30")}>
+                    <div
+                      key={t.id}
+                      id={`thread-${t.id}`}
+                      className={cn("scroll-mt-2 rounded-xl border", expanded && "ring-1 ring-primary/30")}
+                    >
                       {/* Thread header: the subject is the conversation. */}
                       <button
                         type="button"

@@ -108,8 +108,11 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
       api.contactTags().then((r) => r.data),
       api.listLists().then((r) => r.data),
     ]);
+    // Both tabs need this: it carries the workspace's true people total, which
+    // is what the tab strip counts. Fetching it only on the People tab is why
+    // that badge vanished the moment you looked at Audiences.
+    stages = await api.contactStages().catch(() => null);
     if (tab === "people") {
-      stages = await api.contactStages().catch(() => null);
       if (view === "board") {
         // One slim page per column; the strip's counts carry the true totals and
         // each column hands off to the table for the long tail.
@@ -160,6 +163,9 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
   }
 
   const totalPeople = browse?.total ?? 0;
+  // Everyone in the workspace, regardless of the filters on screen — the tab
+  // strip counts the section, and the filtered figure has its own home in the
+  // paging line ("1–50 of 5").
   const everyone = stages?.total ?? totalPeople;
   const activeFilters = Boolean(sp.q || sp.tag || status || stage);
   const noPeopleAtAll = tab === "people" && everyone === 0 && !activeFilters;
@@ -177,7 +183,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
         <div className="mb-6 flex gap-1 rounded-lg bg-secondary/50 p-1 sm:w-fit">
           {(
             [
-              { id: "people", label: "People", icon: Users, count: tab === "people" ? totalPeople : null },
+              { id: "people", label: "People", icon: Users, count: everyone },
               { id: "audiences", label: "Audiences", icon: ListChecks, count: lists.length },
             ] as const
           ).map((t) => {
@@ -192,7 +198,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                 )}
               >
                 <t.icon className="size-4" /> {t.label}
-                {t.count !== null && t.count > 0 ? (
+                {t.count !== null ? (
                   <span className="text-xs tabular-nums text-muted-foreground">{t.count.toLocaleString()}</span>
                 ) : null}
               </Link>

@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Find your way around a long conversation",
+    date: "2026-08-03",
+    changes: [
+      {
+        kind: "New",
+        text: "Long assistant chats and contacts with several email threads now have a table of contents — a quiet column of marks at the edge that opens into a list you can jump from. No more scrolling back hunting for the bit about pricing.",
+      },
+      {
+        kind: "Fixed",
+        text: "The People and Audiences tabs disagreed about whether to show a count: the people total vanished the moment you looked at Audiences. Both always show one now.",
+      },
+      {
+        kind: "Fixed",
+        text: "That People count also used to change when you searched, so the tab was reporting your filter rather than the size of your audience. It counts everyone; the filtered figure stays where it belongs, above the list.",
+      },
+      {
+        kind: "Improved",
+        text: "Folding the conversation list away is a movement now rather than a jump.",
+      },
+    ],
+  },
+  {
     title: "Adding your first people or audience is one thing on the screen",
     date: "2026-08-03",
     changes: [

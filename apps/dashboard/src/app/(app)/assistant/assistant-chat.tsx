@@ -12,13 +12,13 @@ import {
   type AssistantChat,
   type AssistantChatMessage,
 } from "./actions";
-import { ConversationOutline } from "./conversation-outline";
 import { ConversationRail } from "./conversation-rail";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
 import { AssistantWorking } from "@/components/app/assistant-working";
+import { OutlineRail } from "@/components/app/outline-rail";
 import { friendlyAction } from "@/lib/assistant-actions";
 import { streamAssistant } from "@/lib/assistant-stream";
 import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/components/app/ai-credit-meter";
@@ -378,8 +378,18 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
               {pending && !streamStarted ? <AssistantWorking /> : null}
             </div>
 
-            {/* In-chat navigation — a collapsible outline of the conversation's prompts. */}
-            <ConversationOutline messages={messages} containerRef={scrollRef} />
+            {/* In-chat navigation: each prompt you asked is a section, so a long
+                conversation can be walked instead of scrolled. */}
+            <OutlineRail
+              containerRef={scrollRef}
+              label="Jump to a question"
+              sections={messages
+                .filter((m) => m.role === "user")
+                .map((m) => ({
+                  id: `turn-${m.id}`,
+                  label: m.content.trim().replace(/\s+/g, " ").slice(0, 80),
+                }))}
+            />
           </div>
 
           <form

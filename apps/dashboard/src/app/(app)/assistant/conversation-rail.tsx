@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { motion, useReducedMotion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { Check, MessagesSquare, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import type { AssistantChat } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -121,13 +121,21 @@ export function ConversationRail({
     if (next) onRename(id, next);
   };
 
+  const swap = reduce
+    ? { duration: 0 }
+    : { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const };
+
   if (collapsed) {
     return (
-      <motion.aside
-        initial={reduce ? false : { opacity: 0, x: -6 }}
-        animate={{ opacity: 1, x: 0 }}
-        className="flex flex-col items-center gap-2"
-      >
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.aside
+          key="collapsed"
+          initial={reduce ? false : { opacity: 0, x: -8 }}
+          animate={{ opacity: 1, x: 0 }}
+          exit={{ opacity: 0, x: -8 }}
+          transition={swap}
+          className="flex flex-col items-center gap-2"
+        >
         <Button
           variant="outline"
           size="icon"
@@ -147,17 +155,22 @@ export function ConversationRail({
         >
           <CollapsedBadge count={chats.length} />
         </Button>
-        <PanelLeftOpen className="size-3.5 text-muted-foreground/60" aria-hidden />
-      </motion.aside>
+          <PanelLeftOpen className="size-3.5 text-muted-foreground/60" aria-hidden />
+        </motion.aside>
+      </AnimatePresence>
     );
   }
 
   return (
-    <motion.aside
-      initial={reduce ? false : { opacity: 0, x: -6 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="flex w-full min-w-0 flex-col gap-2 lg:w-72"
-    >
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.aside
+        key="expanded"
+        initial={reduce ? false : { opacity: 0, x: -8 }}
+        animate={{ opacity: 1, x: 0 }}
+        exit={{ opacity: 0, x: -8 }}
+        transition={swap}
+        className="flex w-full min-w-0 flex-col gap-2 lg:w-72"
+      >
       <div className="flex items-center gap-2">
         <Button variant="outline" className="min-w-0 flex-1 justify-start gap-2" onClick={onNew}>
           <Plus className="size-4 shrink-0" /> New chat
@@ -302,8 +315,9 @@ export function ConversationRail({
             ))
           )}
         </CardContent>
-      </Card>
-    </motion.aside>
+        </Card>
+      </motion.aside>
+    </AnimatePresence>
   );
 }
 
