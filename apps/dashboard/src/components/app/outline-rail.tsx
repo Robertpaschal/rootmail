@@ -35,6 +35,7 @@ export function OutlineRail({
   sections,
   containerRef,
   activeId,
+  onSelect,
   minSections = 3,
   label = "Jump to",
   className,
@@ -43,6 +44,17 @@ export function OutlineRail({
   containerRef: RefObject<HTMLElement | null>;
   /** Highlighted tick — the caller knows what's "current" better than we do. */
   activeId?: string | null;
+  /**
+   * Run when a section is picked, before scrolling to it.
+   *
+   * Scrolling alone is the wrong verb where a section is something you OPEN.
+   * In Replies the threads are collapsible and only one is expanded at a time,
+   * so gliding past a closed thread to leave a different one open is a
+   * non-answer: you asked to go to that conversation, so it should become the
+   * conversation you're in. Callers whose sections are always visible (the
+   * assistant's turns) leave this off and get a plain jump.
+   */
+  onSelect?: (id: string) => void;
   minSections?: number;
   label?: string;
   className?: string;
@@ -53,9 +65,18 @@ export function OutlineRail({
   if (sections.length < minSections) return null;
 
   const jump = (id: string) => {
-    const el = containerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
-    if (el) el.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    onSelect?.(id);
     setOpen(false);
+    const scroll = () => {
+      const el = containerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+      el?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+    };
+    // With onSelect the target may have just been expanded (and another
+    // collapsed), so let React commit before measuring where to scroll. A
+    // timeout, not rAF: this has to work with reduced motion too, and the
+    // section header we aim at doesn't move when its own body opens beneath it.
+    if (onSelect) setTimeout(scroll, 0);
+    else scroll();
   };
 
   return (
@@ -77,7 +98,11 @@ export function OutlineRail({
         <List className="size-3.5" />
       </button>
 
-      <AnimatePresence initial={false} mode="wait">
+      {/* NOT mode="wait": the labels would have to queue behind the ticks
+          finishing their exit, which is a beat of nothing for a menu you just
+          asked for. They overlap instead — they're both absolutely positioned,
+          so a brief cross-fade costs nothing. */}
+      <AnimatePresence initial={false}>
         {open ? (
           <motion.nav
             key="labels"

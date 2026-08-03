@@ -710,6 +710,14 @@ export function InboxView({
             <OutlineRail
               containerRef={threadPaneRef}
               activeId={expandedThread ? `thread-${expandedThread}` : null}
+              // Picking a conversation opens it — same as clicking its header,
+              // including clearing a half-typed reply that belonged to the one
+              // you're leaving.
+              onSelect={(id) => {
+                setExpandedThread(id.replace(/^thread-/, ""));
+                setDraft("");
+                setError(null);
+              }}
               minSections={2}
               label="Jump to a conversation"
               sections={contact.threads.map((t) => ({
