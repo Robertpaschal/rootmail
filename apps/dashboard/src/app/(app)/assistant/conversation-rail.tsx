@@ -27,6 +27,21 @@ const COLLAPSE_KEY = "rm_assistant_rail_collapsed";
 /** Below this the list is short enough to scan; chrome would just be clutter. */
 const FILTER_THRESHOLD = 6;
 
+/** Animating a pixel width is only right where the rail is a column. Below lg
+ * it's a full-width block above the chat, and pinning it to 288px would break
+ * that — so the animation is desktop-only, matched to the Tailwind breakpoint. */
+function useDesktopRail(): boolean {
+  const [desktop, setDesktop] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1024px)");
+    const sync = () => setDesktop(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+  return desktop;
+}
+
 function startOfDay(d: Date): number {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
 }
@@ -44,6 +59,9 @@ function bucketOf(iso: string): string {
   if (diff <= 7) return "Previous 7 days";
   return "Older";
 }
+
+/** The same spring the replies panel opens with — one motion vocabulary. */
+const EASE_OPEN = { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.7 };
 
 const BUCKET_ORDER = ["Today", "Yesterday", "Previous 7 days", "Older"];
 
@@ -63,6 +81,7 @@ export function ConversationRail({
   onDelete: (id: string) => void;
 }) {
   const reduce = useReducedMotion();
+  const desktop = useDesktopRail();
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -121,21 +140,12 @@ export function ConversationRail({
     if (next) onRename(id, next);
   };
 
-  const swap = reduce
-    ? { duration: 0 }
-    : { duration: 0.18, ease: [0.22, 1, 0.36, 1] as const };
-
-  if (collapsed) {
-    return (
-      <AnimatePresence mode="wait" initial={false}>
-        <motion.aside
-          key="collapsed"
-          initial={reduce ? false : { opacity: 0, x: -8 }}
-          animate={{ opacity: 1, x: 0 }}
-          exit={{ opacity: 0, x: -8 }}
-          transition={swap}
-          className="flex flex-col items-center gap-2"
-        >
+  // The rail is ONE element that changes width, not two that replace each other.
+  // mode="wait" made it a two-beat stutter — the old state had to finish leaving
+  // before the new one arrived. Same spring the replies panel opens with, so
+  // the two read as the same product.
+  const body = (
+    <>
         <Button
           variant="outline"
           size="icon"
@@ -155,22 +165,12 @@ export function ConversationRail({
         >
           <CollapsedBadge count={chats.length} />
         </Button>
-          <PanelLeftOpen className="size-3.5 text-muted-foreground/60" aria-hidden />
-        </motion.aside>
-      </AnimatePresence>
-    );
-  }
+      <PanelLeftOpen className="size-3.5 text-muted-foreground/60" aria-hidden />
+    </>
+  );
 
-  return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.aside
-        key="expanded"
-        initial={reduce ? false : { opacity: 0, x: -8 }}
-        animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: -8 }}
-        transition={swap}
-        className="flex w-full min-w-0 flex-col gap-2 lg:w-72"
-      >
+  const expandedBody = (
+    <>
       <div className="flex items-center gap-2">
         <Button variant="outline" className="min-w-0 flex-1 justify-start gap-2" onClick={onNew}>
           <Plus className="size-4 shrink-0" /> New chat
@@ -315,9 +315,34 @@ export function ConversationRail({
             ))
           )}
         </CardContent>
-        </Card>
-      </motion.aside>
-    </AnimatePresence>
+      </Card>
+    </>
+  );
+
+  return (
+    <motion.aside
+      // Width is what actually moves; on small screens the rail is full-width
+      // and stacked, so leave it alone there.
+      animate={desktop ? { width: collapsed ? 44 : 288 } : { width: "100%" }}
+      transition={reduce ? { duration: 0 } : EASE_OPEN}
+      className={cn(
+        "flex shrink-0 flex-col gap-2 overflow-hidden",
+        collapsed ? "items-center" : "min-w-0",
+      )}
+    >
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.div
+          key={collapsed ? "collapsed" : "expanded"}
+          initial={reduce ? false : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: reduce ? 0 : 0.12 }}
+          className={cn("flex min-w-0 flex-col gap-2", collapsed ? "items-center" : "w-full")}
+        >
+          {collapsed ? body : expandedBody}
+        </motion.div>
+      </AnimatePresence>
+    </motion.aside>
   );
 }
 
