@@ -81,14 +81,20 @@ export function OutlineRail({
   return (
     <div
       className={cn(
-        // Vertically centred on the right edge, not tucked in the top corner.
-        // The corner is where sticky headers live — the two fought for the same
-        // few pixels and the header (also z-10, and opaque) won, so the outline
-        // was half-hidden behind it and read as a stray bar.
+        // The rail gets its OWN COLUMN — it takes layout instead of floating
+        // over the content. Absolutely positioning it meant the ticks sat on
+        // top of whatever was underneath (email bodies, answer text), and the
+        // taller the list grew the more of the content it crossed. A list that
+        // grows with the user's data needs a lane of its own.
         //
-        // z-30 puts it above any sticky header; centring means it never has to
-        // compete with one again. It's also where a reader's eye already is.
-        "absolute right-1 top-1/2 z-30 flex -translate-y-1/2 flex-col items-end",
+        // Because it takes layout, the column exists exactly when the rail does
+        // — below `minSections` this returns null and no empty gutter is left
+        // behind. Callers put it in a flex row next to their scroller.
+        //
+        // Vertically centred, not tucked in the top corner: that corner is
+        // where headers live, and the two used to fight over the same pixels.
+        // It's also where a reader's eye already is.
+        "relative z-30 flex w-9 shrink-0 flex-col items-center justify-center",
         className,
       )}
       onMouseEnter={() => setOpen(true)}
@@ -123,7 +129,7 @@ export function OutlineRail({
         aria-hidden={open}
         animate={{ opacity: open ? 0 : 0.5 }}
         transition={{ duration: reduce ? 0 : 0.14 }}
-        className="flex flex-col items-end gap-1 pr-1"
+        className="flex flex-col items-center gap-1"
       >
         {sections.map((s) => (
           <span
@@ -145,7 +151,10 @@ export function OutlineRail({
             animate={{ opacity: 1, x: 0, scale: 1 }}
             exit={{ opacity: 0, x: 8, scale: 0.98 }}
             transition={{ duration: reduce ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }}
-            className="absolute right-0 top-1/2 max-h-[70vh] w-56 -translate-y-1/2 overflow-y-auto rounded-lg border bg-popover/95 p-1 shadow-lg backdrop-blur"
+            // right-full: opens to the LEFT of the gutter, over the content.
+            // A popover may cover things — it's transient and you asked for it.
+            // The ticks, which are always there, are what must not.
+            className="absolute right-full top-1/2 mr-1 max-h-[70vh] w-56 -translate-y-1/2 overflow-y-auto rounded-lg border bg-popover/95 p-1 shadow-lg backdrop-blur"
           >
             {sections.map((s) => (
               <button

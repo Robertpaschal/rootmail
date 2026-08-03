@@ -334,6 +334,10 @@ export function InboxView({
     if (current) return;
     const target = contact.threads.find((t) => t.status === "needs_reply") ?? contact.threads[0];
     if (target) {
+      // Land where the work is, the same as every other way in. Arriving at the
+      // top of a thread means arriving at its OLDEST email — you opened this
+      // conversation to read the newest one and answer it.
+      landAtReplyFor.current = target.id;
       setExpandedThread(target.id);
       setDraft("");
       setError(null);
@@ -764,32 +768,14 @@ export function InboxView({
               </Link>
             </header>
 
-            {/* The rail must sit OUTSIDE the scroller. Inside it, `absolute` is
-                relative to the scrolled CONTENT, so the table of contents slid
-                away the moment you scrolled — which is precisely when you need
-                it. This wrapper is the thing that doesn't move. */}
-            <div className="relative min-h-0 flex-1">
-            <OutlineRail
-              containerRef={threadPaneRef}
-              activeId={expandedThread ? `thread-${expandedThread}` : null}
-              // Picking a conversation opens it — same as clicking its header,
-              // including clearing a half-typed reply that belonged to the one
-              // you're leaving.
-              onSelect={(id) => {
-                const tid = id.replace(/^thread-/, "");
-                landAtReplyFor.current = tid;
-                setExpandedThread(tid);
-                setDraft("");
-                setError(null);
-              }}
-              minSections={2}
-              label="Jump to a conversation"
-              sections={contact.threads.map((t) => ({
-                id: `thread-${t.id}`,
-                label: t.subject || "(no subject)",
-                meta: relativeTime(t.last_message_at),
-              }))}
-            />
+            {/* A row: the conversation, then the outline in its own lane.
+                The rail must sit OUTSIDE the scroller — inside it, position is
+                relative to the scrolled CONTENT, so the outline slid away the
+                moment you scrolled, which is precisely when you need it. And it
+                sits BESIDE the conversation rather than over it: the tick list
+                grows with the number of threads, and a growing thing that
+                floats over email bodies only crosses more of them. */}
+            <div className="flex min-h-0 flex-1">
             <motion.div
               key={contact.email}
               ref={threadPaneRef}
@@ -797,19 +783,46 @@ export function InboxView({
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: reduce ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
               className={cn(
-                "h-full space-y-3 px-4 py-4",
+                "h-full min-w-0 flex-1 space-y-3 py-4 pl-4 pr-1",
                 // With a thread open the BOX scrolls, not the page behind it —
                 // so this becomes a column that hands the open thread the
                 // leftover height. With none open it's an ordinary list again.
                 expandedThread ? "flex flex-col overflow-hidden" : "overflow-y-auto",
               )}
             >
+              {/* Reading a conversation gives it the whole pane.
+                  Every other thread stayed listed while one was open, and each
+                  collapsed row costs 70px of the same fixed height the open one
+                  is trying to read in. Measured with six threads: five rows ate
+                  350 of 701px and left the active thread 188px to show an email
+                  whose body alone is a 420px frame — less than half of one
+                  message, and worse with every thread the contact accumulates.
+                  So: list, or read. Getting back is one click on the bar below,
+                  or the subject; the outline jumps straight between threads
+                  without returning to the list at all. */}
+              {expandedThread ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setExpandedThread(null);
+                    setDraft("");
+                    setError(null);
+                  }}
+                  className="flex shrink-0 items-center gap-1.5 self-start rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                >
+                  <ArrowLeft className="size-3.5" />
+                  All {contact.threads.length} conversations
+                </button>
+              ) : null}
               {loading && contact.threads.every((t) => !details[t.id]) ? (
                 <div className="grid h-40 place-items-center text-muted-foreground">
                   <Loader2 className="size-5 animate-spin" />
                 </div>
               ) : (
-                contact.threads.map((t) => {
+                (expandedThread
+                  ? contact.threads.filter((t) => t.id === expandedThread)
+                  : contact.threads
+                ).map((t) => {
                   const expanded = t.id === expandedThread;
                   const det = details[t.id];
                   const count = det?.messages?.length;
@@ -826,6 +839,7 @@ export function InboxView({
                       <button
                         type="button"
                         onClick={() => {
+                          if (!expanded) landAtReplyFor.current = t.id;
                           setExpandedThread(expanded ? null : t.id);
                           setDraft("");
                           setError(null);
@@ -1018,6 +1032,27 @@ export function InboxView({
                 })
               )}
             </motion.div>
+            <OutlineRail
+              containerRef={threadPaneRef}
+              activeId={expandedThread ? `thread-${expandedThread}` : null}
+              // Picking a conversation opens it — same as clicking its header,
+              // including clearing a half-typed reply that belonged to the one
+              // you're leaving.
+              onSelect={(id) => {
+                const tid = id.replace(/^thread-/, "");
+                landAtReplyFor.current = tid;
+                setExpandedThread(tid);
+                setDraft("");
+                setError(null);
+              }}
+              minSections={2}
+              label="Jump to a conversation"
+              sections={contact.threads.map((t) => ({
+                id: `thread-${t.id}`,
+                label: t.subject || "(no subject)",
+                meta: relativeTime(t.last_message_at),
+              }))}
+            />
             </div>
           </>
         ) : (

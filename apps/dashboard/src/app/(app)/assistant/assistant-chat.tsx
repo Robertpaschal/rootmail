@@ -296,8 +296,12 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
       {/* Conversation */}
       <Card>
         <CardContent className="flex h-[70vh] flex-col gap-3 p-4">
-          <div className="relative flex-1 overflow-hidden">
-            <div ref={scrollRef} className="h-full space-y-3 overflow-y-auto pr-1 scroll-smooth">
+          {/* A row: the conversation, then the outline in its own lane beside
+              it. The rail used to float over the answers, and it grows a tick
+              per question — the longer the chat, the more of the reading it
+              crossed. */}
+          <div className="flex flex-1 overflow-hidden">
+            <div ref={scrollRef} className="h-full min-w-0 flex-1 space-y-3 overflow-y-auto pr-1 scroll-smooth">
               {!hasConversation ? (
                 <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
                   <div className="grid size-12 place-items-center rounded-xl bg-primary/10 text-primary">
