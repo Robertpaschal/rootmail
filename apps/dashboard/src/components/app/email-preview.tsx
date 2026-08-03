@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AlertTriangle, ChevronDown, Monitor, Moon, Smartphone, Sun, Tablet, Type as TypeIcon } from "lucide-react";
 import { fillTemplate, missingVariables, type PreviewPerson } from "@/lib/sample-vars";
 import { cn } from "@/lib/utils";
+import { EmailBodyFrame } from "@/components/app/email-body-frame";
 
 const DEVICES = [
   { name: "Desktop", icon: Monitor, width: 720 },
@@ -223,12 +224,7 @@ img{max-width:100%;height:auto}a{color:${dark ? "#8ab4ff" : "#2563eb"}}</style><
               {filledText || "(no plain-text part)"}
             </pre>
           ) : (
-            <iframe
-              title="Email preview"
-              sandbox=""
-              srcDoc={srcDoc}
-              className="h-[560px] w-full border-0"
-            />
+            <EmailBodyFrame html={srcDoc} title="Email preview" className="bg-transparent" />
           )}
         </motion.div>
       </div>

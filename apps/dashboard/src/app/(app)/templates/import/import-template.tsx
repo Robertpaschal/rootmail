@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { EmailBodyFrame } from "@/components/app/email-body-frame";
 
 function slugify(s: string): string {
   return s
@@ -155,14 +156,9 @@ export function ImportTemplate() {
       <div className="space-y-1.5">
         <Label>Preview</Label>
         {html.trim() ? (
-          <iframe
-            title="Template preview"
-            sandbox=""
-            srcDoc={html}
-            className="h-[480px] w-full rounded-lg border bg-white"
-          />
+          <EmailBodyFrame html={html} title="Template preview" className="rounded-lg border" />
         ) : (
-          <div className="flex h-[480px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
+          <div className="flex h-[240px] items-center justify-center rounded-lg border border-dashed text-sm text-muted-foreground">
             The template renders here as you add HTML.
           </div>
         )}

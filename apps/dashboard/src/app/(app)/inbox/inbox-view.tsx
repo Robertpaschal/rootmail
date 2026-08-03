@@ -21,6 +21,7 @@ import {
   Workflow,
   X,
 } from "lucide-react";
+import { EmailBodyFrame } from "@/components/app/email-body-frame";
 import { OutlineRail } from "@/components/app/outline-rail";
 import { InfoHint } from "@/components/app/info-hint";
 import { LocalTime } from "@/components/app/local-time";
@@ -220,8 +221,7 @@ function EmailCard({
           transition={reduce ? { duration: 0 } : { height: EASE_OPEN, opacity: { duration: 0.16 } }}
           className="overflow-hidden border-t">
           {m.body_html ? (
-            // sandbox="" strips scripts — safe to render the stored HTML as sent.
-            <iframe title="Email body" sandbox="" srcDoc={m.body_html} className="h-[420px] w-full bg-white" />
+            <EmailBodyFrame html={m.body_html} maxHeight={520} />
           ) : (
             <div className="whitespace-pre-wrap bg-white px-5 py-4 text-sm leading-relaxed text-neutral-900 dark:bg-card dark:text-foreground">
               {m.body_text ?? "(empty)"}

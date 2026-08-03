@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { CopyButton } from "@/components/app/copy-button";
+import { EmailBodyFrame } from "@/components/app/email-body-frame";
 import { cn } from "@/lib/utils";
 
 const TABS = ["Preview", "HTML", "Text"] as const;
@@ -30,13 +31,7 @@ export function MessageContent({ html, text }: { html: string | null; text: stri
 
       {tab === "Preview" ? (
         html ? (
-          // sandbox="" strips scripts — safe to render arbitrary stored HTML.
-          <iframe
-            title="Email preview"
-            sandbox=""
-            srcDoc={html}
-            className="h-[380px] w-full rounded-md border bg-white"
-          />
+          <EmailBodyFrame html={html} title="Email preview" className="rounded-md border" />
         ) : (
           <Empty />
         )
