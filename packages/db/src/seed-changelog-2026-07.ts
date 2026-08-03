@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "The help panel keeps your conversations now",
+    date: "2026-08-04",
+    changes: [
+      {
+        kind: "New",
+        text: "The assistant panel — the floating box and the docked one — can reach your past conversations, start a new one, and tell you which one you're in. Before, it held a single conversation and only until you reloaded: ask something, move to another page, come back, and you were starting over with no way to find what you'd just asked.",
+      },
+      {
+        kind: "Improved",
+        text: "It also remembers where you were. Reopening the panel returns you to the conversation you were having, with its history, rather than a blank one.",
+      },
+      {
+        kind: "Fixed",
+        text: "Support had a dead end: if you had exactly one conversation with the team, there was no way to start a second. Anything new had to be raised by replying to your existing thread — even a resolved one about something else. Support now has the same conversation list and “new conversation” the assistant does.",
+      },
+      {
+        kind: "Improved",
+        text: "A resolved support conversation says it's resolved and that replying reopens it, instead of quietly looking like the team is still standing by. Your conversation list shows which are open and which are done.",
+      },
+      {
+        kind: "Improved",
+        text: "The floating panel is wider, so the message area, buttons and the box you type in aren't fighting for the same few inches — and the prompt in that box no longer gets cut off mid-word.",
+      },
+    ],
+  },
+  {
     title: "No more blank space under a short email",
     date: "2026-08-03",
     changes: [
