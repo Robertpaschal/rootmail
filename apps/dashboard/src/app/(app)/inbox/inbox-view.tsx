@@ -388,46 +388,33 @@ export function InboxView({
     landTimer.current = setTimeout(() => {
       landTimer.current = null;
       landAtReplyFor.current = null;
-      const pane = threadPaneRef.current;
-      const card = pane?.querySelector<HTMLElement>(`#thread-${CSS.escape(tid)}`);
-      const composer = pane?.querySelector<HTMLElement>(`#reply-${CSS.escape(tid)}`);
-      if (!pane || !card || !composer) return;
+      const card = threadPaneRef.current?.querySelector<HTMLElement>(`#thread-${CSS.escape(tid)}`);
+      // The open thread scrolls ITSELF now, so this is the element to move —
+      // and because its subject sits outside that scroller, there's no sticky
+      // header to duck under any more. The whole header-offset correction that
+      // used to be needed here simply went away with the layout.
+      const scroller = card?.querySelector<HTMLElement>("[data-thread-scroll]");
+      const composer = card?.querySelector<HTMLElement>(`#reply-${CSS.escape(tid)}`);
+      if (!card || !scroller || !composer) return;
 
-      // Land on the newest email WITH the reply box — that pair is the whole
-      // reason you came. Showing the box alone cuts off the message you're
-      // answering; showing the email alone leaves the box off-screen.
       const emails = card.querySelectorAll<HTMLElement>("[data-email-card]");
       const last = emails[emails.length - 1];
-      const pr = pane.getBoundingClientRect();
+      const sr = scroller.getBoundingClientRect();
       const top = (last ?? composer).getBoundingClientRect().top;
       const bottom = composer.getBoundingClientRect().bottom;
+      // Content coordinates — stable whenever they're measured.
+      const contentTop = (y: number) => y - sr.top + scroller.scrollTop;
 
-      // The subject sticks to the top of the pane, so "the top of the pane" is
-      // not free space — aiming there parks the newest email underneath the
-      // header and you arrive looking at nothing. Measured: pane 242–503,
-      // header 258–327, email landed 254–318, i.e. entirely behind it. Land
-      // below the header instead.
-      const headerH = card.querySelector<HTMLElement>("button")?.offsetHeight ?? 0;
-      const room = pr.height - headerH;
-
-      // Work in CONTENT coordinates, not viewport ones. A delta measured from
-      // current rects drifts, because the sticky subject moves as you scroll —
-      // the correction and the thing being corrected chase each other, and the
-      // email still landed under the header. Converting to a position within
-      // the scrolled content is stable whenever it's measured.
-      const contentTop = (y: number) => y - pr.top + pane.scrollTop;
-
-      // If the newest email and the reply box fit together, show them together,
-      // clear of the sticky subject. If they can't (a very long final email),
-      // favour the end — the box and the tail of what you're answering.
+      // Show the newest email and the reply box together when they fit; when
+      // they can't, favour the end — the box and the tail of what you answer.
       const target =
-        bottom - top <= room - 24
-          ? contentTop(top) - headerH - 12
-          : contentTop(bottom) - pr.height + 16;
+        bottom - top <= sr.height - 24
+          ? contentTop(top) - 12
+          : contentTop(bottom) - sr.height + 16;
 
-      const clamped = Math.max(0, Math.min(target, pane.scrollHeight - pane.clientHeight));
-      if (Math.abs(clamped - pane.scrollTop) > 2) {
-        pane.scrollTo({ top: clamped, behavior: reduce ? "auto" : "smooth" });
+      const clamped = Math.max(0, Math.min(target, scroller.scrollHeight - scroller.clientHeight));
+      if (Math.abs(clamped - scroller.scrollTop) > 2) {
+        scroller.scrollTo({ top: clamped, behavior: reduce ? "auto" : "smooth" });
       }
     }, reduce ? 0 : 380);
   }, [expandedThread, details, reduce]);
@@ -809,7 +796,13 @@ export function InboxView({
               initial={switching ? { opacity: 0, y: 8 } : false}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: reduce ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
-              className="h-full space-y-3 overflow-y-auto px-4 py-4"
+              className={cn(
+                "h-full space-y-3 px-4 py-4",
+                // With a thread open the BOX scrolls, not the page behind it —
+                // so this becomes a column that hands the open thread the
+                // leftover height. With none open it's an ordinary list again.
+                expandedThread ? "flex flex-col overflow-hidden" : "overflow-y-auto",
+              )}
             >
               {loading && contact.threads.every((t) => !details[t.id]) ? (
                 <div className="grid h-40 place-items-center text-muted-foreground">
@@ -824,7 +817,10 @@ export function InboxView({
                     <div
                       key={t.id}
                       id={`thread-${t.id}`}
-                      className={cn("scroll-mt-2 rounded-xl border", expanded && "ring-1 ring-primary/30")}
+                      className={cn(
+                        "scroll-mt-2 rounded-xl border",
+                        expanded && "flex min-h-0 flex-1 flex-col overflow-hidden ring-1 ring-primary/30",
+                      )}
                     >
                       {/* Thread header: the subject is the conversation. */}
                       <button
@@ -836,10 +832,12 @@ export function InboxView({
                         }}
                         className={cn(
                           "flex w-full items-center gap-2.5 px-4 py-3 text-left",
-                          // A long conversation pushed its own subject off the top,
-                          // so half-way down you're reading emails with no idea
-                          // which thread you're in. It stays.
-                          expanded && "sticky top-0 z-10 rounded-t-xl border-b bg-card/95 backdrop-blur",
+                          // Not sticky any more. Sticking it to the PANE meant the
+                          // card's own top edge — border, rounded corner — had
+                          // already scrolled away above it, so the subject looked
+                          // detached from the box it belongs to. It's simply the
+                          // top row of a box that doesn't move.
+                          expanded && "shrink-0 rounded-t-xl border-b bg-card",
                         )}
                       >
                         <motion.span
@@ -859,17 +857,29 @@ export function InboxView({
                         <ThreadStatusBadge status={t.status} />
                       </button>
 
-                      <AnimatePresence initial={false}>
+                      {/* No AnimatePresence, deliberately. The open thread is
+                          the box that gets the pane's leftover height, so a
+                          body that lingers to fade out keeps claiming that
+                          height — and the thread you just opened is squeezed to
+                          nothing until the old one finishes leaving. Switching
+                          threads flashed. Only one is ever open, so the one
+                          being closed can just go; the arriving one fades in. */}
                       {expanded ? (
                         <motion.div
                           key="thread-body"
-                          initial={{ height: 0, opacity: 0 }}
-                          animate={{ height: "auto", opacity: 1 }}
-                          exit={{ height: 0, opacity: 0 }}
-                          transition={reduce ? { duration: 0 } : { height: EASE_OPEN, opacity: { duration: 0.16 } }}
-                          className="overflow-hidden"
+                          initial={reduce ? false : { opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: reduce ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
+                          className="flex min-h-0 flex-1 flex-col"
                         >
-                        <div className="space-y-3 border-t px-3 pb-3 pt-3 sm:px-4">
+                        {/* The thread's own scroller. Marked with an attribute
+                            rather than found by its Tailwind class — a class is
+                            a styling decision and would silently take the
+                            landing effect with it if it ever changed. */}
+                        <div
+                          data-thread-scroll=""
+                          className="min-h-0 flex-1 space-y-3 overflow-y-auto px-3 pb-3 pt-3 sm:px-4"
+                        >
                           {det?.messages ? (
                             // initial={false} keeps the thread from replaying its
                             // whole history on open — but the reply you just sent
@@ -1003,7 +1013,6 @@ export function InboxView({
                         </div>
                         </motion.div>
                       ) : null}
-                      </AnimatePresence>
                     </div>
                   );
                 })

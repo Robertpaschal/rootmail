@@ -107,20 +107,45 @@ export function OutlineRail({
         <List className="size-3.5" />
       </button>
 
-      {/* NOT mode="wait": the labels would have to queue behind the ticks
-          finishing their exit, which is a beat of nothing for a menu you just
-          asked for. They overlap instead — they're both absolutely positioned,
-          so a brief cross-fade costs nothing. */}
+      {/*
+        The panel is ABSOLUTELY positioned and the ticks stay mounted (just
+        faded) so this container never changes size.
+
+        Swapping one for the other resized the hover target under the cursor:
+        the pointer fell outside, mouseleave fired, it closed, the ticks came
+        back under the cursor, mouseenter fired — open, close, open. That was
+        the shake. Nothing moves now, so there's nothing to oscillate.
+
+        The panel is a descendant, so hovering it still counts as inside and
+        keeps it open.
+      */}
+      <motion.div
+        aria-hidden={open}
+        animate={{ opacity: open ? 0 : 0.5 }}
+        transition={{ duration: reduce ? 0 : 0.14 }}
+        className="flex flex-col items-end gap-1 pr-1"
+      >
+        {sections.map((s) => (
+          <span
+            key={s.id}
+            className={cn(
+              "h-0.5 rounded-full transition-all",
+              s.id === activeId ? "w-4 bg-primary" : "w-2.5 bg-muted-foreground/50",
+            )}
+          />
+        ))}
+      </motion.div>
+
       <AnimatePresence initial={false}>
         {open ? (
           <motion.nav
             key="labels"
             aria-label={label}
-            initial={reduce ? false : { opacity: 0, x: 6 }}
-            animate={{ opacity: 1, x: 0 }}
-            exit={{ opacity: 0, x: 6 }}
+            initial={reduce ? false : { opacity: 0, x: 8, scale: 0.98 }}
+            animate={{ opacity: 1, x: 0, scale: 1 }}
+            exit={{ opacity: 0, x: 8, scale: 0.98 }}
             transition={{ duration: reduce ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }}
-            className="max-h-[70vh] w-56 overflow-y-auto rounded-lg border bg-popover/95 p-1 shadow-lg backdrop-blur"
+            className="absolute right-0 top-1/2 max-h-[70vh] w-56 -translate-y-1/2 overflow-y-auto rounded-lg border bg-popover/95 p-1 shadow-lg backdrop-blur"
           >
             {sections.map((s) => (
               <button
@@ -139,29 +164,7 @@ export function OutlineRail({
               </button>
             ))}
           </motion.nav>
-        ) : (
-          // Collapsed: the ticks. Enough to say "there are N places here" and to
-          // show roughly where you are, without asking for any attention.
-          <motion.div
-            key="ticks"
-            initial={reduce ? false : { opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reduce ? 0 : 0.12 }}
-            aria-hidden
-            className="flex flex-col items-end gap-1 pr-1 opacity-50 transition-opacity hover:opacity-100"
-          >
-            {sections.map((s) => (
-              <span
-                key={s.id}
-                className={cn(
-                  "h-0.5 rounded-full transition-all",
-                  s.id === activeId ? "w-4 bg-primary" : "w-2.5 bg-muted-foreground/50",
-                )}
-              />
-            ))}
-          </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
     </div>
   );
