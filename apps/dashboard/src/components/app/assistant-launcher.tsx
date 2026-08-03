@@ -4,13 +4,19 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { AnimatePresence, motion, useDragControls } from "framer-motion";
-import { ArrowUpRight, GripHorizontal, Headset, Loader2, MessagesSquare, PanelRight, PictureInPicture2, Send, Sparkles, Square, X } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, GripHorizontal, Headset, Loader2, MessagesSquare, PanelRight, PictureInPicture2, Plus, Search, Send, Sparkles, Square, Trash2, X } from "lucide-react";
 import {
   createChat,
+  deleteChat,
   getAiCredits,
+  listChats,
+  loadChat,
+  type AssistantChat,
   type AssistantChatMessage,
   revalidateAssistantSideEffects,
 } from "@/app/(app)/assistant/actions";
+import { groupByDay } from "@/lib/chat-buckets";
+import { relativeTime } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Markdown } from "@/components/ui/markdown";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,6 +53,26 @@ const SEEN_KEY = "rm_support_seen_at";
  * person on the support team. Which one you're in is always explicit. */
 type Pane = "assistant" | "support";
 
+/**
+ * The panel is one column, so it can't grow the full page's conversation rail
+ * beside the transcript — a 288px list inside a 380px float leaves nowhere to
+ * read. Instead the panel BECOMES the list and comes back, the way a phone mail
+ * app moves between inbox and message. Same two things to do, no second column.
+ */
+type View = "chat" | "list";
+
+/**
+ * Which conversation the compact assistant is in, remembered.
+ *
+ * It used to hold the chat id in state alone, so every reload started a fresh
+ * one and the previous exchange was unreachable from anywhere but the full
+ * page. You would ask something, navigate, come back, and be talking to a
+ * stranger. The id survives now, and reopening resumes where you were.
+ */
+const CHAT_KEY = "rm_assistant_chat";
+/** Below this the list is short enough to scan; a filter would be clutter. */
+const FILTER_THRESHOLD = 6;
+
 let tmp = 0;
 const tempId = () => `l_${Date.now()}_${tmp++}`;
 
@@ -58,6 +84,11 @@ export function AssistantLauncher() {
   const [mode, setMode] = useState<Mode>("float");
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
   const [chatId, setChatId] = useState<string | null>(null);
+  const [view, setView] = useState<View>("chat");
+  const [chats, setChats] = useState<AssistantChat[]>([]);
+  const [chatsLoading, setChatsLoading] = useState(false);
+  const [chatQuery, setChatQuery] = useState("");
+  const [resuming, setResuming] = useState(false);
   const [input, setInput] = useState("");
   const [credits, setCredits] = useState<Credits | null>(null);
   const [pending, start] = useTransition();
@@ -127,6 +158,102 @@ export function AssistantLauncher() {
     if (open) requestAnimationFrame(() => inputRef.current?.focus());
   }, [open, credits]);
 
+  const rememberChat = useCallback((id: string | null) => {
+    try {
+      if (id) window.localStorage.setItem(CHAT_KEY, id);
+      else window.localStorage.removeItem(CHAT_KEY);
+    } catch {
+      /* private mode — this session still works, it just won't be resumed */
+    }
+  }, []);
+
+  // Reopening returns you to the conversation you were having. Only on the
+  // first open with nothing loaded: after that the panel's own state is the
+  // truth, and re-fetching would stamp on a run in progress.
+  useEffect(() => {
+    if (!open || chatId || messages.length > 0 || resuming) return;
+    let saved: string | null = null;
+    try {
+      saved = window.localStorage.getItem(CHAT_KEY);
+    } catch {
+      /* nothing remembered */
+    }
+    if (!saved) return;
+    setResuming(true);
+    void loadChat(saved).then((r) => {
+      setResuming(false);
+      if (r.chat) {
+        setChatId(r.chat.id);
+        setMessages(r.chat.messages);
+      } else {
+        // Deleted elsewhere (the full page, another tab). Forget it rather than
+        // leaving a pointer to something that will never load.
+        rememberChat(null);
+      }
+    });
+  }, [open, chatId, messages.length, resuming, rememberChat]);
+
+  const refreshChats = useCallback(async () => {
+    setChatsLoading(true);
+    const r = await listChats();
+    setChatsLoading(false);
+    if (r.chats) setChats(r.chats);
+  }, []);
+
+  // The list is also where the bar gets the current conversation's NAME, so it
+  // can't wait until someone asks to see the list. A new chat is created
+  // untitled and named from its content server-side, so the name we'd get back
+  // at creation is already stale — fetching on open (and after each run, below)
+  // is what keeps the bar telling the truth. One indexed query.
+  useEffect(() => {
+    if (open && pane === "assistant" && chats.length === 0 && !chatsLoading) void refreshChats();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, pane]);
+
+  const showChats = useCallback(() => {
+    setView("list");
+    setChatQuery("");
+    void refreshChats();
+  }, [refreshChats]);
+
+  const openChat = useCallback(
+    async (id: string) => {
+      setView("chat");
+      setResuming(true);
+      const r = await loadChat(id);
+      setResuming(false);
+      if (r.chat) {
+        setChatId(r.chat.id);
+        setMessages(r.chat.messages);
+        rememberChat(r.chat.id);
+      }
+    },
+    [rememberChat],
+  );
+
+  const startNewChat = useCallback(() => {
+    // No round-trip: the chat row is created on the first message, exactly as it
+    // always was. This just clears the desk.
+    setChatId(null);
+    setMessages([]);
+    rememberChat(null);
+    setView("chat");
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [rememberChat]);
+
+  const removeChat = useCallback(
+    async (id: string) => {
+      setChats((c) => c.filter((x) => x.id !== id)); // optimistic — it's a list
+      const r = await deleteChat(id);
+      if (!r.ok) {
+        void refreshChats();
+        return;
+      }
+      if (id === chatId) startNewChat();
+    },
+    [chatId, refreshChats, startNewChat],
+  );
+
   // Esc closes — but only the docked drawer (which dims the page); the floating
   // box shouldn't steal Escape from whatever the user is doing on the page.
   useEffect(() => {
@@ -173,6 +300,7 @@ export function AssistantLauncher() {
           }
           id = created.chat.id;
           setChatId(id);
+          rememberChat(id); // so closing the panel doesn't orphan this exchange
         }
         // Same streamed run as the full page — the drawer is where people ask
         // the quick questions, so waiting blind matters just as much here.
@@ -193,13 +321,16 @@ export function AssistantLauncher() {
             if (d.credits) {
               setCredits({ used: d.credits.used, allowance: d.credits.allowance, remaining: d.credits.allowance === -1 ? -1 : Math.max(0, d.credits.allowance - d.credits.used) });
             }
+            // The server names a chat from its content, so the title only
+            // becomes real once a turn has completed. Pick it up.
+            void refreshChats();
           },
           onError: (message) => patch((t) => ({ ...t, content: t.content ? `${t.content}\n\n${message}` : message })),
         }, ctrl.signal);
         abortRef.current = null;
       });
     },
-    [chatId, pending, credits],
+    [chatId, pending, credits, rememberChat, refreshChats],
   );
 
   if (hidden) return null;
@@ -303,7 +434,142 @@ export function AssistantLauncher() {
     </div>
   );
 
-  const assistantBody = (
+  const activeChat = chats.find((c) => c.id === chatId) ?? null;
+
+  /**
+   * The one row that makes the compact assistant a place you can come back to
+   * rather than a fresh notepad every time: which conversation you're in, the
+   * way to the others, and the way to a new one.
+   *
+   * Deliberately three small controls, not a rail. The full page can afford a
+   * column; a 380px float cannot, and shrinking that column to fit would give
+   * you a list too narrow to read AND a transcript too narrow to read.
+   */
+  const chatBar = (
+    <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
+      <button
+        type="button"
+        onClick={showChats}
+        className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        title="Your conversations"
+      >
+        <MessagesSquare className="size-3.5 shrink-0" />
+        <span className="truncate">
+          {resuming ? "Opening…" : (activeChat?.title ?? (messages.length > 0 ? "This conversation" : "New conversation"))}
+        </span>
+      </button>
+      <button
+        type="button"
+        onClick={startNewChat}
+        disabled={!chatId && messages.length === 0}
+        title="Start a new conversation"
+        aria-label="Start a new conversation"
+        className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
+      >
+        <Plus className="size-3.5" />
+      </button>
+    </div>
+  );
+
+  const filteredChats = (() => {
+    const q = chatQuery.trim().toLowerCase();
+    return q ? chats.filter((c) => c.title.toLowerCase().includes(q)) : chats;
+  })();
+
+  const chatListView = (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex shrink-0 items-center gap-1 border-b px-2 py-1.5">
+        <button
+          type="button"
+          onClick={() => setView("chat")}
+          className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <ArrowLeft className="size-3.5" /> Back
+        </button>
+        <span className="min-w-0 flex-1 truncate px-1 text-xs font-medium">
+          {chats.length > 0 ? `${chats.length} conversation${chats.length === 1 ? "" : "s"}` : "Conversations"}
+        </span>
+        <button
+          type="button"
+          onClick={startNewChat}
+          title="Start a new conversation"
+          aria-label="Start a new conversation"
+          className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        >
+          <Plus className="size-3.5" />
+        </button>
+      </div>
+
+      {chats.length >= FILTER_THRESHOLD ? (
+        <div className="relative shrink-0 border-b px-2 py-1.5">
+          <Search className="pointer-events-none absolute left-4 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <input
+            value={chatQuery}
+            onChange={(e) => setChatQuery(e.target.value)}
+            placeholder="Filter conversations"
+            aria-label="Filter conversations"
+            className="h-7 w-full rounded-md border bg-background pl-7 pr-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          />
+        </div>
+      ) : null}
+
+      <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-2">
+        {chatsLoading && chats.length === 0 ? (
+          <div className="grid h-24 place-items-center text-muted-foreground">
+            <Loader2 className="size-4 animate-spin" />
+          </div>
+        ) : chats.length === 0 ? (
+          <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+            No conversations yet. Ask the assistant something and it&apos;ll keep the thread.
+          </p>
+        ) : filteredChats.length === 0 ? (
+          <p className="px-2 py-6 text-center text-xs text-muted-foreground">Nothing matches “{chatQuery}”.</p>
+        ) : (
+          groupByDay(filteredChats, (c) => c.updated_at).map((g) => (
+            <div key={g.bucket} className="space-y-0.5">
+              <p className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {g.bucket}
+              </p>
+              {g.items.map((c) => (
+                <div
+                  key={c.id}
+                  className={cn(
+                    "group flex items-center gap-1 rounded-md px-1 transition-colors hover:bg-accent",
+                    c.id === chatId && "bg-accent/60",
+                  )}
+                >
+                  <button
+                    type="button"
+                    onClick={() => void openChat(c.id)}
+                    className="min-w-0 flex-1 px-1 py-1.5 text-left"
+                  >
+                    {/* Not truncated. A list whose only job is telling
+                        conversations apart must show enough to tell them apart —
+                        the full page learned this the hard way. */}
+                    <span className="block break-words text-xs font-medium leading-snug">{c.title}</span>
+                    <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                      {relativeTime(c.updated_at)}
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void removeChat(c.id)}
+                    title="Delete this conversation"
+                    aria-label={`Delete ${c.title}`}
+                    className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+                  >
+                    <Trash2 className="size-3" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+
+  const conversationBody = (
     <>
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 ? (
@@ -387,6 +653,18 @@ export function AssistantLauncher() {
       </div>
     </>
   );
+
+  // One panel, two things it can be showing. The list REPLACES the transcript
+  // rather than sitting beside it — see the note on `View`.
+  const assistantBody =
+    view === "list" ? (
+      chatListView
+    ) : (
+      <>
+        {chatBar}
+        {conversationBody}
+      </>
+    );
 
   // The handoff transcript — the last few turns, so the team sees the context.
   const handoff =

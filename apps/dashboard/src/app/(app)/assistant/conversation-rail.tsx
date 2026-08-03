@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { groupByDay } from "@/lib/chat-buckets";
 
 /**
  * The conversation list.
@@ -42,28 +43,9 @@ function useDesktopRail(): boolean {
   return desktop;
 }
 
-function startOfDay(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
-}
-
-/** Today / Yesterday / Previous 7 days / Older — the shape people already read
- * lists of conversations in. */
-function bucketOf(iso: string): string {
-  const t = new Date(iso);
-  if (Number.isNaN(t.getTime())) return "Older";
-  const today = startOfDay(new Date());
-  const day = startOfDay(t);
-  const diff = Math.round((today - day) / 86_400_000);
-  if (diff <= 0) return "Today";
-  if (diff === 1) return "Yesterday";
-  if (diff <= 7) return "Previous 7 days";
-  return "Older";
-}
-
 /** The same spring the replies panel opens with — one motion vocabulary. */
 const EASE_OPEN = { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.7 };
 
-const BUCKET_ORDER = ["Today", "Yesterday", "Previous 7 days", "Older"];
 
 export function ConversationRail({
   chats,
@@ -115,16 +97,10 @@ export function ConversationRail({
   }, [chats, query]);
 
   // Chats arrive newest-first, so each bucket keeps that order for free.
-  const groups = useMemo(() => {
-    const by = new Map<string, AssistantChat[]>();
-    for (const c of filtered) {
-      const b = bucketOf(c.updated_at);
-      const arr = by.get(b);
-      if (arr) arr.push(c);
-      else by.set(b, [c]);
-    }
-    return BUCKET_ORDER.filter((b) => by.has(b)).map((b) => ({ label: b, items: by.get(b)! }));
-  }, [filtered]);
+  const groups = useMemo(
+    () => groupByDay(filtered, (c) => c.updated_at).map((g) => ({ label: g.bucket, items: g.items })),
+    [filtered],
+  );
 
   const startRename = (c: AssistantChat) => {
     setEditingId(c.id);
