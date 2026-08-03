@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "A conversation list you can actually read — and put away",
+    date: "2026-08-03",
+    changes: [
+      {
+        kind: "Fixed",
+        text: "Conversation titles were cut off mid-word, so three different chats could all read “Campaign Results An…”. They wrap to their full length now — the list's whole job is telling one conversation from another.",
+      },
+      {
+        kind: "New",
+        text: "The conversation list folds away, and stays folded until you bring it back. The answer gets the full width when you're reading one.",
+      },
+      {
+        kind: "New",
+        text: "Past chats are grouped by Today, Yesterday and Previous 7 days, with a filter once you have enough of them to lose one.",
+      },
+      {
+        kind: "New",
+        text: "You can stop watching a long answer. It carries on and saves either way — reopen the chat to read the rest — so stopping costs you nothing.",
+      },
+    ],
+  },
+  {
     title: "Watch the assistant work, instead of watching a spinner",
     date: "2026-08-01",
     changes: [

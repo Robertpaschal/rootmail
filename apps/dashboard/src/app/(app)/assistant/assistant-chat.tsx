@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
-import { Check, Loader2, Pencil, Plus, Send, Sparkles, Trash2, User, X } from "lucide-react";
+import { Loader2, Send, Sparkles, Square, User } from "lucide-react";
 import {
   createChat,
   deleteChat,
@@ -12,6 +12,7 @@ import {
   type AssistantChatMessage,
 } from "./actions";
 import { ConversationOutline } from "./conversation-outline";
+import { ConversationRail } from "./conversation-rail";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Markdown } from "@/components/ui/markdown";
@@ -19,7 +20,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { AssistantWorking } from "@/components/app/assistant-working";
 import { streamAssistant } from "@/lib/assistant-stream";
 import { CreditMeter, CreditNudge, isOutOfCredits, type Credits } from "@/components/app/ai-credit-meter";
-import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 // What the assistant did, in plain language — honest about the steps it took to
@@ -91,13 +91,11 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
   const [input, setInput] = useState("");
   const [pending, startSend] = useTransition();
   const [loadingChat, setLoadingChat] = useState(false);
-  // Rail inline-rename.
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
 
   const ref = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const didInit = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
 
   const scrollToEnd = useCallback(() => {
     requestAnimationFrame(() => {
@@ -128,6 +126,36 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
     else setMessages([{ object: "assistant_message", id: tempId(), role: "assistant", content: res.error ?? "Couldn't load this chat.", actions: [], created_at: new Date().toISOString() }]);
   }, []);
 
+  /**
+   * Stop watching the current run.
+   *
+   * It stops the STREAM, not the work: the request is already with the model,
+   * and the server finishes it and saves the turn either way. So don't pretend
+   * otherwise, and don't re-fetch the chat to "show the truth" — at the moment
+   * you press stop the truth isn't written yet, and reloading replaces a
+   * half-finished answer with an empty conversation.
+   *
+   * Keep what arrived, say plainly where the rest went.
+   */
+  const stop = useCallback(() => {
+    const ctrl = abortRef.current;
+    if (!ctrl) return;
+    ctrl.abort();
+    abortRef.current = null;
+    setMessages((m) =>
+      m.map((t, i) =>
+        i === m.length - 1 && t.role === "assistant"
+          ? {
+              ...t,
+              content:
+                (t.content ? `${t.content}\n\n` : "") +
+                "_You stopped watching. The assistant finishes this answer either way — reopen this chat in a moment to read all of it._",
+            }
+          : t,
+      ),
+    );
+  }, []);
+
   const newChat = useCallback(() => {
     setActiveChatId(null);
     setMessages([]);
@@ -152,27 +180,18 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
     [activeChatId, chats],
   );
 
-  // Inline rename in the rail. Optimistic, reverting if the API rejects it.
-  const startRename = useCallback((c: AssistantChat) => {
-    setEditingId(c.id);
-    setEditValue(c.title);
-  }, []);
-  const cancelRename = useCallback(() => {
-    setEditingId(null);
-    setEditValue("");
-  }, []);
-  const commitRename = useCallback(
-    (id: string) => {
-      const next = editValue.trim();
-      setEditingId(null);
+  // Rename, optimistic — reverted if the API rejects it. The rail owns the
+  // editing UI; this owns the list it edits.
+  const commitRenameById = useCallback(
+    (id: string, next: string) => {
       const current = chats.find((c) => c.id === id);
-      if (!next || !current || next === current.title) return;
+      if (!current || next === current.title) return;
       setChats((cs) => cs.map((c) => (c.id === id ? { ...c, title: next } : c)));
       void renameChat(id, next).then((res) => {
         if (res.error) setChats((cs) => cs.map((c) => (c.id === id ? { ...c, title: current.title } : c)));
       });
     },
-    [editValue, chats],
+    [chats],
   );
 
   // Send a prompt into the active chat — lazily creating a chat on the first
@@ -229,6 +248,8 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
           setMessages((m) => m.map((t) => (t.id === turnId ? fn(t) : t)));
 
         let title: string | undefined;
+        const ctrl = new AbortController();
+        abortRef.current = ctrl;
         await streamAssistant(chatId, text, {
           onDelta: (chunk) => patch((t) => ({ ...t, content: t.content + chunk })),
           onTool: (a) => patch((t) => ({ ...t, actions: [...(t.actions ?? []), a] })),
@@ -250,7 +271,8 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
               setCredits((c) => (c ? { ...c, used: c.allowance, remaining: 0 } : c));
             }
           },
-        });
+        }, ctrl.signal);
+        abortRef.current = null;
 
         // Reflect the backend's content-based title (it auto-names on the first
         // message) and move the chat to the top of the rail.
@@ -293,97 +315,15 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
   const out = credits ? isOutOfCredits(credits) : false;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[16rem_minmax(0,1fr)]">
-      {/* Chat-history rail */}
-      <aside className="flex flex-col gap-2">
-        <Button variant="outline" className="w-full justify-start gap-2" onClick={newChat}>
-          <Plus className="size-4" /> New chat
-        </Button>
-        <Card className="min-h-0 flex-1">
-          <CardContent className="max-h-[60vh] space-y-1 overflow-y-auto p-2 lg:max-h-[calc(70vh-3rem)]">
-            {chats.length === 0 ? (
-              <p className="px-2 py-6 text-center text-xs text-muted-foreground">
-                No conversations yet. Ask the assistant something to start one.
-              </p>
-            ) : (
-              chats.map((c) => (
-                <div
-                  key={c.id}
-                  className={cn(
-                    "group flex items-center gap-1 rounded-md px-2 py-1.5 text-sm",
-                    activeChatId === c.id ? "bg-secondary text-foreground" : "hover:bg-secondary/60",
-                  )}
-                >
-                  {editingId === c.id ? (
-                    <div className="flex min-w-0 flex-1 items-center gap-1">
-                      <input
-                        autoFocus
-                        value={editValue}
-                        maxLength={120}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            commitRename(c.id);
-                          } else if (e.key === "Escape") {
-                            e.preventDefault();
-                            cancelRename();
-                          }
-                        }}
-                        className="min-w-0 flex-1 rounded border bg-background px-1.5 py-1 text-sm outline-none focus:ring-1 focus:ring-ring"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => commitRename(c.id)}
-                        aria-label="Save title"
-                        className="shrink-0 rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
-                      >
-                        <Check className="size-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={cancelRename}
-                        aria-label="Cancel rename"
-                        className="shrink-0 rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
-                      >
-                        <X className="size-3.5" />
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => openChat(c.id)}
-                        className="min-w-0 flex-1 text-left"
-                        title={c.title}
-                      >
-                        <span className="block truncate">{c.title}</span>
-                        <span className="block text-[11px] text-muted-foreground">{relativeTime(c.updated_at)}</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => startRename(c)}
-                        aria-label={`Rename ${c.title}`}
-                        className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-foreground group-hover:opacity-100"
-                      >
-                        <Pencil className="size-3.5" />
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => removeChat(c.id)}
-                        aria-label={`Delete ${c.title}`}
-                        className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:bg-background hover:text-destructive group-hover:opacity-100"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </>
-                  )}
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </aside>
+    <div className="grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)]">
+      <ConversationRail
+        chats={chats}
+        activeChatId={activeChatId}
+        onOpen={openChat}
+        onNew={newChat}
+        onRename={commitRenameById}
+        onDelete={removeChat}
+      />
 
       {/* Conversation */}
       <Card>
@@ -498,15 +438,29 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                   }
                 }}
               />
-              <Button
-                type="submit"
-                size="icon"
-                disabled={pending || !input.trim() || out}
-                aria-label="Send"
-                className="shrink-0"
-              >
-                {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-              </Button>
+              {pending ? (
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  onClick={stop}
+                  aria-label="Stop"
+                  title="Stop watching this answer (it still finishes and is saved)"
+                  className="shrink-0"
+                >
+                  <Square className="size-3.5 fill-current" />
+                </Button>
+              ) : (
+                <Button
+                  type="submit"
+                  size="icon"
+                  disabled={!input.trim() || out}
+                  aria-label="Send"
+                  className="shrink-0"
+                >
+                  <Send className="size-4" />
+                </Button>
+              )}
             </div>
             <div className="mt-1.5 flex items-center justify-between gap-3 px-1">
               <p className="text-[11px] text-muted-foreground">
