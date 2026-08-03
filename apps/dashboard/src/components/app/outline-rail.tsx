@@ -65,18 +65,17 @@ export function OutlineRail({
   if (sections.length < minSections) return null;
 
   const jump = (id: string) => {
-    onSelect?.(id);
     setOpen(false);
-    const scroll = () => {
-      const el = containerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
-      el?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
-    };
-    // With onSelect the target may have just been expanded (and another
-    // collapsed), so let React commit before measuring where to scroll. A
-    // timeout, not rAF: this has to work with reduced motion too, and the
-    // section header we aim at doesn't move when its own body opens beneath it.
-    if (onSelect) setTimeout(scroll, 0);
-    else scroll();
+    // onSelect means the caller owns arriving. It knows things this doesn't —
+    // that the section has to load, that the useful spot is the bottom of it
+    // rather than the top — and it can wait for them. Scrolling here as well
+    // would only fight it.
+    if (onSelect) {
+      onSelect(id);
+      return;
+    }
+    const el = containerRef.current?.querySelector<HTMLElement>(`#${CSS.escape(id)}`);
+    el?.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
   };
 
   return (

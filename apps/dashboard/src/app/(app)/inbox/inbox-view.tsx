@@ -284,6 +284,10 @@ export function InboxView({
   const composerRef = useRef<HTMLTextAreaElement | null>(null);
   const reduce = useReducedMotion();
   const threadPaneRef = useRef<HTMLDivElement>(null);
+  /** Set when a thread is opened FROM the outline — the signal to land at the
+   * reply box once its emails have loaded, rather than at the top. */
+  const landAtReplyFor = useRef<string | null>(null);
+  const landTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const desktop = useDesktop();
   // Switching person should animate; ARRIVING at the page should not — the first
   // conversation is just what's there. (Keying on the contact remounts those
@@ -356,6 +360,46 @@ export function InboxView({
     const last = det?.messages?.[det.messages.length - 1];
     if (last) setOpenEmails(new Set([last.id]));
   }, [expandedThread, details]);
+
+  /**
+   * Arriving from the outline, land where the work is.
+   *
+   * The top of a thread is its oldest email — the least useful thing in it. You
+   * came to this conversation to read the newest message and answer it, so put
+   * the reply box on screen. It waits for `details` because the emails load
+   * after the expand, and scrolling before they arrive aims at a box that isn't
+   * there yet.
+   */
+  useEffect(() => {
+    const tid = landAtReplyFor.current;
+    if (!tid || tid !== expandedThread || !details[tid] || landTimer.current) return;
+    // Two things move the composer AFTER this effect first fires: the thread
+    // body springs open from height 0, and the sibling effect above expands the
+    // latest email inside it. Scrolling immediately aims at where the composer
+    // is now and lands nowhere once those settle. So wait for the layout to
+    // stop moving, then go.
+    //
+    // The pending scroll deliberately survives re-renders. `details` is in the
+    // dep list and changes while the thread loads, so a cleanup that cleared
+    // this timer cancelled the scroll every time — the first pass had already
+    // consumed the ref, so nothing rescheduled it and the pane just sat at the
+    // top. The flag is cleared when the scroll actually happens, not before.
+    landTimer.current = setTimeout(() => {
+      landTimer.current = null;
+      landAtReplyFor.current = null;
+      const pane = threadPaneRef.current;
+      const el = pane?.querySelector<HTMLElement>(`#reply-${CSS.escape(tid)}`);
+      if (!pane || !el) return;
+      // Move THIS pane, by measurement. scrollIntoView picks a scrollable
+      // ancestor itself and here it kept choosing something other than the
+      // thread pane — the call fired on the right element and the pane stayed
+      // at 0 with 201px of scroll going spare. Rects don't guess.
+      const delta = el.getBoundingClientRect().bottom - pane.getBoundingClientRect().bottom + 16;
+      if (delta > 0) {
+        pane.scrollTo({ top: pane.scrollTop + delta, behavior: reduce ? "auto" : "smooth" });
+      }
+    }, reduce ? 0 : 380);
+  }, [expandedThread, details, reduce]);
 
   const patchThreadRow = (t: Thread, previewText?: string) => {
     setThreads((rows) =>
@@ -714,7 +758,9 @@ export function InboxView({
               // including clearing a half-typed reply that belonged to the one
               // you're leaving.
               onSelect={(id) => {
-                setExpandedThread(id.replace(/^thread-/, ""));
+                const tid = id.replace(/^thread-/, "");
+                landAtReplyFor.current = tid;
+                setExpandedThread(tid);
                 setDraft("");
                 setError(null);
               }}
@@ -757,7 +803,13 @@ export function InboxView({
                           setDraft("");
                           setError(null);
                         }}
-                        className="flex w-full items-center gap-2.5 px-4 py-3 text-left"
+                        className={cn(
+                          "flex w-full items-center gap-2.5 px-4 py-3 text-left",
+                          // A long conversation pushed its own subject off the top,
+                          // so half-way down you're reading emails with no idea
+                          // which thread you're in. It stays.
+                          expanded && "sticky top-0 z-10 rounded-t-xl border-b bg-card/95 backdrop-blur",
+                        )}
                       >
                         <motion.span
                           animate={{ rotate: expanded ? 0 : -90 }}
@@ -820,7 +872,7 @@ export function InboxView({
                           )}
 
                           {/* Reply composer — scoped to THIS subject-thread. */}
-                          <div className="rounded-lg border bg-muted/20 p-3">
+                          <div id={`reply-${t.id}`} className="scroll-mt-4 rounded-lg border bg-muted/20 p-3">
                             <p className="mb-2 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
                               Replying to {contact.name?.split(" ")[0] ?? contact.email} on{" "}
                               <span className="font-medium text-foreground">“{t.subject}”</span>
