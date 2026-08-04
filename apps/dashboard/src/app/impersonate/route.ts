@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/lib/rootmail";
 import { SESSION_COOKIE } from "@/lib/session";
+import { appUrl } from "@/lib/urls";
 
 export const dynamic = "force-dynamic";
 
@@ -30,17 +31,17 @@ function safeNext(raw: string | null): string {
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   const next = safeNext(req.nextUrl.searchParams.get("next"));
-  if (!code) return NextResponse.redirect(new URL("/login?error=impersonation", req.url));
+  if (!code) return NextResponse.redirect(appUrl("/login?error=impersonation"));
 
   let token: string;
   try {
     const res = await api.acceptImpersonation(code);
     token = res.session_token;
   } catch {
-    return NextResponse.redirect(new URL("/login?error=impersonation", req.url));
+    return NextResponse.redirect(appUrl("/login?error=impersonation"));
   }
 
-  const response = NextResponse.redirect(new URL(next, req.url));
+  const response = NextResponse.redirect(appUrl(next));
   response.cookies.set(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",

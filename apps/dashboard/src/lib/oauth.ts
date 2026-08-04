@@ -1,5 +1,6 @@
 import "server-only";
 import { appleClientSecret, appleConfigured, decodeAppleIdToken } from "./apple";
+import { dashboardBaseUrl } from "./urls";
 
 // Social-login scaffold. Providers light up once their credentials are set in the
 // environment (e.g. apps/dashboard/.env.local); until then no buttons render and
@@ -73,19 +74,12 @@ export function enabledProviders(): { id: OAuthProviderId; label: string }[] {
     .map((p) => ({ id: p.id, label: p.label }));
 }
 
-function baseUrl(): string {
-  return process.env.DASHBOARD_URL ?? "http://localhost:3001";
-}
+// The proxy-safe URL builders now live in lib/urls.ts, so every route handler
+// that redirects can find them — not just the OAuth ones. Re-exported here
+// because the OAuth and SSO routes already import `appUrl` from this module.
+export { appUrl } from "./urls";
 
-/**
- * Absolute URL on the dashboard's own public origin (DASHBOARD_URL). Use this for
- * post-OAuth redirects instead of `new URL(path, req.url)`: behind a reverse proxy
- * Next resolves `req.url` to the container's internal origin (localhost:PORT), so a
- * relative redirect would bounce the user to localhost after a successful sign-in.
- */
-export function appUrl(path: string): string {
-  return new URL(path, baseUrl()).toString();
-}
+const baseUrl = dashboardBaseUrl;
 
 export function redirectUri(id: OAuthProviderId): string {
   return `${baseUrl()}/oauth/${id}/callback`;
