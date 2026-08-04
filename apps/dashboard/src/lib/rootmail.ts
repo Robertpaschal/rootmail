@@ -438,8 +438,16 @@ export const api = {
       double_opt_in?: boolean;
       signup_tag?: string | null;
       signup_redirect_url?: string | null;
+      /** A live rule instead of a membership; null makes it an ordinary audience. */
+      filter?: Record<string, unknown> | null;
     },
   ) => rmFetch<ContactList>(`/v1/lists/${id}`, { method: "PATCH", body }),
+  /** How many contacts a rule would reach — read-only, saves nothing. */
+  previewSegment: (filter: Record<string, unknown>) =>
+    rmFetch<{ object: "segment_preview"; size: number; describes: string }>(
+      "/v1/lists/preview-segment",
+      { method: "POST", body: { filter } },
+    ),
   listGrowth: (id: string) => rmFetch<ListGrowth>(`/v1/lists/${id}/growth`),
 
   // --- Contact CRM ---

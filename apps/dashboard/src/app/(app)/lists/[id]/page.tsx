@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { ApiError, api } from "@/lib/rootmail";
 import type { Contact, ContactList, ListGrowth, ListMembers } from "@/lib/types";
 import { addContact, removeContact } from "../actions";
+import { AudienceRule } from "./audience-rule";
 import { GrowAudience } from "./grow-audience";
 
 const PAGE_SIZE = 25;
@@ -192,7 +193,13 @@ export default async function ListDetailPage({
               </div>
             </div>
           </div>
-          <div id="grow">{growth ? <GrowAudience list={list} growth={growth} welcome={welcome} canSequence={canSequence} /> : null}</div>
+          {/* How this audience decides who is in it — before Grow, which is about
+            getting NEW people in. A rule audience doesn't grow by signup. */}
+        <div id="rule" className="mb-6">
+          <AudienceRule listId={list.id} initialFilter={list.filter} memberCount={list.contacts} />
+        </div>
+
+        <div id="grow">{growth ? <GrowAudience list={list} growth={growth} welcome={welcome} canSequence={canSequence} /> : null}</div>
         </Reveal>
       ) : (
         <Reveal className="space-y-4" delay={0.05}>

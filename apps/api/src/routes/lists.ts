@@ -2,7 +2,7 @@ import { and, desc, eq, gte, ilike, inArray, isNull, or, sql } from "drizzle-orm
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { CONTACT_STAGES, env, Errors, newId } from "@rootmail/core";
-import { audienceSize, contactEvents, contacts, db, describeSegment, type List, listContacts, lists, pendingWaitlist, validateSegmentFilter } from "@rootmail/db";
+import { audienceSize, contactEvents, contacts, db, describeSegment, type List, listContacts, lists, pendingWaitlist, segmentWhere, validateSegmentFilter } from "@rootmail/db";
 import { assertAudienceCapacity, assertContactCapacity } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
@@ -94,6 +94,30 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
         rows.map(async (r) => serialize(r.list, r.list.filter ? await countOf(r.list) : r.count)),
       ),
     };
+  });
+
+  /**
+   * How many contacts a rule WOULD reach, without saving it.
+   *
+   * A rule you cannot see the result of is a rule you cannot trust. This is
+   * also the guard against the silent-zero trap: a rule matching nobody looks
+   * exactly like a rule that works, right up until the campaign goes out to an
+   * empty audience. Reading only — it never writes an audience.
+   */
+  app.post("/v1/lists/preview-segment", async (req) => {
+    await requirePermission(req, "read");
+    const body = parse(z.object({ filter: z.record(z.unknown()) }), req.body);
+    let filter;
+    try {
+      filter = validateSegmentFilter(body.filter);
+    } catch (err) {
+      throw Errors.badRequest(err instanceof Error ? err.message : "Invalid audience rule.");
+    }
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(contacts)
+      .where(segmentWhere(filter, req.auth.workspace.id, scopeOf(req)));
+    return { object: "segment_preview", size: row?.n ?? 0, describes: describeSegment(filter) };
   });
 
   app.post("/v1/lists", async (req, reply) => {

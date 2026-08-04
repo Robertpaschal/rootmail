@@ -597,6 +597,10 @@ export interface ContactList {
   double_opt_in: boolean;
   signup_tag: string | null;
   signup_redirect_url: string | null;
+  /** Set when this audience is a live RULE rather than a membership. */
+  filter: Record<string, unknown> | null;
+  /** That rule as a sentence, so no UI has to re-derive it. */
+  describes: string | null;
   created_at: string;
 }
 
