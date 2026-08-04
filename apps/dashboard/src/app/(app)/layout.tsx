@@ -57,7 +57,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               liveName={live?.name ?? null}
             />
           ) : null}
-          {impersonating && me ? <ImpersonationBanner email={me.user.email} /> : null}
+          {impersonating && me ? (
+            <ImpersonationBanner email={me.user.email} internal={me.internal} />
+          ) : null}
           {unverified ? <VerifyEmailBanner /> : null}
           {/* Agency mode: while acting as a client, name them on every page. */}
         <ClientScopeBanner />

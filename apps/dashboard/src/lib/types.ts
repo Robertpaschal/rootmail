@@ -178,6 +178,8 @@ export interface MeResult {
   active_workspace: Workspace | null;
   /** True when a staff member is impersonating this user for support. */
   impersonating?: boolean;
+  /** True inside rootmail's own account — the audience is our customers. */
+  internal?: boolean;
   /** False until the org completes the post-signup onboarding wizard. */
   onboarding_completed?: boolean;
 }

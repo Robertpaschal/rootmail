@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
+  AtSign,
   BarChart3,
   Building2,
   Contact,
@@ -46,11 +47,18 @@ const groups: Group[] = [
     ],
   },
   {
-    label: "Content",
+    // Reaching customers, not administering them. "Our workspace" leads because
+    // it is the door into the real product — the announcement composer here is
+    // the narrow broadcast case, not the place to build our email.
+    label: "Our email",
     items: [
-      { href: "/content", label: "Content", icon: Newspaper },
+      { href: "/our-workspace", label: "Our workspace", icon: AtSign },
       { href: "/announcements", label: "Announcements", icon: Megaphone },
     ],
+  },
+  {
+    label: "Content",
+    items: [{ href: "/content", label: "Content", icon: Newspaper }],
   },
   {
     label: "Team",

@@ -528,6 +528,36 @@ export interface SupportTicketDetail {
  * the real thing; it never composes or sends, because a second sender here
  * would be a second email product with none of the deliverability work.
  */
+/** Our own account, as the bridge page reads it. Same tables a customer's
+ *  dashboard uses — nothing here is a staff-only measurement. */
+export interface InternalSummary {
+  object: "internal_summary";
+  organization_id: string;
+  workspace_id: string;
+  audience: { total: number; active: number };
+  suppressed: number;
+  open_threads: number;
+  /** Null = our marketing footers ship without a CAN-SPAM address. */
+  postal_address: string | null;
+  sends_30d: {
+    total: number;
+    sent: number;
+    bounced: number;
+    complained: number;
+    suppressed: number;
+    failed: number;
+  };
+  recent: {
+    id: string;
+    subject: string;
+    to_email: string;
+    status: string;
+    /** security | transactional | marketing */
+    kind: string | null;
+    created_at: string;
+  }[];
+}
+
 export interface CustomerOutreach {
   object: "customer_outreach";
   workspace_id: string;

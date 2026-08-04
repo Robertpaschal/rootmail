@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Every email you send is in the dashboard — however you sent it",
+    date: "2026-08-04",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Email sent through the API, or from your own product, now appears in the dashboard exactly like email composed in the app: the same record, and the same conversation thread under the contact. Before, sending through the API meant those messages were the only ones without a thread — and a customer who replied to one had nowhere to land.",
+      },
+      {
+        kind: "Improved",
+        text: "That also means replies to your API sends arrive in your Replies inbox, threaded under the person who wrote them, instead of going only to whatever address happened to be on the message.",
+      },
+      {
+        kind: "Fixed",
+        text: "One unsubscribe now means unsubscribed everywhere. Turning off product announcements and unsubscribing from a marketing email were two separate lists that didn't know about each other, so someone who opted out of one could still hear from the other. They're one list now — and a bounce or spam complaint is never undone by someone opting back in.",
+      },
+    ],
+  },
+  {
     title: "Audiences that keep themselves up to date",
     date: "2026-08-04",
     changes: [

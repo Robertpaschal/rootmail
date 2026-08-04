@@ -158,3 +158,6 @@ export async function deactivateCustomPlan(formData: FormData): Promise<void> {
   await adminApi.deactivateCustomPlan(orgId);
   revalidatePath(`/orgs/${orgId}`);
 }
+
+// Opening our own workspace lives with the page that owns it — see
+// app/(app)/our-workspace/actions.ts. It is not a per-customer action.

@@ -26,6 +26,7 @@ import type {
   LeadNote,
   LeadPatch,
   LeadStatus,
+  InternalSummary,
   ListResponse,
   LoginResult,
   MeResult,
@@ -152,6 +153,12 @@ export const adminApi = {
     adminFetch<ListResponse<MessageSummary>>(`/v1/admin/orgs/${id}/messages?limit=${limit}`),
   getMessage: (id: string) => adminFetch<MessageDetail>(`/v1/admin/messages/${id}`),
 
+  /** Open OUR OWN workspace in the customer dashboard. Requires announce.send. */
+  openInternal: () =>
+    adminFetch<{ code: string; expires_at: string; workspace_id: string }>("/v1/admin/internal/open", {
+      method: "POST",
+    }),
+  internalSummary: () => adminFetch<InternalSummary>("/v1/admin/internal/summary"),
   impersonate: (userId: string) =>
     adminFetch<{ code: string; expires_at: string }>(`/v1/admin/users/${userId}/impersonate`, {
       method: "POST",

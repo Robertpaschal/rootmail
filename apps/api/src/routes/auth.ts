@@ -16,7 +16,7 @@ import {
   verifyPassword,
   verifyTotp,
 } from "@rootmail/core";
-import { db, impersonationGrants, organizations, sessions, ssoConnections, type User, users } from "@rootmail/db";
+import { db, impersonationGrants, organizations, sessions, setPlatformOptOut, ssoConnections, type User, users } from "@rootmail/db";
 import {
   createSession,
   defaultWorkspaceForUser,
@@ -269,19 +269,25 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     // Whether the active org has finished the post-signup wizard — the dashboard
     // shell routes incomplete orgs to /onboarding. No workspace = nothing to onboard.
     let onboardingCompleted = true;
+    // Are we inside rootmail's OWN account? The shell needs to say so plainly:
+    // this workspace's audience is every customer we have, and mistaking it for
+    // a customer's is the one confusion with a blast radius.
+    let internal = false;
     if (active) {
       const [org] = await db
-        .select({ done: organizations.onboardingCompletedAt })
+        .select({ done: organizations.onboardingCompletedAt, isInternal: organizations.isInternal })
         .from(organizations)
         .where(eq(organizations.id, active.organizationId))
         .limit(1);
       onboardingCompleted = org ? org.done != null : true;
+      internal = org?.isInternal ?? false;
     }
     return {
       user: serializeUser(user),
       workspaces: workspaces.map(serializeWorkspace),
       active_workspace: active ? serializeWorkspace(active) : null,
       impersonating: session.impersonatedByStaffId != null,
+      internal,
       onboarding_completed: onboardingCompleted,
     };
   }
@@ -324,6 +330,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       .set({ announcementOptOutAt: body.announcement_opt_out ? new Date() : null, updatedAt: new Date() })
       .where(eq(users.id, user.id))
       .returning();
+    // Mirror the preference onto our own suppression list, so the product's own
+    // gate is what stops the mail. Best-effort: a failure here must not make the
+    // toggle look broken, and the column above still drives the recipient list.
+    await setPlatformOptOut(updated.email, body.announcement_opt_out).catch(() => {});
     return serializeUser(updated);
   });
 

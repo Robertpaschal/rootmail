@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { newId } from "@rootmail/core";
 import { db } from "./client";
-import { organizations, workspaces } from "./schema";
+import { contacts, organizations, suppressions, workspaces } from "./schema";
 
 /**
  * rootmail's own account — the one we reach our customers from.
@@ -55,6 +55,13 @@ export async function ensureInternalAccount(): Promise<InternalAccount> {
       .update(organizations)
       .set({ isInternal: true })
       .where(and(eq(organizations.id, existing.id), eq(organizations.isInternal, false)));
+    // The wizard is for customers. Ours was landing staff in "Welcome to
+    // rootmail 👋 — pick your plan", which we cannot answer (we have no tier)
+    // and which blocked every link into the product behind it.
+    await db
+      .update(organizations)
+      .set({ onboardingCompletedAt: new Date() })
+      .where(and(eq(organizations.id, existing.id), isNull(organizations.onboardingCompletedAt)));
     return { organizationId: existing.id, workspaceId, created: false };
   }
 
@@ -64,6 +71,12 @@ export async function ensureInternalAccount(): Promise<InternalAccount> {
     name: "rootmail",
     slug: INTERNAL_ORG_SLUG,
     isInternal: true,
+    // Already onboarded: the wizard exists to collect a plan and a compliance
+    // address from a new customer, and we are not one. The postal address it
+    // would ask for is still REQUIRED on our marketing footers — deliberately
+    // left null rather than invented, and surfaced as a gap on the bridge page
+    // so a person supplies the real one.
+    onboardingCompletedAt: new Date(),
     // No tier, no Stripe customer, no subscription. Entitlement checks read the
     // internal flag rather than a plan — we are not a customer of ourselves and
     // giving this org a fake Enterprise subscription would put a number that
@@ -99,6 +112,80 @@ async function ensureInternalWorkspace(organizationId: string): Promise<string> 
     })
     .returning({ id: workspaces.id });
   return created.id;
+}
+
+/**
+ * One opt-out, not two.
+ *
+ * We shipped a second unsubscribe by accident. Product announcements carried
+ * their own link, which set `users.announcement_opt_out_at`, while every other
+ * email we send honours the SUPPRESSION LIST in our own workspace — and neither
+ * knew about the other. A customer who unsubscribed from one kept receiving the
+ * other, and the announcement send even declared itself `transactional`, the one
+ * class whose whole purpose is to ignore an unsubscribe.
+ *
+ * Two opt-out systems is the exact failure the product is sold to prevent, and
+ * we had it. This makes the preference write through to the suppression list, so
+ * OUR OWN RULES enforce it — the same code path that stops a customer's
+ * marketing email stops ours.
+ *
+ * Only the `unsubscribe` reason is ever added or removed here. A bounce or a
+ * complaint is a deliverability fact, not a preference, and re-opting-in must
+ * never clear one — that would resurrect an address the provider told us to stop
+ * mailing.
+ */
+export async function setPlatformOptOut(email: string, optOut: boolean): Promise<void> {
+  const addr = email.toLowerCase();
+  const { workspaceId } = await ensureInternalAccount();
+
+  if (!optOut) {
+    await db
+      .delete(suppressions)
+      .where(
+        and(
+          eq(suppressions.workspaceId, workspaceId),
+          eq(suppressions.email, addr),
+          eq(suppressions.reason, "unsubscribe"),
+        ),
+      );
+    // Bring them back into segments. Only from `unsubscribed` — a bounced or
+    // complained contact stays where the provider put them.
+    await db
+      .update(contacts)
+      .set({ status: "active", updatedAt: new Date() })
+      .where(
+        and(
+          eq(contacts.workspaceId, workspaceId),
+          eq(contacts.email, addr),
+          eq(contacts.status, "unsubscribed"),
+        ),
+      );
+    return;
+  }
+
+  await db
+    .insert(suppressions)
+    .values({
+      id: newId("suppression"),
+      workspaceId,
+      subTenantId: null,
+      email: addr,
+      reason: "unsubscribe",
+      source: "platform_preference",
+    })
+    // Already suppressed for any reason? Leave the stronger record alone.
+    .onConflictDoNothing();
+
+  await db
+    .update(contacts)
+    .set({ status: "unsubscribed", updatedAt: new Date() })
+    .where(
+      and(
+        eq(contacts.workspaceId, workspaceId),
+        eq(contacts.email, addr),
+        eq(contacts.status, "active"),
+      ),
+    );
 }
 
 /** The org id, if we've been bootstrapped. Null before the first run. */

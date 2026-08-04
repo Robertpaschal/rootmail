@@ -27,6 +27,7 @@ import {
   addons,
   announcements,
   auditEntries,
+  audienceWorkspaceId,
   type CustomPlan,
   customPlans,
   db,
@@ -48,6 +49,7 @@ import {
   staffUsers,
   subTenants,
   suppressions,
+  threads,
   usageRecords,
   users,
   workspaces,
@@ -826,6 +828,186 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { object: "suppression", id, deleted: true };
+  });
+
+  /**
+   * Open OUR workspace — rootmail, in the rootmail dashboard.
+   *
+   * Everything else in this build made rootmail a tenant of itself: the org, the
+   * audience, the send path, the record. None of it made us ABLE to use it. The
+   * internal org had zero members, so there was no way for a person to open the
+   * dashboard and be rootmail — only code could reach it. A product we cannot
+   * open is not a product we are dogfooding.
+   *
+   * A staff member gets a real user + membership in the internal org, keyed to
+   * their own email, and then the ordinary customer dashboard. Not a special
+   * staff view of it: THE dashboard, the one customers use, with campaigns,
+   * templates, deliverability and Replies exactly as shipped. If it is awkward
+   * for us it is awkward for them, which is the entire point.
+   *
+   * A real membership rather than impersonation, deliberately: we are not
+   * pretending to be a customer, we ARE the account. The handoff reuses the
+   * impersonation code path only for its safety properties — one-time, 60s,
+   * never a token in a URL — and stamps the staff id so every action inside is
+   * attributable to a person.
+   *
+   * Gated on `announce.send`, which is the honest gate: being inside this
+   * workspace IS the ability to email every customer we have. Superadmin holds
+   * it today; it is the permission to grant a marketer, not a support seat.
+   */
+  app.post("/v1/admin/internal/open", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "announce.send");
+
+    const { organizationId, workspaceId } = await ensureInternalAccount();
+
+    // One user per staff member, so the audit trail inside our own workspace
+    // names a person rather than a shared "rootmail" login nobody owns.
+    const email = staff.email.toLowerCase();
+    let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
+    if (!user) {
+      [user] = await db
+        .insert(users)
+        .values({
+          id: newId("user"),
+          email,
+          name: staff.name ?? null,
+          // No password: this identity is reachable only through this
+          // staff-gated door, never by signing in.
+          passwordHash: null,
+          emailVerifiedAt: new Date(),
+        })
+        .returning();
+    }
+
+    const [existing] = await db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(and(eq(memberships.userId, user.id), eq(memberships.organizationId, organizationId)))
+      .limit(1);
+    if (!existing) {
+      await db.insert(memberships).values({
+        id: newId("membership"),
+        userId: user.id,
+        organizationId,
+        role: "admin",
+      });
+    }
+
+    const { token: code, hash } = generateSessionToken();
+    const expiresAt = new Date(Date.now() + 60_000);
+    await db.insert(impersonationGrants).values({
+      id: newId("impersonationGrant"),
+      codeHash: hash,
+      staffUserId: staff.id,
+      targetUserId: user.id,
+      expiresAt,
+    });
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "internal.open",
+      targetType: "organization",
+      targetId: organizationId,
+      metadata: { workspace_id: workspaceId },
+      ip: req.ip,
+    });
+    return { code, expires_at: expiresAt, workspace_id: workspaceId };
+  });
+
+  /**
+   * Our own account, summarised — read from OUR workspace with OUR own tables.
+   *
+   * Deliberately thin. Everything here is also visible in the dashboard, which
+   * is the point: this is the bridge's dashboard-shaped preview, not a second
+   * analytics product. If a number is interesting the staff member opens the
+   * real thing, where it has a page, a chart and a drill-down already.
+   *
+   * Readable by ANY staff role. Seeing that our own bounce rate is climbing is
+   * not a privileged act; sending is (that stays on `announce.send`).
+   */
+  app.get("/v1/admin/internal/summary", async (req) => {
+    await requireStaff(req);
+    const { organizationId, workspaceId } = await ensureInternalAccount();
+    const since = new Date(Date.now() - 30 * 86_400_000);
+
+    // Our own compliance gaps, held to the standard we hold customers to. The
+    // postal address is deliberately NOT invented at bootstrap: CAN-SPAM wants
+    // a real one, so a placeholder would be worse than the empty state — it
+    // would look satisfied while shipping a false address on every footer.
+    const [self] = await db
+      .select({ postalAddress: organizations.postalAddress })
+      .from(organizations)
+      .where(eq(organizations.id, organizationId))
+      .limit(1);
+
+    const [audience] = await db
+      .select({
+        total: sql<number>`count(*)::int`,
+        active: sql<number>`count(*) FILTER (WHERE ${contacts.status} = 'active')::int`,
+      })
+      .from(contacts)
+      .where(and(eq(contacts.workspaceId, workspaceId), isNull(contacts.subTenantId)));
+
+    // Grouped in SQL rather than counted per status in a loop — one round trip,
+    // and a status we add later shows up without editing this.
+    const byStatus = await db
+      .select({ status: messages.status, n: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(and(eq(messages.workspaceId, workspaceId), gte(messages.createdAt, since)))
+      .groupBy(messages.status);
+
+    const [suppressed] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(suppressions)
+      .where(eq(suppressions.workspaceId, workspaceId));
+
+    const [openThreads] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(threads)
+      .where(and(eq(threads.workspaceId, workspaceId), eq(threads.status, "open")));
+
+    const recent = await db
+      .select({
+        id: messages.id,
+        subject: messages.subject,
+        toEmail: messages.toEmail,
+        status: messages.status,
+        metadata: messages.metadata,
+        createdAt: messages.createdAt,
+      })
+      .from(messages)
+      .where(eq(messages.workspaceId, workspaceId))
+      .orderBy(desc(messages.createdAt))
+      .limit(8);
+
+    const counts = Object.fromEntries(byStatus.map((r) => [r.status, r.n]));
+    const sent30d = byStatus.reduce((a, r) => a + r.n, 0);
+
+    return {
+      object: "internal_summary",
+      organization_id: organizationId,
+      workspace_id: workspaceId,
+      audience: { total: audience?.total ?? 0, active: audience?.active ?? 0 },
+      suppressed: suppressed?.n ?? 0,
+      open_threads: openThreads?.n ?? 0,
+      postal_address: self?.postalAddress ?? null,
+      sends_30d: {
+        total: sent30d,
+        sent: (counts.sent ?? 0) + (counts.delivered ?? 0),
+        bounced: counts.bounced ?? 0,
+        complained: counts.complained ?? 0,
+        suppressed: counts.suppressed ?? 0,
+        failed: counts.failed ?? 0,
+      },
+      recent: recent.map((m) => ({
+        id: m.id,
+        subject: m.subject,
+        to_email: m.toEmail,
+        status: m.status,
+        kind: (m.metadata as Record<string, unknown>)?.platform_mail_class ?? null,
+        created_at: m.createdAt.toISOString(),
+      })),
+    };
   });
 
   // --- Impersonation (support/superadmin only) ----------------------------
@@ -2125,7 +2307,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
 
   // --- Announcements (broadcast to customers, dogfooded) ------------------
   // Verified account owners are the recipients (one per person, deduped by email).
+  // Suppressed addresses are excluded HERE, not just at send time. The send
+  // already refuses them (class "marketing"), but a count that includes people
+  // we will not mail is a lie the staff member acts on — they read "412
+  // customers" and it goes to 380. The number and the send must agree.
   async function announcementRecipients(): Promise<{ email: string; name: string | null }[]> {
+    const workspaceId = await audienceWorkspaceId();
     return db
       .selectDistinct({ email: users.email, name: users.name })
       .from(memberships)
@@ -2135,6 +2322,11 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           eq(memberships.role, "owner"),
           isNotNull(users.emailVerifiedAt),
           isNull(users.announcementOptOutAt),
+          sql`NOT EXISTS (
+            SELECT 1 FROM ${suppressions}
+            WHERE ${suppressions.workspaceId} = ${workspaceId}
+              AND ${suppressions.email} = lower(${users.email})
+          )`,
         ),
       );
   }
@@ -2193,7 +2385,10 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         recipientName: r.name,
         unsubscribeUrl: announcementUnsubscribeUrl(r.email),
       });
-      await sendSystemEmail({ to: r.email, subject: mail.subject, html: mail.html, text: mail.text, cls: "transactional" });
+      // MARKETING, not transactional. A product announcement is exactly the
+      // thing an unsubscribe is supposed to stop, and calling it transactional
+      // opted us out of our own suppression list — see setPlatformOptOut.
+      await sendSystemEmail({ to: r.email, subject: mail.subject, html: mail.html, text: mail.text, cls: "marketing" });
     }
 
     // Archive the broadcast so the console can present history, not just a form.

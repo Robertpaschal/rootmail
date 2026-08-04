@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { verifyAnnouncementUnsubToken } from "@rootmail/core";
-import { db, users } from "@rootmail/db";
+import { db, setPlatformOptOut, users } from "@rootmail/db";
 import { escapeHtml, unsubPage } from "../lib/unsub-page";
 
 export async function announcementRoutes(app: FastifyInstance): Promise<void> {
@@ -23,6 +23,10 @@ export async function announcementRoutes(app: FastifyInstance): Promise<void> {
         .update(users)
         .set({ announcementOptOutAt: new Date(), updatedAt: new Date() })
         .where(eq(users.email, email));
+      // …and write it through to the suppression list, so the product's own
+      // gate enforces it rather than this one column being the only thing that
+      // remembers. Without this we had two unsubscribes that disagreed.
+      await setPlatformOptOut(email, true);
       return reply
         .type("text/html")
         .send(
