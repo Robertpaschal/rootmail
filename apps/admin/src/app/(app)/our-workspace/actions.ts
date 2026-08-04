@@ -2,8 +2,7 @@
 
 import { adminApi } from "@/lib/admin-api";
 import { ApiError } from "@/lib/admin-api";
-
-const DASHBOARD_URL = process.env.ROOTMAIL_DASHBOARD_URL ?? "http://localhost:3001";
+import { dashboardUrl } from "@/lib/urls";
 
 /**
  * Open the real dashboard, as rootmail.
@@ -23,7 +22,7 @@ export async function openOurWorkspace(to?: string): Promise<{ url?: string; err
     const { code } = await adminApi.openInternal();
     const next = to && to.startsWith("/") && !to.startsWith("//") ? to : "/";
     return {
-      url: `${DASHBOARD_URL}/impersonate?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`,
+      url: `${dashboardUrl()}/impersonate?code=${encodeURIComponent(code)}&next=${encodeURIComponent(next)}`,
     };
   } catch (err) {
     if (err instanceof ApiError && err.status === 403) {

@@ -6,6 +6,7 @@ import { adminApi, ApiError } from "@/lib/admin-api";
 import { StatCard } from "@/components/app/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { formatNumber } from "@/lib/format";
+import { dashboardUrl } from "@/lib/urls";
 import { OrgTabs } from "./org-tabs";
 
 export const metadata: Metadata = { title: "Organization" };
@@ -106,7 +107,7 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
         </div>
       ) : null}
 
-      <OrgTabs org={org} messages={messages} suppressions={suppressions} billing={billing} openLeads={openLeads} outreach={outreach} dashboardUrl={process.env.DASHBOARD_URL ?? "http://localhost:3001"} />
+      <OrgTabs org={org} messages={messages} suppressions={suppressions} billing={billing} openLeads={openLeads} outreach={outreach} dashboardUrl={dashboardUrl()} />
     </div>
   );
 }

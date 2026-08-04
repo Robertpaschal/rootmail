@@ -2,8 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { adminApi, ApiError } from "@/lib/admin-api";
-
-const DASHBOARD_URL = process.env.ROOTMAIL_DASHBOARD_URL ?? "http://localhost:3001";
+import { dashboardUrl } from "@/lib/urls";
 
 export type CreditState = { ok?: boolean; error?: string };
 
@@ -77,7 +76,7 @@ export async function createImpersonationLink(
 ): Promise<{ url: string } | { error: string }> {
   try {
     const { code } = await adminApi.impersonate(userId);
-    return { url: `${DASHBOARD_URL}/impersonate?code=${encodeURIComponent(code)}` };
+    return { url: `${dashboardUrl()}/impersonate?code=${encodeURIComponent(code)}` };
   } catch (err) {
     if (err instanceof ApiError && err.status === 403) {
       return { error: "Your staff role can't impersonate." };
