@@ -2,7 +2,7 @@ import { and, desc, eq, gte, ilike, inArray, isNull, or, sql } from "drizzle-orm
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { CONTACT_STAGES, env, Errors, newId } from "@rootmail/core";
-import { contactEvents, contacts, db, type List, listContacts, lists, pendingWaitlist } from "@rootmail/db";
+import { audienceSize, contactEvents, contacts, db, describeSegment, type List, listContacts, lists, pendingWaitlist, validateSegmentFilter } from "@rootmail/db";
 import { assertAudienceCapacity, assertContactCapacity } from "../lib/billing";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
@@ -29,6 +29,10 @@ function serialize(l: List, contactCount: number) {
     double_opt_in: l.doubleOptIn,
     signup_tag: l.signupTag,
     signup_redirect_url: l.signupRedirectUrl,
+    // A rule-based audience: `filter` is how it decides who is in it, and
+    // `describes` is that rule as a sentence so a UI never has to re-derive it.
+    filter: l.filter ?? null,
+    describes: l.filter ? describeSegment(l.filter as never) : null,
     created_at: l.createdAt.toISOString(),
   };
 }
@@ -50,12 +54,20 @@ async function getScoped(req: FastifyRequest, id: string): Promise<List> {
   return l;
 }
 
-async function countOf(listId: string): Promise<number> {
-  const [row] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(listContacts)
-    .where(eq(listContacts.listId, listId));
-  return row?.n ?? 0;
+/**
+ * How many people this audience reaches — membership OR rule.
+ *
+ * Takes the ROW, not an id: counting a rule audience by joining membership
+ * returns zero, and "0 contacts" on an audience that in fact holds hundreds is
+ * the kind of quiet wrongness that makes someone abandon a working feature.
+ */
+async function countOf(l: List): Promise<number> {
+  return audienceSize({
+    id: l.id,
+    workspaceId: l.workspaceId,
+    subTenantId: l.subTenantId,
+    filter: l.filter,
+  });
 }
 
 export async function listRoutes(app: FastifyInstance): Promise<void> {
@@ -73,7 +85,15 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
       )
       .groupBy(lists.id)
       .orderBy(desc(lists.createdAt));
-    return { object: "list", data: rows.map((r) => serialize(r.list, r.count)) };
+    // The join gives 0 for a rule-based audience (it has no membership rows),
+    // so those are counted by their rule instead. Only the rule ones cost an
+    // extra query — an ordinary audience keeps the single grouped count.
+    return {
+      object: "list",
+      data: await Promise.all(
+        rows.map(async (r) => serialize(r.list, r.list.filter ? await countOf(r.list) : r.count)),
+      ),
+    };
   });
 
   app.post("/v1/lists", async (req, reply) => {
@@ -84,11 +104,23 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
         description: z.string().max(500).optional(),
         // Seed the new audience with everyone carrying this tag (a "subset").
         from_tag: z.string().min(1).max(80).optional(),
+        // A live rule instead of a membership. Validated below before it is
+        // stored, so a bad rule fails here rather than at send time.
+        filter: z.record(z.unknown()).optional(),
       }),
       req.body,
     );
     // Audiences are a per-tier marketing dimension — enforce the count.
     await assertAudienceCapacity(await loadOrg(req));
+    // Compile the rule NOW. A rule that only fails at send time fails against a
+    // real campaign, in front of a real audience.
+    if (body.filter) {
+      try {
+        validateSegmentFilter(body.filter);
+      } catch (err) {
+        throw Errors.badRequest(err instanceof Error ? err.message : "Invalid audience rule.");
+      }
+    }
     const [row] = await db
       .insert(lists)
       .values({
@@ -97,6 +129,7 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
         subTenantId: scopeOf(req),
         name: body.name,
         description: body.description ?? null,
+        filter: body.filter ?? null,
       })
       .returning();
 
@@ -128,7 +161,7 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/lists/:id", async (req) => {
     const { id } = req.params as { id: string };
     const l = await getScoped(req, id);
-    return serialize(l, await countOf(l.id));
+    return serialize(l, await countOf(l));
   });
 
   app.patch("/v1/lists/:id", async (req) => {
@@ -142,13 +175,22 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
         double_opt_in: z.boolean().optional(),
         signup_tag: z.string().trim().max(60).nullable().optional(),
         signup_redirect_url: z.string().url().max(500).nullable().optional(),
+        filter: z.record(z.unknown()).nullable().optional(),
       }),
       req.body,
     );
     const existing = await getScoped(req, id);
+    if (body.filter) {
+      try {
+        validateSegmentFilter(body.filter);
+      } catch (err) {
+        throw Errors.badRequest(err instanceof Error ? err.message : "Invalid audience rule.");
+      }
+    }
     const [updated] = await db
       .update(lists)
       .set({
+        filter: body.filter !== undefined ? body.filter : existing.filter,
         name: body.name ?? existing.name,
         description: body.description !== undefined ? body.description : existing.description,
         signupEnabled: body.signup_enabled ?? existing.signupEnabled,
@@ -159,7 +201,7 @@ export async function listRoutes(app: FastifyInstance): Promise<void> {
       })
       .where(eq(lists.id, existing.id))
       .returning();
-    return serialize(updated, await countOf(updated.id));
+    return serialize(updated, await countOf(updated));
   });
 
   // --- Growth: subs vs unsubs by day + the waitlist, for the Grow panel ------

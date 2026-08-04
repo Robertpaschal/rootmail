@@ -1,5 +1,6 @@
 import { type SQL, and, eq, or, sql } from "drizzle-orm";
-import { contacts } from "./schema";
+import { db } from "./client";
+import { contacts, listContacts } from "./schema";
 
 /**
  * Audiences that describe themselves — "everyone on Free who hasn't verified a
@@ -178,6 +179,83 @@ export function segmentWhere(
 
   // Never mail a contact who has left. A rule cannot opt out of this.
   return and(scope, eq(contacts.status, "active"), rule) as SQL;
+}
+
+/**
+ * The people in an audience, however that audience decides who they are.
+ *
+ * ONE resolver, deliberately. A self-describing audience holds no membership
+ * rows, so every place that resolved members by joining `list_contacts` would
+ * quietly return NOBODY for one — the campaign would send to an empty audience
+ * and report success. That is the same silent-zero failure mode as a trait that
+ * matches nothing, and it is the reason this is a shared function rather than a
+ * condition copied into the four places that need it: a fifth call site added
+ * later inherits the right answer instead of the old bug.
+ */
+export async function audienceMembers(list: AudienceRef): Promise<AudienceMember[]> {
+  const fields = {
+    id: contacts.id,
+    email: contacts.email,
+    name: contacts.name,
+    phone: contacts.phone,
+    tags: contacts.tags,
+    metadata: contacts.metadata,
+  };
+
+  if (isSegment(list)) {
+    return db
+      .select(fields)
+      .from(contacts)
+      .where(segmentWhere(list.filter as SegmentFilter, list.workspaceId, list.subTenantId));
+  }
+
+  return db
+    .select(fields)
+    .from(listContacts)
+    .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
+    .where(eq(listContacts.listId, list.id));
+}
+
+/** How many people this audience currently reaches. */
+export async function audienceSize(list: AudienceRef): Promise<number> {
+  if (isSegment(list)) {
+    const [row] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(contacts)
+      .where(segmentWhere(list.filter as SegmentFilter, list.workspaceId, list.subTenantId));
+    return row?.n ?? 0;
+  }
+  const [row] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(listContacts)
+    .where(eq(listContacts.listId, list.id));
+  return row?.n ?? 0;
+}
+
+export interface AudienceRef {
+  id: string;
+  workspaceId: string;
+  subTenantId: string | null;
+  filter: unknown;
+}
+
+export interface AudienceMember {
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  tags: string[];
+  metadata: Record<string, unknown>;
+}
+
+/**
+ * Is this audience a rule rather than a membership?
+ *
+ * The one predicate every call site should ask, so "does this audience have a
+ * filter" is expressed once and can't be spelled three different ways.
+ */
+export function isSegment(list: { filter: unknown }): boolean {
+  return list.filter != null && typeof list.filter === "object";
 }
 
 /** A human sentence for a rule, for the audience header and campaign review. */

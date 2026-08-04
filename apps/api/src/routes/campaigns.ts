@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { contactVariables, enqueueCampaignSend, Errors, newId, render } from "@rootmail/core";
-import { auditEntries, type Campaign, campaignOverrides, campaigns, contacts, db, listContacts, lists, messages, sequenceEnrollments, sequences, templates } from "@rootmail/db";
+import { audienceMembers, auditEntries, type Campaign, campaignOverrides, campaigns, contacts, db, listContacts, lists, messages, sequenceEnrollments, sequences, templates } from "@rootmail/db";
 import { assertContactCapacity, assertEmailVerified, assertMarketingSendCapacity } from "../lib/billing";
 import { loadOrg, requireFeature } from "../lib/features";
 import { messageFunnel } from "../lib/funnel";
@@ -173,17 +173,18 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       for (const t of rows) if (t.workspaceId === c.workspaceId) variantTemplates.set(t.id, t);
     }
 
-    const all = await db
-      .select({
-        email: contacts.email,
-        name: contacts.name,
-        tags: contacts.tags,
-        phone: contacts.phone,
-        metadata: contacts.metadata,
-      })
-      .from(listContacts)
-      .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
-      .where(eq(listContacts.listId, c.listId));
+    // Same resolver the worker sends with, so the pre-flight shows the people
+    // who will actually receive this — including for a rule-based audience,
+    // which has no membership rows to join.
+    const [audience] = await db.select().from(lists).where(eq(lists.id, c.listId)).limit(1);
+    const all = audience
+      ? await audienceMembers({
+          id: audience.id,
+          workspaceId: audience.workspaceId,
+          subTenantId: audience.subTenantId,
+          filter: audience.filter,
+        })
+      : [];
 
     const segment = c.segmentTag;
     const members = segment ? all.filter((m) => (m.tags ?? []).includes(segment)) : all;

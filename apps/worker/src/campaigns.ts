@@ -1,6 +1,6 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { type CampaignJob, contactVariables, env } from "@rootmail/core";
-import { campaignOverrides, campaigns, contacts, db, listContacts, senderIdentities, subTenants, templates, workspaces, type Template } from "@rootmail/db";
+import { audienceMembers, campaignOverrides, campaigns, contacts, db, lists, senderIdentities, subTenants, templates, workspaces, type Template } from "@rootmail/db";
 import { automationSend } from "./send";
 
 /** Fan a campaign out to every contact on its list, metered + suppression-aware.
@@ -14,6 +14,7 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
 
   const [ws] = await db.select().from(workspaces).where(eq(workspaces.id, c.workspaceId)).limit(1);
   const [tpl] = await db.select().from(templates).where(eq(templates.id, c.templateId)).limit(1);
+  const [list] = await db.select().from(lists).where(eq(lists.id, c.listId)).limit(1);
   if (!ws || !tpl) {
     await db.update(campaigns).set({ status: "sent", sentAt: new Date() }).where(eq(campaigns.id, c.id));
     return;
@@ -54,17 +55,17 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
     }
   }
 
-  const all = await db
-    .select({
-      email: contacts.email,
-      tags: contacts.tags,
-      name: contacts.name,
-      phone: contacts.phone,
-      metadata: contacts.metadata,
-    })
-    .from(listContacts)
-    .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
-    .where(eq(listContacts.listId, c.listId));
+  // audienceMembers, not a join: an audience can be a RULE ("everyone on Free
+  // with no verified domain") rather than a membership, and a rule holds no
+  // list_contacts rows. Joining would have returned nobody and reported the
+  // campaign a success — sending to an empty audience looks identical to
+  // sending well. One resolver so this can't be got wrong per call site.
+  const all = await audienceMembers({
+    id: list.id,
+    workspaceId: list.workspaceId,
+    subTenantId: list.subTenantId,
+    filter: list.filter,
+  });
 
   // Segmented campaigns only reach members carrying the tag.
   const members = c.segmentTag ? all.filter((m) => (m.tags ?? []).includes(c.segmentTag!)) : all;
