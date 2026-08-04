@@ -178,6 +178,9 @@ export async function memberRoutes(app: FastifyInstance): Promise<void> {
         subject: mail.subject,
         html: mail.html,
         text: mail.text,
+        // security: an invitation grants access to an account. Suppressing it
+        // would silently strand the invitee, and it must not be unsubscribable.
+        cls: "security",
       });
     } catch (err) {
       req.log.warn({ err }, "invitation email enqueue failed");

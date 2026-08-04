@@ -1,5 +1,5 @@
 import { Queue, type ConnectionOptions } from "bullmq";
-import type { Priority } from "./constants";
+import type { Priority, SystemMailClass } from "./constants";
 import { getRedis } from "./redis";
 
 // BullMQ bundles its own ioredis types; this monorepo may resolve a different
@@ -163,6 +163,20 @@ export interface SystemMailJob {
   text: string;
   /** Sender; defaults to no-reply@<ROOTMAIL_DOMAIN> in the worker when omitted. */
   from?: string | null;
+  /**
+   * What may stop this email. See SYSTEM_MAIL_CLASSES — "security" is the one
+   * that a complaint must never be able to silence.
+   *
+   * Defaults to "transactional" when absent so a job enqueued by an older
+   * process (a rolling deploy, a retry from before the upgrade) is treated
+   * conservatively: gated normally, never accidentally promoted to security.
+   */
+  cls?: SystemMailClass;
+  /**
+   * Who this is about, for attribution in our own dashboard. Optional because
+   * some platform mail (a signup verification) predates the account existing.
+   */
+  organizationId?: string | null;
 }
 
 let systemMailQueue: Queue<SystemMailJob> | undefined;

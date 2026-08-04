@@ -9,6 +9,59 @@
 export const MESSAGE_TYPES = ["transactional", "marketing", "sales"] as const;
 export type MessageType = (typeof MESSAGE_TYPES)[number];
 
+/**
+ * What KIND of platform mail this is — and therefore what may stop it.
+ *
+ * rootmail now reaches its own customers through rootmail, which means our
+ * password resets travel the same pipeline as our feature announcements. That
+ * pipeline suppresses. Applying one suppression rule to all of it would hand an
+ * attacker a weapon, so the class decides:
+ *
+ * - "security"      Account integrity: verification, password reset, "your
+ *                   password changed", "a new device signed in", MFA. ONLY a
+ *                   hard bounce stops these — never a complaint, never a
+ *                   manual entry, never an unsubscribe, and they carry no
+ *                   unsubscribe affordance at all.
+ * - "transactional" Receipts, invoices, the relationship mail you get because
+ *                   you are a customer. Honours deliverability suppressions
+ *                   (bounce/complaint/manual), ignores unsubscribe.
+ * - "marketing"     Announcements, win-backs, feature drops. Fully gated, and
+ *                   unsubscribable, exactly like any customer's marketing.
+ *
+ * WHY SECURITY IS DIFFERENT — do not "simplify" this away. A complaint is one
+ * click on "mark as spam". If a complaint suppressed security mail too, then:
+ *
+ *   - marking one of our announcements as spam would permanently disable that
+ *     account's password recovery — a self-inflicted, irreversible lockout; and
+ *   - an attacker who takes over an account and provokes a single complaint
+ *     silences every "your password was changed" and "new sign-in" warning we
+ *     would send the real owner. Suppressing security mail is exactly what an
+ *     attacker wants; a preference must never be able to do it.
+ *
+ * A hard bounce is the one exception because it is not a preference — it is the
+ * address not existing. Continuing to mail it helps nobody and wrecks the
+ * sending reputation that every OTHER security email depends on.
+ */
+export const SYSTEM_MAIL_CLASSES = ["security", "transactional", "marketing"] as const;
+export type SystemMailClass = (typeof SYSTEM_MAIL_CLASSES)[number];
+
+/**
+ * Which suppression reasons may stop a given class.
+ *
+ * Expressed as data, not branches, so the security guarantee is one line you
+ * can read rather than a condition you have to reason about.
+ */
+export const SUPPRESSION_BLOCKS: Record<SystemMailClass, readonly string[]> = {
+  security: ["bounce"],
+  transactional: ["bounce", "complaint", "manual"],
+  marketing: ["bounce", "complaint", "manual", "unsubscribe"],
+} as const;
+
+/** Only marketing may offer an unsubscribe. See the note above. */
+export function mayUnsubscribe(cls: SystemMailClass): boolean {
+  return cls === "marketing";
+}
+
 export const TEMPLATE_TYPES = ["transactional", "marketing", "sales", "any"] as const;
 export type TemplateType = (typeof TEMPLATE_TYPES)[number];
 

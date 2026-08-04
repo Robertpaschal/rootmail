@@ -2100,7 +2100,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         recipientName: r.name,
         unsubscribeUrl: announcementUnsubscribeUrl(r.email),
       });
-      await sendSystemEmail({ to: r.email, subject: mail.subject, html: mail.html, text: mail.text });
+      await sendSystemEmail({ to: r.email, subject: mail.subject, html: mail.html, text: mail.text, cls: "transactional" });
     }
 
     // Archive the broadcast so the console can present history, not just a form.

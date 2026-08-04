@@ -128,7 +128,8 @@ async function sessionResponse(
 async function sendVerificationEmail(user: { id: string; email: string; name: string | null }): Promise<void> {
   const token = await createAuthToken(user.id, "email_verify", EMAIL_VERIFY_TTL_MS);
   const mail = verificationEmail(token, user.name);
-  await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text });
+  // security: proving you own the address is account integrity.
+  await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text, cls: "security" });
 }
 
 export async function authRoutes(app: FastifyInstance): Promise<void> {
@@ -238,7 +239,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (created) {
       try {
         const mail = welcomeEmail(user.name);
-        await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text });
+        await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text, cls: "transactional" });
       } catch (err) {
         req.log.warn({ err }, "oauth welcome email enqueue failed");
       }
@@ -499,7 +500,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
         .limit(1);
       if (u) {
         const mail = welcomeEmail(u.name);
-        await sendSystemEmail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text });
+        await sendSystemEmail({ to: u.email, subject: mail.subject, html: mail.html, text: mail.text, cls: "transactional" });
       }
     } catch (err) {
       req.log.warn({ err }, "welcome email enqueue failed");
@@ -524,7 +525,9 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (user?.passwordHash) {
       const token = await createAuthToken(user.id, "password_reset", PASSWORD_RESET_TTL_MS);
       const mail = passwordResetEmail(token, user.name);
-      await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text });
+      // security: if a suppression could stop this, one spam-click would be a
+      // permanent, unrecoverable account lockout.
+      await sendSystemEmail({ to: user.email, subject: mail.subject, html: mail.html, text: mail.text, cls: "security" });
     }
     return { ok: true };
   });
@@ -547,11 +550,17 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       .limit(1);
     if (changed) {
       const mail = passwordChangedEmail(changed.name);
+      // security, and the single most important one to classify correctly.
+      // "Your password was changed" is the warning that reaches the real owner
+      // when someone else changes it. An attacker's ideal outcome is that this
+      // email is suppressed — so no preference, complaint or manual entry may
+      // stop it. Only a hard bounce, which means the address isn't there.
       await sendSystemEmail({
         to: changed.email,
         subject: mail.subject,
         html: mail.html,
         text: mail.text,
+        cls: "security",
       }).catch(() => {});
     }
     return { reset: true };

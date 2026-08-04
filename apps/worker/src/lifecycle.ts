@@ -137,7 +137,8 @@ export async function processLifecycleSweep(): Promise<void> {
       if (!owner || !owner.verified) continue;
       if (!(await claim(redis, `lc:usage:${org.id}:${p}`, 40 * DAY_SEC))) continue; // once/period
       const mail = usageWarningEmail(owner.name, used, quota, pct);
-      await sendSystemEmail({ to: owner.email, subject: mail.subject, html: mail.html, text: mail.text });
+      // transactional: "you are near your limit" is account operations, not a pitch.
+      await sendSystemEmail({ to: owner.email, subject: mail.subject, html: mail.html, text: mail.text, cls: "transactional" });
       sent++;
     }
 
@@ -151,7 +152,9 @@ export async function processLifecycleSweep(): Promise<void> {
       if (!owner.lastActiveAt || owner.lastActiveAt >= cutoff) continue;
       if (!(await claim(redis, `lc:winback:${owner.orgId}`, 45 * DAY_SEC))) continue; // once/spell
       const mail = winBackEmail(owner.name);
-      await sendSystemEmail({ to: owner.email, subject: mail.subject, html: mail.html, text: mail.text });
+      // marketing, and genuinely so — this one is a pitch. Fully gated and
+      // unsubscribable, exactly like a customer's own marketing.
+      await sendSystemEmail({ to: owner.email, subject: mail.subject, html: mail.html, text: mail.text, cls: "marketing" });
       sent++;
     }
 

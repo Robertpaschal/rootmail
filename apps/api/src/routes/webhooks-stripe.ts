@@ -87,6 +87,7 @@ export async function stripeWebhookRoutes(app: FastifyInstance): Promise<void> {
               subject: mail.subject,
               html: mail.html,
               text: mail.text,
+              cls: "transactional", // billing: a receipt//payment state, never a pitch
             });
           }
           break;
@@ -110,6 +111,7 @@ export async function stripeWebhookRoutes(app: FastifyInstance): Promise<void> {
                 subject: mail.subject,
                 html: mail.html,
                 text: mail.text,
+                cls: "transactional", // billing: a receipt, never a pitch
               });
             }
           }
@@ -126,6 +128,7 @@ export async function stripeWebhookRoutes(app: FastifyInstance): Promise<void> {
               subject: mail.subject,
               html: mail.html,
               text: mail.text,
+              cls: "transactional", // billing: a receipt//payment state, never a pitch
             });
           }
           break;

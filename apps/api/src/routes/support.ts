@@ -239,6 +239,8 @@ export async function supportRoutes(app: FastifyInstance): Promise<void> {
         `<p>${escapeHtml(text).replace(/\n/g, "<br>")}</p>` +
         `<hr><p style="color:#888;font-size:12px">You're receiving this because you contacted rootmail support. Just reply to this email to continue the conversation.</p>`,
       text: `${text}\n\n— rootmail support`,
+      // transactional: a reply in a conversation the customer started.
+      cls: "transactional",
     }).catch((err) => req.log.warn({ err }, "support reply email failed"));
 
     await writeStaffAudit({
