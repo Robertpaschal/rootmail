@@ -519,3 +519,33 @@ export interface SupportTicketDetail {
   created_at: string;
   messages: SupportMessage[];
 }
+
+/**
+ * Our own outreach to one customer.
+ *
+ * Read out of rootmail's own workspace — the same messages and contact any
+ * customer sees for their own sends. The admin console shows it and links to
+ * the real thing; it never composes or sends, because a second sender here
+ * would be a second email product with none of the deliverability work.
+ */
+export interface CustomerOutreach {
+  object: "customer_outreach";
+  workspace_id: string;
+  email?: string;
+  contact: {
+    id: string;
+    status: string;
+    tags: string[];
+    traits: Record<string, unknown>;
+  } | null;
+  suppressions?: { reason: string; created_at: string }[];
+  messages: {
+    id: string;
+    subject: string;
+    status: string;
+    /** security | transactional | marketing — what may stop it. */
+    kind: string | null;
+    error: string | null;
+    created_at: string;
+  }[];
+}

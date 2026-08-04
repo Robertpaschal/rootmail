@@ -37,6 +37,8 @@ import {
   type LeadNote,
   type Message,
   memberships,
+  contacts,
+  ensureInternalAccount,
   messages,
   orgAddons,
   organizations,
@@ -527,6 +529,97 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         members: mc.get(o.id) ?? 0,
         usage_this_period: uc.get(o.id) ?? 0,
         created_at: o.createdAt,
+      })),
+    };
+  });
+
+  /**
+   * What WE have sent this customer, and how it landed.
+   *
+   * The admin console is the bridge, not a second sender. rootmail reaches its
+   * customers through rootmail, so this reads out of our own workspace — the
+   * same messages, statuses and contact any customer sees for their own sends —
+   * and hands back the ids the dashboard needs to open the real thing. It has
+   * no compose, no send, and no template of its own on purpose: the moment
+   * staff can mail from here, we are maintaining two email products and only
+   * one of them gets the deliverability work.
+   */
+  app.get("/v1/admin/orgs/:id/outreach", async (req) => {
+    const staff = await requireStaff(req);
+    void staff;
+    const { id } = req.params as { id: string };
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
+    if (!org) throw Errors.notFound("Organization not found");
+
+    const [owner] = await db
+      .select({ email: users.email, name: users.name })
+      .from(memberships)
+      .innerJoin(users, eq(users.id, memberships.userId))
+      .where(and(eq(memberships.organizationId, id), eq(memberships.role, "owner")))
+      .limit(1);
+
+    const { workspaceId } = await ensureInternalAccount();
+    const email = owner?.email?.toLowerCase() ?? null;
+    if (!email) {
+      return { object: "customer_outreach", contact: null, messages: [], workspace_id: workspaceId };
+    }
+
+    // Their contact in OUR audience — the thing a campaign would actually reach.
+    const [contact] = await db
+      .select({ id: contacts.id, status: contacts.status, tags: contacts.tags, metadata: contacts.metadata })
+      .from(contacts)
+      .where(
+        and(
+          eq(contacts.workspaceId, workspaceId),
+          isNull(contacts.subTenantId),
+          eq(contacts.email, email),
+        ),
+      )
+      .limit(1);
+
+    const sent = await db
+      .select({
+        id: messages.id,
+        subject: messages.subject,
+        status: messages.status,
+        metadata: messages.metadata,
+        created_at: messages.createdAt,
+        error: messages.error,
+      })
+      .from(messages)
+      .where(and(eq(messages.workspaceId, workspaceId), eq(messages.toEmail, email)))
+      .orderBy(desc(messages.createdAt))
+      .limit(25);
+
+    // Suppressions in OUR workspace: why a customer may have stopped hearing
+    // from us. Security mail still reaches them — see SYSTEM_MAIL_CLASSES.
+    const supp = await db
+      .select({ reason: suppressions.reason, created_at: suppressions.createdAt })
+      .from(suppressions)
+      .where(and(eq(suppressions.workspaceId, workspaceId), eq(suppressions.email, email)));
+
+    return {
+      object: "customer_outreach",
+      workspace_id: workspaceId,
+      email,
+      contact: contact
+        ? {
+            id: contact.id,
+            status: contact.status,
+            tags: contact.tags,
+            traits: contact.metadata,
+          }
+        : null,
+      suppressions: supp.map((r) => ({ reason: r.reason, created_at: r.created_at.toISOString() })),
+      messages: sent.map((m) => ({
+        id: m.id,
+        subject: m.subject,
+        status: m.status,
+        kind: (m.metadata as { platform_mail_class?: string } | null)?.platform_mail_class ?? null,
+        // Opens are audit-derived in this product, not a column here — so this
+        // reports delivery only rather than inventing an engagement signal.
+        error: m.error,
+        created_at: m.created_at.toISOString(),
       })),
     };
   });

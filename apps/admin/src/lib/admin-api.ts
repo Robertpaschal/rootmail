@@ -41,6 +41,7 @@ import type {
   StaffRole,
   StaffUser,
   Suppression,
+  CustomerOutreach,
 } from "./types";
 
 /** Where the rootmail REST API lives. The admin console only ever calls it server-side. */
@@ -144,6 +145,8 @@ export const adminApi = {
 
   listOrgs: () => adminFetch<ListResponse<OrgSummary>>("/v1/admin/orgs"),
   getOrg: (id: string) => adminFetch<OrgDetail>(`/v1/admin/orgs/${id}`),
+  /** What WE have sent this customer, out of our own workspace. Read-only. */
+  getOrgOutreach: (id: string) => adminFetch<CustomerOutreach>(`/v1/admin/orgs/${id}/outreach`),
 
   listOrgMessages: (id: string, limit = 25) =>
     adminFetch<ListResponse<MessageSummary>>(`/v1/admin/orgs/${id}/messages?limit=${limit}`),

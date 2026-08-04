@@ -23,6 +23,9 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
   const { data: suppressions } = await adminApi.listOrgSuppressions(id, 50);
   // Billing pulls from Stripe — never let a Stripe hiccup break the whole page.
   const billing = await adminApi.getOrgBilling(id).catch(() => null);
+  // Our own outreach to this customer. Non-fatal: the bridge is a read, and a
+  // hiccup here must not take down the customer record staff came to see.
+  const outreach = await adminApi.getOrgOutreach(id).catch(() => null);
   // Open leads (for the "convert from lead" picker on the custom-plan form).
   const leadResp = await adminApi.listLeads().catch(() => null);
   const openLeads = (leadResp?.data ?? [])
@@ -103,7 +106,7 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
         </div>
       ) : null}
 
-      <OrgTabs org={org} messages={messages} suppressions={suppressions} billing={billing} openLeads={openLeads} />
+      <OrgTabs org={org} messages={messages} suppressions={suppressions} billing={billing} openLeads={openLeads} outreach={outreach} dashboardUrl={process.env.DASHBOARD_URL ?? "http://localhost:3001"} />
     </div>
   );
 }

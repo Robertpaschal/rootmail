@@ -18,11 +18,12 @@ import { DedicatedIpForm } from "./dedicated-ip-form";
 import { ReplyDomainForm } from "./reply-domain-form";
 import { formatDate, formatDateTime, formatMoney, formatUnix } from "@/lib/format";
 import { cn } from "@/lib/utils";
-import type { AdminBilling, MessageSummary, OrgDetail, Suppression } from "@/lib/types";
+import type { AdminBilling, CustomerOutreach, MessageSummary, OrgDetail, Suppression } from "@/lib/types";
 import { clearSuppression } from "./actions";
 import { CustomPlanForm } from "./custom-plan-form";
 import { GrantCreditForm } from "./grant-credit-form";
 import { ImpersonateButton } from "./impersonate-button";
+import { CustomerOutreachPanel } from "./customer-outreach";
 
 type TabId = "overview" | "activity" | "people" | "billing" | "suppressions";
 
@@ -32,12 +33,18 @@ export function OrgTabs({
   suppressions,
   billing,
   openLeads,
+  outreach,
+  dashboardUrl,
 }: {
   org: OrgDetail;
   messages: MessageSummary[];
   suppressions: Suppression[];
   billing: AdminBilling | null;
   openLeads: { id: string; label: string }[];
+  /** Null when the bridge read failed — the record still renders. */
+  outreach: CustomerOutreach | null;
+  /** Passed from the server — org-tabs is a client component and cannot read env. */
+  dashboardUrl: string;
 }) {
   const [tab, setTab] = useState<TabId>("overview");
   const tabs: { id: TabId; label: string; badge?: number }[] = [
@@ -74,7 +81,18 @@ export function OrgTabs({
       </div>
 
       {tab === "overview" ? <OverviewTab org={org} /> : null}
-      {tab === "activity" ? <ActivityTab messages={messages} /> : null}
+      {tab === "activity" ? (
+        <div className="space-y-5">
+          {/* Their sending, then ours. Both are "activity" on this account —
+              separating them into different screens would hide the fact that a
+              customer who stopped hearing from US is a different problem from a
+              customer who stopped sending. */}
+          <ActivityTab messages={messages} />
+          {outreach ? (
+            <CustomerOutreachPanel outreach={outreach} dashboardUrl={dashboardUrl} />
+          ) : null}
+        </div>
+      ) : null}
       {tab === "people" ? <PeopleTab org={org} /> : null}
       {tab === "billing" ? <BillingTab org={org} billing={billing} openLeads={openLeads} /> : null}
       {tab === "suppressions" ? <SuppressionsTab orgId={org.id} suppressions={suppressions} /> : null}
