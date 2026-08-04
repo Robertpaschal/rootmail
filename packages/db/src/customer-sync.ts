@@ -170,3 +170,19 @@ export async function audienceWorkspaceId(): Promise<string> {
 
 /** Unused import guard — `workspaces` is referenced by the schema relations. */
 void workspaces;
+
+/**
+ * Our audience just went stale for this account — refresh it.
+ *
+ * Fire-and-forget by design. This is OUR marketing plumbing; a customer
+ * signing up, finishing onboarding or upgrading must never see an error, or
+ * wait, because a contact record failed to write. The daily backfill
+ * (syncAllCustomersToAudience) is the safety net that repairs anything missed.
+ *
+ * Callers do `void customerChanged(orgId)` — deliberately not awaited.
+ */
+export function customerChanged(organizationId: string): void {
+  void syncCustomerToAudience(organizationId).catch(() => {
+    /* the backfill will pick it up */
+  });
+}

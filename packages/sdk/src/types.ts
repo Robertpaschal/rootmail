@@ -169,6 +169,23 @@ export interface ContactList {
   name: string;
   [key: string]: unknown;
 }
+
+/**
+ * An audience that describes itself.
+ *
+ * Conditions read a contact's own fields (`tag`, `stage`, `status`, `email`,
+ * `name`, `created_at`, `updated_at`) or any trait you sync, as `trait:<key>`.
+ * Values are always sent as data — you never build a query.
+ */
+export interface SegmentFilter {
+  /** "all" = every condition (default); "any" = at least one. */
+  match?: "all" | "any";
+  conditions: {
+    field: string;
+    op: "eq" | "neq" | "contains" | "exists" | "not_exists" | "before" | "after";
+    value?: string | number | boolean | null;
+  }[];
+}
 export interface Campaign {
   id: string;
   object: "campaign";

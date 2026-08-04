@@ -1,7 +1,7 @@
 import type { Redis } from "ioredis";
 import { eq } from "drizzle-orm";
 import { contactCapForOrg, createRedis, env, PLANS, sendSystemEmail } from "@rootmail/core";
-import { admitWaitlisted, billableContactCount, contactEvents, contactPackUnits, db, memberships, organizations, plans, usageRecords, users, workspaces } from "@rootmail/db";
+import { admitWaitlisted, billableContactCount, contactEvents, contactPackUnits, db, memberships, organizations, plans, syncAllCustomersToAudience, usageRecords, users, workspaces } from "@rootmail/db";
 
 // Conditional lifecycle email, sent by a daily sweep and de-duplicated in Redis so
 // nothing re-sends. Bodies are inline + email-client-safe, matching the platform
@@ -105,6 +105,15 @@ export async function processLifecycleSweep(): Promise<void> {
   let sent = 0;
   try {
     await admitWaitlistedSweep().catch((err) => console.warn(`[lifecycle] waitlist sweep failed: ${String(err)}`));
+
+    // Keep OUR audience honest. Signup, onboarding and plan changes each push a
+    // refresh already, but a fire-and-forget push can be lost (a restart mid
+    // request, a webhook we never saw) and a stale trait is worse than a
+    // missing one: it silently puts people in — or leaves them out of — a
+    // segment. This is the repair, and it is why those hooks can be lossy.
+    await syncAllCustomersToAudience()
+      .then((r) => console.log(`[lifecycle] audience sync: ${r.synced} customers, ${r.skipped} skipped`))
+      .catch((err) => console.warn(`[lifecycle] audience sync failed: ${String(err)}`));
     const owners = await ownersByOrg();
     const ownerByOrg = new Map(owners.map((o) => [o.orgId, o]));
 

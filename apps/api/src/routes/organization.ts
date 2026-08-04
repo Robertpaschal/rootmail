@@ -13,6 +13,7 @@ import {
   templates,
   users,
   workspaces,
+  customerChanged,
 } from "@rootmail/db";
 import { loadOrg } from "../lib/features";
 import { orgAddonQuantities } from "../lib/plans";
@@ -192,6 +193,9 @@ export async function organizationRoutes(app: FastifyInstance): Promise<void> {
       })
       .where(eq(organizations.id, org.id))
       .returning();
+    // "onboarded" is a trait we segment on ("free and never finished setting
+    // up"), so it has to be true in our audience the moment it's true here.
+    customerChanged(org.id);
     return serialize(updated);
   });
 

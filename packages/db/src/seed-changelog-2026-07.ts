@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Audiences that keep themselves up to date",
+    date: "2026-08-04",
+    changes: [
+      {
+        kind: "New",
+        text: "An audience can now describe itself instead of holding a fixed list of people: “everyone on a free plan who never finished setting up”, “everyone quiet for a month”. Its members are whoever matches right now, so it stays correct on its own — you never rebuild it by hand.",
+      },
+      {
+        kind: "New",
+        text: "Build the rule without writing anything technical: pick a field, a condition and a value, add as many as you need, and match all of them or any of them.",
+      },
+      {
+        kind: "New",
+        text: "Check before you commit. “Check” tells you how many people a rule reaches before you save it — and says so plainly when the answer is nobody, so a campaign never goes out to an empty audience looking like it worked.",
+      },
+      {
+        kind: "Improved",
+        text: "Sync what your product knows about someone — their plan, when they signed up, whether they finished onboarding — onto their contact, and build audiences from it. Adding a contact by email updates them if they already exist, so a sync can run as often as you like.",
+      },
+    ],
+  },
+  {
     title: "The help panel keeps your conversations now",
     date: "2026-08-04",
     changes: [

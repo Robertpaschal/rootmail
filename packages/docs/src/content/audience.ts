@@ -57,6 +57,60 @@ export const lists: DocPage = {
 await mail.lists.addContacts(list.id, ["ada@example.com", "grace@example.com"]);`,
       "audience.ts",
     ),
+    h("Audiences that describe themselves"),
+    p(
+      "An audience can hold a rule instead of a membership. Give it a filter and it stops being a list you maintain and becomes a question your contacts answer: everyone on a free plan who never finished onboarding, everyone dormant a month, everyone in a trial ending this week. Members are whoever matches right now, so it stays correct on its own — you never recompute it and push tags back in.",
+    ),
+    p(
+      "This pairs with syncing your app's users. POST /v1/contacts upserts by email, so push whatever your product knows — plan, signup date, last active — onto a contact's metadata, then segment on those traits as trait:<key>.",
+    ),
+    endpoint("POST", "/v1/lists", "Create a rule audience — pass filter alongside name."),
+    endpoint("PATCH", "/v1/lists/:id", "Change the rule, or pass filter: null to make it an ordinary list again."),
+    endpoint("POST", "/v1/lists/preview-segment", "How many contacts a rule WOULD reach — read-only, saves nothing."),
+    code(
+      "ts",
+      `// 1. Push what your app knows onto the contact (upserts by email).
+await mail.contacts.create({
+  email: "ada@example.com",
+  metadata: { plan: "free", onboarded: false, signed_up_at: "2026-07-01" },
+});
+
+// 2. Check the rule BEFORE you build anything on it.
+const { size } = await mail.lists.previewSegment({
+  match: "all",
+  conditions: [
+    { field: "trait:plan", op: "eq", value: "free" },
+    { field: "trait:onboarded", op: "eq", value: "false" },
+  ],
+});
+console.log("this reaches " + size + " people");
+
+// 3. Save it as an audience you can send to.
+const audience = await mail.lists.create({
+  name: "Trials that never started",
+  filter: {
+    match: "all",
+    conditions: [
+      { field: "trait:plan", op: "eq", value: "free" },
+      { field: "trait:onboarded", op: "eq", value: "false" },
+    ],
+  },
+});`,
+      "segments.ts",
+    ),
+    p(
+      "Fields: tag, stage, status, email, name, created_at, updated_at, and any synced trait as trait:<key>. Operators: eq, neq, contains, exists, not_exists, before, after. Match all (default) or any. A rule may hold up to 25 conditions.",
+    ),
+    callout(
+      "note",
+      "Always check the size before you send. A rule matching nobody looks exactly like a rule that works — the campaign goes out to an empty audience and reports success. ",
+      c("preview-segment"),
+      " is there so that never happens quietly.",
+    ),
+    callout(
+      "note",
+      "Unsubscribed and deleted contacts are never in a rule audience, whatever the rule says — that is not something a filter can opt out of.",
+    ),
     h("Growing an audience (public signup)"),
     p(
       "Enable signup on an audience and it grows itself: every audience gets a hosted, branded signup page plus an embeddable HTML form for your own site. Double opt-in (default) sends a confirmation email from your verified sender; the signup tag is applied to every subscriber — a sequence triggered by that tag is your welcome automation. Signups that arrive while you're at your contact limit are waitlisted (never lost) and admitted automatically when room frees up.",

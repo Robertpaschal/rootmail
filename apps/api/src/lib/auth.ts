@@ -11,6 +11,7 @@ import {
   users,
   type Workspace,
   workspaces,
+  customerChanged,
 } from "@rootmail/db";
 
 // A branded starter template seeded into every new account so the workspace
@@ -195,6 +196,10 @@ export async function provisionAccount(params: {
       subTenantId: null,
       ...STARTER_TEMPLATE,
     });
+
+    // Mirror the new account into our own audience so we can reach them with
+    // our own product. Fire-and-forget: signup must never fail on our CRM.
+    customerChanged(orgId);
 
     return {
       user,

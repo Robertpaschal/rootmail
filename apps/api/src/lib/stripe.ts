@@ -36,6 +36,7 @@ import {
   type PricingTier,
   pricingTiers,
   users,
+  customerChanged,
 } from "@rootmail/db";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
 import { getAddon, getSale, getStripePrices, getTrialDays, planForOrg } from "./plans";
@@ -498,6 +499,10 @@ export async function syncSubscription(sub: Stripe.Subscription): Promise<void> 
       updatedAt: new Date(),
     })
     .where(eq(organizations.id, org.id));
+  // "plan" is a trait our own segments read ("everyone on Free…"), so an
+  // upgrade or a cancellation has to reach our audience too. Fire-and-forget:
+  // a webhook must never fail because our CRM did.
+  customerChanged(org.id);
 
   // Keep entitlements honest: recompute from every live sub that carries add-ons.
   await reconcileAllAddonEntitlements(org.id);
