@@ -197,6 +197,26 @@ export const organizations = pgTable("organizations", {
   replyDomainToken: text("reply_domain_token"),
   replyDomainStatus: text("reply_domain_status").notNull().default("none"),
   replyDomainVerifiedAt: timestamp("reply_domain_verified_at", { withTimezone: true }),
+  /**
+   * OUR OWN account, not a customer's.
+   *
+   * rootmail reaches its customers with rootmail — the same campaigns,
+   * sequences, templates, deliverability and Replies inbox everyone else gets.
+   * That means we are a tenant of ourselves, and the org that represents us has
+   * to be marked, for two reasons:
+   *
+   *   - Money. An internal org has no subscription and must never appear in
+   *     MRR, revenue, churn or "how many customers do we have" — otherwise we
+   *     are counting ourselves as a customer and reporting it to ourselves.
+   *   - Limits. Our own audience is every customer we have; metering our own
+   *     outreach against a plan we sell would be theatre.
+   *
+   * Deliberately a flag on the org rather than a separate table: everything
+   * that already scopes by org — contacts, campaigns, deliverability, replies —
+   * then works for us unchanged, which is the entire point. A parallel
+   * "internal messaging" system would be the thing we are trying not to build.
+   */
+  isInternal: boolean("is_internal").notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });

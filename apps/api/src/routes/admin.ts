@@ -488,9 +488,13 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   // --- Cross-org directory (CRM) ------------------------------------------
   app.get("/v1/admin/orgs", async (req) => {
     await requireStaff(req);
+    // Not our own account. rootmail is a tenant of rootmail — that org exists so
+    // we can reach customers with the product we sell — but it is not a customer
+    // and must not appear in the customer directory.
     const orgs = await db
       .select()
       .from(organizations)
+      .where(eq(organizations.isInternal, false))
       .orderBy(desc(organizations.createdAt))
       .limit(200);
     const ids = orgs.map((o) => o.id);
@@ -770,7 +774,13 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     // Revenue is computed from the LIVE wing model — blocks × bracket price,
     // contacts × tier rate, active custom plans (monthly-ized) — never from the
     // retired plan column. What an org holds IS what it pays.
-    const orgRows = await db.select().from(organizations);
+    // Excluding our own org is not cosmetic: it holds no subscription, so
+    // counting it would quietly divide real revenue by one-too-many orgs and
+    // report a lower ARPU than we actually have.
+    const orgRows = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.isInternal, false));
     const activeCustom = await db.select().from(customPlans).where(eq(customPlans.active, true));
     const customByOrg = new Map(activeCustom.map((c) => [c.organizationId, c]));
 
@@ -879,14 +889,22 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     const now = Date.now();
     const d30 = new Date(now - 30 * 86_400_000);
     const d60 = new Date(now - 60 * 86_400_000);
+    // Our own org was created once, on the day we bootstrapped it. Left in, it
+    // would read as a signup and put a phantom +1 in that month's growth.
     const [g] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(organizations)
-      .where(gte(organizations.createdAt, d30));
+      .where(and(eq(organizations.isInternal, false), gte(organizations.createdAt, d30)));
     const [gp] = await db
       .select({ n: sql<number>`count(*)::int` })
       .from(organizations)
-      .where(and(gte(organizations.createdAt, d60), lt(organizations.createdAt, d30)));
+      .where(
+        and(
+          eq(organizations.isInternal, false),
+          gte(organizations.createdAt, d60),
+          lt(organizations.createdAt, d30),
+        ),
+      );
     const new30 = g?.n ?? 0;
     const prev30 = gp?.n ?? 0;
 
