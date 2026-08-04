@@ -7,7 +7,7 @@ import {
   testRecipientFor,
   WEBHOOK_EVENTS,
 } from "@rootmail/core";
-import { auditEntries, db, type Message, type MessageAttachment, messages, organizations, subTenants, suppressions, workspaces } from "@rootmail/db";
+import { activeReplyDomain, auditEntries, db, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
 import { getProviderFor } from "./providers";
 import type { OutboundAttachment } from "./providers/types";
 
@@ -152,6 +152,62 @@ export async function processSend(data: SendJobData): Promise<void> {
     if (org?.status === "active" && org.configSet) configurationSet = org.configSet;
   }
 
+  // Open the conversation BEFORE sending, so an email a customer sends through
+  // the API is as visible as one sent from the dashboard — and so a reply to it
+  // has somewhere to land.
+  //
+  // This path is `POST /v1/messages`: the one a developer integrating rootmail
+  // into their own product uses. Campaigns and sequences have threaded since
+  // they were built; this never has. So the integration path — the one whose
+  // replies are most likely to be a real person answering a real receipt — was
+  // the only one where the answer went nowhere. (We hit the identical gap on our
+  // own platform mail and fixed it for ourselves first, which is exactly the
+  // asymmetry we said we would not ship.)
+  //
+  // Best-effort: threading must never fail a send that is otherwise fine.
+  let replyTo = message.replyTo;
+  try {
+    const [wsRow] = await db
+      .select({
+        replyMode: organizations.replyMode,
+        replyDomain: organizations.replyDomain,
+        replyDomainStatus: organizations.replyDomainStatus,
+      })
+      .from(organizations)
+      .innerJoin(workspaces, eq(workspaces.organizationId, organizations.id))
+      .where(eq(workspaces.id, message.workspaceId))
+      .limit(1);
+
+    const thread = await openConversationForSend({
+      workspaceId: message.workspaceId,
+      subTenantId: message.subTenantId,
+      contactEmail: message.toEmail,
+      subject: message.subject,
+      fromEmail: message.fromEmail,
+      messageId: message.id,
+      bodyHtml: message.renderedHtml,
+      bodyText: message.renderedText,
+    });
+
+    // `explicit` wins inside resolveReplyTo, so a caller who set reply_to in
+    // their API call keeps it — we add capture, we never override an
+    // instruction their integration deliberately gave us.
+    replyTo = resolveReplyTo({
+      replyMode: wsRow?.replyMode,
+      conversationId: thread.id,
+      fromEmail: message.fromEmail,
+      explicit: message.replyTo,
+      // Branded own-domain replies only once receiving is actually live for it;
+      // otherwise the shared address, so no reply is lost while it's pending.
+      replyDomain: wsRow ? activeReplyDomain(wsRow) : null,
+    });
+    if (replyTo !== message.replyTo) {
+      await db.update(messages).set({ replyTo, updatedAt: new Date() }).where(eq(messages.id, message.id));
+    }
+  } catch {
+    /* threading is non-critical to the send */
+  }
+
   const provider = getProviderFor(message.sandbox, message.toEmail);
   try {
     // Inside the try: if an attachment can't be fetched, the send fails cleanly
@@ -162,7 +218,7 @@ export async function processSend(data: SendJobData): Promise<void> {
       messageId: message.id,
       from: { email: message.fromEmail, name: message.fromName },
       to: message.toEmail,
-      replyTo: message.replyTo,
+      replyTo,
       subject: message.subject,
       html: message.renderedHtml ?? "",
       text: message.renderedText ?? "",
