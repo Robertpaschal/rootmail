@@ -798,6 +798,19 @@ export const lists = pgTable(
     // branded confirmation email before the contact is created; the signup tag is
     // applied to every subscriber (driving contact_tagged sequence triggers); the
     // redirect URL, when set, is where the hosted page sends people afterward.
+    /**
+     * A live rule instead of a fixed membership.
+     *
+     * NULL = an ordinary audience: people are in it because they were added.
+     * Set = the audience describes itself ("everyone on Free with no verified
+     * domain") and its members are whoever matches right now.
+     *
+     * Came from needing to reach our own customers conditionally — dormant,
+     * near a cap, trial ending — which is the same thing any customer syncing
+     * their app's users needs. Shape + safety live in `segments.ts`; it is
+     * validated on write so a bad rule fails at save time, never at send time.
+     */
+    filter: jsonb("filter").$type<Record<string, unknown> | null>(),
     signupEnabled: boolean("signup_enabled").notNull().default(false),
     doubleOptIn: boolean("double_opt_in").notNull().default(true),
     signupTag: text("signup_tag"),

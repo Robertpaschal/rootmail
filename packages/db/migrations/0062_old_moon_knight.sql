@@ -1,0 +1,1 @@
+ALTER TABLE "lists" ADD COLUMN "filter" jsonb;
