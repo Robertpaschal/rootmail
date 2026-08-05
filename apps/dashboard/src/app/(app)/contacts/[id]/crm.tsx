@@ -41,6 +41,7 @@ import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { relativeTime } from "@/lib/format";
+import { isPrivateTrait, traitLabel } from "@/lib/traits";
 import { cn } from "@/lib/utils";
 import type { ContactDetail, ContactList, ContactNote } from "@/lib/types";
 import { POSITIVE_STAGES, STAGE_META, suggestStage, type ContactStage } from "@/lib/stages";
@@ -57,6 +58,30 @@ import { POSITIVE_STAGES, STAGE_META, suggestStage, type ContactStage } from "@/
 // in one list. The header gained the engagement numbers for the same reason:
 // the page could not previously tell you how the relationship was going without
 // making you read the timeline and count.
+
+/**
+ * A synced trait value as a person reads it.
+ *
+ * Traits arrive as strings whatever they were — a boolean is "true", a date is
+ * "2026-07-04". Rendering them raw is how a customer record ends up looking
+ * like a database dump.
+ */
+function formatTrait(value: string): string {
+  const v = value.trim();
+  if (v === "true") return "Yes";
+  if (v === "false") return "No";
+  // Plain ISO dates only. Anything looser risks turning a product SKU or a
+  // version string into a date, which is worse than leaving it alone.
+  if (/^\d{4}-\d{2}-\d{2}$/.test(v)) {
+    const d = new Date(`${v}T00:00:00Z`);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    }
+  }
+  // Thousands separators for whole numbers; leave decimals and ids untouched.
+  if (/^\d{4,}$/.test(v)) return Number(v).toLocaleString();
+  return v;
+}
 
 function initials(name: string | null, email: string): string {
   const base = (name ?? email).trim();
@@ -126,6 +151,18 @@ export function ContactCrm({
   );
 
   const cleanFields = useMemo(() => fields.filter((f) => f.key.trim()), [fields]);
+  /**
+   * The traits worth READING. A `_`-prefixed key is private by convention —
+   * synced so you can segment on it, hidden so the record stays a record.
+   * Without this, a customer syncing their app's users sees their own primary
+   * keys and billing counters on every contact, which is precisely what our own
+   * sync did to us.
+   */
+  const shownFields = useMemo(
+    () => cleanFields.filter((f) => !isPrivateTrait(f.key.trim())),
+    [cleanFields],
+  );
+  const hiddenTraitCount = cleanFields.length - shownFields.length;
   const suggestion = useMemo(() => suggestStage(stage, contact.recent_messages), [stage, contact.recent_messages]);
 
   const saveProfile = () =>
@@ -260,7 +297,7 @@ export function ContactCrm({
 
   const currentIdx = POSITIVE_STAGES.indexOf(stage as (typeof POSITIVE_STAGES)[number]);
   const atRisk = stage === "at_risk";
-  const hasDetails = Boolean(contact.name || contact.phone || cleanFields.length);
+  const hasDetails = Boolean(contact.name || contact.phone || shownFields.length);
 
   /**
    * How the relationship is going, at a glance.
@@ -524,9 +561,9 @@ export function ContactCrm({
                 </FieldRow>
                 {contact.name ? <FieldRow label="Name">{contact.name}</FieldRow> : null}
                 {contact.phone ? <FieldRow label="Phone">{contact.phone}</FieldRow> : null}
-                {cleanFields.map((f) => (
-                  <FieldRow key={f.key} label={f.key} mono>
-                    {f.value}
+                {shownFields.map((f) => (
+                  <FieldRow key={f.key} label={traitLabel(f.key)}>
+                    {formatTrait(f.value)}
                   </FieldRow>
                 ))}
 
@@ -658,6 +695,19 @@ export function ContactCrm({
                     ) : null}
                   </AnimatePresence>
                 </FieldRow>
+
+                {/* Say that private traits exist rather than pretending they
+                    don't — you can still segment on them, and "Edit" shows
+                    them. Silence here would look like data loss. */}
+                {hiddenTraitCount > 0 ? (
+                  <FieldRow label="Private">
+                    <span className="text-xs text-muted-foreground">
+                      {hiddenTraitCount} synced trait{hiddenTraitCount === 1 ? "" : "s"} hidden
+                      (starts with <span className="font-mono">_</span>) — segment on them, or Edit
+                      to see them.
+                    </span>
+                  </FieldRow>
+                ) : null}
 
                 {/* An empty record should invite, not just report emptiness. */}
                 {!hasDetails ? (

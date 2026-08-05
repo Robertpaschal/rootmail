@@ -239,8 +239,18 @@ export async function aiCreditsForOrg(org: WingOrg & { id: string }): Promise<nu
   return BASE_AI_CREDITS + packs * ADD_ONS.ai_credit_pack.grant;
 }
 
-/** Effective included live workspaces for an org (custom plan wins; -1 = unlimited). */
+/**
+ * Effective included live workspaces for an org (custom plan wins; -1 = unlimited).
+ *
+ * ONE for rootmail's own account, deliberately — and this is the one limit that
+ * does NOT lift with the internal flag. Not being a customer removes the
+ * BILLING relationship, not the need for the account to have a defined shape.
+ * We reach our customers from one place; a second live workspace would only
+ * split that audience and give us two half-answers to "who have we emailed?".
+ * A limit we chose is not a paywall.
+ */
 export function workspaceLimitForOrg(org: WingOrg & { id: string }): number {
+  if (org.isInternal) return 1;
   return planForOrg(org).workspaceLimit;
 }
 

@@ -745,9 +745,14 @@ export const CONTACT_UNIT = 100;
  * capacity gate and the worker's waitlist-admission job so both agree exactly.
  */
 export function contactCapForOrg(
-  org: { marketingTier: string | null; marketingContacts: number },
+  org: { marketingTier: string | null; marketingContacts: number; isInternal?: boolean | null },
   packUnits = 0,
 ): number {
+  // rootmail's own account holds every customer we have; a cap there is a bill
+  // we would send ourselves. The SECOND place this had to be said — the API has
+  // its own `contactLimitForOrg`, and a cap enforced in only one of them is a
+  // waitlist that quietly stops admitting while the dashboard says unlimited.
+  if (org.isInternal) return Number.MAX_SAFE_INTEGER;
   const base =
     !org.marketingTier || org.marketingTier === "mk_free" ? FREE_MK_CONTACTS : (org.marketingContacts ?? 0);
   return base + packUnits * CONTACT_PACK_SIZE;
@@ -1049,3 +1054,38 @@ export function resolveDeliveryAddress(email: string): string {
  * In a live workspace a test send is an ordinary send against ordinary quota.
  */
 export const SANDBOX_TEST_SENDS_PER_DAY = 50;
+
+// ---------------------------------------------------------------------------
+// Contact traits
+// ---------------------------------------------------------------------------
+
+/**
+ * A trait whose key starts with `_` is PRIVATE: stored, segmentable, never
+ * displayed on the contact record.
+ *
+ * Syncing an app's users into rootmail always drags along keys that exist to
+ * JOIN, not to read — a primary key, an internal tier code, a billing counter.
+ * They are genuinely useful (you segment on them) and genuinely noise (nobody
+ * opening a customer's record wants to read `organization_id:
+ * org_8pgwbdw5xioqmpkjncire54y`). We found this by dogfooding: our own sync put
+ * five of them on every customer, and the contact page dutifully rendered the
+ * lot.
+ *
+ * So the underscore is the contract. It costs a caller one character and it is
+ * the same convention their database already uses for "internal column".
+ */
+export function isPrivateTrait(key: string): boolean {
+  return key.startsWith("_");
+}
+
+/**
+ * A trait key as a person should read it: `signed_up_at` → "Signed up at".
+ *
+ * Shared so the contact record, the segment builder and the campaign preview
+ * all name a trait identically — a trait called one thing in the rule builder
+ * and another on the record is how you lose faith in both.
+ */
+export function traitLabel(key: string): string {
+  const words = key.replace(/^_/, "").replace(/[_-]+/g, " ").trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}

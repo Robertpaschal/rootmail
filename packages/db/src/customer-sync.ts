@@ -1,5 +1,5 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
-import { newId } from "@rootmail/core";
+import { getTierDef, newId } from "@rootmail/core";
 import { db } from "./client";
 import { ensureInternalAccount } from "./internal-org";
 import { contacts, memberships, organizations, users, workspaces } from "./schema";
@@ -21,11 +21,20 @@ import { contacts, memberships, organizations, users, workspaces } from "./schem
  * customer syncing their app's users wants the same ones.
  */
 
-/** Traits every synced customer carries. Names are stable — segments use them. */
+/**
+ * Traits every synced customer carries. Names are stable — segments use them.
+ *
+ * Anything a person would not want to READ on the customer's record is prefixed
+ * `_` (see `isPrivateTrait`): stored and segmentable, never displayed. That
+ * convention exists because of this file — the first version wrote
+ * `organization_id: org_8pgw…`, `marketing_tier: mk_free` and two billing
+ * counters onto every customer, and the contact page rendered all of it. Useful
+ * to query, meaningless to read.
+ */
 export interface CustomerTraits extends Record<string, unknown> {
   /** "free" or "paid" — the word a person would type into a segment. */
   plan: "free" | "paid";
-  /** The exact tier, when the coarse cut isn't enough. */
+  /** The tier as a PERSON reads it ("Growth"), not its internal id. */
   marketing_tier?: string;
   /** ISO date they signed up — "trial ending", "joined this month". */
   signed_up_at: string;
@@ -33,9 +42,13 @@ export interface CustomerTraits extends Record<string, unknown> {
   onboarded: boolean;
   /** Set only when true, so `not_exists` means "never verified a domain". */
   verified_domain?: string;
-  /** Which product surfaces they actually hold. */
-  transactional_blocks: number;
-  marketing_contacts: number;
+  /** Private: our own id for them, for joining back to the admin console. */
+  _organization_id: string;
+  /** Private: billing counters — segment on them, don't read them. */
+  _transactional_blocks: number;
+  _marketing_contacts: number;
+  /** Private: the raw tier id, when a rule needs to be exact. */
+  _marketing_tier_id?: string;
 }
 
 /**
@@ -90,11 +103,18 @@ export async function syncCustomerToAudience(organizationId: string): Promise<st
 
   const traits: CustomerTraits = {
     plan: planLabel(org),
-    ...(org.marketingTier ? { marketing_tier: org.marketingTier } : {}),
+    // The tier a person reads ("Growth"), not the id they'd have to decode.
+    ...(org.marketingTier
+      ? {
+          marketing_tier: getTierDef(org.marketingTier)?.name ?? org.marketingTier,
+          _marketing_tier_id: org.marketingTier,
+        }
+      : {}),
     signed_up_at: org.createdAt.toISOString().slice(0, 10),
     onboarded: org.onboardingCompletedAt !== null,
-    transactional_blocks: org.transactionalBlocks ?? 0,
-    marketing_contacts: org.marketingContacts ?? 0,
+    _organization_id: org.id,
+    _transactional_blocks: org.transactionalBlocks ?? 0,
+    _marketing_contacts: org.marketingContacts ?? 0,
     ...(org.replyDomainStatus === "active" && org.replyDomain
       ? { verified_domain: org.replyDomain }
       : {}),
@@ -114,13 +134,22 @@ export async function syncCustomerToAudience(organizationId: string): Promise<st
     .limit(1);
 
   if (existing) {
+    // Contacts synced before the `_` convention still carry the public versions
+    // of keys that are now private. A merge alone would preserve them forever,
+    // so the retired names are dropped explicitly — the sync is what repairs
+    // them, on its next run, with no migration needed.
+    const kept = { ...existing.metadata };
+    for (const retired of ["organization_id", "transactional_blocks", "marketing_contacts"]) {
+      delete kept[retired];
+    }
+
     await db
       .update(contacts)
       .set({
         name: owner.name ?? undefined,
         // Merge, don't replace: a human may have added notes-worth of their own
         // traits on this contact and a sync must not wipe them.
-        metadata: { ...existing.metadata, ...traits, organization_id: org.id },
+        metadata: { ...kept, ...traits },
         tags: tagsFor(org, traits),
         updatedAt: new Date(),
       })
@@ -135,7 +164,7 @@ export async function syncCustomerToAudience(organizationId: string): Promise<st
     subTenantId: null,
     email,
     name: owner.name ?? null,
-    metadata: { ...traits, organization_id: org.id },
+    metadata: { ...traits },
     tags: tagsFor(org, traits),
     // "active" is right: this is our existing customer relationship, not a
     // scraped address. Marketing to them still honours unsubscribe — that is

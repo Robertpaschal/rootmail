@@ -99,7 +99,40 @@ export interface WingOrg {
   marketingTier?: string | null;
   marketingContacts?: number | null;
   platformTier?: string | null;
+  /** rootmail's own account. Not a customer, so not on a plan — see below. */
+  isInternal?: boolean | null;
 }
+
+/**
+ * Every feature there is. rootmail's own account holds all of them.
+ *
+ * We are not a customer of ourselves: the internal org has no tier, no
+ * subscription and no Stripe id on purpose, because a fake Enterprise plan
+ * would put revenue that does not exist into our own reporting. But entitlements
+ * were derived from the tier alone, so "no tier" resolved to "Free" and our own
+ * account was locked out of sequences, roles, proof and sub-tenants. We could
+ * not run an onboarding sequence for our own customers — in the product whose
+ * entire pitch is running onboarding sequences.
+ *
+ * A paywall is a billing relationship. There is no billing relationship here, so
+ * there is nothing to enforce. This is NOT a free upgrade to Enterprise: volume
+ * still counts (we want to feel our own limits), and the shape of the account is
+ * still constrained (one workspace). It only says the till does not apply to the
+ * people running the till.
+ */
+const ALL_FEATURES: PlanFeature[] = [
+  "audit",
+  "suppression",
+  "subtenants",
+  "threads",
+  "sequences",
+  "campaigns",
+  "rbac",
+  "proof",
+  "dedicated_ip",
+  "sso",
+  "residency",
+];
 
 function tierFor(wing: Wing, id: string | null | undefined): TierDef {
   return getTier(id ?? "") ?? getTier(defaultTierId(wing))!; // constant fallback guarantees a hit
@@ -183,19 +216,32 @@ export function featuresFromAddons(qty: Partial<Record<AddOnId, number>>): PlanF
   return out;
 }
 
-/** Effective feature set: tier features ∪ add-on-granted features. */
+/**
+ * Effective feature set: tier features ∪ add-on-granted features.
+ *
+ * THE one seam both the 402 gate (`requireFeature`) and the entitlements the
+ * dashboard draws locks from (`GET /v1/organization`) read, so they cannot
+ * disagree about what an account may do.
+ */
 export function effectiveFeatures(org: WingOrg, qty: Partial<Record<AddOnId, number>>): PlanFeature[] {
+  if (org.isInternal) return [...ALL_FEATURES];
   return [...new Set<PlanFeature>([...synthesizePlan(org).features, ...featuresFromAddons(qty)])];
 }
 
 /** Whether a feature is unlocked under the org's TIERS alone (add-on grants are
  * layered on by the async gate that also loads the org's add-ons). */
 export function wingFeatureUnlocked(org: WingOrg, feature: PlanFeature): boolean {
+  if (org.isInternal) return true;
   return synthesizePlan(org).features.includes(feature);
 }
 
 /** Billable contact limit: the free ceiling on Free, else the purchased size. */
 export function contactLimitForOrg(org: WingOrg): number {
+  // Our own account holds every customer we have. A contact ceiling here is a
+  // bill we would be sending ourselves, and it would block the audience the
+  // moment we grew — the most literal possible version of our own product
+  // being unusable to us.
+  if (org.isInternal) return -1;
   const mk = mkTierFor(org);
   if (mk.id === "mk_free") return mk.includedContacts ?? FREE_MK_CONTACTS;
   return org.marketingContacts ?? 0;
@@ -203,6 +249,7 @@ export function contactLimitForOrg(org: WingOrg): number {
 
 /** Distinct audiences (lists) the org's marketing tier allows (-1 = unlimited). */
 export function audienceLimitForOrg(org: WingOrg): number {
+  if (org.isInternal) return -1;
   return mkTierFor(org).includedAudiences ?? 1;
 }
 

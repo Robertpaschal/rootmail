@@ -11,6 +11,7 @@ import {
   ensureInternalAccount,
   messages,
   openConversationForSend,
+  resolveReplyTo,
   suppressions,
 } from "@rootmail/db";
 import { getProviderFor } from "./providers";
@@ -113,12 +114,48 @@ export async function processSystemMail(job: SystemMailJob): Promise<void> {
     return;
   }
 
+  /**
+   * Open the thread BEFORE sending, so the mail can carry a Reply-To that
+   * reaches it.
+   *
+   * This used to run after the send with `replyTo: null`, which produced the
+   * worst of both: we opened a conversation in our own inbox for every welcome,
+   * receipt and announcement, and the recipient could not reply into it. Their
+   * reply went to `no-reply@` and died. We were reading a thread nobody could
+   * answer — in the product whose pitch is that replies come back to you.
+   *
+   * Still best-effort, and that ordering matters: a threading failure must never
+   * throw here, because the job would retry and send a password reset twice.
+   * It degrades to a send with no Reply-To — exactly the old behaviour.
+   */
+  let replyTo: string | null = null;
+  try {
+    const thread = await openConversationForSend({
+      workspaceId,
+      subTenantId: null,
+      contactEmail: to,
+      subject: job.subject,
+      fromEmail: from,
+      messageId: message.id,
+      bodyHtml: job.html,
+      bodyText: job.text,
+    });
+    replyTo = resolveReplyTo({
+      replyMode: "inbox",
+      conversationId: thread.id,
+      fromEmail: from,
+      explicit: null,
+    });
+  } catch {
+    /* no thread, so no reply address — send anyway, as before */
+  }
+
   try {
     await getProviderFor(false).send({
       messageId: message.id,
       from: { email: from, name: "rootmail" },
       to,
-      replyTo: null,
+      replyTo,
       subject: job.subject,
       html: job.html,
       text: job.text,
@@ -127,26 +164,8 @@ export async function processSystemMail(job: SystemMailJob): Promise<void> {
     });
     await db
       .update(messages)
-      .set({ status: "sent", updatedAt: new Date() })
+      .set({ status: "sent", replyTo, updatedAt: new Date() })
       .where(eq(messages.id, message.id));
-
-    // The thread is what makes a reply reachable. Best-effort on purpose: a
-    // threading failure must never turn a delivered password reset into a
-    // retry, which would send it a second time.
-    try {
-      await openConversationForSend({
-        workspaceId,
-        subTenantId: null,
-        contactEmail: to,
-        subject: job.subject,
-        fromEmail: from,
-        messageId: message.id,
-        bodyHtml: job.html,
-        bodyText: job.text,
-      });
-    } catch {
-      /* the email is out; the thread is a convenience */
-    }
   } catch (err) {
     await db
       .update(messages)
