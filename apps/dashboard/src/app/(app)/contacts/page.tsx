@@ -45,7 +45,9 @@ import type { Contact, ContactList, ContactsBrowse, ContactStagesSummary, ListTa
 import { CONTACT_STAGES, STAGE_META, type ContactStage } from "@/lib/stages";
 import { CrmBoard, type BoardColumn } from "./crm-board";
 
-const PAGE_SIZE = 25;
+// 20 a page. Twenty-five was an arbitrary number that filled more than a
+// screen, so the pager was already off-view by the time you wanted it.
+const PAGE_SIZE = 20;
 const STATUSES = ["active", "unsubscribed", "bounced", "complained"] as const;
 
 interface Params {
@@ -117,7 +119,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
         // One slim page per column; the strip's counts carry the true totals and
         // each column hands off to the table for the long tail.
         const cols = await Promise.all(
-          CONTACT_STAGES.map((st) => api.browseContacts({ stage: st, limit: 30 }).catch(() => null)),
+          CONTACT_STAGES.map((st) => api.browseContacts({ stage: st, limit: 40 }).catch(() => null)),
         );
         board = CONTACT_STAGES.map((st, i) => ({
           stage: st,
@@ -371,28 +373,36 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                       </Link>
                     );
                   })}
-                  <div className="flex items-center gap-1 self-center rounded-lg bg-secondary/50 p-1">
-                    <Link
-                      href={hubUrl({ q: sp.q, tag: sp.tag, status, stage })}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
-                        view === "table" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <Rows3 className="size-3.5" /> Table
-                    </Link>
-                    <Link
-                      href={hubUrl({ q: sp.q, tag: sp.tag, status, stage, view: "board" })}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
-                        view === "board" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
-                      )}
-                    >
-                      <Kanban className="size-3.5" /> Board
-                    </Link>
-                  </div>
                 </div>
               ) : null}
+
+              {/* How you want to look at them — its own centred row, under the
+                  stage boxes. It used to ride on the end of that flex row, where
+                  it competed with the counts for the same eye-line and got
+                  squeezed to the right edge on narrow screens. It is a choice
+                  about the WHOLE view below, so it sits between the two. */}
+              <div className="flex justify-center">
+                <div className="flex items-center gap-1 rounded-lg bg-secondary/50 p-1">
+                  <Link
+                    href={hubUrl({ q: sp.q, tag: sp.tag, status, stage })}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+                      view === "table" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Rows3 className="size-3.5" /> Table
+                  </Link>
+                  <Link
+                    href={hubUrl({ q: sp.q, tag: sp.tag, status, stage, view: "board" })}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium",
+                      view === "board" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    <Kanban className="size-3.5" /> Board
+                  </Link>
+                </div>
+              </div>
 
               {view === "board" ? (
                 <CrmBoard columns={board} />
