@@ -1,0 +1,2 @@
+ALTER TABLE "impersonation_grants" ADD COLUMN "workspace_id" text;--> statement-breakpoint
+ALTER TABLE "impersonation_grants" ADD CONSTRAINT "impersonation_grants_workspace_id_workspaces_id_fk" FOREIGN KEY ("workspace_id") REFERENCES "public"."workspaces"("id") ON DELETE cascade ON UPDATE no action;

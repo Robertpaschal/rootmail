@@ -1212,6 +1212,13 @@ export const impersonationGrants = pgTable(
     targetUserId: text("target_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    // Which workspace the session should LAND in. Null = let the session pick
+    // its default, which is right for support impersonation (you want the
+    // customer's own default view). Set for the staff door into our own
+    // account: without it the session calls `workspaces.find(live)` over every
+    // org the identity belongs to, in no defined order, and lands wherever the
+    // database happened to return first.
+    workspaceId: text("workspace_id").references(() => workspaces.id, { onDelete: "cascade" }),
     expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
     usedAt: timestamp("used_at", { withTimezone: true }),
     createdAt: createdAt(),

@@ -442,6 +442,13 @@
       "when": 1785827144025,
       "tag": "0062_old_moon_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "7",
+      "when": 1785890386752,
+      "tag": "0063_unique_tattoo",
+      "breakpoints": true
     }
   ]
 }

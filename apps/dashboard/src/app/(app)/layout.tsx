@@ -58,7 +58,13 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             />
           ) : null}
           {impersonating && me ? (
-            <ImpersonationBanner email={me.user.email} internal={me.internal} />
+            <ImpersonationBanner
+              // Inside our own workspace the address is a synthetic staff
+              // identity (…@staff.rootmail.invalid) that means nothing to a
+              // reader — name the person instead.
+              email={me.internal ? (me.user.name ?? me.user.email) : me.user.email}
+              internal={me.internal}
+            />
           ) : null}
           {unverified ? <VerifyEmailBanner /> : null}
           {/* Agency mode: while acting as a client, name them on every page. */}

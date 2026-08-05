@@ -839,11 +839,11 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    * dashboard and be rootmail — only code could reach it. A product we cannot
    * open is not a product we are dogfooding.
    *
-   * A staff member gets a real user + membership in the internal org, keyed to
-   * their own email, and then the ordinary customer dashboard. Not a special
-   * staff view of it: THE dashboard, the one customers use, with campaigns,
-   * templates, deliverability and Replies exactly as shipped. If it is awkward
-   * for us it is awkward for them, which is the entire point.
+   * A staff member gets a real user + membership in the internal org, and then
+   * the ordinary customer dashboard. Not a special staff view of it: THE
+   * dashboard, the one customers use, with campaigns, templates, deliverability
+   * and Replies exactly as shipped. If it is awkward for us it is awkward for
+   * them, which is the entire point.
    *
    * A real membership rather than impersonation, deliberately: we are not
    * pretending to be a customer, we ARE the account. The handoff reuses the
@@ -851,19 +851,54 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    * never a token in a URL — and stamps the staff id so every action inside is
    * attributable to a person.
    *
+   * ── THE IDENTITY MUST NOT BE A CUSTOMER ACCOUNT ─────────────────────────────
+   * This first shipped keyed on `staff.email`, reusing whatever `users` row had
+   * that address. Staff are people who also have their own rootmail accounts, so
+   * for the first person through the door it found their CUSTOMER account and
+   * hung a `rootmail-hq` membership on it. Two failures, both bad:
+   *
+   *   1. It leaked. That membership outlives the handoff, so their ordinary
+   *      sign-in — password or Google — carried access to our internal
+   *      workspace, reachable from the workspace switcher with no `announce.send`
+   *      check and nothing in the staff audit log. The gated door became optional.
+   *   2. It landed wrong. The session picks its active workspace with
+   *      `workspaces.find(w => w.environment === "live")` across every org the
+   *      identity belongs to, unordered — so it opened their own Production
+   *      workspace, showing an empty audience while our own held 12 customers.
+   *
+   * The identity is therefore keyed to the STAFF ID, at a domain that cannot
+   * exist: `.invalid` is reserved by RFC 2606, so no mailbox can receive there,
+   * no signup can verify it, and no OAuth provider can ever assert it. A staff
+   * identity and a customer identity can never again be the same row.
+   *
    * Gated on `announce.send`, which is the honest gate: being inside this
    * workspace IS the ability to email every customer we have. Superadmin holds
    * it today; it is the permission to grant a marketer, not a support seat.
    */
+  /**
+   * The dashboard identity for a staff member, at an address that cannot exist.
+   *
+   * `.invalid` is reserved by RFC 2606 — no mailbox can receive there, no
+   * signup can verify it, no OAuth provider can assert it. That is the whole
+   * point: a staff identity and a customer identity must never be able to
+   * collide into one `users` row, whatever address the person actually uses.
+   */
+  function staffIdentityEmail(staffId: string): string {
+    return `${staffId}@staff.rootmail.invalid`.toLowerCase();
+  }
+
   app.post("/v1/admin/internal/open", async (req) => {
     const staff = await requireStaff(req);
     requireStaffPermission(staff, "announce.send");
 
     const { organizationId, workspaceId } = await ensureInternalAccount();
 
-    // One user per staff member, so the audit trail inside our own workspace
-    // names a person rather than a shared "rootmail" login nobody owns.
-    const email = staff.email.toLowerCase();
+    // One identity per staff member, so the audit trail inside our own
+    // workspace names a person rather than a shared "rootmail" login nobody
+    // owns — but keyed to the STAFF ID at an unroutable domain, never to their
+    // real address. See the block comment: keying on email adopted the staff
+    // member's own customer account and leaked our workspace into it.
+    const email = staffIdentityEmail(staff.id);
     let [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
     if (!user) {
       [user] = await db
@@ -871,7 +906,9 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         .values({
           id: newId("user"),
           email,
-          name: staff.name ?? null,
+          // The person's real name, so the dashboard and the audit read like a
+          // human was here — it is only the ADDRESS that must be synthetic.
+          name: staff.name ?? staff.email,
           // No password: this identity is reachable only through this
           // staff-gated door, never by signing in.
           passwordHash: null,
@@ -901,6 +938,10 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       codeHash: hash,
       staffUserId: staff.id,
       targetUserId: user.id,
+      // Land in OUR workspace explicitly. Leaving this to the session's default
+      // is what opened the wrong account: it scans every workspace the identity
+      // can reach and takes the first live one, in no defined order.
+      workspaceId,
       expiresAt,
     });
     await writeStaffAudit({

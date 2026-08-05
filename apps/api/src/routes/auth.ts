@@ -109,10 +109,18 @@ async function requireSession(req: FastifyRequest) {
 /** Mint a session and build the post-authentication payload (login + mfa/verify). */
 async function sessionResponse(
   user: User,
-  opts: { impersonatedByStaffId?: string; ttlMs?: number } = {},
+  opts: { impersonatedByStaffId?: string; ttlMs?: number; activeWorkspaceId?: string | null } = {},
 ) {
   const workspaces = await userWorkspaces(user.id);
-  const live = workspaces.find((w) => w.environment === "live") ?? workspaces[0] ?? null;
+  // A caller may pin where the session lands (the staff door into our own
+  // workspace does). Otherwise fall back to the first live workspace — fine for
+  // a normal login, but NOT something to rely on for an identity that belongs
+  // to more than one org, because `find` has no defined order.
+  const pinned =
+    opts.activeWorkspaceId != null
+      ? (workspaces.find((w) => w.id === opts.activeWorkspaceId) ?? null)
+      : null;
+  const live = pinned ?? workspaces.find((w) => w.environment === "live") ?? workspaces[0] ?? null;
   const { token, session } = await createSession(user.id, live?.id ?? null, opts);
   return {
     user: serializeUser(user),
@@ -404,6 +412,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     return sessionResponse(user, {
       impersonatedByStaffId: grant.staffUserId,
       ttlMs: 30 * 60 * 1000,
+      // Null for support impersonation (land in the customer's own default);
+      // set for the staff door, which must open OUR workspace and not whichever
+      // one the identity happens to reach first.
+      activeWorkspaceId: grant.workspaceId,
     });
   });
 
