@@ -3,7 +3,7 @@
 import { useMemo, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Ban,
   Check,
@@ -37,6 +37,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { EngagementChart } from "@/components/app/engagement-chart";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
@@ -118,6 +119,7 @@ export function ContactCrm({
   threads?: ContactThreadSummary[];
 }) {
   const router = useRouter();
+  const reduce = useReducedMotion();
   const [name, setName] = useState(contact.name ?? "");
   const [phone, setPhone] = useState(contact.phone ?? "");
   const initialFields = useMemo(
@@ -135,6 +137,7 @@ export function ContactCrm({
   const [stage, setStage] = useState<ContactStage>(contact.stage);
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [tab, setTab] = useState<"profile" | "activity">("profile");
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok?: string; error?: string } | null>(null);
   const [pending, start] = useTransition();
@@ -424,119 +427,71 @@ export function ContactCrm({
           </div>
         </div>
 
-        {/* How the relationship is actually going. The page used to make you
-            read the timeline and infer this, which is why it felt unfinished.
-            Counts are over the sends we hold (capped at 20), so the label says
-            so rather than implying a lifetime total it cannot know. */}
-        <div className="flex flex-wrap items-center gap-x-7 gap-y-2 border-t px-5 py-3">
-          {stats.sent > 0 ? (
-            <>
-              <Stat label={stats.sent === 1 ? "email sent" : "emails sent"} value={String(stats.sent)} />
-              <Stat
-                label="opened"
-                value={`${stats.opened}`}
-                sub={stats.sent ? `${Math.round((stats.opened / stats.sent) * 100)}%` : undefined}
-                tone={stats.opened > 0 ? "text-violet-600 dark:text-violet-400" : undefined}
-              />
-              <Stat
-                label="clicked"
-                value={`${stats.clicked}`}
-                sub={stats.sent ? `${Math.round((stats.clicked / stats.sent) * 100)}%` : undefined}
-                tone={stats.clicked > 0 ? "text-blue-600 dark:text-blue-400" : undefined}
-              />
-            </>
+
+        {/* The one line that says who this person IS to you. A CRM
+            record without it is a row in a table; every profile page
+            worth reading opens with a sentence in someone's own words.
+            The newest note serves as the bio — you already wrote it. */}
+        <div className="border-t px-5 py-3">
+          {notes.length > 0 ? (
+            <p className="line-clamp-2 text-sm text-muted-foreground">
+              <StickyNote className="mr-1.5 inline size-3.5 -translate-y-px text-amber-500" />
+              {notes[0].body}
+            </p>
           ) : (
-            <span className="text-sm text-muted-foreground">
-              You haven&apos;t emailed them yet — engagement shows up here once you do.
-            </span>
+            <button
+              type="button"
+              onClick={() => { setTab("activity"); setAddingNote(true); }}
+              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <StickyNote className="mr-1.5 inline size-3.5 -translate-y-px" />
+              Add a note — who they are, what they want, what you promised.
+            </button>
           )}
-          {stats.lastAt ? <Stat label="last activity" value={relativeTime(stats.lastAt)} /> : null}
-          <Stat label="added" value={new Date(contact.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} />
-          {stats.capped ? (
-            <span className="text-[11px] text-muted-foreground/70">across their 20 most recent emails</span>
-          ) : null}
         </div>
 
-        {/* Where they are in the relationship — click a stage to move them. */}
-        <div className="space-y-2.5 border-t bg-muted/20 px-5 py-3.5">
-          <div className="flex items-stretch overflow-hidden rounded-lg border bg-background">
-            {POSITIVE_STAGES.map((s2, i) => {
-              const reached = !atRisk && currentIdx >= i;
-              const isCurrent = !atRisk && currentIdx === i;
-              return (
-                <button
-                  key={s2}
-                  type="button"
-                  disabled={pending}
-                  onClick={() => setStageTo(s2)}
-                  title={STAGE_META[s2].hint}
-                  className={cn(
-                    "flex h-9 flex-1 items-center justify-center border-r px-2 text-xs transition-colors last:border-r-0",
-                    s2 === "champion" && reached
-                      ? "bg-amber-500 text-white hover:bg-amber-600"
-                      : reached
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-transparent text-muted-foreground hover:bg-muted",
-                    isCurrent ? "font-semibold" : "font-medium",
-                  )}
-                >
-                  {STAGE_META[s2].label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="text-muted-foreground">
-              {atRisk
-                ? "In the at-risk lane — a win-back email or sequence is the usual next move."
-                : stage === "champion"
-                  ? "A champion — your best kind of customer. 🎉"
-                  : `${STAGE_META[stage].label} · click ahead to escalate, back to de-escalate`}
-            </span>
-            {atRisk ? (
-              <Button variant="outline" size="sm" disabled={pending} onClick={() => setStageTo("engaged")}>
-                Back on track
-              </Button>
-            ) : (
-              <Button variant="ghost" size="sm" disabled={pending} onClick={() => setStageTo("at_risk")} className="text-muted-foreground hover:text-destructive">
-                Mark at risk
-              </Button>
-            )}
-          </div>
-
-          {/* Auto-suggestion from real engagement — one click to accept */}
-          <AnimatePresence>
-            {suggestion ? (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm"
-              >
-                <Sparkles className="size-4 shrink-0 text-primary" />
-                <span className="min-w-0">
-                  Looks like <span className="font-medium">{STAGE_META[suggestion.to].label}</span>
-                  <span className="text-muted-foreground"> — {suggestion.reason}.</span>
-                </span>
-                <Button size="sm" className="ml-auto h-7" disabled={pending || suggestBusy} onClick={() => setStageTo(suggestion.to)}>
-                  {suggestBusy ? <Loader2 className="size-3.5 animate-spin" /> : null} Move to {STAGE_META[suggestion.to].label}
-                </Button>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
+        {/* Profile ⇄ Activity. Two different questions about the same
+            person — who they are, and what has happened — so they take
+            turns rather than competing for the same screen. */}
+        <div className="flex items-center gap-1 border-t px-4 py-2.5">
+          {(["profile", "activity"] as const).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => setTab(t)}
+              className={cn(
+                "relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
+                tab === t ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {tab === t ? (
+                <motion.span
+                  layoutId="contact-tab"
+                  className="absolute inset-0 rounded-full bg-primary"
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                />
+              ) : null}
+              <span className="relative z-10">
+                {t === "profile" ? "Profile" : "Activity"}
+                {t === "activity" && feed.length > 0 ? (
+                  <span className="ml-1.5 tabular-nums opacity-70">{feed.length}</span>
+                ) : null}
+              </span>
+            </button>
+          ))}
         </div>
-      </Card>
 
-      {msg?.error ? <p className="text-sm text-destructive">{msg.error}</p> : null}
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(300px,340px)_1fr] lg:items-start">
-        {/* ── THE RECORD ───────────────────────────────────────────────────
-            ONE card, ONE header, and rows. Details, tags and audiences used to
-            be three sections, each with its own uppercase heading and its own
-            button — three lines of content wearing three sets of chrome, which
-            is what read as "separate boxes". They are facts about one person,
-            so they are now rows in one list. */}
-        <Card>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={tab}
+            initial={reduce ? false : { opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduce ? undefined : { opacity: 0, y: -6 }}
+            transition={{ duration: 0.16 }}
+            className="border-t"
+          >
+            {tab === "profile" ? (
+        <div>
           <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
             <h2 className="text-sm font-semibold">Profile</h2>
             {!editDetails ? (
@@ -753,9 +708,9 @@ export function ContactCrm({
               </div>
             )}
           </div>
-        </Card>
-        {/* THE STORY — note composer over the capped, scrolling activity feed */}
-        <Card className="flex flex-col">
+        </div>
+            ) : (
+        <div className="flex flex-col">
           <div className="flex items-center justify-between gap-2 border-b p-4">
             <h3 className="text-sm font-semibold">Activity</h3>
             <Button size="sm" variant={addingNote ? "outline" : "default"} className="h-7" onClick={() => setAddingNote((v) => !v)}>
@@ -822,8 +777,137 @@ export function ContactCrm({
               </p>
             )}
           </div>
-        </Card>
-      </div>
+        </div>
+            )}
+          </motion.div>
+        </AnimatePresence>
+      </Card>
+
+      {msg?.error ? <p className="text-sm text-destructive">{msg.error}</p> : null}
+
+      {/* ── HOW IT IS GOING ───────────────────────────────────────────── */}
+      <Card>
+        <div className="border-b px-5 py-3">
+          <h2 className="text-sm font-semibold">Engagement</h2>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Every email we sent them, oldest first — how far they got with each.
+          </p>
+        </div>
+        <div className="p-5">
+          {stats.sent > 0 ? (
+            <EngagementChart messages={contact.recent_messages} />
+          ) : (
+            <p className="py-4 text-center text-sm text-muted-foreground">
+              You haven&apos;t emailed them yet — this fills in from the first send.
+            </p>
+          )}
+        </div>
+        {/* How the relationship is actually going. The page used to make you
+            read the timeline and infer this, which is why it felt unfinished.
+            Counts are over the sends we hold (capped at 20), so the label says
+            so rather than implying a lifetime total it cannot know. */}
+        <div className="flex flex-wrap items-center gap-x-7 gap-y-2 border-t px-5 py-3">
+          {stats.sent > 0 ? (
+            <>
+              <Stat label={stats.sent === 1 ? "email sent" : "emails sent"} value={String(stats.sent)} />
+              <Stat
+                label="opened"
+                value={`${stats.opened}`}
+                sub={stats.sent ? `${Math.round((stats.opened / stats.sent) * 100)}%` : undefined}
+                tone={stats.opened > 0 ? "text-violet-600 dark:text-violet-400" : undefined}
+              />
+              <Stat
+                label="clicked"
+                value={`${stats.clicked}`}
+                sub={stats.sent ? `${Math.round((stats.clicked / stats.sent) * 100)}%` : undefined}
+                tone={stats.clicked > 0 ? "text-blue-600 dark:text-blue-400" : undefined}
+              />
+            </>
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              You haven&apos;t emailed them yet — engagement shows up here once you do.
+            </span>
+          )}
+          {stats.lastAt ? <Stat label="last activity" value={relativeTime(stats.lastAt)} /> : null}
+          <Stat label="added" value={new Date(contact.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} />
+          {stats.capped ? (
+            <span className="text-[11px] text-muted-foreground/70">across their 20 most recent emails</span>
+          ) : null}
+        </div>
+
+      </Card>
+
+      {/* ── WHERE THEY ARE ────────────────────────────────────────────── */}
+      <Card>
+        {/* Where they are in the relationship — click a stage to move them. */}
+        <div className="space-y-2.5 border-t bg-muted/20 px-5 py-3.5">
+          <div className="flex items-stretch overflow-hidden rounded-lg border bg-background">
+            {POSITIVE_STAGES.map((s2, i) => {
+              const reached = !atRisk && currentIdx >= i;
+              const isCurrent = !atRisk && currentIdx === i;
+              return (
+                <button
+                  key={s2}
+                  type="button"
+                  disabled={pending}
+                  onClick={() => setStageTo(s2)}
+                  title={STAGE_META[s2].hint}
+                  className={cn(
+                    "flex h-9 flex-1 items-center justify-center border-r px-2 text-xs transition-colors last:border-r-0",
+                    s2 === "champion" && reached
+                      ? "bg-amber-500 text-white hover:bg-amber-600"
+                      : reached
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "bg-transparent text-muted-foreground hover:bg-muted",
+                    isCurrent ? "font-semibold" : "font-medium",
+                  )}
+                >
+                  {STAGE_META[s2].label}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="text-muted-foreground">
+              {atRisk
+                ? "In the at-risk lane — a win-back email or sequence is the usual next move."
+                : stage === "champion"
+                  ? "A champion — your best kind of customer. 🎉"
+                  : `${STAGE_META[stage].label} · click ahead to escalate, back to de-escalate`}
+            </span>
+            {atRisk ? (
+              <Button variant="outline" size="sm" disabled={pending} onClick={() => setStageTo("engaged")}>
+                Back on track
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" disabled={pending} onClick={() => setStageTo("at_risk")} className="text-muted-foreground hover:text-destructive">
+                Mark at risk
+              </Button>
+            )}
+          </div>
+
+          {/* Auto-suggestion from real engagement — one click to accept */}
+          <AnimatePresence>
+            {suggestion ? (
+              <motion.div
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm"
+              >
+                <Sparkles className="size-4 shrink-0 text-primary" />
+                <span className="min-w-0">
+                  Looks like <span className="font-medium">{STAGE_META[suggestion.to].label}</span>
+                  <span className="text-muted-foreground"> — {suggestion.reason}.</span>
+                </span>
+                <Button size="sm" className="ml-auto h-7" disabled={pending || suggestBusy} onClick={() => setStageTo(suggestion.to)}>
+                  {suggestBusy ? <Loader2 className="size-3.5 animate-spin" /> : null} Move to {STAGE_META[suggestion.to].label}
+                </Button>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
+      </Card>
     </div>
   );
 }
