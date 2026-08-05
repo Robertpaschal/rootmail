@@ -90,18 +90,29 @@ export default async function MessagesPage({
       {failed ? (
         <ConnectionErrorCard message={failed} status={errStatus} />
       ) : messages.length === 0 ? (
+        /* "Send a test email" was the wrong first move to offer. This page is
+           the record of real mail to real people; a product that opens by
+           suggesting you fake it teaches you not to trust what you see here.
+           Filtered-to-empty is a different situation from never-sent, and it
+           needs a way back rather than a call to action. */
         <EmptyState
           icon={<Mail className="size-6" />}
-          title="No messages"
+          title={active === "all" ? "Nothing sent yet" : `No ${active} messages`}
           description={
             active === "all"
-              ? "Send your first message to see it here."
-              : `No messages with status “${active}”.`
+              ? "Every email you send — from here, from a campaign, from a sequence, or straight through the API — lands here with what happened to it: delivered, opened, clicked, bounced."
+              : `Nothing here with that status right now. Everything you have sent is still under “All”.`
           }
           action={
-            <Link href="/messages/new" className={cn(buttonVariants({ size: "sm" }))}>
-              <Plus className="size-4" /> Send a test email
-            </Link>
+            active === "all" ? (
+              <Link href="/messages/new" className={cn(buttonVariants({ size: "sm" }))}>
+                <Plus className="size-4" /> Write an email
+              </Link>
+            ) : (
+              <Link href="/messages" className={cn(buttonVariants({ size: "sm", variant: "outline" }))}>
+                Show all messages
+              </Link>
+            )
           }
         />
       ) : (

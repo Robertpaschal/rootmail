@@ -18,7 +18,8 @@ import {
 import { relativeTime } from "@/lib/format";
 import type { Message } from "@/lib/types";
 
-const PAGE_SIZE = 25;
+// 20, matching the audience list — one screenful, so the pager stays in view.
+const PAGE_SIZE = 20;
 type SortKey = "to" | "created_at";
 
 /** Status is already filtered server-side (the chips); this adds search over
