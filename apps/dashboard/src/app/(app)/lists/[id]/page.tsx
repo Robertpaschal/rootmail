@@ -128,7 +128,12 @@ export default async function ListDetailPage({
               {!empty ? <RevealPanel triggerLabel="Add contact" title="Add a contact" description="New emails become contacts automatically.">{addForm}</RevealPanel> : null}
             </div>
 
-            {/* Lifecycle mix — a segmented bar + clickable stage filters */}
+            {/* Lifecycle mix — a segmented bar + clickable stage filters.
+                Only stages that HAVE somebody get a chip. A new audience is
+                all Subscriber, so the old row printed "Engaged 0 · Customer 0 ·
+                Champion 0 · At risk 0" — four chips whose only message was
+                that they were empty, and which filtered to a guaranteed-blank
+                table. The selected stage is always kept so you can unselect it. */}
             {stageTotal > 0 ? (
               <div className="space-y-2">
                 <div className="flex h-2 overflow-hidden rounded-full bg-muted">
@@ -139,7 +144,7 @@ export default async function ListDetailPage({
                   })}
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {CONTACT_STAGES.map((s) => {
+                  {CONTACT_STAGES.filter((s) => (members.stages[s] ?? 0) > 0 || stage === s).map((s) => {
                     const n = members.stages[s] ?? 0;
                     const active = stage === s;
                     return (
@@ -149,7 +154,6 @@ export default async function ListDetailPage({
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs transition-colors",
                           active ? "border-primary bg-primary/10 font-medium text-foreground" : "text-muted-foreground hover:border-primary/40 hover:text-foreground",
-                          n === 0 && "opacity-50",
                         )}
                       >
                         <span className={cn("size-1.5 rounded-full", STAGE_META[s].dot)} /> {STAGE_META[s].label}
@@ -221,7 +225,15 @@ export default async function ListDetailPage({
             {activeFilters ? (
               <Link href={`/lists/${id}`} className="text-sm text-muted-foreground hover:text-foreground">Clear</Link>
             ) : null}
-            <span className="ml-auto text-sm text-muted-foreground">{members.total.toLocaleString()} matching</span>
+            {/* Only while filtering. Unfiltered, this said "3 matching" three
+                inches under a heading that already said 3 — the same number a
+                fourth time, and the one place it could ever differ is exactly
+                when a filter is on. */}
+            {activeFilters ? (
+              <span className="ml-auto text-sm text-muted-foreground">
+                {members.total.toLocaleString()} of {totalMembers.toLocaleString()} match
+              </span>
+            ) : null}
           </div>
 
           {members.data.length > 0 ? (

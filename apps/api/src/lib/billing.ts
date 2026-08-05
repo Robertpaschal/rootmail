@@ -319,6 +319,23 @@ export async function assertContactCapacity(org: BillableOrg, adding = 1): Promi
  * concurrent sends can't overshoot. Marketing sends never come through here.
  */
 export async function tryConsumeQuota(org: BillableOrg, n = 1): Promise<boolean> {
+  // rootmail's own account: COUNTED, never blocked.
+  //
+  // Our org resolves to Free (no tier, deliberately), and on Free the monthly
+  // quota is a hard cap — so composing a campaign to our own customers from our
+  // own dashboard would have started refusing sends at 3,000 a month, 500 a day.
+  // A send cap is a billing artifact and there is no bill here; being unable to
+  // email our customers is the exact failure this whole effort exists to remove.
+  //
+  // Still recorded on both meters, deliberately: we want to SEE our own volume
+  // on the same page a customer sees theirs. Invisible usage is how you stop
+  // noticing that your own numbers are wrong.
+  if (org.isInternal) {
+    await recordSend(org.id, n);
+    await recordTransactionalDaily(org.id, n);
+    return true;
+  }
+
   const plan = planFor(org);
   const daily = txDailyLimitForOrg(org);
   const period = currentPeriod();
