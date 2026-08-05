@@ -7,6 +7,8 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import {
   Ban,
   Check,
+  ChevronDown,
+  ChevronRight,
   Copy,
   CornerUpLeft,
   Loader2,
@@ -138,6 +140,7 @@ export function ContactCrm({
   const [menuOpen, setMenuOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [tab, setTab] = useState<"profile" | "activity">("profile");
+  const [showPrivate, setShowPrivate] = useState(false);
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok?: string; error?: string } | null>(null);
   const [pending, start] = useTransition();
@@ -243,9 +246,9 @@ export function ContactCrm({
 
   // One feed: notes + lifecycle events + sends, newest first. A note is activity too.
   const feed = useMemo(() => {
-    const items: { at: string; kind: "note" | "event" | "message"; key: string; dot: string; node: React.ReactNode }[] = [];
+    const items: { at: string; kind: "note" | "event" | "message"; key: string; dot: string; summary: string; node: React.ReactNode }[] = [];
     for (const n of notes) {
-      items.push({ at: n.created_at, kind: "note", key: `n-${n.id}`, dot: "bg-amber-400", node: <NoteRow note={n} onDelete={() => removeNote(n.id)} /> });
+      items.push({ at: n.created_at, kind: "note", key: `n-${n.id}`, dot: "bg-amber-400", summary: n.body, node: <NoteRow note={n} onDelete={() => removeNote(n.id)} /> });
     }
     for (const e of contact.events) {
       const meta = EVENT_META[e.kind] ?? { label: e.kind, Icon: StickyNote, tone: "text-muted-foreground", dot: "bg-muted-foreground" };
@@ -254,6 +257,10 @@ export function ContactCrm({
         kind: "event",
         key: `e-${e.id}`,
         dot: meta.dot,
+        summary:
+          e.kind === "stage_changed" && typeof e.metadata?.to === "string"
+            ? `Moved to ${STAGE_META[e.metadata.to as ContactStage]?.label ?? String(e.metadata.to)}`
+            : meta.label,
         node: (
           <span className="flex items-center gap-2 text-sm">
             <meta.Icon className={cn("size-4 shrink-0", meta.tone)} />
@@ -276,6 +283,11 @@ export function ContactCrm({
         at: m.sent_at,
         kind: "message",
         key: `m-${m.id}`,
+        summary: m.clicked_at
+          ? `Clicked “${m.subject}”`
+          : m.opened_at
+            ? `Opened “${m.subject}”`
+            : `Sent “${m.subject}”`,
         dot: m.clicked_at ? "bg-blue-600" : m.opened_at ? "bg-violet-500" : "bg-blue-400",
         node: (
           <span className="flex flex-wrap items-center gap-2 text-sm">
@@ -326,6 +338,94 @@ export function ContactCrm({
       capped: msgs.length >= 20,
     };
   }, [contact.recent_messages, contact.events]);
+
+  /**
+   * The stage rail — bound here, rendered in the header.
+   *
+   * It used to sit at the very bottom, three sections below the name. But
+   * where someone sits in the relationship is part of WHO they are, not a
+   * footnote after the details.
+   */
+  const lifecycleRail = (
+    <>
+        <div className="flex items-stretch overflow-hidden rounded-lg border bg-background">
+          {POSITIVE_STAGES.map((s2, i) => {
+            const reached = !atRisk && currentIdx >= i;
+            const isCurrent = !atRisk && currentIdx === i;
+            return (
+              <button
+                key={s2}
+                type="button"
+                disabled={pending}
+                onClick={() => setStageTo(s2)}
+                title={STAGE_META[s2].hint}
+                className={cn(
+                  "flex h-9 flex-1 items-center justify-center border-r px-2 text-xs transition-colors last:border-r-0",
+                  s2 === "champion" && reached
+                    ? "bg-amber-500 text-white hover:bg-amber-600"
+                    : reached
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "bg-transparent text-muted-foreground hover:bg-muted",
+                  isCurrent ? "font-semibold" : "font-medium",
+                )}
+              >
+                {STAGE_META[s2].label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span className="text-muted-foreground">
+            {atRisk
+              ? "In the at-risk lane — a win-back email or sequence is the usual next move."
+              : stage === "champion"
+                ? "A champion — your best kind of customer. 🎉"
+                : `${STAGE_META[stage].label} · click ahead to escalate, back to de-escalate`}
+          </span>
+          {atRisk ? (
+            <Button variant="outline" size="sm" disabled={pending} onClick={() => setStageTo("engaged")}>
+              Back on track
+            </Button>
+          ) : (
+            <Button variant="ghost" size="sm" disabled={pending} onClick={() => setStageTo("at_risk")} className="text-muted-foreground hover:text-destructive">
+              Mark at risk
+            </Button>
+          )}
+        </div>
+
+        {/* Auto-suggestion from real engagement — one click to accept */}
+        <AnimatePresence>
+          {suggestion ? (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm"
+            >
+              <Sparkles className="size-4 shrink-0 text-primary" />
+              <span className="min-w-0">
+                Looks like <span className="font-medium">{STAGE_META[suggestion.to].label}</span>
+                <span className="text-muted-foreground"> — {suggestion.reason}.</span>
+              </span>
+              <Button size="sm" className="ml-auto h-7" disabled={pending || suggestBusy} onClick={() => setStageTo(suggestion.to)}>
+                {suggestBusy ? <Loader2 className="size-3.5 animate-spin" /> : null} Move to {STAGE_META[suggestion.to].label}
+              </Button>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+    </>
+  );
+
+  /**
+   * The freshest thing that happened, and whether it was THEM.
+   *
+   * The header line used to show the newest NOTE, so a contact who clicked a
+   * campaign this morning still showed whatever you typed about them in March.
+   * The useful fact is the most recent one, whoever authored it — and the ones
+   * you did not author are the ones worth a badge.
+   */
+  const latest = feed[0] ?? null;
+  const theirsUnseen = feed.some((f) => f.kind !== "note");
 
   return (
     <div className="space-y-5">
@@ -428,57 +528,84 @@ export function ContactCrm({
         </div>
 
 
-        {/* The one line that says who this person IS to you. A CRM
-            record without it is a row in a table; every profile page
-            worth reading opens with a sentence in someone's own words.
-            The newest note serves as the bio — you already wrote it. */}
-        <div className="border-t px-5 py-3">
-          {notes.length > 0 ? (
-            <p className="line-clamp-2 text-sm text-muted-foreground">
-              <StickyNote className="mr-1.5 inline size-3.5 -translate-y-px text-amber-500" />
-              {notes[0].body}
-            </p>
-          ) : (
-            <button
-              type="button"
-              onClick={() => { setTab("activity"); setAddingNote(true); }}
-              className="text-sm text-muted-foreground transition-colors hover:text-foreground"
-            >
-              <StickyNote className="mr-1.5 inline size-3.5 -translate-y-px" />
-              Add a note — who they are, what they want, what you promised.
-            </button>
-          )}
+        {/* WHERE THEY ARE — directly under the name, because the stage IS part
+            of who this person is to you, not a footnote after the details. */}
+        <div className="space-y-2.5 border-t bg-muted/20 px-5 py-3.5">
+          {lifecycleRail}
         </div>
 
-        {/* Profile ⇄ Activity. Two different questions about the same
-            person — who they are, and what has happened — so they take
-            turns rather than competing for the same screen. */}
-        <div className="flex items-center gap-1 border-t px-4 py-2.5">
-          {(["profile", "activity"] as const).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTab(t)}
-              className={cn(
-                "relative rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors",
-                tab === t ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {tab === t ? (
-                <motion.span
-                  layoutId="contact-tab"
-                  className="absolute inset-0 rounded-full bg-primary"
-                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
-                />
-              ) : null}
-              <span className="relative z-10">
-                {t === "profile" ? "Profile" : "Activity"}
-                {t === "activity" && feed.length > 0 ? (
-                  <span className="ml-1.5 tabular-nums opacity-70">{feed.length}</span>
-                ) : null}
+        {/* THE LAST THING THAT HAPPENED — one line, and the door into the rest.
+            It used to show only the newest NOTE, which meant a contact who had
+            just clicked a campaign showed whatever you typed about them in
+            March. The freshest fact is the useful one, whoever authored it. */}
+        <button
+          type="button"
+          onClick={() => setTab("activity")}
+          className="group flex w-full items-center gap-2.5 border-t px-5 py-3 text-left transition-colors hover:bg-accent/40"
+        >
+          {latest ? (
+            <>
+              <span className={cn("size-2 shrink-0 rounded-full", latest.dot)} />
+              <span className="min-w-0 flex-1 truncate text-sm text-muted-foreground">
+                {latest.summary}
               </span>
-            </button>
-          ))}
+              {/* Things THEY did are news; things you typed are not. */}
+              {theirsUnseen ? (
+                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                  New
+                </span>
+              ) : null}
+              <span className="shrink-0 text-[11px] text-muted-foreground">
+                {relativeTime(latest.at)}
+              </span>
+              <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+            </>
+          ) : (
+            <>
+              <StickyNote className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="flex-1 text-sm text-muted-foreground">
+                Nothing has happened yet — add a note about who they are.
+              </span>
+              <ChevronRight className="size-3.5 shrink-0 text-muted-foreground" />
+            </>
+          )}
+        </button>
+
+        {/* Profile ⇄ Activity — ONE segmented control, centred. Two loose pills
+            read as two buttons that happen to sit together; a single track with
+            a sliding thumb reads as a switch with two positions, which is what
+            it is. */}
+        <div className="flex justify-center border-t px-4 py-2.5">
+          <div className="flex items-center gap-1 rounded-full bg-secondary/60 p-1">
+            {(["profile", "activity"] as const).map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTab(t)}
+                className={cn(
+                  "relative rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
+                  tab === t ? "text-primary-foreground" : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                {tab === t ? (
+                  <motion.span
+                    layoutId="contact-tab"
+                    className="absolute inset-0 rounded-full bg-primary"
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  />
+                ) : null}
+                <span className="relative z-10 flex items-center gap-1.5">
+                  {t === "profile" ? "Profile" : "Activity"}
+                  {t === "activity" && feed.length > 0 ? (
+                    <span className="tabular-nums opacity-70">{feed.length}</span>
+                  ) : null}
+                  {t === "activity" && theirsUnseen ? (
+                    <span className="size-1.5 rounded-full bg-current" />
+                  ) : null}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         <AnimatePresence mode="wait" initial={false}>
@@ -491,11 +618,19 @@ export function ContactCrm({
             className="border-t"
           >
             {tab === "profile" ? (
-        <div>
+        <div className="group/panel">
           <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
             <h2 className="text-sm font-semibold">Profile</h2>
             {!editDetails ? (
-              <Button variant="ghost" size="sm" className="h-7 gap-1 text-muted-foreground" onClick={() => setEditDetails(true)}>
+              /* Edit is a thing you occasionally want, not a permanent label.
+                 It fades in on hover and on keyboard focus — never hidden from
+                 someone who cannot hover. */
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 text-muted-foreground opacity-0 transition-opacity focus-visible:opacity-100 group-hover/panel:opacity-100"
+                onClick={() => setEditDetails(true)}
+              >
                 <Pencil className="size-3.5" /> Edit
               </Button>
             ) : (
@@ -508,19 +643,43 @@ export function ContactCrm({
             )}
           </div>
 
-          <div className="p-4">
+          <div className="space-y-4 p-4">
             {!editDetails ? (
+              <>
+                {/* How you reach them — the two facts you actually use, given
+                    the weight they earn. A label/value list made the address
+                    the same size and shape as a synced trait. */}
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Mail className="size-3.5 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 break-all font-medium">{contact.email}</span>
+                  </div>
+                  {contact.phone ? (
+                    <div className="flex items-center gap-2 text-sm">
+                      <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
+                      <span className="font-medium">{contact.phone}</span>
+                    </div>
+                  ) : null}
+                </div>
+
+                {/* What you know about them, as facts you can scan rather than
+                    rows you have to read left-to-right. */}
+                {shownFields.length > 0 ? (
+                  <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+                    {shownFields.map((f) => (
+                      <div key={f.key} className="min-w-0 rounded-lg border bg-muted/30 px-2.5 py-1.5">
+                        <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {traitLabel(f.key)}
+                        </p>
+                        <p className="truncate text-sm font-medium" title={formatTrait(f.value)}>
+                          {formatTrait(f.value)}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
               <dl className="space-y-3 text-sm">
-                <FieldRow label="Email">
-                  <span className="break-all">{contact.email}</span>
-                </FieldRow>
-                {contact.name ? <FieldRow label="Name">{contact.name}</FieldRow> : null}
-                {contact.phone ? <FieldRow label="Phone">{contact.phone}</FieldRow> : null}
-                {shownFields.map((f) => (
-                  <FieldRow key={f.key} label={traitLabel(f.key)}>
-                    {formatTrait(f.value)}
-                  </FieldRow>
-                ))}
 
                 {/* Tags and audiences are rows on the same record, not sections
                     of their own. The add affordance lives in the row. */}
@@ -579,16 +738,14 @@ export function ContactCrm({
                 <FieldRow
                   label="Audiences"
                   action={
-                    availableLists.length > 0 ? (
-                      <button
-                        type="button"
-                        onClick={() => setAddingAudience((v) => !v)}
-                        className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
-                        aria-label={addingAudience ? "Done adding audiences" : "Add to an audience"}
-                      >
-                        {addingAudience ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
-                      </button>
-                    ) : null
+                    <button
+                      type="button"
+                      onClick={() => setAddingAudience((v) => !v)}
+                      className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label={addingAudience ? "Done adding audiences" : "Add to an audience"}
+                    >
+                      {addingAudience ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
+                    </button>
                   }
                 >
                   {audiences.length ? (
@@ -617,7 +774,22 @@ export function ContactCrm({
                     <span className="text-muted-foreground">None</span>
                   ) : null}
                   <AnimatePresence initial={false}>
-                    {addingAudience && availableLists.length > 0 ? (
+                    {addingAudience && availableLists.length === 0 ? (
+                      <motion.p
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden pt-1.5 text-[11px] leading-snug text-muted-foreground"
+                      >
+                        {audiences.length > 0
+                          ? "They are already in every audience you have. "
+                          : "You have no audiences yet. "}
+                        <Link href="/contacts?tab=audiences&create=1" className="underline underline-offset-2 hover:text-foreground">
+                          Create one
+                        </Link>
+                        .
+                      </motion.p>
+                    ) : addingAudience ? (
                       <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
                         <div className="mt-1.5 flex items-center gap-1.5">
                           <Select value={addList} onChange={(e) => setAddList(e.target.value)} className="h-7 flex-1 text-xs">
@@ -656,11 +828,45 @@ export function ContactCrm({
                     them. Silence here would look like data loss. */}
                 {hiddenTraitCount > 0 ? (
                   <FieldRow label="Private">
-                    <span className="text-xs text-muted-foreground">
-                      {hiddenTraitCount} synced trait{hiddenTraitCount === 1 ? "" : "s"} hidden
-                      (starts with <span className="font-mono">_</span>) — segment on them, or Edit
-                      to see them.
-                    </span>
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setShowPrivate((v) => !v)}
+                        className="inline-flex items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <ChevronRight
+                          className={cn("size-3 transition-transform", showPrivate && "rotate-90")}
+                        />
+                        {hiddenTraitCount} synced trait{hiddenTraitCount === 1 ? "" : "s"} kept off
+                        the record
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {showPrivate ? (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <dl className="mt-1.5 space-y-1">
+                              {cleanFields
+                                .filter((f) => isPrivateTrait(f.key.trim()))
+                                .map((f) => (
+                                  <div key={f.key} className="flex items-baseline gap-2 text-xs">
+                                    <dt className="shrink-0 font-mono text-muted-foreground">{f.key}</dt>
+                                    <dd className="min-w-0 break-all font-mono">{f.value}</dd>
+                                  </div>
+                                ))}
+                            </dl>
+                            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+                              Synced so you can segment on them; hidden by default so the record
+                              stays readable. Any trait whose key starts with{" "}
+                              <span className="font-mono">_</span> lands here.
+                            </p>
+                          </motion.div>
+                        ) : null}
+                      </AnimatePresence>
+                    </div>
                   </FieldRow>
                 ) : null}
 
@@ -676,6 +882,7 @@ export function ContactCrm({
                   </button>
                 ) : null}
               </dl>
+              </>
             ) : (
               <div className="space-y-3">
                 <label className="block">
@@ -797,17 +1004,31 @@ export function ContactCrm({
           {stats.sent > 0 ? (
             <EngagementChart messages={contact.recent_messages} />
           ) : (
-            <p className="py-4 text-center text-sm text-muted-foreground">
-              You haven&apos;t emailed them yet — this fills in from the first send.
-            </p>
+            /* One empty state, with the thing to DO in it. This used to print
+               "you haven't emailed them yet" here AND again in the strip below,
+               then a bare "added · Aug 4" with nothing to relate it to — three
+               fragments where one sentence and a button belong. */
+            <div className="py-6 text-center">
+              <p className="text-sm text-muted-foreground">
+                Nothing to show yet — you haven&apos;t emailed{" "}
+                {contact.name ?? "them"} since they were added{" "}
+                {relativeTime(contact.created_at)}.
+              </p>
+              <Link
+                href={`/messages/new?to=${encodeURIComponent(contact.email)}`}
+                className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
+              >
+                <PenSquare className="size-3.5" /> Write the first one
+              </Link>
+            </div>
           )}
         </div>
         {/* How the relationship is actually going. The page used to make you
             read the timeline and infer this, which is why it felt unfinished.
             Counts are over the sends we hold (capped at 20), so the label says
             so rather than implying a lifetime total it cannot know. */}
+        {stats.sent > 0 ? (
         <div className="flex flex-wrap items-center gap-x-7 gap-y-2 border-t px-5 py-3">
-          {stats.sent > 0 ? (
             <>
               <Stat label={stats.sent === 1 ? "email sent" : "emails sent"} value={String(stats.sent)} />
               <Stat
@@ -823,91 +1044,16 @@ export function ContactCrm({
                 tone={stats.clicked > 0 ? "text-blue-600 dark:text-blue-400" : undefined}
               />
             </>
-          ) : (
-            <span className="text-sm text-muted-foreground">
-              You haven&apos;t emailed them yet — engagement shows up here once you do.
-            </span>
-          )}
           {stats.lastAt ? <Stat label="last activity" value={relativeTime(stats.lastAt)} /> : null}
-          <Stat label="added" value={new Date(contact.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} />
+          <Stat label="a customer since" value={new Date(contact.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} />
           {stats.capped ? (
             <span className="text-[11px] text-muted-foreground/70">across their 20 most recent emails</span>
           ) : null}
         </div>
+        ) : null}
 
       </Card>
 
-      {/* ── WHERE THEY ARE ────────────────────────────────────────────── */}
-      <Card>
-        {/* Where they are in the relationship — click a stage to move them. */}
-        <div className="space-y-2.5 border-t bg-muted/20 px-5 py-3.5">
-          <div className="flex items-stretch overflow-hidden rounded-lg border bg-background">
-            {POSITIVE_STAGES.map((s2, i) => {
-              const reached = !atRisk && currentIdx >= i;
-              const isCurrent = !atRisk && currentIdx === i;
-              return (
-                <button
-                  key={s2}
-                  type="button"
-                  disabled={pending}
-                  onClick={() => setStageTo(s2)}
-                  title={STAGE_META[s2].hint}
-                  className={cn(
-                    "flex h-9 flex-1 items-center justify-center border-r px-2 text-xs transition-colors last:border-r-0",
-                    s2 === "champion" && reached
-                      ? "bg-amber-500 text-white hover:bg-amber-600"
-                      : reached
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-transparent text-muted-foreground hover:bg-muted",
-                    isCurrent ? "font-semibold" : "font-medium",
-                  )}
-                >
-                  {STAGE_META[s2].label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-            <span className="text-muted-foreground">
-              {atRisk
-                ? "In the at-risk lane — a win-back email or sequence is the usual next move."
-                : stage === "champion"
-                  ? "A champion — your best kind of customer. 🎉"
-                  : `${STAGE_META[stage].label} · click ahead to escalate, back to de-escalate`}
-            </span>
-            {atRisk ? (
-              <Button variant="outline" size="sm" disabled={pending} onClick={() => setStageTo("engaged")}>
-                Back on track
-              </Button>
-            ) : (
-              <Button variant="ghost" size="sm" disabled={pending} onClick={() => setStageTo("at_risk")} className="text-muted-foreground hover:text-destructive">
-                Mark at risk
-              </Button>
-            )}
-          </div>
-
-          {/* Auto-suggestion from real engagement — one click to accept */}
-          <AnimatePresence>
-            {suggestion ? (
-              <motion.div
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -4 }}
-                className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm"
-              >
-                <Sparkles className="size-4 shrink-0 text-primary" />
-                <span className="min-w-0">
-                  Looks like <span className="font-medium">{STAGE_META[suggestion.to].label}</span>
-                  <span className="text-muted-foreground"> — {suggestion.reason}.</span>
-                </span>
-                <Button size="sm" className="ml-auto h-7" disabled={pending || suggestBusy} onClick={() => setStageTo(suggestion.to)}>
-                  {suggestBusy ? <Loader2 className="size-3.5 animate-spin" /> : null} Move to {STAGE_META[suggestion.to].label}
-                </Button>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
-      </Card>
     </div>
   );
 }
