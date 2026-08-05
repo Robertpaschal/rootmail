@@ -157,6 +157,21 @@ export function AudienceRule({
             <p className="mt-0.5 max-w-prose text-xs text-muted-foreground">
               It can describe itself instead — “everyone on a free plan who never finished setting
               up” — and stay correct on its own as people change.
+              {/* Switching an audience that already has members REPLACES who is
+                  in it: membership stops being the people you added and becomes
+                  whoever matches. Say so before the click, not after — this is
+                  the difference between a campaign reaching the 3 people you
+                  chose and the 400 who match. */}
+              {memberCount > 0 ? (
+                <>
+                  {" "}
+                  <span className="text-amber-600 dark:text-amber-500">
+                    The {memberCount.toLocaleString()}{" "}
+                    {memberCount === 1 ? "person" : "people"} in it now would be replaced by
+                    whoever matches — you’ll see the new count before saving.
+                  </span>
+                </>
+              ) : null}
             </p>
           </div>
           <Button variant="outline" onClick={() => setOpen(true)} className="shrink-0 gap-1.5">

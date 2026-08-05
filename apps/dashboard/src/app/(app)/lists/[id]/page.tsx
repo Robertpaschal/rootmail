@@ -164,6 +164,17 @@ export default async function ListDetailPage({
         </Card>
       </Reveal>
 
+      {/* HOW THIS AUDIENCE DECIDES WHO IS IN IT — always, in both states.
+          This used to render only when the audience was EMPTY, which meant a
+          rule became invisible the moment it worked: a rule audience has
+          members by definition, so its rule was permanently unreachable — you
+          could not read it, edit it, or turn it back into a plain list. A
+          static audience could never become a rule either, because the offer
+          only appeared before anyone had been added. */}
+      <div id="rule" className="mb-6">
+        <AudienceRule listId={list.id} initialFilter={list.filter} memberCount={list.contacts} />
+      </div>
+
       {empty ? (
         /* From empty to scale: the three ways to fill an audience */
         <Reveal className="space-y-6" delay={0.05}>
@@ -193,13 +204,7 @@ export default async function ListDetailPage({
               </div>
             </div>
           </div>
-          {/* How this audience decides who is in it — before Grow, which is about
-            getting NEW people in. A rule audience doesn't grow by signup. */}
-        <div id="rule" className="mb-6">
-          <AudienceRule listId={list.id} initialFilter={list.filter} memberCount={list.contacts} />
-        </div>
-
-        <div id="grow">{growth ? <GrowAudience list={list} growth={growth} welcome={welcome} canSequence={canSequence} /> : null}</div>
+          <div id="grow">{growth ? <GrowAudience list={list} growth={growth} welcome={welcome} canSequence={canSequence} /> : null}</div>
         </Reveal>
       ) : (
         <Reveal className="space-y-4" delay={0.05}>
