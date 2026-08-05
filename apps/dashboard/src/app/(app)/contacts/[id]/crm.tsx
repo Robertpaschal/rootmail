@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import {
   Ban,
   Check,
+  Copy,
   CornerUpLeft,
   Loader2,
   Mail,
@@ -44,10 +45,18 @@ import { cn } from "@/lib/utils";
 import type { ContactDetail, ContactList, ContactNote } from "@/lib/types";
 import { POSITIVE_STAGES, STAGE_META, suggestStage, type ContactStage } from "@/lib/stages";
 
-// One customer, one page. An identity band up top (who + lifecycle + actions),
-// then two columns that read as one surface: the RECORD on the left (details,
-// tags, audiences — presented, edited on demand) and the STORY on the right
-// (a note composer over one capped, scrolling timeline of notes + events + sends).
+// One customer, one page, three answers in order: WHO they are (identity, how
+// the relationship is going, where they are in it), then side by side the
+// RECORD (every fact as a row in one list) and the STORY (notes, replies, and
+// everything that has happened).
+//
+// The record used to be three sections — Details, Tags, Audiences — each with
+// its own uppercase heading and its own button. For a contact with a name and
+// nothing else that is three lines of content inside 274px of chrome, and it
+// read, correctly, as a stack of separate boxes. Facts about one person belong
+// in one list. The header gained the engagement numbers for the same reason:
+// the page could not previously tell you how the relationship was going without
+// making you read the timeline and count.
 
 function initials(name: string | null, email: string): string {
   const base = (name ?? email).trim();
@@ -65,19 +74,6 @@ const EVENT_META: Record<string, { label: string; Icon: typeof Mail; tone: strin
   admitted: { label: "Admitted from the waitlist", Icon: UserCheck, tone: "text-emerald-600", dot: "bg-emerald-500" },
   stage_changed: { label: "Stage changed", Icon: UserCheck, tone: "text-primary", dot: "bg-primary" },
 };
-
-/** A quiet section inside the record card — title + an optional header action. */
-function Section({ title, action, children }: { title: string; action?: React.ReactNode; children: React.ReactNode }) {
-  return (
-    <div className="p-4">
-      <div className="mb-2.5 flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h3>
-        {action}
-      </div>
-      {children}
-    </div>
-  );
-}
 
 /** A conversation with this contact, as passed down from the server page. */
 export interface ContactThreadSummary {
@@ -113,6 +109,7 @@ export function ContactCrm({
   const [status, setStatus] = useState(contact.status);
   const [stage, setStage] = useState<ContactStage>(contact.stage);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [suggestBusy, setSuggestBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok?: string; error?: string } | null>(null);
   const [pending, start] = useTransition();
@@ -265,21 +262,78 @@ export function ContactCrm({
   const atRisk = stage === "at_risk";
   const hasDetails = Boolean(contact.name || contact.phone || cleanFields.length);
 
+  /**
+   * How the relationship is going, at a glance.
+   *
+   * The page used to leave this implicit — you had to read the timeline and do
+   * the counting yourself, which is a large part of why it felt unfinished.
+   *
+   * `recent_messages` is capped at 20 by the API, so these are counts over what
+   * we hold, NOT lifetime totals. `capped` drives a qualifier in the UI rather
+   * than letting "8 opened" quietly imply it is the whole story.
+   */
+  const stats = useMemo(() => {
+    const msgs = contact.recent_messages;
+    const times = [
+      ...msgs.map((m) => m.sent_at),
+      ...contact.events.map((e) => e.occurred_at),
+    ].sort();
+    return {
+      sent: msgs.length,
+      opened: msgs.filter((m) => m.opened_at).length,
+      clicked: msgs.filter((m) => m.clicked_at).length,
+      lastAt: times.length ? times[times.length - 1] : null,
+      capped: msgs.length >= 20,
+    };
+  }, [contact.recent_messages, contact.events]);
+
   return (
-    <div className="space-y-6">
-      {/* Identity band — who, where in the lifecycle, and what to do */}
+    <div className="space-y-5">
+      {/* ── WHO THEY ARE ──────────────────────────────────────────────────────
+          One continuous header: identity, then how the relationship is going,
+          then where they are in it. These used to be a card and a detached
+          strip; they are one surface because they answer one question. */}
       <Card className="overflow-hidden">
-        <div className="flex flex-wrap items-center gap-4 p-5">
+        <div className="flex flex-wrap items-start gap-4 p-5 pb-4">
           <span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
             {initials(contact.name, contact.email)}
           </span>
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate text-lg font-semibold">{contact.name ?? contact.email}</p>
+              <p className="truncate text-lg font-semibold leading-tight">{contact.name ?? contact.email}</p>
               <Badge variant={status === "active" ? "success" : status === "unsubscribed" ? "secondary" : "warning"}>{status}</Badge>
               {contact.suppressed ? <Badge variant="warning">suppressed</Badge> : null}
             </div>
-            <p className="truncate text-sm text-muted-foreground">{contact.email}</p>
+            {/* With no name the title IS the address, so repeating it here says
+                nothing. Offer the missing name instead — the subline earns its
+                place either way. */}
+            {contact.name ? (
+              <button
+                type="button"
+                onClick={() => {
+                  void navigator.clipboard?.writeText(contact.email);
+                  setCopied(true);
+                  window.setTimeout(() => setCopied(false), 1400);
+                }}
+                className="group mt-0.5 inline-flex max-w-full items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                title="Copy email address"
+              >
+                <span className="truncate">{contact.email}</span>
+                {copied ? (
+                  <Check className="size-3.5 shrink-0 text-emerald-500" />
+                ) : (
+                  <Copy className="size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
+                )}
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setEditDetails(true)}
+                className="mt-0.5 inline-flex items-center gap-1.5 text-sm text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                <Pencil className="size-3.5" /> Add a name
+              </button>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <Link
@@ -333,8 +387,41 @@ export function ContactCrm({
           </div>
         </div>
 
-        {/* Lifecycle pipeline — click a stage to move them */}
-        <div className="space-y-2.5 border-t bg-muted/20 p-4">
+        {/* How the relationship is actually going. The page used to make you
+            read the timeline and infer this, which is why it felt unfinished.
+            Counts are over the sends we hold (capped at 20), so the label says
+            so rather than implying a lifetime total it cannot know. */}
+        <div className="flex flex-wrap items-center gap-x-7 gap-y-2 border-t px-5 py-3">
+          {stats.sent > 0 ? (
+            <>
+              <Stat label={stats.sent === 1 ? "email sent" : "emails sent"} value={String(stats.sent)} />
+              <Stat
+                label="opened"
+                value={`${stats.opened}`}
+                sub={stats.sent ? `${Math.round((stats.opened / stats.sent) * 100)}%` : undefined}
+                tone={stats.opened > 0 ? "text-violet-600 dark:text-violet-400" : undefined}
+              />
+              <Stat
+                label="clicked"
+                value={`${stats.clicked}`}
+                sub={stats.sent ? `${Math.round((stats.clicked / stats.sent) * 100)}%` : undefined}
+                tone={stats.clicked > 0 ? "text-blue-600 dark:text-blue-400" : undefined}
+              />
+            </>
+          ) : (
+            <span className="text-sm text-muted-foreground">
+              You haven&apos;t emailed them yet — engagement shows up here once you do.
+            </span>
+          )}
+          {stats.lastAt ? <Stat label="last activity" value={relativeTime(stats.lastAt)} /> : null}
+          <Stat label="added" value={new Date(contact.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} />
+          {stats.capped ? (
+            <span className="text-[11px] text-muted-foreground/70">across their 20 most recent emails</span>
+          ) : null}
+        </div>
+
+        {/* Where they are in the relationship — click a stage to move them. */}
+        <div className="space-y-2.5 border-t bg-muted/20 px-5 py-3.5">
           <div className="flex items-stretch overflow-hidden rounded-lg border bg-background">
             {POSITIVE_STAGES.map((s2, i) => {
               const reached = !atRisk && currentIdx >= i;
@@ -347,7 +434,7 @@ export function ContactCrm({
                   onClick={() => setStageTo(s2)}
                   title={STAGE_META[s2].hint}
                   className={cn(
-                    "flex h-10 flex-1 items-center justify-center border-r px-2 text-xs transition-colors last:border-r-0",
+                    "flex h-9 flex-1 items-center justify-center border-r px-2 text-xs transition-colors last:border-r-0",
                     s2 === "champion" && reached
                       ? "bg-amber-500 text-white hover:bg-amber-600"
                       : reached
@@ -405,39 +492,185 @@ export function ContactCrm({
 
       {msg?.error ? <p className="text-sm text-destructive">{msg.error}</p> : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(320px,380px)_1fr] lg:items-start">
-        {/* THE RECORD — presented, edited on demand */}
-        <Card className="divide-y">
-          {/* Details */}
-          <Section
-            title="Details"
-            action={
-              !editDetails ? (
-                <Button variant="ghost" size="sm" className="h-7 gap-1 text-muted-foreground" onClick={() => setEditDetails(true)}>
-                  <Pencil className="size-3.5" /> {hasDetails ? "Edit" : "Add"}
-                </Button>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" className="h-7" onClick={cancelDetails} disabled={pending}>Cancel</Button>
-                  <Button size="sm" className="h-7" onClick={saveProfile} disabled={pending}>
-                    {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />} Save
-                  </Button>
-                </div>
-              )
-            }
-          >
+      <div className="grid gap-5 lg:grid-cols-[minmax(300px,340px)_1fr] lg:items-start">
+        {/* ── THE RECORD ───────────────────────────────────────────────────
+            ONE card, ONE header, and rows. Details, tags and audiences used to
+            be three sections, each with its own uppercase heading and its own
+            button — three lines of content wearing three sets of chrome, which
+            is what read as "separate boxes". They are facts about one person,
+            so they are now rows in one list. */}
+        <Card>
+          <div className="flex items-center justify-between gap-2 border-b px-4 py-3">
+            <h2 className="text-sm font-semibold">Profile</h2>
             {!editDetails ? (
-              hasDetails ? (
-                <dl className="space-y-2 text-sm">
-                  {contact.name ? <Row label="Name" value={contact.name} /> : null}
-                  {contact.phone ? <Row label="Phone" value={contact.phone} /> : null}
-                  {cleanFields.map((f) => (
-                    <Row key={f.key} label={f.key} value={f.value} mono />
-                  ))}
-                </dl>
-              ) : (
-                <p className="text-sm text-muted-foreground">No details yet — add a name, phone, or custom fields that fill your templates.</p>
-              )
+              <Button variant="ghost" size="sm" className="h-7 gap-1 text-muted-foreground" onClick={() => setEditDetails(true)}>
+                <Pencil className="size-3.5" /> Edit
+              </Button>
+            ) : (
+              <div className="flex items-center gap-1">
+                <Button variant="ghost" size="sm" className="h-7" onClick={cancelDetails} disabled={pending}>Cancel</Button>
+                <Button size="sm" className="h-7" onClick={saveProfile} disabled={pending}>
+                  {pending ? <Loader2 className="size-3.5 animate-spin" /> : <Check className="size-3.5" />} Save
+                </Button>
+              </div>
+            )}
+          </div>
+
+          <div className="p-4">
+            {!editDetails ? (
+              <dl className="space-y-3 text-sm">
+                <FieldRow label="Email">
+                  <span className="break-all">{contact.email}</span>
+                </FieldRow>
+                {contact.name ? <FieldRow label="Name">{contact.name}</FieldRow> : null}
+                {contact.phone ? <FieldRow label="Phone">{contact.phone}</FieldRow> : null}
+                {cleanFields.map((f) => (
+                  <FieldRow key={f.key} label={f.key} mono>
+                    {f.value}
+                  </FieldRow>
+                ))}
+
+                {/* Tags and audiences are rows on the same record, not sections
+                    of their own. The add affordance lives in the row. */}
+                <FieldRow
+                  label="Tags"
+                  action={
+                    <button
+                      type="button"
+                      onClick={() => setAddingTag((v) => !v)}
+                      className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                      aria-label={addingTag ? "Done adding tags" : "Add a tag"}
+                    >
+                      {addingTag ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
+                    </button>
+                  }
+                >
+                  {tags.length ? (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {tags.map((t) => (
+                        <span key={t} className="group inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium">
+                          {t}
+                          <button type="button" onClick={() => saveTags(tags.filter((x) => x !== t))} className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" aria-label={`Remove ${t}`}>
+                            <X className="size-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : !addingTag ? (
+                    <span className="text-muted-foreground">None</span>
+                  ) : null}
+                  <AnimatePresence initial={false}>
+                    {addingTag ? (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                        <form
+                          onSubmit={(e) => {
+                            e.preventDefault();
+                            const t = tagDraft.trim();
+                            if (t && !tags.includes(t)) saveTags([...tags, t]);
+                            setTagDraft("");
+                          }}
+                          className="mt-1.5 flex items-center gap-1"
+                        >
+                          <Input autoFocus value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} placeholder="add a tag…" className="h-7 flex-1 text-xs" />
+                          <Button type="submit" variant="outline" size="sm" className="h-7 px-2" disabled={pending}>
+                            <Plus className="size-3.5" />
+                          </Button>
+                        </form>
+                        <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                          A tag can trigger a sequence, target a campaign variant, or become an audience.
+                        </p>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </FieldRow>
+
+                <FieldRow
+                  label="Audiences"
+                  action={
+                    availableLists.length > 0 ? (
+                      <button
+                        type="button"
+                        onClick={() => setAddingAudience((v) => !v)}
+                        className="rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+                        aria-label={addingAudience ? "Done adding audiences" : "Add to an audience"}
+                      >
+                        {addingAudience ? <X className="size-3.5" /> : <Plus className="size-3.5" />}
+                      </button>
+                    ) : null
+                  }
+                >
+                  {audiences.length ? (
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {audiences.map((a) => (
+                        <span key={a.id} className="group inline-flex items-center gap-1 rounded-full border bg-primary/5 px-2 py-0.5 text-xs font-medium">
+                          <Link href={`/lists/${a.id}`} className="hover:underline">{a.name}</Link>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              start(async () => {
+                                const res = await removeFromAudienceAction(contact.id, a.id);
+                                if (!res.error) setAudiences((s) => s.filter((x) => x.id !== a.id));
+                                else setMsg({ error: res.error });
+                              })
+                            }
+                            className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                            aria-label={`Remove from ${a.name}`}
+                          >
+                            <X className="size-3" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : !addingAudience ? (
+                    <span className="text-muted-foreground">None</span>
+                  ) : null}
+                  <AnimatePresence initial={false}>
+                    {addingAudience && availableLists.length > 0 ? (
+                      <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <Select value={addList} onChange={(e) => setAddList(e.target.value)} className="h-7 flex-1 text-xs">
+                            <option value="">Add to audience…</option>
+                            {availableLists.map((l) => (
+                              <option key={l.id} value={l.id}>{l.name}</option>
+                            ))}
+                          </Select>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2"
+                            disabled={pending || !addList}
+                            onClick={() =>
+                              start(async () => {
+                                const res = await addToAudienceAction(contact.id, addList);
+                                if (!res.error) {
+                                  const l = allLists.find((x) => x.id === addList);
+                                  if (l) setAudiences((s) => [...s, { id: l.id, name: l.name }]);
+                                  setAddList("");
+                                  if (availableLists.length <= 1) setAddingAudience(false);
+                                } else setMsg({ error: res.error });
+                              })
+                            }
+                          >
+                            <Plus className="size-3.5" />
+                          </Button>
+                        </div>
+                      </motion.div>
+                    ) : null}
+                  </AnimatePresence>
+                </FieldRow>
+
+                {/* An empty record should invite, not just report emptiness. */}
+                {!hasDetails ? (
+                  <button
+                    type="button"
+                    onClick={() => setEditDetails(true)}
+                    className="mt-1 w-full rounded-lg border border-dashed px-3 py-2.5 text-left text-xs text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                  >
+                    Add a name, phone, or custom fields — they fill your templates as{" "}
+                    <span className="font-mono">{"{{field_name}}"}</span>.
+                  </button>
+                ) : null}
+              </dl>
             ) : (
               <div className="space-y-3">
                 <label className="block">
@@ -455,7 +688,7 @@ export function ContactCrm({
                   <div className="space-y-1.5">
                     {fields.map((f, i) => (
                       <div key={i} className="flex gap-1.5">
-                        <Input value={f.key} onChange={(e) => setFields((s) => s.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)))} placeholder="plan" className="h-8 w-32 font-mono text-xs" />
+                        <Input value={f.key} onChange={(e) => setFields((s) => s.map((x, j) => (j === i ? { ...x, key: e.target.value } : x)))} placeholder="plan" className="h-8 w-28 font-mono text-xs" />
                         <Input value={f.value} onChange={(e) => setFields((s) => s.map((x, j) => (j === i ? { ...x, value: e.target.value } : x)))} placeholder="Growth" className="h-8 flex-1 text-xs" />
                         <Button type="button" variant="ghost" size="icon" className="size-8 text-muted-foreground" onClick={() => setFields((s) => s.filter((_, j) => j !== i))}>
                           <X className="size-3.5" />
@@ -469,126 +702,8 @@ export function ContactCrm({
                 </div>
               </div>
             )}
-          </Section>
-
-          {/* Tags */}
-          <Section
-            title="Tags"
-            action={
-              <Button variant="ghost" size="sm" className="h-7 gap-1 text-muted-foreground" onClick={() => setAddingTag((v) => !v)}>
-                {addingTag ? <X className="size-3.5" /> : <Plus className="size-3.5" />} {addingTag ? "Done" : "Add"}
-              </Button>
-            }
-          >
-            {tags.length ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                {tags.map((t) => (
-                  <span key={t} className="group inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-medium">
-                    {t}
-                    <button type="button" onClick={() => saveTags(tags.filter((x) => x !== t))} className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" aria-label={`Remove ${t}`}>
-                      <X className="size-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : !addingTag ? (
-              <p className="text-sm text-muted-foreground">No tags yet.</p>
-            ) : null}
-            <AnimatePresence initial={false}>
-              {addingTag ? (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const t = tagDraft.trim();
-                      if (t && !tags.includes(t)) saveTags([...tags, t]);
-                      setTagDraft("");
-                    }}
-                    className="mt-2 flex items-center gap-1"
-                  >
-                    <Input autoFocus value={tagDraft} onChange={(e) => setTagDraft(e.target.value)} placeholder="add a tag…" className="h-8 flex-1 text-xs" />
-                    <Button type="submit" variant="outline" size="sm" className="h-8 px-2" disabled={pending}>
-                      <Plus className="size-3.5" />
-                    </Button>
-                  </form>
-                  <p className="mt-1.5 text-xs text-muted-foreground">A tag can trigger a sequence, target a campaign variant, or become an audience.</p>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </Section>
-
-          {/* Audiences */}
-          <Section
-            title="Audiences"
-            action={
-              availableLists.length > 0 ? (
-                <Button variant="ghost" size="sm" className="h-7 gap-1 text-muted-foreground" onClick={() => setAddingAudience((v) => !v)}>
-                  {addingAudience ? <X className="size-3.5" /> : <Plus className="size-3.5" />} {addingAudience ? "Done" : "Add"}
-                </Button>
-              ) : null
-            }
-          >
-            {audiences.length ? (
-              <div className="flex flex-wrap items-center gap-1.5">
-                {audiences.map((a) => (
-                  <span key={a.id} className="group inline-flex items-center gap-1 rounded-full border bg-primary/5 px-2.5 py-0.5 text-xs font-medium">
-                    <Link href={`/lists/${a.id}`} className="hover:underline">{a.name}</Link>
-                    <button
-                      type="button"
-                      onClick={() =>
-                        start(async () => {
-                          const res = await removeFromAudienceAction(contact.id, a.id);
-                          if (!res.error) setAudiences((s) => s.filter((x) => x.id !== a.id));
-                          else setMsg({ error: res.error });
-                        })
-                      }
-                      className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                      aria-label={`Remove from ${a.name}`}
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </span>
-                ))}
-              </div>
-            ) : !addingAudience ? (
-              <p className="text-sm text-muted-foreground">Not in any audience yet.</p>
-            ) : null}
-            <AnimatePresence initial={false}>
-              {addingAudience && availableLists.length > 0 ? (
-                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
-                  <div className="mt-2 flex items-center gap-2">
-                    <Select value={addList} onChange={(e) => setAddList(e.target.value)} className="h-8 flex-1 text-xs">
-                      <option value="">Add to audience…</option>
-                      {availableLists.map((l) => (
-                        <option key={l.id} value={l.id}>{l.name}</option>
-                      ))}
-                    </Select>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="h-8"
-                      disabled={pending || !addList}
-                      onClick={() =>
-                        start(async () => {
-                          const res = await addToAudienceAction(contact.id, addList);
-                          if (!res.error) {
-                            const l = allLists.find((x) => x.id === addList);
-                            if (l) setAudiences((s) => [...s, { id: l.id, name: l.name }]);
-                            setAddList("");
-                            if (availableLists.length <= 1) setAddingAudience(false);
-                          } else setMsg({ error: res.error });
-                        })
-                      }
-                    >
-                      <Plus className="size-3.5" /> Add
-                    </Button>
-                  </div>
-                </motion.div>
-              ) : null}
-            </AnimatePresence>
-          </Section>
+          </div>
         </Card>
-
         {/* THE STORY — note composer over the capped, scrolling activity feed */}
         <Card className="flex flex-col">
           <div className="flex items-center justify-between gap-2 border-b p-4">
@@ -663,12 +778,43 @@ export function ContactCrm({
   );
 }
 
-/** A presented key/value row in the Details view. */
-function Row({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
+/**
+ * One fact about this person: a quiet label on the left, the value on the right.
+ *
+ * Every row on the record uses this — name, phone, a synced trait, their tags,
+ * their audiences. That sameness is the point: previously tags and audiences
+ * each carried a section heading and a button of their own, so three short
+ * facts wore three sets of chrome and read as three separate boxes.
+ */
+function FieldRow({
+  label,
+  children,
+  mono,
+  action,
+}: {
+  label: string;
+  children: React.ReactNode;
+  mono?: boolean;
+  action?: React.ReactNode;
+}) {
   return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className="shrink-0 text-xs capitalize text-muted-foreground">{label}</dt>
-      <dd className={cn("min-w-0 break-words text-right", mono && "font-mono text-xs")}>{value}</dd>
+    <div className="grid grid-cols-[5.5rem_1fr] items-start gap-3">
+      <dt className="flex items-center gap-1 pt-px text-xs capitalize text-muted-foreground">
+        {label}
+        {action}
+      </dt>
+      <dd className={cn("min-w-0 break-words", mono && "font-mono text-xs")}>{children}</dd>
+    </div>
+  );
+}
+
+/** A number in the header strip — value large, label quiet, optional rate. */
+function Stat({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
+  return (
+    <div className="flex items-baseline gap-1.5">
+      <span className={cn("text-sm font-semibold tabular-nums", tone)}>{value}</span>
+      {sub ? <span className="text-xs text-muted-foreground tabular-nums">({sub})</span> : null}
+      <span className="text-xs text-muted-foreground">{label}</span>
     </div>
   );
 }
