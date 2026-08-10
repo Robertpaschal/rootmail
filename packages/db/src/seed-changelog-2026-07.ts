@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Sequences you can build without learning how sequences work",
+    date: "2026-08-10",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Building a sequence is now three steps — who joins it, what they get, and when it goes live — instead of one page asking for everything at once. The second step opens on shapes most people want (a welcome series, onboarding, winning someone back) so you start from something real rather than an empty list.",
+      },
+      {
+        kind: "Improved",
+        text: "You no longer add “wait” and “send” as separate steps. You add an email and say how long after the last one it goes out, which is how people describe a sequence anyway: send this, then two days later send that.",
+      },
+      {
+        kind: "New",
+        text: "Before you turn it on, you see what one person will actually experience — each email in order, on the day it lands.",
+      },
+      {
+        kind: "Improved",
+        text: "Opening a sequence now shows what it is doing: how many people are partway through, how many have finished, and every email in the journey with its own opens and clicks attached to it. It used to open straight into an edit form, with the numbers in a separate table you had to match up by step number yourself. Editing is still one click away.",
+      },
+      {
+        kind: "Improved",
+        text: "The sequence list says what each one does — “tagged new-signup”, “3 emails over 7 days” — rather than describing its internals.",
+      },
+    ],
+  },
+  {
     title: "Every email you send is in the dashboard — however you sent it",
     date: "2026-08-04",
     changes: [
