@@ -31,7 +31,7 @@ export default async function NewSequencePage() {
     <>
       <PageHeader
         title="New sequence"
-        description="Add steps (wait / send / branch) and choose how contacts enroll."
+        description="Three steps: who joins it, what they get, and when it goes live."
         backHref="/sequences"
         backLabel="Sequences"
       />

@@ -12,6 +12,7 @@ import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Sequence } from "@/lib/types";
+import { journeySummary, triggerShort } from "./describe";
 
 export default async function SequencesPage() {
   let rows: Sequence[] | null = null;
@@ -64,8 +65,8 @@ export default async function SequencesPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
-                  <TableHead>Trigger</TableHead>
-                  <TableHead>Steps</TableHead>
+                  <TableHead>Who joins</TableHead>
+                  <TableHead>What it sends</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Created</TableHead>
                 </TableRow>
@@ -78,12 +79,15 @@ export default async function SequencesPage() {
                         {s.name}
                       </Link>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {s.trigger.type === "contact_tagged" ? `tagged: ${s.trigger.tag}` : s.trigger.type}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">{s.steps.length}</TableCell>
+                    {/* "contact_tagged / 6" told you the shape of the record,
+                        not what the thing does. These two columns answer the
+                        only questions you scan a sequence list for. */}
+                    <TableCell className="text-muted-foreground">{triggerShort(s.trigger)}</TableCell>
+                    <TableCell className="text-muted-foreground">{journeySummary(s.steps)}</TableCell>
                     <TableCell>
-                      <Badge variant={s.status === "active" ? "success" : "muted"}>{s.status}</Badge>
+                      <Badge variant={s.status === "active" ? "success" : "muted"}>
+                        {s.status === "active" ? "On" : "Paused"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="whitespace-nowrap text-right text-muted-foreground">
                       {relativeTime(s.created_at)}

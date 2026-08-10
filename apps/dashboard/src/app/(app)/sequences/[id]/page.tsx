@@ -10,7 +10,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { FunnelCard } from "@/components/app/funnel-card";
 import { api, ApiError } from "@/lib/rootmail";
 import type { Enrollment, Sequence, SequenceAnalytics } from "@/lib/types";
-import { SequenceBuilder } from "../builder";
+import { SequenceManage } from "./manage";
+import { journeyShape, journeySummary, triggerSentence } from "../describe";
 import { deleteSequenceAction, enrollAction } from "../actions";
 
 export default async function SequenceDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -29,49 +30,49 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
   // Engagement is additive — never let an analytics hiccup break the builder.
   const analytics: SequenceAnalytics | null = await api.sequenceAnalytics(id).catch(() => null);
 
+  const activeCount = enrollments.filter((e) => e.status === "active").length;
+  const doneCount = enrollments.filter((e) => e.status === "completed").length;
+
   return (
     <>
-      <PageHeader title={sequence.name} backHref="/sequences" backLabel="Sequences" />
+      <PageHeader
+        title={sequence.name}
+        description={`${triggerSentence(sequence.trigger)} · ${journeySummary(sequence.steps)}`}
+        backHref="/sequences"
+        backLabel="Sequences"
+        actions={
+          <Badge variant={sequence.status === "active" ? "success" : "muted"}>
+            {sequence.status === "active" ? "On" : "Paused"}
+          </Badge>
+        }
+      />
+
+      {/* Where it stands, before anything you could change about it. */}
+      <div className="mb-6 grid gap-3 sm:grid-cols-3">
+        {[
+          { label: "In progress", value: activeCount, hint: "receiving it right now" },
+          { label: "Finished", value: doneCount, hint: "reached the last email" },
+          { label: "Emails", value: journeyShape(sequence.steps).emails, hint: "in the journey" },
+        ].map((s) => (
+          <Card key={s.label}>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground">{s.label}</p>
+              <p className="mt-0.5 text-2xl font-semibold tabular-nums">{s.value.toLocaleString()}</p>
+              <p className="text-xs text-muted-foreground">{s.hint}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          <SequenceBuilder sequence={sequence} templates={templates} />
+          <SequenceManage sequence={sequence} templates={templates} analytics={analytics} />
         </div>
 
         <div className="space-y-6">
-          {analytics ? (
-            <FunnelCard stats={analytics}>
-              {analytics.steps.length > 0 ? (
-                <div className="border-t pt-3">
-                  <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                    By step
-                  </p>
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="text-left text-muted-foreground">
-                        <th className="py-1 font-medium">Step</th>
-                        <th className="py-1 text-right font-medium">Sent</th>
-                        <th className="py-1 text-right font-medium">Delivered</th>
-                        <th className="py-1 text-right font-medium">Opened</th>
-                        <th className="py-1 text-right font-medium">Clicked</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {analytics.steps.map((s) => (
-                        <tr key={s.step} className="border-t">
-                          <td className="py-1.5 font-medium">#{s.step + 1}</td>
-                          <td className="py-1.5 text-right tabular-nums">{s.sent}</td>
-                          <td className="py-1.5 text-right tabular-nums">{s.delivered}</td>
-                          <td className="py-1.5 text-right tabular-nums">{s.opened}</td>
-                          <td className="py-1.5 text-right tabular-nums">{s.clicked}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : null}
-            </FunnelCard>
-          ) : null}
+          {/* Totals only — the per-step breakdown now sits on the steps
+              themselves, where you don't have to match "#2" to an email. */}
+          {analytics ? <FunnelCard stats={analytics} /> : null}
 
           <Card>
             <CardHeader>
