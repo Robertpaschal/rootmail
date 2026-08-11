@@ -32,7 +32,7 @@ export const contacts: DocPage = {
 });`,
       "contact.ts",
     ),
-    callout("note", "Your marketing plan is priced by contact size — see ", a("Pricing", "https://marketing.gateml.io/pricing"), "."),
+    callout("note", "Your marketing plan is priced by contact size — see ", a("Pricing", "https://rootmail.io/pricing"), "."),
   ],
 };
 
@@ -121,7 +121,7 @@ const audience = await mail.lists.create({
     code(
       "html",
       `<!-- Drop this on your site — style it however you like -->
-<form action="https://service.gateml.io/v1/subscribe" method="post">
+<form action="https://api.rootmail.io/v1/subscribe" method="post">
   <input type="hidden" name="list_id" value="lst_your_audience">
   <input type="email" name="email" placeholder="you@example.com" required>
   <input type="text" name="name" placeholder="Your name">

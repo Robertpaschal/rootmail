@@ -22,7 +22,7 @@ export default async function DocPageView({ params }: { params: Promise<{ slug: 
         backLabel={section ? `Docs · ${section.label}` : "Docs"}
         actions={
           <a
-            href={`https://developers.gateml.io/docs/${slug}`}
+            href={`https://developers.rootmail.io/docs/${slug}`}
             target="_blank"
             rel="noreferrer"
             className="text-sm font-medium text-muted-foreground hover:text-foreground"

@@ -5,7 +5,7 @@ const description =
   "Stop rebuilding email inside your product. One integration gives you sending, templates, audiences, webhooks, deliverability, and signed proof — everything the dashboard does, the API does. Change email behavior without redeploying.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://developers.gateml.io"),
+  metadataBase: new URL("https://developers.rootmail.io"),
   title: {
     default: "Rootmail for developers — outsource your email layer",
     template: "%s · rootmail developers",

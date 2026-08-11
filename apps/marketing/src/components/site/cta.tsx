@@ -35,10 +35,10 @@ export function Cta() {
             <p className="mt-2 text-sm text-zinc-400">
               Building a product?{" "}
               <Link
-                href="https://developers.gateml.io"
+                href="https://developers.rootmail.io"
                 className="font-medium text-zinc-200 underline-offset-4 hover:underline"
               >
-                developers.gateml.io
+                developers.rootmail.io
               </Link>{" "}
               has the technical pitch and docs.
             </p>

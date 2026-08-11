@@ -13,7 +13,7 @@ export const sdk: DocPage = {
 
 const mail = new RootMail({
   apiKey: process.env.ROOTMAIL_API_KEY!,
-  // baseUrl defaults to https://service.gateml.io
+  // baseUrl defaults to https://api.rootmail.io
 });`,
       "init.ts",
     ),

@@ -7,7 +7,7 @@ import { createSign } from "node:crypto";
 // callback is an HTTP form_post. Lights up only when all four creds are set.
 //
 // Required env (apps/dashboard/.env.local):
-//   APPLE_CLIENT_ID    — the Services ID (e.g. io.gateml.signin)
+//   APPLE_CLIENT_ID    — the Services ID (e.g. io.rootmail.signin)
 //   APPLE_TEAM_ID      — your Apple Developer Team ID
 //   APPLE_KEY_ID       — the Key ID of the .p8 signing key
 //   APPLE_PRIVATE_KEY  — the .p8 contents (PKCS8 PEM; \n-escaped is fine)

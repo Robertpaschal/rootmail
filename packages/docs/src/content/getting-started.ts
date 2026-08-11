@@ -7,7 +7,7 @@ export const quickstart: DocPage = {
   blocks: [
     p(
       "rootmail is one email platform with four front doors: the ",
-      a("web dashboard", "https://dashboard.gateml.io"),
+      a("web dashboard", "https://app.rootmail.io"),
       ", the typed Node SDK, the CLI, and the REST API. Everything the dashboard does is available in code, and everything you build in code stays editable in the dashboard. This guide sends your first email in three steps.",
     ),
     h("1. Get an API key"),
@@ -41,7 +41,7 @@ await mail.messages.create({
     p("The same call over raw HTTP:"),
     code(
       "bash",
-      `curl https://service.gateml.io/v1/messages \\
+      `curl https://api.rootmail.io/v1/messages \\
   -H "Authorization: Bearer $ROOTMAIL_API_KEY" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -122,7 +122,7 @@ export const baseUrl: DocPage = {
   summary: "Where the API lives, and the conventions every endpoint shares.",
   blocks: [
     p("All API requests go to a single versioned base URL:"),
-    code("bash", "https://service.gateml.io/v1", "base URL"),
+    code("bash", "https://api.rootmail.io/v1", "base URL"),
     h("Conventions"),
     list([
       ["JSON in, JSON out. Request and response bodies are ", b("snake_case"), "."],

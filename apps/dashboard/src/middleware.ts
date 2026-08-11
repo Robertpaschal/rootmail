@@ -6,7 +6,7 @@ const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
 /**
  * The parent domain the cross-subdomain "signed-in" hint is scoped to (e.g.
- * ".gateml.io"), so the marketing + developer sites can read it. Prefer the
+ * ".rootmail.io"), so the marketing + developer sites can read it. Prefer the
  * explicit COOKIE_DOMAIN, but fall back to deriving the registrable parent from
  * the request host: edge middleware can't reliably read runtime-only env (it's
  * inlined at build, where COOKIE_DOMAIN isn't set), and the host is an
@@ -20,7 +20,7 @@ function hintDomain(req: NextRequest): string | undefined {
   if (!host || host === "localhost" || /^\d{1,3}(\.\d{1,3}){3}$/.test(host)) return undefined;
   const labels = host.split(".");
   if (labels.length < 2) return undefined;
-  return "." + labels.slice(-2).join("."); // dashboard.gateml.io -> .gateml.io
+  return "." + labels.slice(-2).join("."); // app.rootmail.io -> .rootmail.io
 }
 
 /**

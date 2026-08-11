@@ -10,7 +10,7 @@ import { Cta } from "@/components/site/cta";
 import { Footer } from "@/components/site/footer";
 
 // The main site sells the PRODUCT to everyone — all your email in one place
-// (unification, not "no code"). The developer pitch lives at developers.gateml.io.
+// (unification, not "no code"). The developer pitch lives at developers.rootmail.io.
 export default function HomePage() {
   return (
     <>

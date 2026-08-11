@@ -223,7 +223,7 @@ export default function DevelopersHome() {
               <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
                 <CtaButton label="Get an API key" size="lg" arrow />
                 <Link
-                  href="https://marketing.gateml.io/pricing"
+                  href="https://rootmail.io/pricing"
                   className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
                 >
                   See live pricing

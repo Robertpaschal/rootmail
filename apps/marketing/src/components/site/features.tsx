@@ -17,7 +17,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { ReactiveCard, Reveal } from "./motion";
 
 // Outcomes, not mechanisms — every card says what YOU get, in plain words.
-// (The mechanisms live on developers.gateml.io, where they're the point.)
+// (The mechanisms live on developers.rootmail.io, where they're the point.)
 const features = [
   {
     icon: Send,

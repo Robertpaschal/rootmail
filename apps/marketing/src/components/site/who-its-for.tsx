@@ -26,7 +26,7 @@ const personas = [
     example: "A developer, agency, or SaaS",
     story:
       "Stop hand-rolling email inside every backend. Integrate once; templates, flows and domains stay editable in the dashboard — by you or the client you built it for.",
-    href: "https://developers.gateml.io",
+    href: "https://developers.rootmail.io",
     cta: "The developer pitch",
   },
   {

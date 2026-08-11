@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 
 export const SESSION_COOKIE = "rm_session";
 // A non-secret "there's a session on the dashboard host" hint, scoped to the
-// PARENT domain (COOKIE_DOMAIN, e.g. .gateml.io) so the marketing + developer
+// PARENT domain (COOKIE_DOMAIN, e.g. .rootmail.io) so the marketing + developer
 // sites can reflect the signed-in state and drop the "Sign in" wall. Carries no
 // token — the real session cookie stays httpOnly + host-only. Local dev leaves
 // COOKIE_DOMAIN unset: on localhost the cookie is shared across ports anyway.

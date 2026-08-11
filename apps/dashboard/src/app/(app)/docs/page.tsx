@@ -4,7 +4,7 @@ import { DOCS } from "@rootmail/docs";
 import { PageHeader } from "@/components/app/page-header";
 import { Card, CardContent } from "@/components/ui/card";
 
-// The in-app docs index. Renders the SAME content tree as developers.gateml.io —
+// The in-app docs index. Renders the SAME content tree as developers.rootmail.io —
 // one source of truth — with the dashboard's chrome.
 export default function DocsIndex() {
   return (
@@ -14,7 +14,7 @@ export default function DocsIndex() {
         description="Send through the REST API, the @rootmail/node SDK, or the CLI. Everyday work needs none of this — it's here for when you integrate. Everything the dashboard does, the API does."
         actions={
           <a
-            href="https://developers.gateml.io/docs"
+            href="https://developers.rootmail.io/docs"
             target="_blank"
             rel="noreferrer"
             className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"

@@ -999,7 +999,7 @@ const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
     changes: [
       {
         kind: "New",
-        text: "A complete developer reference now lives at developers.gateml.io/docs: getting started, core concepts (idempotency, pagination, errors, sandbox, rate limits), and a page for every resource — messages, templates, contacts, audiences, campaigns, sequences, replies, client domains, webhooks (with signature verification), deliverability, proof, and the assistant — plus the SDK, CLI, and a migration guide.",
+        text: "A complete developer reference now lives at developers.rootmail.io/docs: getting started, core concepts (idempotency, pagination, errors, sandbox, rate limits), and a page for every resource — messages, templates, contacts, audiences, campaigns, sequences, replies, client domains, webhooks (with signature verification), deliverability, proof, and the assistant — plus the SDK, CLI, and a migration guide.",
       },
       {
         kind: "Improved",
@@ -1017,7 +1017,7 @@ const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
       },
       {
         kind: "Improved",
-        text: "Everything developer-focused — docs, install commands, the API tour — now lives entirely on developers.gateml.io, so the main site stays about the product, not the plumbing.",
+        text: "Everything developer-focused — docs, install commands, the API tour — now lives entirely on developers.rootmail.io, so the main site stays about the product, not the plumbing.",
       },
     ],
   },
@@ -1027,7 +1027,7 @@ const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
     changes: [
       {
         kind: "New",
-        text: "Developers get their own site at developers.gateml.io: the full technical pitch — integrate once, change email behavior without redeploying, and everything the dashboard does, the API does.",
+        text: "Developers get their own site at developers.rootmail.io: the full technical pitch — integrate once, change email behavior without redeploying, and everything the dashboard does, the API does.",
       },
       {
         kind: "Improved",

@@ -10,7 +10,7 @@ import { cli, migration, sdk } from "./content/tooling";
 export * from "./types";
 
 /** The docs tree — the single source of truth rendered by BOTH the developers
- * site (developers.gateml.io/docs) and the in-app dashboard docs. Order here is
+ * site (developers.rootmail.io/docs) and the in-app dashboard docs. Order here is
  * the sidebar order. */
 export const DOCS: DocSection[] = [
   { label: "Getting started", pages: [quickstart, authentication, baseUrl] },

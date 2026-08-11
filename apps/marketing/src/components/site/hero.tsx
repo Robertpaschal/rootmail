@@ -8,7 +8,7 @@ import { CtaButton } from "./cta-button";
 
 // The main site sells the PRODUCT, not the plumbing: rootmail is the one place
 // for every email a business sends and receives (the switch motivator is
-// unification, not "no code"). The developer story lives at developers.gateml.io.
+// unification, not "no code"). The developer story lives at developers.rootmail.io.
 const proofs = [
   { icon: Send, text: "Receipts & resets your site sends itself" },
   { icon: Megaphone, text: "Campaigns & newsletters to your audience" },
@@ -76,10 +76,10 @@ export function Hero() {
           <p className="text-sm text-muted-foreground">
             Free for 3,000 sends & 500 contacts a month · set up in minutes ·{" "}
             <Link
-              href="https://developers.gateml.io"
+              href="https://developers.rootmail.io"
               className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
             >
-              <Terminal className="size-3.5" /> building a product? developers.gateml.io
+              <Terminal className="size-3.5" /> building a product? developers.rootmail.io
             </Link>
           </p>
         </Reveal>

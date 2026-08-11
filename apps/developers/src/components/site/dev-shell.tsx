@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { ThemeToggle } from "./theme-toggle";
 
-const MAIN_SITE = "https://marketing.gateml.io";
+const MAIN_SITE = "https://rootmail.io";
 
 // The developer surface owns its own docs; pricing + changelog live on the MAIN
 // site (one source of truth). Home-section anchors use "/#id" so they also work
