@@ -105,7 +105,25 @@ class S3Storage implements StorageDriver {
     } catch (err) {
       // A missing object is a 404, not an error.
       if (err instanceof NoSuchKey) return null;
-      if ((err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode === 404) {
+      const status = (err as { $metadata?: { httpStatusCode?: number } })?.$metadata?.httpStatusCode;
+      if (status === 404) return null;
+
+      // S3 answers 403, not 404, for a missing key when the caller lacks
+      // s3:ListBucket — deliberately, so it can't leak whether an object
+      // exists. We cannot tell "missing" from "not allowed" here, and a
+      // broken image must never read as a server error: every absent asset
+      // would 500, and the logs would look like an outage instead of a typo.
+      //
+      // So: serve it as not-found, but shout about it. A 403 on a bucket we
+      // are supposed to own means the instance role is wrong, and that is
+      // worth waking someone up for — it just isn't worth a 500 per image.
+      if (status === 403) {
+        console.error(
+          `[storage] S3 denied GetObject on "${key}" — treating as not-found. ` +
+            `Grant s3:ListBucket on the bucket ARN so missing keys return 404 ` +
+            `and real permission faults stop hiding behind them. ` +
+            `(${(err as Error).message})`,
+        );
         return null;
       }
       throw err;
