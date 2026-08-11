@@ -60,7 +60,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           # Only the marketing Dockerfile declares this ARG; the others ignore it.
           build-args: |
-            NEXT_PUBLIC_DASHBOARD_URL=${{ vars.NEXT_PUBLIC_DASHBOARD_URL || 'https://dashboard.gateml.io' }}
+            NEXT_PUBLIC_DASHBOARD_URL=${{ vars.NEXT_PUBLIC_DASHBOARD_URL || 'https://app.rootmail.io' }}
           # Layer cache only for api/worker. The Next apps (marketing/dashboard/admin)
           # build clean every time — a cached .next can yield a corrupt React client
           # manifest ("Could not find module … in the React Client Manifest") at runtime.
