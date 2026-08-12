@@ -24,6 +24,7 @@ import {
   verifyPassword,
 } from "@rootmail/core";
 import {
+  betaInvites,
   addons,
   announcements,
   auditEntries,
@@ -2454,4 +2455,83 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     });
     return { object: "announcement", id: saved.id, sent: recipients.length };
   });
+
+  // --- Beta programme ------------------------------------------------------
+  //
+  // Codes are minted here rather than self-served anywhere, because the whole
+  // point of a closed beta is that a person decided to let each tester in. The
+  // list doubles as the roster: every org that signed up carries the invite it
+  // used, so "who are our testers" is a join and cannot drift out of date the
+  // way a spreadsheet does.
+  app.post("/v1/admin/beta/invites", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "announce.send");
+    const body = parse(
+      z.object({
+        label: z.string().max(160).optional(),
+        max_uses: z.coerce.number().int().min(1).max(500).default(1),
+        expires_in_days: z.coerce.number().int().min(1).max(365).optional(),
+        // Optional vanity code; otherwise one is generated.
+        code: z.string().min(4).max(64).optional(),
+      }),
+      req.body,
+    );
+    // Ambiguity-free alphabet: no O/0, no I/1/l. These get typed off a screen,
+    // read down a phone, or copied out of a DM — every one of which turns an
+    // ambiguous glyph into a support message.
+    const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    const gen = () =>
+      "beta-" +
+      Array.from({ length: 8 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+    const code = (body.code ?? gen()).trim();
+    const [row] = await db
+      .insert(betaInvites)
+      .values({
+        id: newId("betaInvite"),
+        code,
+        label: body.label ?? null,
+        maxUses: body.max_uses,
+        expiresAt: body.expires_in_days
+          ? new Date(Date.now() + body.expires_in_days * 86_400_000)
+          : null,
+        createdByStaffId: staff.id,
+      })
+      .returning();
+    return { object: "beta_invite", ...row };
+  });
+
+  app.get("/v1/admin/beta/invites", async (req) => {
+    await requireStaff(req);
+    const rows = await db.select().from(betaInvites).orderBy(desc(betaInvites.createdAt)).limit(200);
+    // Who each code actually let in — the roster, straight from the data.
+    const orgs = await db
+      .select({
+        id: organizations.id,
+        name: organizations.name,
+        inviteId: organizations.betaInviteId,
+        createdAt: organizations.createdAt,
+      })
+      .from(organizations)
+      .where(eq(organizations.isBeta, true));
+    return {
+      object: "list",
+      data: rows.map((r) => ({
+        ...r,
+        redeemed_by: orgs
+          .filter((o) => o.inviteId === r.id)
+          .map((o) => ({ id: o.id, name: o.name, joined_at: o.createdAt })),
+      })),
+    };
+  });
+
+  app.post("/v1/admin/beta/invites/:id/revoke", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "announce.send");
+    const { id } = req.params as { id: string };
+    // Revoke rather than delete: the accounts it let in still point at it, and
+    // losing that link would lose the answer to "how did this tester get here".
+    await db.update(betaInvites).set({ revokedAt: new Date() }).where(eq(betaInvites.id, id));
+    return { object: "beta_invite", id, revoked: true };
+  });
+
 }

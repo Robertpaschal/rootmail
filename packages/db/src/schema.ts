@@ -217,12 +217,54 @@ export const organizations = pgTable("organizations", {
    * "internal messaging" system would be the thing we are trying not to build.
    */
   isInternal: boolean("is_internal").notNull().default(false),
+  /**
+   * Signed up with a beta invite. Two jobs, deliberately one column each:
+   * this one is the fast entitlement check (beta testers get everything, so
+   * nothing they report is "I couldn't reach that"), and `betaInviteId` below
+   * records WHICH invite let them in — so every tester traces back to the
+   * person we gave a code to.
+   */
+  isBeta: boolean("is_beta").notNull().default(false),
+  betaInviteId: text("beta_invite_id"),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
 
 // Pending + accepted team invitations. A pending invite consumes a seat so an
 // org can't over-invite past its capacity. Only the token hash is stored.
+/**
+ * Beta access codes — the door to a closed beta.
+ *
+ * Distinct from `invitations` below, which adds a person to an EXISTING org's
+ * team. This is the other direction: it lets a stranger create an account at
+ * all, while signup is otherwise shut.
+ *
+ * A code is not a secret to be guarded so much as a name we can trace: every
+ * org that gets in records the invite it used, so "who are our beta testers"
+ * is a join rather than a spreadsheet someone forgot to update.
+ */
+export const betaInvites = pgTable(
+  "beta_invites",
+  {
+    id: text("id").primaryKey(),
+    /** What the tester types. Short, unambiguous, case-insensitive on redeem. */
+    code: text("code").notNull(),
+    /** Who it went to / why — so the list reads as people, not hashes. */
+    label: text("label"),
+    /** 1 for a personal invite; higher for a shared code (a community, a batch). */
+    maxUses: integer("max_uses").notNull().default(1),
+    usedCount: integer("used_count").notNull().default(0),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
+    /** Set to stop a code working without deleting the trail of who used it. */
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdByStaffId: text("created_by_staff_id"),
+    createdAt: createdAt(),
+  },
+  (t) => [uniqueIndex("beta_invites_code_uq").on(t.code)],
+);
+export type BetaInvite = typeof betaInvites.$inferSelect;
+export type NewBetaInvite = typeof betaInvites.$inferInsert;
+
 export const invitations = pgTable(
   "invitations",
   {

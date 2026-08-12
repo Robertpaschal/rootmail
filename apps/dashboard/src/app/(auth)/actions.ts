@@ -72,6 +72,7 @@ export async function signup(_prev: AuthState | null, formData: FormData): Promi
   const password = String(formData.get("password") ?? "");
   const name = String(formData.get("name") ?? "").trim();
   const organizationName = String(formData.get("organization_name") ?? "").trim();
+  const inviteCode = String(formData.get("invite_code") ?? "").trim();
 
   if (!email) return { error: "Email is required." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
@@ -84,12 +85,15 @@ export async function signup(_prev: AuthState | null, formData: FormData): Promi
         password,
         name: name || undefined,
         organization_name: organizationName || undefined,
+        invite_code: inviteCode || undefined,
       })
     ).session_token;
   } catch (err) {
     if (err instanceof ConnectionError) return { error: err.message };
     if (err instanceof ApiError) {
-      return { error: err.status === 409 ? "An account with that email already exists." : err.message };
+      if (err.status === 409) return { error: "An account with that email already exists." };
+      // 403 is the closed-beta gate; the API already words it for a person.
+      return { error: err.message };
     }
     return { error: "Something went wrong creating your account." };
   }

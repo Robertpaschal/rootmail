@@ -4,6 +4,7 @@ import { ClientScopeBanner } from "@/components/app/client-scope-banner";
 import { CommandMenu } from "@/components/app/command-menu";
 import { ImpersonationBanner } from "@/components/app/impersonation-banner";
 import { MobileNav, Sidebar } from "@/components/app/nav";
+import { BetaBanner } from "@/components/app/beta-banner";
 import { SandboxBanner } from "@/components/app/sandbox-banner";
 import { PeekBackdrop, ShellMain, SidebarProvider } from "@/components/app/sidebar-shell";
 import { Topbar } from "@/components/app/topbar";
@@ -66,6 +67,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               internal={me.internal}
             />
           ) : null}
+          {me?.beta ? <BetaBanner /> : null}
           {unverified ? <VerifyEmailBanner /> : null}
           {/* Agency mode: while acting as a client, name them on every page. */}
         <ClientScopeBanner />

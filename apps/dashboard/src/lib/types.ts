@@ -180,6 +180,8 @@ export interface MeResult {
   impersonating?: boolean;
   /** True inside rootmail's own account — the audience is our customers. */
   internal?: boolean;
+  /** Closed-beta tester: drives the always-visible beta strip in the shell. */
+  beta?: boolean;
   /** False until the org completes the post-signup onboarding wizard. */
   onboarding_completed?: boolean;
 }

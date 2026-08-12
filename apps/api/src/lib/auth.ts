@@ -94,6 +94,8 @@ export interface ProvisionedAccount {
  * section. Atomic — a failure rolls the whole thing back.
  */
 export async function provisionAccount(params: {
+  /** Set when the account came through a closed-beta code — see lib/beta.ts. */
+  betaInviteId?: string | null;
   email: string;
   passwordHash: string | null;
   name?: string | null;
@@ -118,6 +120,12 @@ export async function provisionAccount(params: {
       id: orgId,
       name: orgName,
       slug: `${slugify(orgName) || "workspace"}-${orgId.slice(-6)}`,
+      // A beta tester is not on a plan. We asked them to try everything and
+      // tell us what breaks, so a paywall would only earn feedback about the
+      // paywall. The invite id stays alongside the flag so every tester traces
+      // back to the code — and the person — we gave it to.
+      isBeta: Boolean(params.betaInviteId),
+      betaInviteId: params.betaInviteId ?? null,
       // Per-wing pricing from day one: Free on each wing (transactional starts on
       // the free allowance; blocks are purchased when they scale).
       transactionalTier: defaultTierId("transactional"),

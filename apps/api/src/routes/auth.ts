@@ -30,6 +30,7 @@ import {
 import { consumeAuthToken, createAuthToken } from "../lib/auth-tokens";
 import { passwordChangedEmail, passwordResetEmail, verificationEmail, welcomeEmail } from "../lib/emails";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
+import { betaInviteRequired, redeemBetaInvite } from "../lib/beta";
 import { signupAllowed } from "../lib/signup-limit";
 import { serializeUser, serializeWorkspace } from "../lib/serialize";
 import { storage } from "../lib/storage";
@@ -53,6 +54,8 @@ const signupBody = z.object({
   password: z.string().min(8, "Use at least 8 characters."),
   name: z.string().min(1).max(120).optional(),
   organization_name: z.string().min(1).max(120).optional(),
+  /** Required while the closed beta is on — see lib/beta.ts. */
+  invite_code: z.string().max(64).optional(),
 });
 
 const loginBody = z.object({
@@ -153,11 +156,27 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
     if (existing) throw Errors.conflict("An account with that email already exists.");
 
+    // Closed beta: the code IS the door. Consumed before the account exists, so
+    // a failed signup after this point costs a seat — the safe direction. The
+    // message never distinguishes expired from used-up from never-existed; that
+    // difference only helps someone guessing at codes.
+    let betaInviteId: string | null = null;
+    if (betaInviteRequired()) {
+      const invite = body.invite_code ? await redeemBetaInvite(body.invite_code) : null;
+      if (!invite) {
+        throw Errors.forbidden(
+          "rootmail is in closed beta. You'll need an invite code to create an account.",
+        );
+      }
+      betaInviteId = invite.id;
+    }
+
     const account = await provisionAccount({
       email,
       passwordHash: hashPassword(body.password),
       name: body.name,
       organizationName: body.organization_name,
+      betaInviteId,
     });
 
     const { token, session } = await createSession(account.user.id, account.production.id);
@@ -281,14 +300,23 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     // this workspace's audience is every customer we have, and mistaking it for
     // a customer's is the one confusion with a blast radius.
     let internal = false;
+    // A closed-beta tester. The shell shows them an always-visible strip: a
+    // tester who forgets they are testing files no bugs, they just quietly
+    // decide the product is mediocre.
+    let beta = false;
     if (active) {
       const [org] = await db
-        .select({ done: organizations.onboardingCompletedAt, isInternal: organizations.isInternal })
+        .select({
+          done: organizations.onboardingCompletedAt,
+          isInternal: organizations.isInternal,
+          isBeta: organizations.isBeta,
+        })
         .from(organizations)
         .where(eq(organizations.id, active.organizationId))
         .limit(1);
       onboardingCompleted = org ? org.done != null : true;
       internal = org?.isInternal ?? false;
+      beta = org?.isBeta ?? false;
     }
     return {
       user: serializeUser(user),
@@ -296,6 +324,7 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       active_workspace: active ? serializeWorkspace(active) : null,
       impersonating: session.impersonatedByStaffId != null,
       internal,
+      beta,
       onboarding_completed: onboardingCompleted,
     };
   }

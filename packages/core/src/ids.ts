@@ -52,6 +52,7 @@ export const ID_PREFIXES = {
   announcement: "ann",
   ssoConnection: "sso",
   senderIdentity: "sid",
+  betaInvite: "bti",
 } as const;
 
 export type IdEntity = keyof typeof ID_PREFIXES;

@@ -528,7 +528,14 @@ export const api = {
     rmFetch<CreatedApiKey>("/v1/api-keys", { method: "POST", body }),
   revokeApiKey: (id: string) => rmFetch<ApiKey>(`/v1/api-keys/${id}`, { method: "DELETE" }),
 
-  signup: (body: { email: string; password: string; name?: string; organization_name?: string }) =>
+  signup: (body: {
+    email: string;
+    password: string;
+    name?: string;
+    organization_name?: string;
+    /** Closed beta: required while BETA_INVITE_REQUIRED is on. */
+    invite_code?: string;
+  }) =>
     rmFetch<SignupResult>("/v1/auth/signup", { method: "POST", body, noAuth: true }),
   login: (body: { email: string; password: string }) =>
     rmFetch<LoginResult>("/v1/auth/login", { method: "POST", body, noAuth: true }),

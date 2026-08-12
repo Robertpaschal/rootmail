@@ -68,6 +68,9 @@ const EnvSchema = z.object({
   DKIM_SELECTOR: z.string().default("rootmail"),
 
   DNS_VERIFY_MODE: z.enum(["mock", "live"]).default("mock"),
+  // Closed beta: while "true", creating an account requires an invite code.
+  // Defaults OFF so a fresh install and local dev are never accidentally shut.
+  BETA_INVITE_REQUIRED: z.string().optional(),
   MAIL_PROVIDER: z.enum(["mock", "ses", "sendgrid"]).default("mock"),
   MAILDIR: z.string().default(".maildir"),
   // SES configuration set attached to every send — REQUIRED for delivery/open/click

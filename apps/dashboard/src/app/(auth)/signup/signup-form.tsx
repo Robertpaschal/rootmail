@@ -12,6 +12,17 @@ export function SignupForm() {
 
   return (
     <form action={formAction} className="space-y-4">
+      {/* Closed beta: the code is how you got here, so it is asked for first
+          rather than buried under the password. Harmless once the beta ends —
+          the API simply ignores it. */}
+      <div className="space-y-2">
+        <Label htmlFor="invite_code">Invite code</Label>
+        <Input id="invite_code" name="invite_code" placeholder="beta-XXXXXXXX" autoCapitalize="off" spellCheck={false} />
+        <p className="text-xs text-muted-foreground">
+          rootmail is in closed beta. Don&apos;t have one?{" "}
+          <a href="https://rootmail.io/beta" className="underline underline-offset-2">Ask for access</a>.
+        </p>
+      </div>
       <div className="space-y-2">
         <Label htmlFor="name">Name</Label>
         <Input id="name" name="name" autoComplete="name" placeholder="Ada Lovelace" />

@@ -38,6 +38,9 @@ function serialize(org: Organization) {
     id: org.id,
     name: org.name,
     plan: org.plan,
+    // Closed-beta tester: drives the always-visible beta strip, and the
+    // reason nothing in the product is locked for them.
+    is_beta: org.isBeta,
     postal_address: org.postalAddress ?? null,
     // Residency surface — where this org's data lives (staff-managed).
     data_region: org.dataRegion,

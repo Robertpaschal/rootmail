@@ -250,7 +250,11 @@ export async function aiCreditsForOrg(org: WingOrg & { id: string }): Promise<nu
  * A limit we chose is not a paywall.
  */
 export function workspaceLimitForOrg(org: WingOrg & { id: string }): number {
+  // Deliberately NOT `unmetered()`. The one-workspace rule is a choice we made
+  // for OURSELVES (one place we reach customers from), not an entitlement — so
+  // a beta tester must not inherit it. They get the unlimited end of the deal.
   if (org.isInternal) return 1;
+  if (org.isBeta) return -1;
   return planForOrg(org).workspaceLimit;
 }
 

@@ -745,14 +745,15 @@ export const CONTACT_UNIT = 100;
  * capacity gate and the worker's waitlist-admission job so both agree exactly.
  */
 export function contactCapForOrg(
-  org: { marketingTier: string | null; marketingContacts: number; isInternal?: boolean | null },
+  org: { marketingTier: string | null; marketingContacts: number; isInternal?: boolean | null; isBeta?: boolean | null },
   packUnits = 0,
 ): number {
   // rootmail's own account holds every customer we have; a cap there is a bill
   // we would send ourselves. The SECOND place this had to be said — the API has
   // its own `contactLimitForOrg`, and a cap enforced in only one of them is a
   // waitlist that quietly stops admitting while the dashboard says unlimited.
-  if (org.isInternal) return Number.MAX_SAFE_INTEGER;
+  // rootmail itself and beta testers are not metered — see wings.unmetered().
+  if (org.isInternal || org.isBeta) return Number.MAX_SAFE_INTEGER;
   const base =
     !org.marketingTier || org.marketingTier === "mk_free" ? FREE_MK_CONTACTS : (org.marketingContacts ?? 0);
   return base + packUnits * CONTACT_PACK_SIZE;

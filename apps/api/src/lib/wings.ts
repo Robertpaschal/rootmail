@@ -101,6 +101,11 @@ export interface WingOrg {
   platformTier?: string | null;
   /** rootmail's own account. Not a customer, so not on a plan — see below. */
   isInternal?: boolean | null;
+  /** A closed-beta tester. Also not on a plan: we asked them to try everything
+   *  and report back, so a paywall would only produce feedback about the
+   *  paywall. Kept separate from isInternal because the two are not the same
+   *  thing — see workspaceLimitForOrg, where they deliberately differ. */
+  isBeta?: boolean | null;
 }
 
 /**
@@ -223,15 +228,21 @@ export function featuresFromAddons(qty: Partial<Record<AddOnId, number>>): PlanF
  * dashboard draws locks from (`GET /v1/organization`) read, so they cannot
  * disagree about what an account may do.
  */
+/** Accounts that are not on a plan at all: rootmail itself, and beta testers.
+ *  Both get every feature — for opposite reasons, but with the same result. */
+export function unmetered(org: WingOrg): boolean {
+  return Boolean(org.isInternal || org.isBeta);
+}
+
 export function effectiveFeatures(org: WingOrg, qty: Partial<Record<AddOnId, number>>): PlanFeature[] {
-  if (org.isInternal) return [...ALL_FEATURES];
+  if (unmetered(org)) return [...ALL_FEATURES];
   return [...new Set<PlanFeature>([...synthesizePlan(org).features, ...featuresFromAddons(qty)])];
 }
 
 /** Whether a feature is unlocked under the org's TIERS alone (add-on grants are
  * layered on by the async gate that also loads the org's add-ons). */
 export function wingFeatureUnlocked(org: WingOrg, feature: PlanFeature): boolean {
-  if (org.isInternal) return true;
+  if (unmetered(org)) return true;
   return synthesizePlan(org).features.includes(feature);
 }
 
@@ -241,7 +252,7 @@ export function contactLimitForOrg(org: WingOrg): number {
   // bill we would be sending ourselves, and it would block the audience the
   // moment we grew — the most literal possible version of our own product
   // being unusable to us.
-  if (org.isInternal) return -1;
+  if (unmetered(org)) return -1;
   const mk = mkTierFor(org);
   if (mk.id === "mk_free") return mk.includedContacts ?? FREE_MK_CONTACTS;
   return org.marketingContacts ?? 0;
@@ -249,7 +260,7 @@ export function contactLimitForOrg(org: WingOrg): number {
 
 /** Distinct audiences (lists) the org's marketing tier allows (-1 = unlimited). */
 export function audienceLimitForOrg(org: WingOrg): number {
-  if (org.isInternal) return -1;
+  if (unmetered(org)) return -1;
   return mkTierFor(org).includedAudiences ?? 1;
 }
 
