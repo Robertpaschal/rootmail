@@ -71,6 +71,11 @@ const EnvSchema = z.object({
   // Closed beta: while "true", creating an account requires an invite code.
   // Defaults OFF so a fresh install and local dev are never accidentally shut.
   BETA_INVITE_REQUIRED: z.string().optional(),
+  // How many waitlist signups may be admitted AUTOMATICALLY (minted a code and
+  // mailed it by our own sequence engine). 0 = every admission stays a human
+  // decision. A cap rather than a boolean because an unbounded auto-admit is
+  // just open signup wearing a closed beta's clothes.
+  BETA_AUTO_ADMIT_LIMIT: z.coerce.number().int().min(0).default(0),
   MAIL_PROVIDER: z.enum(["mock", "ses", "sendgrid"]).default("mock"),
   MAILDIR: z.string().default(".maildir"),
   // SES configuration set attached to every send — REQUIRED for delivery/open/click

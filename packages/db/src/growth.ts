@@ -84,6 +84,12 @@ export interface AdmitInput {
   confirmed?: boolean;
   /** Contact slots the org still has (Infinity when unlimited). */
   capacityRemaining: number;
+  /**
+   * Custom fields captured at signup, merged onto the contact BEFORE trigger
+   * evaluation — so a welcome sequence can render them. Any signup form with
+   * extra questions needs this; ours needs it to hand over an invite code.
+   */
+  metadata?: Record<string, unknown>;
 }
 
 export type AdmitResult =
@@ -150,6 +156,7 @@ export async function admitSubscriber(input: AdmitInput): Promise<AdmitResult> {
       name: input.name?.trim() || null,
       tags,
       status: "active",
+      ...(input.metadata ? { metadata: input.metadata } : {}),
     });
     created = true;
   } else {
@@ -164,6 +171,10 @@ export async function admitSubscriber(input: AdmitInput): Promise<AdmitResult> {
         status: "active",
         name: existing.name ?? (input.name?.trim() || null),
         tags,
+        // Merge, never clobber: a second signup must not erase what we already know.
+        ...(input.metadata
+          ? { metadata: { ...(existing.metadata ?? {}), ...input.metadata } }
+          : {}),
         updatedAt: new Date(),
       })
       .where(eq(contacts.id, existing.id));

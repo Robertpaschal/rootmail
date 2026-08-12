@@ -1,6 +1,6 @@
-import { and, eq, isNull } from "drizzle-orm";
-import { newId } from "@rootmail/core";
-import { db, ensureInternalAccount, lists } from "@rootmail/db";
+import { and, count, eq, isNull, like } from "drizzle-orm";
+import { env, newId } from "@rootmail/core";
+import { betaInvites, db, ensureInternalAccount, lists } from "@rootmail/db";
 
 /**
  * rootmail's own beta waitlist — an audience in our own account.
@@ -55,4 +55,50 @@ export async function betaWaitlistAudience(): Promise<BetaWaitlistAudience> {
     .returning({ id: lists.id, signupTag: lists.signupTag });
 
   return { workspaceId: internal.workspaceId, list: created };
+}
+
+const ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+
+/**
+ * Mint a single-use code for one person, if we still have automatic seats.
+ *
+ * Returns null when the cap is spent — the signup still lands on the waitlist,
+ * it just waits for a human. That is the difference between "we let the first
+ * fifty in automatically" and "signup is open", and it is one env var wide.
+ *
+ * The cap counts codes we minted automatically, not accounts created, because
+ * the seat is spent the moment we mail someone a working code.
+ */
+export async function autoMintInvite(email: string): Promise<string | null> {
+  const limit = env.BETA_AUTO_ADMIT_LIMIT;
+  if (limit < 1) return null;
+
+  const [used] = await db
+    .select({ n: count() })
+    .from(betaInvites)
+    .where(like(betaInvites.label, "auto:%"));
+  if ((used?.n ?? 0) >= limit) return null;
+
+  const code =
+    "beta-" +
+    Array.from({ length: 8 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join("");
+  await db.insert(betaInvites).values({
+    id: newId("betaInvite"),
+    code,
+    // The prefix is load-bearing: it is how the cap counts itself.
+    label: `auto: ${email}`,
+    maxUses: 1,
+  });
+  return code;
+}
+
+/** How many automatic seats remain — for the staff waitlist screen. */
+export async function autoAdmitRemaining(): Promise<{ limit: number; used: number; left: number }> {
+  const limit = env.BETA_AUTO_ADMIT_LIMIT;
+  const [used] = await db
+    .select({ n: count() })
+    .from(betaInvites)
+    .where(like(betaInvites.label, "auto:%"));
+  const u = used?.n ?? 0;
+  return { limit, used: u, left: Math.max(0, limit - u) };
 }

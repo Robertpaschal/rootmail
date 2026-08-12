@@ -2,7 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { admitSubscriber, contacts, db } from "@rootmail/db";
-import { betaWaitlistAudience } from "../lib/beta-waitlist";
+import { autoMintInvite, betaWaitlistAudience } from "../lib/beta-waitlist";
 import { parse } from "../lib/validate";
 
 // PUBLIC. rootmail.io/beta posts here. No auth, by design — this is the front
@@ -29,6 +29,13 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
 
     const { workspaceId, list } = await betaWaitlistAudience();
 
+    // Mint BEFORE admitting. admitSubscriber writes the contact and then fires
+    // trigger evaluation, so a code handed over here is already on the record
+    // when the welcome sequence enrolls them — and the sequence renders it as
+    // {{beta_invite_code}} like any other custom field. No bespoke send path:
+    // the automation every customer builds is the one that mails our invites.
+    const code = await autoMintInvite(body.email);
+
     const result = await admitSubscriber({
       workspaceId,
       subTenantId: null,
@@ -40,6 +47,12 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
       // Our own account is unmetered, so a waitlist can never be turned away
       // for capacity — but pass the real shape rather than a magic number.
       capacityRemaining: Number.POSITIVE_INFINITY,
+      metadata: {
+        ...(body.use_case ? { beta_use_case: body.use_case } : {}),
+        ...(body.volume ? { beta_volume: body.volume } : {}),
+        ...(code ? { beta_invite_code: code, beta_invited_at: new Date().toISOString() } : {}),
+        beta_signed_up_at: new Date().toISOString(),
+      },
     });
 
     // `waitlisted` carries no contact row — that state exists for a customer
