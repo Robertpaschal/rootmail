@@ -1,4 +1,4 @@
-import { and, eq, gte, notLike, sql } from "drizzle-orm";
+import { and, eq, gte, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import {
@@ -6,10 +6,10 @@ import {
   type MessageStatus,
   SUPPRESSION_REASONS,
   type SuppressionReason,
-  TEST_RECIPIENT_DOMAIN,
 } from "@rootmail/core";
 import { db, messages, subTenants, suppressions } from "@rootmail/db";
 import { computeDeliverability } from "../lib/deliverability";
+import { realSendsOnly } from "../lib/real-sends";
 import { parse } from "../lib/validate";
 
 const query = z.object({
@@ -44,8 +44,7 @@ export async function deliverabilityRoutes(app: FastifyInstance): Promise<void> 
     const msgConds = [
       eq(messages.workspaceId, wsId),
       gte(messages.createdAt, since),
-      notLike(messages.toEmail, `%@${TEST_RECIPIENT_DOMAIN}`),
-      notLike(messages.toEmail, "%@simulator.amazonses.com"),
+      ...realSendsOnly(),
     ];
     if (st) msgConds.push(eq(messages.subTenantId, st));
     const statusRows = await db

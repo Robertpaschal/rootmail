@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import type { MessageType } from "@rootmail/core";
 import { db, auditEntries, messages, templates } from "@rootmail/db";
+import { realSendsOnly } from "../lib/real-sends";
 import { parse } from "../lib/validate";
 
 const query = z.object({
@@ -31,7 +32,14 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
     // scopes the funnel, matching every other sub-tenant-aware resource.
     const st = q.sub_tenant_id ?? req.auth.subTenant?.id;
     const since = new Date(Date.now() - q.window_days * 86_400_000);
-    const base = [eq(messages.workspaceId, wsId), gte(messages.createdAt, since)];
+    // Test sends are excluded here for the same reason as on Deliverability:
+    // nobody received them, so counting them as engagement drags every real
+    // rate down and reports a bounce/spam figure the user deliberately caused.
+    const base = [
+      eq(messages.workspaceId, wsId),
+      gte(messages.createdAt, since),
+      ...realSendsOnly(),
+    ];
     if (st) base.push(eq(messages.subTenantId, st));
     if (q.type) base.push(inArray(messages.type, WING_TYPES[q.type]));
 
