@@ -71,6 +71,10 @@ function tagsFor(o: typeof organizations.$inferSelect, traits: CustomerTraits): 
   if (!traits.onboarded) t.push("not-onboarded");
   if (!traits.verified_domain) t.push("no-verified-domain");
   if (o.dedicatedIpStatus === "active") t.push("dedicated-ip");
+  // A tester is not a plan, so it needs its own tag: it drives the feedback
+  // sequence and the "who are our testers" audience. Applied by the same sync
+  // that mirrors every other customer, so nobody has to remember to tag them.
+  if (o.isBeta) t.push("beta-tester");
   return t;
 }
 
