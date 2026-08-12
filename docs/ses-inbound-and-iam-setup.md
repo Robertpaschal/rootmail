@@ -62,6 +62,54 @@ active.
 
 ---
 
+## 1b. To let the agent finish the remaining setup
+
+Section 1's policy is applied — the *automation* can now run. What is still
+blocked is the *one-time account setup*. Five more actions close that:
+
+```json
+{
+  "Sid": "OneTimeAccountSetup",
+  "Effect": "Allow",
+  "Action": [
+    "ses:CreateReceiptRuleSet",
+    "ses:SetActiveReceiptRuleSet",
+    "s3:CreateBucket",
+    "s3:PutBucketPolicy",
+    "s3:PutLifecycleConfiguration"
+  ],
+  "Resource": "*"
+},
+{
+  "Sid": "InboundRead",
+  "Effect": "Allow",
+  "Action": "s3:GetObject",
+  "Resource": "arn:aws:s3:::rootmail-inbound-prod/*"
+}
+```
+
+### What must NOT be granted, and why
+
+**No IAM actions — especially not `iam:PutUserPolicy` on this user.**
+
+A principal that can attach policies to itself can grant itself anything, which
+makes it administrator by another name. This key lives in CI and on a laptop;
+granting it IAM write turns "CI credential leaked" into "AWS account taken
+over". The five actions above are bounded — the worst case is an unwanted
+bucket or receipt rule set, both trivially deleted. `iam:PutUserPolicy` has no
+worst case.
+
+So the standing line is: the deploy identity may create the resources it needs,
+and may never widen its own access. Permission changes stay with a human, which
+is why section 1 had to be applied by you and this one does too.
+
+If you would rather not extend the deploy key at all, the alternative is to run
+sections 2 and 3 yourself — six commands, all in this file — and leave
+`claude-depoy` exactly as it is. That is the more conservative choice and costs
+about five minutes.
+
+---
+
 ## 2. SES inbound — create and activate a receipt rule set
 
 `aws ses list-receipt-rule-sets` currently returns `[]`, so inbound reply
