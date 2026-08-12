@@ -1,7 +1,13 @@
-import { and, eq, gte, sql } from "drizzle-orm";
+import { and, eq, gte, notLike, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { MESSAGE_STATUSES, type MessageStatus, SUPPRESSION_REASONS, type SuppressionReason } from "@rootmail/core";
+import {
+  MESSAGE_STATUSES,
+  type MessageStatus,
+  SUPPRESSION_REASONS,
+  type SuppressionReason,
+  TEST_RECIPIENT_DOMAIN,
+} from "@rootmail/core";
 import { db, messages, subTenants, suppressions } from "@rootmail/db";
 import { computeDeliverability } from "../lib/deliverability";
 import { parse } from "../lib/validate";
@@ -23,7 +29,24 @@ export async function deliverabilityRoutes(app: FastifyInstance): Promise<void> 
     const since = new Date(Date.now() - q.window_days * 86_400_000);
 
     // Message outcomes in the window, grouped by status.
-    const msgConds = [eq(messages.workspaceId, wsId), gte(messages.createdAt, since)];
+    //
+    // Test sends are excluded, and this is not cosmetic. The product tells you
+    // in three places that the test scenarios "never affect your sending
+    // reputation" — and then invites you to run the bounce and complaint ones.
+    // Counting them made that a lie: three test sends were enough to drop a
+    // fresh workspace to 55/100, grade F, "your sending reputation is at risk".
+    // Somebody's first hour with rootmail would have been doing exactly what we
+    // asked and being told they had broken something.
+    //
+    // The address is the only marker available — `test_recipient` is derived at
+    // serialisation time from toEmail, not stored — so match on it directly, and
+    // cover raw simulator addresses too since those are never real people either.
+    const msgConds = [
+      eq(messages.workspaceId, wsId),
+      gte(messages.createdAt, since),
+      notLike(messages.toEmail, `%@${TEST_RECIPIENT_DOMAIN}`),
+      notLike(messages.toEmail, "%@simulator.amazonses.com"),
+    ];
     if (st) msgConds.push(eq(messages.subTenantId, st));
     const statusRows = await db
       .select({ status: messages.status, n: sql<number>`count(*)::int` })
