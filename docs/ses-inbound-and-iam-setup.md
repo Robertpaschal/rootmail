@@ -82,35 +82,74 @@ anything else is ready.
 
 ---
 
-## 3. The gap this exposes — decide before wiring customers up
+## 3. Inbound delivery — S3 (built)
 
-`POST /v1/inbound` (`apps/api/src/routes/threads.ts:311`) accepts **normalized
-JSON**: `{ from, to, subject, text, html }`. SES does not send that. It delivers
-either a raw MIME blob to S3, or an SNS notification wrapping the raw message.
+The translation from SES to our API now exists: an S3-delivered reply is fetched
+and parsed in `applySesInbound` (`apps/api/src/lib/ses-events.ts`). Three pieces
+of AWS setup remain.
 
-So a translation step is missing between SES and our API, and it does not exist
-in any environment. Two options:
+**a. A bucket for inbound mail.**
 
-**SNS action → subscription → our API.** Simplest: one topic, an HTTPS
-subscription pointing at a new endpoint that parses the raw MIME and forwards
-to the existing inbound logic. Limit: SNS caps the message at ~150 KB, so a
-reply with a photo attached is silently truncated or dropped.
+```bash
+aws s3api create-bucket --bucket rootmail-inbound-prod --region us-east-1
+```
 
-**S3 action → notification → fetch and parse.** Robust: SES writes the full
-message to S3 (no practical size limit), we parse it on notification. More
-moving parts, and it needs a bucket with an SES-write policy.
+**b. Let SES write to it.** Save as `inbound-bucket-policy.json` — SES writes as
+the service principal, and the `SourceAccount` condition stops any other AWS
+account from writing into our bucket:
 
-Recommendation: **S3**. Replies carry attachments — a customer forwarding a
-screenshot of the bug they are reporting is exactly the case that breaks under
-SNS, and it would break silently. `INBOUND_S3_BUCKET` / `INBOUND_S3_PREFIX` are
-already read by the provisioning code; `INBOUND_SNS_TOPIC_ARN` is there as the
-simpler fallback.
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowSESPuts",
+      "Effect": "Allow",
+      "Principal": { "Service": "ses.amazonaws.com" },
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::rootmail-inbound-prod/*",
+      "Condition": {
+        "StringEquals": { "AWS:SourceAccount": "130299713609" }
+      }
+    }
+  ]
+}
+```
 
-Either way a MIME parser is needed (`mailparser` or similar) plus a small
-endpoint. That work is not written yet — flagging it rather than leaving you to
-discover it when the first reply vanishes.
+```bash
+aws s3api put-bucket-policy --bucket rootmail-inbound-prod --policy file://inbound-bucket-policy.json
+```
 
----
+**c. Let the API read it.** Add to the deploy user's policy from section 1:
+
+```json
+{
+  "Sid": "InboundRead",
+  "Effect": "Allow",
+  "Action": "s3:GetObject",
+  "Resource": "arn:aws:s3:::rootmail-inbound-prod/*"
+}
+```
+
+**d. Point the app at it** — in `.env.prod` on the API host:
+
+```
+INBOUND_S3_BUCKET=rootmail-inbound-prod
+INBOUND_S3_PREFIX=inbound/
+```
+
+Set a lifecycle rule to expire objects after ~30 days. The message body is
+already stored in the thread once parsed, so the S3 copy is a transit buffer,
+not an archive — keeping raw customer mail forever is a liability with no
+upside.
+
+## 4. Why S3 rather than SNS
+
+SNS inlines the raw MIME but caps it at ~150KB. The reply that exceeds it is the
+one carrying a screenshot of the bug being reported — so the failure lands
+exactly on the most valuable message. S3 has no practical limit.
+
+Both shapes stay supported in code: a rule using the SNS action still works.
 
 ## Verify afterwards
 
