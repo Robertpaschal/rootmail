@@ -38,7 +38,7 @@ export function Cta() {
                 href="https://developers.rootmail.io"
                 className="font-medium text-zinc-200 underline-offset-4 hover:underline"
               >
-                developers.rootmail.io
+                our developer site
               </Link>{" "}
               has the technical pitch and docs.
             </p>

@@ -17,7 +17,7 @@ const baseline = [
   "A complete, tamper-proof history of every email",
   "1-click move-in from Mailchimp-style exports",
   "A free practice mode — test sends never cost anything",
-  "Full developer access included (developers.rootmail.io)",
+  "Full developer access included — API, SDKs and docs",
 ];
 
 /**

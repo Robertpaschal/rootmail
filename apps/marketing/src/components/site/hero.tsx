@@ -79,7 +79,7 @@ export function Hero() {
               href="https://developers.rootmail.io"
               className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
             >
-              <Terminal className="size-3.5" /> building a product? developers.rootmail.io
+              <Terminal className="size-3.5" /> building a product?
             </Link>
           </p>
         </Reveal>

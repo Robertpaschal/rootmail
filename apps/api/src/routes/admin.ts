@@ -86,6 +86,7 @@ import {
 } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { BETA_WAITLIST_TAG, betaWaitlistAudience } from "../lib/beta-waitlist";
+import { realSendsOnly, testSendsOnly } from "../lib/real-sends";
 import { parse } from "../lib/validate";
 
 const loginBody = z.object({ email: z.string().email(), password: z.string().min(1) });
@@ -996,8 +997,18 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     const byStatus = await db
       .select({ status: messages.status, n: sql<number>`count(*)::int` })
       .from(messages)
-      .where(and(eq(messages.workspaceId, workspaceId), gte(messages.createdAt, since)))
+      // Our own test sends are excluded here for the same reason a customer's
+      // are excluded from theirs: a bounce we asked SES to produce is not a
+      // deliverability problem. Dogfooding means our numbers obey our rules.
+      .where(and(eq(messages.workspaceId, workspaceId), gte(messages.createdAt, since), ...realSendsOnly()))
       .groupBy(messages.status);
+
+    // Counted, not blended — so "we ran tests" stays visible without ever
+    // moving a rate.
+    const [testSends] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(and(eq(messages.workspaceId, workspaceId), gte(messages.createdAt, since), testSendsOnly()));
 
     const [suppressed] = await db
       .select({ n: sql<number>`count(*)::int` })
@@ -1041,6 +1052,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         complained: counts.complained ?? 0,
         suppressed: counts.suppressed ?? 0,
         failed: counts.failed ?? 0,
+        /** Test sends in the window. Excluded from every figure above. */
+        tests: testSends?.n ?? 0,
       },
       recent: recent.map((m) => ({
         id: m.id,
@@ -1193,8 +1206,17 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     const statusRows = await db
       .select({ status: messages.status, n: sql<number>`count(*)::int` })
       .from(messages)
-      .where(eq(messages.sandbox, false))
+      // `sandbox = false` was not enough: test recipients are a LIVE-mode
+      // feature (that is the point — they prove real delivery), so bounce and
+      // complaint scenarios were landing in the platform-wide rate staff read
+      // to judge whether anything is wrong.
+      .where(and(eq(messages.sandbox, false), ...realSendsOnly()))
       .groupBy(messages.status);
+
+    const [platformTests] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(messages)
+      .where(and(eq(messages.sandbox, false), testSendsOnly()));
     const byStatus: Record<string, number> = {};
     let totalMsgs = 0;
     for (const s of statusRows) {
@@ -1254,6 +1276,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         delivered_rate: rate(byStatus.delivered ?? 0),
         bounce_rate: rate(byStatus.bounced ?? 0),
         complaint_rate: rate(byStatus.complained ?? 0),
+        /** Deliberate test sends, excluded from `total` and every rate above. */
+        tests_excluded: platformTests?.n ?? 0,
       },
       ai: { credits_this_period: vol?.ai ?? 0 },
       growth: {

@@ -1,4 +1,4 @@
-import { notLike } from "drizzle-orm";
+import { like, notLike, or } from "drizzle-orm";
 import { TEST_RECIPIENT_DOMAIN } from "@rootmail/core";
 import { messages } from "@rootmail/db";
 
@@ -28,4 +28,19 @@ export function realSendsOnly() {
     notLike(messages.toEmail, `%@${TEST_RECIPIENT_DOMAIN}`),
     notLike(messages.toEmail, "%@simulator.amazonses.com"),
   ];
+}
+
+/**
+ * The exact inverse: only the test sends.
+ *
+ * Excluding tests from a reputation figure and then never mentioning them makes
+ * the tests look like they did nothing — so anywhere we filter them out, we
+ * count them here and show the number beside it. "247 real sends · 12 test
+ * sends (not counted)" is honest; a silently smaller total is not.
+ */
+export function testSendsOnly() {
+  return or(
+    like(messages.toEmail, `%@${TEST_RECIPIENT_DOMAIN}`),
+    like(messages.toEmail, "%@simulator.amazonses.com"),
+  );
 }

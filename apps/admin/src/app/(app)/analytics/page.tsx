@@ -97,6 +97,12 @@ export default async function AnalyticsPage() {
               <span className="text-amber-600 dark:text-amber-400">
                 Complaints {a.deliverability.complaint_rate}%
               </span>
+              {a.deliverability.tests_excluded > 0 ? (
+                <span className="text-muted-foreground">
+                  {a.deliverability.tests_excluded.toLocaleString()} test{" "}
+                  {a.deliverability.tests_excluded === 1 ? "send" : "sends"} excluded
+                </span>
+              ) : null}
             </div>
           </CardContent>
         </Card>

@@ -107,13 +107,17 @@ export default async function OurWorkspacePage() {
               icon={Mail}
               label="Sent to them · 30d"
               value={total.toLocaleString()}
-              sub={`${s.sends_30d.sent.toLocaleString()} delivered`}
+              sub={
+                s.sends_30d.tests > 0
+                  ? `${s.sends_30d.sent.toLocaleString()} delivered · ${s.sends_30d.tests.toLocaleString()} test ${s.sends_30d.tests === 1 ? "send" : "sends"} not counted`
+                  : `${s.sends_30d.sent.toLocaleString()} delivered`
+              }
             />
             <Stat
               icon={AlertTriangle}
               label="Bounced or complained"
               value={bad.toLocaleString()}
-              sub={total > 0 ? `${badRate.toFixed(1)}% of what we sent` : "nothing sent yet"}
+              sub={total > 0 ? `${badRate.toFixed(1)}% of real sends` : "nothing sent yet"}
               tone={badRate >= 2 ? "text-destructive" : undefined}
             />
             <Stat

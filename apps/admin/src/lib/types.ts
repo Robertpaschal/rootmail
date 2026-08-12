@@ -436,6 +436,8 @@ export interface AdminAnalytics {
     delivered_rate: number;
     bounce_rate: number;
     complaint_rate: number;
+    /** Deliberate test sends, excluded from `total` and every rate. */
+    tests_excluded: number;
   };
   ai: { credits_this_period: number };
   growth: { new_orgs_30d: number; prev_30d: number; change_pct: number | null };
@@ -546,6 +548,8 @@ export interface InternalSummary {
     complained: number;
     suppressed: number;
     failed: number;
+    /** Test sends in the window — excluded from every figure above. */
+    tests: number;
   };
   recent: {
     id: string;

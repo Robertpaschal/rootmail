@@ -15,7 +15,7 @@ const columns = [
   {
     title: "Developers",
     links: [
-      { label: "developers.rootmail.io", href: "https://developers.rootmail.io" },
+      { label: "Developer site", href: "https://developers.rootmail.io" },
       { label: "Documentation", href: "https://developers.rootmail.io/docs" },
     ],
   },
