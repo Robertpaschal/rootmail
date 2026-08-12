@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 const faqs = [
   {
     q: "Is rootmail for non-technical people?",
-    a: "Completely. It's a full visual product: design templates in a drag-and-drop studio, build contact lists, send campaigns, automate welcome series, read replies in a shared inbox, and watch opens and clicks — all by pointing and clicking. An AI assistant can even draft a template or build a sequence for you. (If your team includes developers, they get the exact same product over an API at developers.rootmail.io — same data, either front door.)",
+    a: "Completely. It's a full visual product: design templates in a drag-and-drop studio, build contact lists, send campaigns, automate welcome series, read replies in a shared inbox, and watch opens and clicks — all by pointing and clicking. An AI assistant can even draft a template or build a sequence for you. (If your team includes developers, they get the exact same product over an API — same data, either front door.)",
   },
   {
     q: "How do I send to my contacts or a mailing list?",
@@ -28,7 +28,7 @@ const faqs = [
   },
   {
     q: "My team has developers — can they plug into this?",
-    a: "Yes, fully. Everything you do in the dashboard, a developer can do in code — same product, same data. The whole technical story (and the docs) lives at developers.rootmail.io, so your developers get their own front door while you never have to touch code.",
+    a: "Yes, fully. Everything you do in the dashboard, a developer can do in code — same product, same data. The whole technical story, and the docs, live on our developer site — so your developers get their own front door while you never have to touch code.",
   },
   {
     q: "Can I get notified of deliveries, opens, and replies?",
