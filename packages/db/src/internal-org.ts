@@ -1,7 +1,8 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { newId } from "@rootmail/core";
 import { db } from "./client";
-import { contacts, organizations, suppressions, workspaces } from "./schema";
+import { contacts, organizations, suppressions, templates, workspaces } from "./schema";
+import { STARTER_TEMPLATE } from "./starter-template";
 
 /**
  * rootmail's own account — the one we reach our customers from.
@@ -111,6 +112,18 @@ async function ensureInternalWorkspace(organizationId: string): Promise<string> 
       environment: "live",
     })
     .returning({ id: workspaces.id });
+
+  // The same starter template every customer's workspace begins with. Without
+  // it our own studio opened empty while theirs opened with something to edit —
+  // which is exactly the sort of quiet divergence that makes dogfooding stop
+  // telling you the truth about your own product.
+  await db.insert(templates).values({
+    id: newId("template"),
+    workspaceId: created.id,
+    subTenantId: null,
+    ...STARTER_TEMPLATE,
+  });
+
   return created.id;
 }
 
