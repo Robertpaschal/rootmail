@@ -1,0 +1,40 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "DedicatedIpProvisioning",
+      "Effect": "Allow",
+      "Action": [
+        "ses:CreateDedicatedIpPool",
+        "ses:CreateConfigurationSet",
+        "ses:CreateConfigurationSetEventDestination",
+        "ses:GetConfigurationSetEventDestinations"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "ReplyDomainProvisioning",
+      "Effect": "Allow",
+      "Action": ["ses:DescribeActiveReceiptRuleSet", "ses:CreateReceiptRule"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "OneTimeAccountSetup",
+      "Effect": "Allow",
+      "Action": [
+        "ses:CreateReceiptRuleSet",
+        "ses:SetActiveReceiptRuleSet",
+        "s3:CreateBucket",
+        "s3:PutBucketPolicy",
+        "s3:PutLifecycleConfiguration"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "InboundRead",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::rootmail-inbound-prod/*"
+    }
+  ]
+}
