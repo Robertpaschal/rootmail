@@ -42,6 +42,16 @@ ROOTMAIL_API_KEY=rm_live_... pnpm exec tsx scripts/smoke.ts
   `bullConnection()` in `packages/core/src/queue.ts` and the cast in
   `apps/worker/src/index.ts`. Don't remove these casts.
 - **BullMQ queue names can't contain `:`** → `SEND_QUEUE = "rootmail-send"`.
+- **Prod deploys MUST pass `--env-file .env.prod`.** The prod compose passes
+  frontend config by INTERPOLATION (`ROOTMAIL_API_URL: ${PUBLIC_API_URL}`), and
+  compose interpolates from a file literally named `.env` — which the hosts do
+  not have. A plain `docker compose up -d` therefore recreates the web
+  containers with every such var set to the EMPTY STRING: no crash, no failed
+  healthcheck, just "Cannot reach the rootmail API at ." on every page. The
+  backend services use `env_file:` instead, so the API keeps working and the
+  breakage looks like a frontend bug. Took the admin console down for ~an hour.
+  The compose warnings ("variable is not set. Defaulting to a blank string")
+  ARE the alarm — read them.
 - **A hand-written migration must be added to `meta/_journal.json`.** Drizzle
   applies the JOURNAL, not the directory listing. A `.sql` file no entry points
   at is skipped — and `db:migrate` still prints "✓ Migrations complete", so the
