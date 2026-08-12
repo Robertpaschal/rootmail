@@ -38,6 +38,7 @@ import {
   users,
   customerChanged,
 } from "@rootmail/db";
+import { autoProvisionDedicatedIp } from "./provisioning";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
 import { getAddon, getSale, getStripePrices, getTrialDays, planForOrg } from "./plans";
 import { getTier, tiersForWing } from "./wings";
@@ -291,6 +292,10 @@ export async function syncDedicatedIpProvisioning(orgId: string, qty: number): P
       .update(organizations)
       .set({ dedicatedIpStatus: "requested", updatedAt: new Date() })
       .where(eq(organizations.id, orgId));
+    // Try to fulfil it immediately. `requested` stays the honest resting state
+    // if SES refuses — the customer sees "setting up", never a false "active",
+    // and staff still have the manual path.
+    void autoProvisionDedicatedIp(orgId).catch(() => undefined);
   } else if (qty === 0 && org.status === "requested") {
     await db
       .update(organizations)

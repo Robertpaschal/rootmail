@@ -251,3 +251,47 @@ export function betaInviteEmail(opts: {
     ),
   };
 }
+
+/** Sent the moment a purchased dedicated IP is actually carrying mail. */
+export function dedicatedIpReadyEmail(name?: string | null): EmailContent {
+  const hi = name ? `Hi ${esc(name)},` : "Hi,";
+  const link = `${dashboardOrigin()}/deliverability`;
+  return {
+    subject: "Your dedicated IP is live",
+    text:
+      `${name ? `Hi ${name},` : "Hi,"}\n\nYour dedicated IP is provisioned and your mail is now sending ` +
+      `through it.\n\nAmazon warms new IPs gradually, so send volume ramps over the first couple of ` +
+      `weeks — that is normal and it protects your reputation. Keep sending as usual.\n\n` +
+      `See it here: ${link}\n\n— The rootmail team`,
+    html: wrap(
+      `<p>${hi}</p>` +
+        `<p>Your dedicated IP is provisioned, and your mail is now sending through it.</p>` +
+        `<p style="color:#666;font-size:13px">New IPs are warmed gradually, so volume ramps over the first ` +
+        `couple of weeks. That is deliberate — it is what stops a brand-new address looking like a spammer.</p>` +
+        `<p>${button(link, "View deliverability")}</p>` +
+        `<p style="color:#666;font-size:13px;margin-top:20px">— The rootmail team</p>`,
+    ),
+  };
+}
+
+/** Sent when a customer's own reply subdomain starts receiving. */
+export function replyDomainReadyEmail(domain: string, name?: string | null): EmailContent {
+  const hi = name ? `Hi ${esc(name)},` : "Hi,";
+  const link = `${dashboardOrigin()}/inbox`;
+  return {
+    subject: `Replies now come back to ${domain}`,
+    text:
+      `${name ? `Hi ${name},` : "Hi,"}\n\nYour reply domain ${domain} is verified and live. From now on ` +
+      `your emails reply to your own domain instead of ours, and the responses land in your rootmail ` +
+      `inbox exactly as before.\n\nNothing else to do — your next send uses it automatically.\n\n` +
+      `Your inbox: ${link}\n\n— The rootmail team`,
+    html: wrap(
+      `<p>${hi}</p>` +
+        `<p>Your reply domain <strong>${esc(domain)}</strong> is verified and live. Your emails now reply to ` +
+        `your own domain instead of ours, and responses land in your rootmail inbox exactly as before.</p>` +
+        `<p style="color:#666;font-size:13px">Nothing else to do — your next send uses it automatically.</p>` +
+        `<p>${button(link, "Open your inbox")}</p>` +
+        `<p style="color:#666;font-size:13px;margin-top:20px">— The rootmail team</p>`,
+    ),
+  };
+}

@@ -19,6 +19,7 @@ import { loadOrg } from "../lib/features";
 import { orgAddonQuantities } from "../lib/plans";
 import { effectiveFeatures } from "../lib/wings";
 import { requirePermission } from "../lib/permissions";
+import { autoProvisionReplyDomain } from "../lib/provisioning";
 import { parse } from "../lib/validate";
 
 const updateBody = z.object({
@@ -162,6 +163,13 @@ export async function organizationRoutes(app: FastifyInstance): Promise<void> {
         .update(organizations)
         .set({ replyDomainVerifiedAt: new Date(), updatedAt: new Date() })
         .where(eq(organizations.id, org.id));
+      // Verified and working are now one event. Previously this left the
+      // customer on "pending" until a staff member noticed a queue and
+      // hand-made an SES receipt rule — hours of waiting for a step that was
+      // pure mechanism, with ownership already proved by the DNS check above.
+      // Best-effort: a provisioning failure leaves them verified-but-pending,
+      // exactly where they used to be, and staff can still finish it by hand.
+      void autoProvisionReplyDomain(org.id).catch(() => undefined);
     } else if (!result.ok && org.replyDomainStatus === "pending") {
       await db
         .update(organizations)

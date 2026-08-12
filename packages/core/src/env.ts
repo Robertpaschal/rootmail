@@ -92,6 +92,12 @@ const EnvSchema = z.object({
   // receiving endpoint for the region; the owner still creates the SES receipt
   // rule per activated domain (staff flips the org to active afterwards).
   INBOUND_MX_HOST: z.string().default("inbound-smtp.us-east-1.amazonaws.com"),
+  // Where an automatically-created SES receipt rule delivers inbound mail. One
+  // of these must be set before a branded reply domain can be provisioned — a
+  // receipt rule with no action silently drops the customer's replies.
+  INBOUND_S3_BUCKET: z.string().optional(),
+  INBOUND_S3_PREFIX: z.string().optional(),
+  INBOUND_SNS_TOPIC_ARN: z.string().optional(),
 
   SENDGRID_API_KEY: z.string().optional(),
 
