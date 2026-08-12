@@ -189,17 +189,51 @@ export async function provisionReplyReceiptRule(
     };
   }
 
+  /*
+   * Storing the message and being TOLD about it are two different things, and
+   * an S3 action alone only does the first.
+   *
+   * I built exactly that rule by hand for our own reply domain: mail landed in
+   * the bucket and nothing ever notified the API, so replies would have sat
+   * there until the 30-day lifecycle deleted them — no error, no bounce, no
+   * trace of what went missing. A customer's branded reply address would have
+   * looked like a black hole.
+   *
+   * So the S3 action carries the topic (SES notifies AFTER the write, which is
+   * the ordering we need — a notification we could not yet fetch would be
+   * worse), and a configuration that cannot notify is refused outright. There
+   * is no half-working version of this worth creating.
+   */
   const actions: NonNullable<ConstructorParameters<typeof CreateReceiptRuleCommand>[0]["Rule"]>["Actions"] = [];
+
   if (opts.s3Bucket) {
-    actions.push({ S3Action: { BucketName: opts.s3Bucket, ObjectKeyPrefix: opts.s3Prefix } });
-  }
-  if (opts.snsTopicArn) {
+    if (!opts.snsTopicArn) {
+      return {
+        ok: false,
+        reason:
+          "INBOUND_S3_BUCKET is set but INBOUND_SNS_TOPIC_ARN is not. An S3-only receipt rule stores replies where nothing reads them; refusing rather than creating a silent black hole.",
+        retryable: false,
+      };
+    }
+    actions.push({
+      S3Action: {
+        BucketName: opts.s3Bucket,
+        ObjectKeyPrefix: opts.s3Prefix,
+        // The notification that makes the stored message reachable.
+        TopicArn: opts.snsTopicArn,
+      },
+    });
+  } else if (opts.snsTopicArn) {
+    // SNS-only: SES inlines the raw MIME, which is simpler but caps at ~150KB.
+    // Supported because a rule can legitimately be either, but S3 is preferred
+    // — the reply that exceeds the cap is the one carrying a screenshot.
     actions.push({ SNSAction: { TopicArn: opts.snsTopicArn, Encoding: "UTF-8" } });
   }
+
   if (actions.length === 0) {
     return {
       ok: false,
-      reason: "No inbound delivery target configured (set INBOUND_S3_BUCKET or INBOUND_SNS_TOPIC_ARN).",
+      reason: "No inbound delivery target configured (set INBOUND_S3_BUCKET + INBOUND_SNS_TOPIC_ARN).",
       retryable: false,
     };
   }
