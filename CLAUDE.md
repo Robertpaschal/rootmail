@@ -42,6 +42,12 @@ ROOTMAIL_API_KEY=rm_live_... pnpm exec tsx scripts/smoke.ts
   `bullConnection()` in `packages/core/src/queue.ts` and the cast in
   `apps/worker/src/index.ts`. Don't remove these casts.
 - **BullMQ queue names can't contain `:`** → `SEND_QUEUE = "rootmail-send"`.
+- **A hand-written migration must be added to `meta/_journal.json`.** Drizzle
+  applies the JOURNAL, not the directory listing. A `.sql` file no entry points
+  at is skipped — and `db:migrate` still prints "✓ Migrations complete", so the
+  deploy looks clean while the table isn't there. Cost a full deploy cycle on
+  0064. `db:generate` maintains the journal for you; only hand-written files
+  need the entry added by hand.
 - **Drizzle `.nullsNotDistinct()`** isn't available in this version. Uniqueness
   that should treat workspace-level (null `sub_tenant_id`) rows as distinct from
   tenant rows is enforced in app code (select-then-write), not the DB.
