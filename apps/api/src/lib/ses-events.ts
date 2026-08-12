@@ -1,11 +1,7 @@
+import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { and, eq } from "drizzle-orm";
 import { simpleParser } from "mailparser";
-import {
-  type AuditEvent,
-  enqueueWebhookEvent,
-  newId,
-  WEBHOOK_EVENTS,
-} from "@rootmail/core";
+import { WEBHOOK_EVENTS, enqueueWebhookEvent, env, newId, type AuditEvent } from "@rootmail/core";
 import { auditEntries, db, type Message, messages, threads } from "@rootmail/db";
 import { addSuppression } from "./queries";
 import { exitEnrollments } from "./sequence-triggers";
@@ -40,8 +36,13 @@ export interface SesNotification {
   // Open/Click tracking (configuration-set event destinations only).
   open?: { ipAddress?: string; userAgent?: string };
   click?: { link?: string; ipAddress?: string; userAgent?: string };
-  // Inbound ("Received") via an SES receipt rule's SNS action.
-  receipt?: { recipients?: string[] };
+  // Inbound ("Received") via an SES receipt rule. The rule's ACTION decides
+  // where the message body is: SNS inlines it (`content`), S3 stores it and
+  // sends only a pointer.
+  receipt?: {
+    recipients?: string[];
+    action?: { type?: string; bucketName?: string; objectKey?: string };
+  };
   content?: string; // base64 raw MIME (SNS action, ≤150KB)
 }
 
@@ -82,15 +83,44 @@ export function threadIdFromRecipients(recipients: string[]): string | null {
  * Reply-To token, parse the MIME body, and append it as an inbound message —
  * then fire `message.received` and exit any reply-triggered sequences.
  */
+/**
+ * Where the raw message actually is.
+ *
+ * An SES receipt rule's SNS action inlines the MIME as base64 — capped at
+ * ~150KB, so a reply with a screenshot attached silently exceeds it. The S3
+ * action has no such limit but sends only a bucket/key pointer, and until this
+ * existed every S3-delivered reply fell straight through the `!n.content`
+ * guard below and was dropped without a trace. Both shapes are handled because
+ * a rule can legitimately be either.
+ */
+async function rawMessage(n: SesNotification): Promise<Buffer | null> {
+  if (n.content) return Buffer.from(n.content, "base64");
+
+  const action = n.receipt?.action;
+  if (action?.type !== "S3" || !action.bucketName || !action.objectKey) return null;
+
+  const s3 = new S3Client(env.AWS_REGION ? { region: env.AWS_REGION } : {});
+  const obj = await s3.send(
+    new GetObjectCommand({ Bucket: action.bucketName, Key: action.objectKey }),
+  );
+  const bytes = await obj.Body?.transformToByteArray();
+  return bytes ? Buffer.from(bytes) : null;
+}
+
 export async function applySesInbound(n: SesNotification): Promise<"received" | "ignored"> {
   const recipients = n.receipt?.recipients ?? n.mail?.destination ?? [];
   const threadId = threadIdFromRecipients(recipients);
-  if (!threadId || !n.content) return "ignored";
+  if (!threadId) return "ignored";
 
   const [thread] = await db.select().from(threads).where(eq(threads.id, threadId)).limit(1);
   if (!thread) return "ignored";
 
-  const parsed = await simpleParser(Buffer.from(n.content, "base64"));
+  // A fetch failure must NOT look like "no reply here" — that is the silent
+  // drop we just removed. Let it throw so SNS retries and the error is logged.
+  const raw = await rawMessage(n);
+  if (!raw) return "ignored";
+
+  const parsed = await simpleParser(raw);
   const fromEmail = parsed.from?.value?.[0]?.address ?? n.mail?.source ?? "";
   if (!fromEmail) return "ignored";
   const toEmail = recipients.find((r) => REPLY_TOKEN.test(r.trim())) ?? "";
