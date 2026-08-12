@@ -88,11 +88,7 @@ until an active receipt rule set exists, regardless of production access. That i
 a one-time setup, plus these IAM permissions on the deploy user for the automation
 to run:
 
-```
-ses:DescribeActiveReceiptRuleSet
-ses:CreateReceiptRule
-sesv2:CreateDedicatedIpPool
-sesv2:CreateConfigurationSet
-sesv2:CreateConfigurationSetEventDestination
-sesv2:GetConfigurationSetEventDestinations
-```
+See **[ses-inbound-and-iam-setup.md](ses-inbound-and-iam-setup.md)** for the exact
+policy JSON and the commands. (Note: SESv2 authorizes under the `ses:` prefix —
+there is no `sesv2:` namespace, so a policy written that way grants nothing.)
+
