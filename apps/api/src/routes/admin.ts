@@ -55,7 +55,7 @@ import {
   users,
   workspaces,
 } from "@rootmail/db";
-import { announcementEmail } from "../lib/emails";
+import { announcementEmail, betaInviteEmail } from "../lib/emails";
 import { serializeAudit } from "../lib/serialize";
 import {
   createStaffSession,
@@ -85,6 +85,7 @@ import {
   syncPlanSaleCoupon,
 } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
+import { BETA_WAITLIST_TAG, betaWaitlistAudience } from "../lib/beta-waitlist";
 import { parse } from "../lib/validate";
 
 const loginBody = z.object({ email: z.string().email(), password: z.string().min(1) });
@@ -2532,6 +2533,125 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     // losing that link would lose the answer to "how did this tester get here".
     await db.update(betaInvites).set({ revokedAt: new Date() }).where(eq(betaInvites.id, id));
     return { object: "beta_invite", id, revoked: true };
+  });
+
+  // --- The waitlist -------------------------------------------------------
+  //
+  // Everyone who asked for access, newest first, with what they told us they
+  // send. Staff read this to decide who to let in NEXT — a beta whose testers
+  // all send the same kind of mail only proves that one path works.
+
+  app.get("/v1/admin/beta/waitlist", async (req) => {
+    await requireStaff(req);
+    const { workspaceId } = await betaWaitlistAudience();
+    const rows = await db
+      .select({
+        id: contacts.id,
+        email: contacts.email,
+        name: contacts.name,
+        tags: contacts.tags,
+        metadata: contacts.metadata,
+        createdAt: contacts.createdAt,
+      })
+      .from(contacts)
+      .where(and(eq(contacts.workspaceId, workspaceId), isNull(contacts.subTenantId)))
+      .orderBy(desc(contacts.createdAt))
+      .limit(500);
+    return {
+      object: "list",
+      data: rows
+        .filter((r) => r.tags.includes(BETA_WAITLIST_TAG))
+        .map((r) => ({
+          id: r.id,
+          email: r.email,
+          name: r.name,
+          invited: r.tags.includes("beta-invited"),
+          use_case: (r.metadata as Record<string, unknown>).beta_use_case ?? null,
+          volume: (r.metadata as Record<string, unknown>).beta_volume ?? null,
+          joined_at: r.createdAt.toISOString(),
+        })),
+    };
+  });
+
+  /**
+   * Let someone in: mint a code that only they can use, and mail it to them
+   * through our own send pipeline.
+   *
+   * The code is single-use and labelled with their address, so an invite that
+   * shows up in someone else's hands is traceable to the person we sent it to.
+   * Idempotent by tag — pressing admit twice does not mint a second code.
+   */
+  app.post("/v1/admin/beta/waitlist/:id/admit", async (req, reply) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "announce.send");
+    const { id } = req.params as { id: string };
+
+    const { workspaceId } = await betaWaitlistAudience();
+    const [person] = await db
+      .select()
+      .from(contacts)
+      .where(and(eq(contacts.id, id), eq(contacts.workspaceId, workspaceId)))
+      .limit(1);
+    if (!person) throw Errors.notFound("No one on the waitlist with that id.");
+    if (person.tags.includes("beta-invited")) {
+      return reply.send({ object: "beta_admission", id, already_invited: true });
+    }
+
+    const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+    const code =
+      "beta-" +
+      Array.from({ length: 8 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
+    const [invite] = await db
+      .insert(betaInvites)
+      .values({
+        id: newId("betaInvite"),
+        code,
+        label: `waitlist: ${person.email}`,
+        maxUses: 1,
+        createdByStaffId: staff.id,
+      })
+      .returning();
+
+    const mail = betaInviteEmail({
+      code,
+      name: person.name,
+      signupUrl: `${(env.DASHBOARD_URL ?? "").replace(/\/$/, "")}/signup`,
+    });
+    // TRANSACTIONAL: this is the thing they asked us for, addressed to them
+    // alone. It is not the announcement case that broke before — nobody signs
+    // up for a waitlist and means "but don't send me the invite".
+    await sendSystemEmail({
+      to: person.email,
+      subject: mail.subject,
+      html: mail.html,
+      text: mail.text,
+      cls: "transactional",
+    });
+
+    await db
+      .update(contacts)
+      .set({
+        tags: [...person.tags, "beta-invited"],
+        // They stop being a name on a list and become someone we are waiting on.
+        stage: "lead",
+        metadata: {
+          ...(person.metadata as Record<string, unknown>),
+          beta_invited_at: new Date().toISOString(),
+          beta_invite_code: code,
+        },
+      })
+      .where(eq(contacts.id, person.id));
+
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "beta.waitlist.admit",
+      targetType: "contact",
+      targetId: person.id,
+      metadata: { email: person.email, invite_id: invite.id },
+      ip: req.ip,
+    });
+
+    return reply.send({ object: "beta_admission", id, invite_id: invite.id, code, emailed: true });
   });
 
 }

@@ -210,3 +210,44 @@ export function passwordChangedEmail(name?: string | null): EmailContent {
     ),
   };
 }
+
+/**
+ * The invite a waitlist signup has been waiting for.
+ *
+ * The code is the whole payload, so it is large, selectable, and repeated in
+ * the text part — people forward these, read them off a phone, and paste them
+ * into a form on another device. It also says what a beta means, because
+ * someone who signed up weeks ago has forgotten what they said yes to.
+ */
+export function betaInviteEmail(opts: {
+  code: string;
+  name?: string | null;
+  signupUrl: string;
+}): EmailContent {
+  const hi = opts.name ? `Hi ${esc(opts.name)},` : "Hi,";
+  const hiText = opts.name ? `Hi ${opts.name},` : "Hi,";
+  const link = `${opts.signupUrl}?invite_code=${encodeURIComponent(opts.code)}`;
+  return {
+    subject: `You're in — your rootmail beta code`,
+    text:
+      `${hiText}\n\nYou asked for access to rootmail, and it's your turn.\n\n` +
+      `Your invite code: ${opts.code}\n\n` +
+      `Create your account: ${link}\n\n` +
+      `Everything is unlocked while we're in beta — every feature, no plan, no card. ` +
+      `In exchange we want to hear what's confusing, broken, or missing. Just reply to this email; ` +
+      `it reaches a person.\n\n— The rootmail team`,
+    html: wrap(
+      `<p>${hi}</p>` +
+        `<p>You asked for access to rootmail, and it's your turn.</p>` +
+        `<p style="margin:24px 0;padding:16px;background:#f6f6f6;border-radius:8px;text-align:center">` +
+        `<span style="font-size:12px;color:#666;letter-spacing:.08em;text-transform:uppercase">Your invite code</span><br>` +
+        `<span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;letter-spacing:.04em">${esc(opts.code)}</span>` +
+        `</p>` +
+        `<p>${button(link, "Create your account")}</p>` +
+        `<p style="color:#666;font-size:13px">Everything is unlocked while we're in beta — every feature, no plan, no card.</p>` +
+        `<p style="color:#666;font-size:13px">In exchange we want to hear what's confusing, broken, or missing. ` +
+        `Just reply to this email — it reaches a person.</p>` +
+        `<p style="color:#666;font-size:13px;margin-top:20px">— The rootmail team</p>`,
+    ),
+  };
+}

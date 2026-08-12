@@ -35,6 +35,7 @@ import { samlRoutes } from "./routes/saml";
 import { scimRoutes } from "./routes/scim";
 import { senderRoutes } from "./routes/senders";
 import { sequenceRoutes } from "./routes/sequences";
+import { betaWaitlistRoutes } from "./routes/beta-waitlist";
 import { subscribeRoutes } from "./routes/subscribe";
 import { subTenantRoutes } from "./routes/subtenants";
 import { templateRoutes } from "./routes/templates";
@@ -87,6 +88,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(subTenantRoutes);
   await app.register(contactRoutes);
   await app.register(subscribeRoutes);
+  await app.register(betaWaitlistRoutes);
   await app.register(apiKeyRoutes);
   await app.register(templateRoutes);
   await app.register(templateAiRoutes);
