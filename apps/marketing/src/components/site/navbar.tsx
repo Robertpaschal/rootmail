@@ -30,7 +30,7 @@ export function Navbar() {
   useEffect(() => setSignedIn(readSignedInHint()), []);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/65">
+    <header className="sticky top-[var(--beta-notice-h,0px)] z-50 w-full border-b border-border/60 bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/65">
       <div className="container flex h-16 items-center justify-between gap-4">
         <Link href="/" aria-label="rootmail home">
           <Logo />

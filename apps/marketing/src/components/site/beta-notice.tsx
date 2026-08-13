@@ -46,7 +46,12 @@ function NoticeShell({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-primary/25 bg-primary/10">
+    <>
+      {/* The nav sticks below this strip rather than under it. Declaring the
+          height here means an open beta — where nothing renders — leaves the
+          nav flush at the top, with no constant to remember to remove. */}
+      <style>{":root{--beta-notice-h:37px}"}</style>
+    <div className="sticky top-0 z-[60] border-b border-primary/25 bg-primary/10 backdrop-blur supports-[backdrop-filter]:bg-primary/10">
       <div className="container flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2 text-center text-sm">
         <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
           {badge}
@@ -61,6 +66,7 @@ function NoticeShell({
         </Link>
       </div>
     </div>
+    </>
   );
 }
 

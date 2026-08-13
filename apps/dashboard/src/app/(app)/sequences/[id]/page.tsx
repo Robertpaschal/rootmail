@@ -47,22 +47,35 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
         }
       />
 
-      {/* Where it stands, before anything you could change about it. */}
-      <div className="mb-6 grid gap-3 sm:grid-cols-3">
-        {[
-          { label: "In progress", value: activeCount, hint: "receiving it right now" },
-          { label: "Finished", value: doneCount, hint: "reached the last email" },
-          { label: "Emails", value: journeyShape(sequence.steps).emails, hint: "in the journey" },
-        ].map((s) => (
-          <Card key={s.label}>
-            <CardContent className="p-4">
-              <p className="text-xs text-muted-foreground">{s.label}</p>
-              <p className="mt-0.5 text-2xl font-semibold tabular-nums">{s.value.toLocaleString()}</p>
-              <p className="text-xs text-muted-foreground">{s.hint}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      {/* Where it stands, as a sentence.
+          This was three cards holding three integers — a row of the screen
+          spent on numbers that only mean anything next to each other. "12
+          people are receiving it, 8 have finished" is the same data read in
+          one glance, and it belongs to the sequence rather than floating
+          above it. */}
+      <p className="mb-6 text-sm text-muted-foreground">
+        {activeCount === 0 && doneCount === 0 ? (
+          <>
+            Nobody has been through this yet — {journeyShape(sequence.steps).emails}{" "}
+            {journeyShape(sequence.steps).emails === 1 ? "email" : "emails"} waiting for the first
+            enrolment.
+          </>
+        ) : (
+          <>
+            <span className="font-medium tabular-nums text-foreground">{activeCount}</span>{" "}
+            {activeCount === 1 ? "person is" : "people are"} receiving this right now
+            {doneCount > 0 ? (
+              <>
+                {" "}·{" "}
+                <span className="font-medium tabular-nums text-foreground">{doneCount}</span>{" "}
+                finished the whole journey
+              </>
+            ) : null}
+            {" "}· {journeyShape(sequence.steps).emails}{" "}
+            {journeyShape(sequence.steps).emails === 1 ? "email" : "emails"} in it
+          </>
+        )}
+      </p>
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
@@ -74,24 +87,21 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
               themselves, where you don't have to match "#2" to an email. */}
           {analytics ? <FunnelCard stats={analytics} /> : null}
 
+          {/* One card, not two. Adding someone and seeing who is already in are
+              the same task, and splitting them meant the action sat above a
+              list it appeared unrelated to. */}
           <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Enroll a contact</CardTitle>
-            </CardHeader>
-            <CardContent>
+            <CardHeader className="space-y-3">
+              <CardTitle className="text-base">
+                Who&apos;s in it{enrollments.length > 0 ? ` (${enrollments.length})` : ""}
+              </CardTitle>
               <ActionForm action={enrollAction} className="flex gap-2">
                 <input type="hidden" name="id" value={sequence.id} />
-                <Input name="email" type="email" placeholder="contact@company.com" required />
+                <Input name="email" type="email" placeholder="Add someone by email" required />
                 <Button type="submit" size="icon" aria-label="Enroll">
                   <UserPlus className="size-4" />
                 </Button>
               </ActionForm>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Enrollments ({enrollments.length})</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               <Table>
@@ -103,6 +113,14 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {enrollments.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={3} className="py-6 text-center text-sm text-muted-foreground">
+                        Nobody is enrolled yet. Add someone above, or let the
+                        trigger bring them in on its own.
+                      </TableCell>
+                    </TableRow>
+                  ) : null}
                   {enrollments.map((e) => (
                     <TableRow key={e.id}>
                       <TableCell className="font-medium">{e.email}</TableCell>
