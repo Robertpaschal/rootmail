@@ -114,6 +114,12 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
    */
   app.get("/v1/beta/status", async (_req, reply) => {
     const seats = await autoAdmitRemaining();
+    // Readable from a browser on any origin. This is the one endpoint that
+    // needs it: the marketing site is statically generated, so the seat count
+    // has to be fetched after the page loads rather than rendered into it.
+    // Safe to open — no auth, no secrets, and the numbers are printed on a
+    // public page anyway.
+    reply.header("access-control-allow-origin", "*");
     return reply.send({
       // Whether an invite code is needed at all — one env var flips the whole
       // site's copy the day we open up.

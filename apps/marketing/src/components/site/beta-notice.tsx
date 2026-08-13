@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { betaStatus } from "@/lib/beta";
+import { BetaSeats } from "./beta-seats";
 
 /**
  * The strip that stops a stranger wasting their time.
@@ -31,7 +32,9 @@ import { betaStatus } from "@/lib/beta";
 export function BetaNoticeFallback() {
   return (
     <NoticeShell badge="Closed beta" cta="Ask for an invite">
-      <span className="text-muted-foreground">rootmail is invite-only while we finish it.</span>
+      <span className="text-muted-foreground">
+        rootmail is invite-only while we finish it. <BetaSeats />
+      </span>
     </NoticeShell>
   );
 }
@@ -88,12 +91,7 @@ export async function BetaNotice() {
         </span>
       ) : (
         <span className="text-muted-foreground">
-          rootmail is invite-only while we finish it.{" "}
-          {beta.seatsTotal > 0 ? (
-            <span className="text-foreground">
-              {beta.seatsLeft} {beta.seatsLeft === 1 ? "place" : "places"} left in this round.
-            </span>
-          ) : null}
+          rootmail is invite-only while we finish it. <BetaSeats />
         </span>
       )}
     </NoticeShell>

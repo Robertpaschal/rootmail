@@ -1,3 +1,4 @@
+import { BetaQuotaNote } from "@/components/app/beta-preview-note";
 import { CheckCircle2, XCircle } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { PageHeader } from "@/components/app/page-header";
@@ -13,6 +14,12 @@ export default async function TransactionalBillingPage({
 }: {
   searchParams: Promise<{ checkout?: string; emails?: string; contacts?: string; team?: string }>;
 }) {
+  let isBeta = false;
+  try {
+    isBeta = Boolean((await api.me()).beta);
+  } catch {
+    // Explanation, not a control — never break the page over it.
+  }
   const params = await searchParams;
   let billing: Billing | null = null;
   let failed: string | null = null;
@@ -25,6 +32,7 @@ export default async function TransactionalBillingPage({
   if (failed || !billing?.wings) {
     return (
       <>
+      {isBeta ? <BetaQuotaNote dailyCap={12} /> : null}
         <PageHeader title="Transactional plan" backHref="/billing" backLabel="Plan & usage" />
         <ConnectionErrorCard message={failed ?? "Pricing isn't available right now."} />
       </>
