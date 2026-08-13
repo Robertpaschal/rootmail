@@ -41,7 +41,7 @@ const HTML = `<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI
     <a href="https://app.rootmail.io/signup?invite_code={{beta_invite_code}}"
        style="display:inline-block;padding:10px 18px;background:#111;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">Create your account</a>
   </p>
-  <p style="color:#666;font-size:13px">Everything is unlocked while we're in beta — every feature, no plan, no card.</p>
+  <p style="color:#666;font-size:13px">Every email your business sends — receipts and newsletters — finally in one place. Everything is unlocked while we're in beta: every feature, no plan, no card.</p>
   <p style="color:#666;font-size:13px">In exchange we want to hear what's confusing, broken, or missing. Just reply to this email — it reaches a person.</p>
   <p style="color:#666;font-size:13px;margin-top:20px">— The rootmail team</p>
 </div>`;

@@ -244,7 +244,7 @@ export function betaInviteEmail(opts: {
         `<span style="font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:24px;font-weight:700;letter-spacing:.04em">${esc(opts.code)}</span>` +
         `</p>` +
         `<p>${button(link, "Create your account")}</p>` +
-        `<p style="color:#666;font-size:13px">Everything is unlocked while we're in beta — every feature, no plan, no card.</p>` +
+        `<p style="color:#666;font-size:13px">Every email your business sends — receipts and newsletters — finally in one place. Everything is unlocked while we're in beta: every feature, no plan, no card.</p>` +
         `<p style="color:#666;font-size:13px">In exchange we want to hear what's confusing, broken, or missing. ` +
         `Just reply to this email — it reaches a person.</p>` +
         `<p style="color:#666;font-size:13px;margin-top:20px">— The rootmail team</p>`,

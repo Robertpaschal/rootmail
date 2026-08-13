@@ -54,8 +54,8 @@ export function Footer() {
           <div className="max-w-xs">
             <Logo />
             <p className="mt-4 text-sm text-muted-foreground">
-              Email infrastructure that scales with who&apos;s asking. One platform, one data model —
-              from your first welcome email to legal-grade proof.
+              Every email your business sends — receipts and newsletters — finally in one place.
+              One list, one reputation, one place to look. Unsubscribe once and it means everywhere.
             </p>
             <div className="mt-5 flex items-center gap-2">
               {socials.map((s) => (

@@ -56,7 +56,7 @@ export default function Image() {
           }}
         >
           <div>Receipts and newsletters are both just email.</div>
-          <div>One roof, one audience, one reputation.</div>
+          <div>One list, one reputation, one place to look.</div>
         </div>
         <div style={{ marginTop: "auto", display: "flex", fontSize: 30, color: "#71717a" }}>
           rootmail.io/beta

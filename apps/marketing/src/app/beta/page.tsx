@@ -7,7 +7,7 @@ import { WaitlistForm } from "./waitlist-form";
 
 const title = "Join the rootmail beta";
 const description =
-  "rootmail is in closed beta: transactional and marketing email under one roof. Ask for an invite — testers get everything unlocked.";
+  "Every email your business sends — receipts and newsletters — finally in one place. rootmail is in closed beta — ask for an invite, and testers get everything unlocked.";
 
 /**
  * The link we hand out.
@@ -65,9 +65,9 @@ export default function BetaPage() {
             Help us build rootmail
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-            Your receipts and your newsletter are both just email — so rootmail runs them under one
-            roof, one audience, one reputation. It works today, and it&apos;s early enough that what
-            you say still changes it.
+            Every email your business sends — receipts and newsletters — finally in one place. One
+            list, one reputation, one place to look. It works today, and it&apos;s early enough that
+            what you say still changes it.
           </p>
         </div>
 
