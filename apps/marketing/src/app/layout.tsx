@@ -1,3 +1,4 @@
+import { BetaNotice } from "@/components/site/beta-notice";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -51,7 +52,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="min-h-screen bg-background font-sans antialiased">{children}</body>
+      <body className="min-h-screen bg-background font-sans antialiased">
+        {/* Above everything, on every page: a visitor must never reach a Sign
+            up button without knowing the door is locked. */}
+        <BetaNotice />
+        {children}
+      </body>
     </html>
   );
 }

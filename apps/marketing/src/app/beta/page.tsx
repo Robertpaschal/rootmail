@@ -3,6 +3,7 @@ import { MessageSquareHeart, Unlock, Users } from "lucide-react";
 import { Navbar } from "@/components/site/navbar";
 import { Footer } from "@/components/site/footer";
 import { Badge } from "@/components/ui/badge";
+import { betaStatus } from "@/lib/beta";
 import { WaitlistForm } from "./waitlist-form";
 
 const title = "Join the rootmail beta";
@@ -54,13 +55,15 @@ const PROMISES = [
   },
 ];
 
-export default function BetaPage() {
+export default async function BetaPage() {
+  const beta = await betaStatus();
+  const full = beta.closed && !beta.accepting;
   return (
     <>
       <Navbar />
       <main className="mx-auto max-w-5xl px-4 py-16 sm:px-6 sm:py-24">
         <div className="text-center">
-          <Badge variant="secondary">Closed beta</Badge>
+          <Badge variant="secondary">{full ? "This round is full" : "Closed beta"}</Badge>
           <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
             Help us finish rootmail
           </h1>
@@ -68,6 +71,14 @@ export default function BetaPage() {
             Every email your business sends — receipts and newsletters — finally in one place. One
             list, one reputation, one place to look. It works today, and it&apos;s early enough that
             what you say still changes it.
+          </p>
+          {/* Say the state plainly. Someone who knows the round is full and
+              joins anyway is a warm lead; someone who applies thinking a seat
+              is waiting, and hears nothing, is a person we let down. */}
+          <p className="mx-auto mt-3 max-w-2xl text-sm text-muted-foreground">
+            {full
+              ? "Every place in this round is taken. Add yourself below and you'll be first to hear when the next one opens — that's the next batch of testers, then open beta."
+              : `${beta.seatsLeft} of ${beta.seatsTotal} places left in this round. We invite in small batches so the people inside get real attention.`}
           </p>
         </div>
 

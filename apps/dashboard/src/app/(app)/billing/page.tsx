@@ -14,6 +14,7 @@ import {
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { LocalTime } from "@/components/app/local-time";
 import { InfoHint } from "@/components/app/info-hint";
+import { BetaQuotaNote } from "@/components/app/beta-preview-note";
 import { PageHeader } from "@/components/app/page-header";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,6 +47,13 @@ export default async function BillingPage({
 
   let billing: Billing | null = null;
   let invoices: Invoice[] = [];
+  let isBeta = false;
+  try {
+    isBeta = Boolean((await api.me()).beta);
+  } catch {
+    // The note is an explanation, not a control. If we can't tell, say nothing
+    // rather than break the page a tester came here to read.
+  }
   let failed: string | null = null;
   let errStatus: number | undefined;
   try {
@@ -426,6 +434,10 @@ export default async function BillingPage({
 
   return (
     <>
+      {/* A tester reading allowances and prices that do not govern them either
+          reports a bug that isn't one, or hits the daily cap and concludes the
+          product is broken. Say which numbers are real before they scroll. */}
+      {isBeta ? <BetaQuotaNote dailyCap={12} /> : null}
       <PageHeader
         title="Plan & usage"
         description="Your billing dashboard — what you use, what you pay, and every invoice, all in one place."

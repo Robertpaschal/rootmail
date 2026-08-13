@@ -1,4 +1,4 @@
-import { and, count, eq, isNull, like } from "drizzle-orm";
+import { and, count, eq, gt, isNull, like, or, sql } from "drizzle-orm";
 import { env, newId } from "@rootmail/core";
 import { betaInvites, db, ensureInternalAccount, lists } from "@rootmail/db";
 
@@ -73,11 +73,7 @@ export async function autoMintInvite(email: string): Promise<string | null> {
   const limit = env.BETA_AUTO_ADMIT_LIMIT;
   if (limit < 1) return null;
 
-  const [used] = await db
-    .select({ n: count() })
-    .from(betaInvites)
-    .where(like(betaInvites.label, "auto:%"));
-  if ((used?.n ?? 0) >= limit) return null;
+  if ((await autoAdmitRemaining()).left < 1) return null;
 
   const code =
     "beta-" +
@@ -88,17 +84,46 @@ export async function autoMintInvite(email: string): Promise<string | null> {
     // The prefix is load-bearing: it is how the cap counts itself.
     label: `auto: ${email}`,
     maxUses: 1,
+    // A seat someone never took must come back. See autoAdmitRemaining.
+    expiresAt: new Date(Date.now() + UNCLAIMED_SEAT_DAYS * 86_400_000),
   });
   return code;
 }
 
-/** How many automatic seats remain — for the staff waitlist screen. */
+/** How long an unclaimed auto-minted code holds its seat before releasing it. */
+const UNCLAIMED_SEAT_DAYS = 7;
+
+/**
+ * How many automatic seats remain.
+ *
+ * A seat is held by an invite that was REDEEMED, or by one recently minted and
+ * still live. It is deliberately NOT held forever by a minted code, because
+ * plenty of them will never be used: a tester has to click an AWS verification
+ * email before we can even reach them, and some fraction simply won't. Counting
+ * those against capacity would shrink an 8-seat beta to five real testers with
+ * nothing on screen explaining where the other three went.
+ *
+ * So an unredeemed code expires after a week and its seat returns to the pool.
+ * The code stays in the table — the roster keeps its history — it just stops
+ * occupying a chair nobody sat in.
+ */
 export async function autoAdmitRemaining(): Promise<{ limit: number; used: number; left: number }> {
   const limit = env.BETA_AUTO_ADMIT_LIMIT;
   const [used] = await db
     .select({ n: count() })
     .from(betaInvites)
-    .where(like(betaInvites.label, "auto:%"));
+    .where(
+      and(
+        like(betaInvites.label, "auto:%"),
+        isNull(betaInvites.revokedAt),
+        or(
+          // Claimed: a real tester is in that seat.
+          sql`${betaInvites.usedCount} > 0`,
+          // Or still within its window — held, not yet lost.
+          gt(betaInvites.expiresAt, new Date()),
+        ),
+      ),
+    );
   const u = used?.n ?? 0;
   return { limit, used: u, left: Math.max(0, limit - u) };
 }

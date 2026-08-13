@@ -2,7 +2,8 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { admitSubscriber, contacts, db } from "@rootmail/db";
-import { autoMintInvite, betaWaitlistAudience } from "../lib/beta-waitlist";
+import { betaInviteRequired } from "../lib/beta";
+import { autoAdmitRemaining, autoMintInvite, betaWaitlistAudience } from "../lib/beta-waitlist";
 import { ensureTesterIdentity } from "../lib/ses-provisioning";
 import { parse } from "../lib/validate";
 
@@ -98,6 +99,31 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
     }
 
     return reply.code(202).send({ ok: true, status: "waiting" });
+  });
+
+  /**
+   * PUBLIC: is the beta open, and is there room?
+   *
+   * Someone landing on rootmail.io today sees a Sign up button and reasonably
+   * expects to sign up. They cannot — the door needs a code — and discovering
+   * that at the end of a form is the worst possible way to learn it. So the
+   * marketing site asks this and says so upfront.
+   *
+   * Deliberately coarse: seats left, not who has them. This is an unauthenticated
+   * endpoint and the exact roster is nobody else's business.
+   */
+  app.get("/v1/beta/status", async (_req, reply) => {
+    const seats = await autoAdmitRemaining();
+    return reply.send({
+      // Whether an invite code is needed at all — one env var flips the whole
+      // site's copy the day we open up.
+      closed: betaInviteRequired(),
+      seats_total: seats.limit,
+      seats_left: seats.left,
+      // The distinction that matters to a visitor: can I get in NOW, or am I
+      // joining a queue for the next round?
+      accepting: seats.left > 0,
+    });
   });
 
   /**
