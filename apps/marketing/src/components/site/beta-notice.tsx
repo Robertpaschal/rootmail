@@ -41,9 +41,11 @@ export async function BetaNotice() {
         ) : (
           <span className="text-muted-foreground">
             rootmail is invite-only while we finish it.{" "}
-            <span className="text-foreground">
-              {beta.seatsLeft} {beta.seatsLeft === 1 ? "place" : "places"} left in this round.
-            </span>
+            {beta.seatsTotal > 0 ? (
+              <span className="text-foreground">
+                {beta.seatsLeft} {beta.seatsLeft === 1 ? "place" : "places"} left in this round.
+              </span>
+            ) : null}
           </span>
         )}
         <Link

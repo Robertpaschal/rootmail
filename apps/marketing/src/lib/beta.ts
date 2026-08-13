@@ -15,15 +15,22 @@ export interface BetaStatus {
  * the worst way to learn it — so every surface that offers a way in asks this
  * first and tells them the truth before they invest anything.
  *
- * Falls back to "closed and full" when the API cannot be reached: over-promising
- * an open door is the more damaging error, since it ends in a refusal either way.
+ * Falls back to "closed, but still accepting" when the API cannot be reached.
+ *
+ * I first wrote this the other way — full on error, reasoning that promising an
+ * open door was worse. That is backwards, and a blip during a deploy proved it:
+ * the homepage announced "Beta full" while eight seats sat empty, actively
+ * turning away the only people who came. Both branches end at the SAME form, so
+ * inviting someone to ask when we are full costs nothing (they join the queue,
+ * which is what "full" tells them to do anyway), while claiming full when we
+ * are not costs us the tester.
  */
 export async function betaStatus(): Promise<BetaStatus> {
   try {
     const res = await fetch(`${API_URL}/v1/beta/status`, {
       // Seats change as people join; a minute of staleness is invisible to a
       // visitor and saves hammering the API on every page view.
-      next: { revalidate: 60 },
+      next: { revalidate: 30 },
     });
     if (!res.ok) throw new Error(String(res.status));
     const d = (await res.json()) as {
@@ -39,6 +46,6 @@ export async function betaStatus(): Promise<BetaStatus> {
       accepting: d.accepting ?? false,
     };
   } catch {
-    return { closed: true, seatsTotal: 0, seatsLeft: 0, accepting: false };
+    return { closed: true, seatsTotal: 0, seatsLeft: 0, accepting: true };
   }
 }
