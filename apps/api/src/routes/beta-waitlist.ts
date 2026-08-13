@@ -35,7 +35,14 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
     // admission — that way the confirmation is already sitting in their inbox
     // by the time we want to send the invite. Best-effort: a failure here must
     // not lose the signup, it only delays the invite.
-    void ensureTesterIdentity(body.email).catch(() => undefined);
+    void ensureTesterIdentity(body.email)
+      .then((r) => {
+        // Best-effort must not mean invisible. This returns a result rather
+        // than throwing, so a bare .catch() swallowed nothing and logged
+        // nothing — and a missing IAM action looked exactly like success.
+        if (!r.ok) req.log.error({ email: body.email, reason: r.reason }, "tester verification failed");
+      })
+      .catch((err) => req.log.error({ err }, "tester verification threw"));
 
     // Mint BEFORE admitting. admitSubscriber writes the contact and then fires
     // trigger evaluation, so a code handed over here is already on the record
