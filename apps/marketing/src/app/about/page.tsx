@@ -12,7 +12,7 @@ import { CtaButton } from "@/components/site/cta-button";
 export const metadata: Metadata = {
   title: "About",
   description:
-    "Why rootmail exists: one email platform that's simple enough for a non-technical team and deep enough for a platform engineer — sending, replies, and proof on one data model.",
+    "Why rootmail exists: every email your business sends — receipts and newsletters — finally in one place, simple enough for a non-technical team and deep enough for an engineer.",
 };
 
 const audiences = [
@@ -32,7 +32,7 @@ const principles = [
   {
     icon: Layers,
     title: "One core, not three silos",
-    body: "Transactional email, marketing campaigns, and sales outreach usually live in separate products you outgrow and migrate between. rootmail is a single data model that does all three — so you switch on what you need instead of re-platforming.",
+    body: "Your receipts and your newsletters go to the same people, but every tool treats them as two businesses — two bills, two lists, two reputations. rootmail puts them in one place, so an unsubscribe means everywhere and nothing has to be reconciled by hand.",
   },
   {
     icon: ShieldCheck,

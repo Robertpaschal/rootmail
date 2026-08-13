@@ -40,7 +40,7 @@ const faqs = [
   },
   {
     q: "How is this different from Resend or Mailchimp?",
-    a: "Those are separate products for separate jobs — transactional email, marketing campaigns, and sales outreach each live in their own silo. rootmail is one data model that does all three, so you never re-platform as your needs change. Per-customer sub-tenancy and cryptographically signed proof of exactly what you sent simply don't exist in those tools.",
+    a: "Those are separate products for separate jobs, so you end up paying two bills, keeping two contact lists, and building two sending reputations — for the same customers. rootmail puts every email your business sends in one place, which is why an unsubscribe here means everywhere, and why you can finally answer \"what have we sent this person?\" without opening two tools.",
   },
 ];
 
