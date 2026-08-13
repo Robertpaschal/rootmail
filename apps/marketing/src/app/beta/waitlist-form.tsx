@@ -27,8 +27,20 @@ export function WaitlistForm() {
         <h2 className="mt-4 text-xl font-semibold">You&apos;re on the list.</h2>
         <p className="mx-auto mt-2 max-w-md text-sm text-muted-foreground">
           We let people in a handful at a time, so the ones already inside get real attention. When
-          it&apos;s your turn you&apos;ll get an email with your invite code — keep an eye out for it.
+          it&apos;s your turn you&apos;ll get an email with your invite code.
         </p>
+        {/* Nobody clicks an unexplained AWS email. Saying it is coming, and why,
+            is the difference between a tester who gets in and one who never
+            hears from us again — we cannot send them anything until they do. */}
+        <div className="mx-auto mt-5 max-w-md rounded-xl border bg-muted/40 p-4 text-left">
+          <p className="text-sm font-medium">One thing first — check for an email from Amazon</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            While we&apos;re in beta, our email provider asks each tester to confirm their address
+            once. It arrives from <span className="font-medium">Amazon Web Services</span> with the
+            subject &ldquo;Amazon SES Address Verification Request&rdquo;. Click the link inside and
+            your invite follows — until you do, we&apos;re not able to email you at all.
+          </p>
+        </div>
       </div>
     );
   }

@@ -1,24 +1,4 @@
-import {
-  ADD_ONS,
-  ADD_ON_IDS,
-  type AddOnId,
-  BASE_SEATS,
-  BASE_WORKSPACES,
-  BLOCK_SIZE,
-  blocksMonthlyPrice,
-  defaultTierId,
-  FREE_MK_CONTACTS,
-  marketingDailyLimit,
-  marketingMonthlyPrice,
-  marketingSendAllowance,
-  type PlanDef,
-  type PlanFeature,
-  type PlanId,
-  type TierDef,
-  txDailyLimit,
-  type Wing,
-  WING_TIERS,
-} from "@rootmail/core";
+import { ADD_ONS, ADD_ON_IDS, BASE_SEATS, BASE_WORKSPACES, BLOCK_SIZE, FREE_MK_CONTACTS, WING_TIERS, blocksMonthlyPrice, defaultTierId, env, marketingDailyLimit, marketingMonthlyPrice, marketingSendAllowance, txDailyLimit, type AddOnId, type PlanDef, type PlanFeature, type PlanId, type TierDef, type Wing } from "@rootmail/core";
 import { db, type PricingTier, pricingTiers as pricingTiersTable } from "@rootmail/db";
 
 // Per-wing pricing resolution (PRICING-WINGS-SPEC.md) — THE entitlements model.
@@ -162,6 +142,12 @@ export function txSendAllowance(org: WingOrg): number {
 /** Per-DAY transactional cap: blocks × the tier's per-block daily allowance (or
  * the Free daily cap with no blocks). The same number the pricing pages market. */
 export function txDailyLimitForOrg(org: WingOrg): number {
+  // A beta tester is unmetered on FEATURES, never on VOLUME. Everything else in
+  // unmetered() hands out capability, which costs us nothing; send volume comes
+  // out of a shared 200/day sandbox allowance, and an unlimited tester would
+  // spend everyone else's — including the invites that let the next tester in.
+  // `unmetered` deliberately is NOT consulted here.
+  if (org.isBeta && !org.isInternal) return env.BETA_DAILY_SEND_CAP;
   return txDailyLimit(txTierFor(org), org.transactionalBlocks ?? 0);
 }
 

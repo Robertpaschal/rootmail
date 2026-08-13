@@ -4,6 +4,8 @@ import {
   SESClient,
 } from "@aws-sdk/client-ses";
 import {
+  CreateEmailIdentityCommand,
+  GetEmailIdentityCommand,
   CreateConfigurationSetCommand,
   CreateConfigurationSetEventDestinationCommand,
   CreateDedicatedIpPoolCommand,
@@ -261,4 +263,55 @@ export async function provisionReplyReceiptRule(
   }
 
   return { ok: true, value: { ruleName, ruleSet } };
+}
+
+// ---------------------------------------------------------------------------
+// Beta tester addresses
+// ---------------------------------------------------------------------------
+
+/**
+ * Ask SES to verify a tester's own address.
+ *
+ * While the account is sandboxed we may only send to verified identities, so a
+ * beta tester whose address SES has never heard of simply cannot receive their
+ * invite — or anything else we send them. Verifying each tester individually is
+ * the supported way through that, and it costs them one click in an email.
+ *
+ * Idempotent: an address already verified, or already pending, is left alone.
+ */
+export async function ensureTesterIdentity(email: string): Promise<ProvisionResult<{ status: string }>> {
+  const client = sesv2();
+  const addr = email.trim().toLowerCase();
+
+  // Already known? Then the verification mail has been sent (or completed) and
+  // asking again would send them a duplicate.
+  try {
+    const got = await client.send(new GetEmailIdentityCommand({ EmailIdentity: addr }));
+    return { ok: true, value: { status: got.VerifiedForSendingStatus ? "verified" : "pending" } };
+  } catch (e) {
+    if ((e as { name?: string })?.name !== "NotFoundException") {
+      return { ok: false, reason: `Could not read identity — ${described(e)}`, retryable: !isAccessDenied(e) };
+    }
+  }
+
+  try {
+    await client.send(new CreateEmailIdentityCommand({ EmailIdentity: addr }));
+  } catch (e) {
+    if ((e as { name?: string })?.name !== "AlreadyExistsException") {
+      return { ok: false, reason: `Could not request verification — ${described(e)}`, retryable: !isAccessDenied(e) };
+    }
+  }
+  return { ok: true, value: { status: "pending" } };
+}
+
+/** Has the tester clicked the link yet? Drives when their invite may be sent. */
+export async function isTesterVerified(email: string): Promise<boolean> {
+  try {
+    const got = await sesv2().send(new GetEmailIdentityCommand({ EmailIdentity: email.trim().toLowerCase() }));
+    return Boolean(got.VerifiedForSendingStatus);
+  } catch {
+    // Unknown or unreadable ⇒ treat as not verified. Sending to an address SES
+    // will refuse is worse than making someone wait.
+    return false;
+  }
 }

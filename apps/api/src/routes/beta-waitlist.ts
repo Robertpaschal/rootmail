@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { admitSubscriber, contacts, db } from "@rootmail/db";
 import { autoMintInvite, betaWaitlistAudience } from "../lib/beta-waitlist";
+import { ensureTesterIdentity } from "../lib/ses-provisioning";
 import { parse } from "../lib/validate";
 
 // PUBLIC. rootmail.io/beta posts here. No auth, by design — this is the front
@@ -28,6 +29,13 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
     if (body.website) return reply.code(202).send({ ok: true, status: "waiting" });
 
     const { workspaceId, list } = await betaWaitlistAudience();
+
+    // Sandbox reality: we may only mail a VERIFIED identity, so ask SES to
+    // verify their address the moment they ask for access rather than at
+    // admission — that way the confirmation is already sitting in their inbox
+    // by the time we want to send the invite. Best-effort: a failure here must
+    // not lose the signup, it only delays the invite.
+    void ensureTesterIdentity(body.email).catch(() => undefined);
 
     // Mint BEFORE admitting. admitSubscriber writes the contact and then fires
     // trigger evaluation, so a code handed over here is already on the record
