@@ -1,5 +1,4 @@
-import { Suspense } from "react";
-import { BetaNotice, BetaNoticeFallback } from "@/components/site/beta-notice";
+import { BetaNotice } from "@/components/site/beta-notice";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -62,9 +61,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             fallback is deliberately the safe, true message rather than a
             skeleton — a visitor who sees only this still learns the useful
             thing, and it never flashes a number that might be wrong. */}
-        <Suspense fallback={<BetaNoticeFallback />}>
-          <BetaNotice />
-        </Suspense>
+        <BetaNotice />
         {children}
       </body>
     </html>

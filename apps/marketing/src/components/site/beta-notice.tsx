@@ -1,7 +1,10 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { betaStatus } from "@/lib/beta";
-import { BetaSeats } from "./beta-seats";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.rootmail.io";
 
 /**
  * The strip that stops a stranger wasting their time.
@@ -11,89 +14,82 @@ import { BetaSeats } from "./beta-seats";
  * is the kind of small dishonesty people remember, and it costs us the exact
  * person who was interested enough to try.
  *
- * It says three different things, because the visitor's options genuinely
- * differ:
+ * ── Why this is a client component ──────────────────────────────────────────
  *
- *   seats left  — you can probably get in now; ask for an invite
- *   full        — the round is closed; join the queue for the next one
- *   open        — nothing to see, render nothing
+ * It lives in the root layout, and the marketing site is statically generated,
+ * so anything fetched on the server here is fixed at BUILD time — in CI, where
+ * the API is unreachable. Two earlier attempts died on that. First the count
+ * froze at whatever the build produced. Then a Suspense boundary hid the
+ * problem rather than solving it: Next prerenders the fallback into the HTML
+ * but does not register the client components inside it, so the fetching
+ * component shipped as dead code and never ran on a single page.
  *
- * "Full" is the one that matters most. Telling someone the round is closed
- * respects them enough to stop them trying; leaving it ambiguous means they
- * apply, hear nothing, and conclude we ignored them.
+ * Hence no server fetch and no boundary. The strip renders its honest sentence
+ * immediately — which alone tells a visitor what they need — and the seat count
+ * appears when it arrives. A failed request leaves the sentence standing rather
+ * than an error or, worse, a wrong number.
  */
-/**
- * What renders while the live status is in flight.
- *
- * Deliberately the true, useful sentence rather than a shimmer: a visitor who
- * only ever sees this still learns the door is locked and where to knock. A
- * skeleton would teach them nothing, and a guessed seat count could be wrong.
- */
-export function BetaNoticeFallback() {
-  return (
-    <NoticeShell badge="Closed beta" cta="Ask for an invite">
-      <span className="text-muted-foreground">
-        rootmail is invite-only while we finish it. <BetaSeats />
-      </span>
-    </NoticeShell>
-  );
-}
+export function BetaNotice() {
+  const [seats, setSeats] = useState<{ left: number; total: number } | null>(null);
+  const [closed, setClosed] = useState(true);
 
-function NoticeShell({
-  badge,
-  cta,
-  children,
-}: {
-  badge: string;
-  cta: string;
-  children: React.ReactNode;
-}) {
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_URL}/v1/beta/status`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (cancelled || !d) return;
+        setClosed(d.closed !== false);
+        if (typeof d.seats_left === "number") {
+          setSeats({ left: d.seats_left, total: d.seats_total ?? 0 });
+        }
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The day the beta opens, this disappears on its own.
+  if (!closed) return null;
+
+  const full = seats !== null && seats.total > 0 && seats.left < 1;
+
   return (
-    <>
-      {/* The nav sticks below this strip rather than under it. Declaring the
+    <div className="sticky top-0 z-[60] border-b border-primary/25 bg-primary/10 backdrop-blur supports-[backdrop-filter]:bg-primary/10">
+      {/* The nav sticks BELOW this strip rather than under it. Declaring the
           height here means an open beta — where nothing renders — leaves the
           nav flush at the top, with no constant to remember to remove. */}
       <style>{":root{--beta-notice-h:37px}"}</style>
-    <div className="sticky top-0 z-[60] border-b border-primary/25 bg-primary/10 backdrop-blur supports-[backdrop-filter]:bg-primary/10">
       <div className="container flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2 text-center text-sm">
         <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
-          {badge}
+          {full ? "Beta full" : "Closed beta"}
         </span>
-        {children}
+
+        {full ? (
+          <span className="text-muted-foreground">
+            This round is full — new accounts are paused. Join the list and
+            you&apos;ll hear the moment the next one opens.
+          </span>
+        ) : (
+          <span className="text-muted-foreground">
+            rootmail is invite-only while we finish it.{" "}
+            {seats && seats.total > 0 ? (
+              <span className="text-foreground">
+                {seats.left} {seats.left === 1 ? "place" : "places"} left in this round.
+              </span>
+            ) : null}
+          </span>
+        )}
+
         <Link
           href="/beta"
           className="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
         >
-          {cta}
+          {full ? "Get on the list" : "Ask for an invite"}
           <ArrowRight className="size-3.5" />
         </Link>
       </div>
     </div>
-    </>
-  );
-}
-
-export async function BetaNotice() {
-  const beta = await betaStatus();
-  if (!beta.closed) return null;
-
-  const full = !beta.accepting;
-
-  return (
-    <NoticeShell
-      badge={full ? "Beta full" : "Closed beta"}
-      cta={full ? "Get on the list" : "Ask for an invite"}
-    >
-      {full ? (
-        <span className="text-muted-foreground">
-          This round is full — new accounts are paused. Join the list and
-          you&apos;ll hear the moment the next one opens.
-        </span>
-      ) : (
-        <span className="text-muted-foreground">
-          rootmail is invite-only while we finish it. <BetaSeats />
-        </span>
-      )}
-    </NoticeShell>
   );
 }
