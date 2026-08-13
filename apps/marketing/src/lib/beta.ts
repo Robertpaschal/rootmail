@@ -28,9 +28,12 @@ export interface BetaStatus {
 export async function betaStatus(): Promise<BetaStatus> {
   try {
     const res = await fetch(`${API_URL}/v1/beta/status`, {
-      // Seats change as people join; a minute of staleness is invisible to a
-      // visitor and saves hammering the API on every page view.
-      next: { revalidate: 30 },
+      // NOT cached, and deliberately so. This sat in the root layout, which Next
+      // renders at BUILD time in CI — where api.rootmail.io is unreachable — so
+      // every page shipped with the fallback baked in and no amount of ISR ever
+      // replaced it. The component is wrapped in Suspense, so this makes one
+      // small dynamic hole rather than making the whole site dynamic.
+      cache: "no-store",
     });
     if (!res.ok) throw new Error(String(res.status));
     const d = (await res.json()) as {

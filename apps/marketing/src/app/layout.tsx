@@ -1,4 +1,5 @@
-import { BetaNotice } from "@/components/site/beta-notice";
+import { Suspense } from "react";
+import { BetaNotice, BetaNoticeFallback } from "@/components/site/beta-notice";
 import type { Metadata } from "next";
 import "./globals.css";
 
@@ -54,8 +55,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen bg-background font-sans antialiased">
         {/* Above everything, on every page: a visitor must never reach a Sign
-            up button without knowing the door is locked. */}
-        <BetaNotice />
+            up button without knowing the door is locked.
+
+            Suspended so the live seat count can be fetched per-request without
+            dragging the entire marketing site into dynamic rendering. The
+            fallback is deliberately the safe, true message rather than a
+            skeleton — a visitor who sees only this still learns the useful
+            thing, and it never flashes a number that might be wrong. */}
+        <Suspense fallback={<BetaNoticeFallback />}>
+          <BetaNotice />
+        </Suspense>
         {children}
       </body>
     </html>
