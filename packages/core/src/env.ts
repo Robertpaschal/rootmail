@@ -82,7 +82,7 @@ const EnvSchema = z.object({
   // minute and every other tester — plus our own invites — would start failing.
   // Budget: 200/day total, ~50 reserved for our own mail, the rest divided by
   // BETA_AUTO_ADMIT_LIMIT testers. Raise it the day production access lands.
-  BETA_DAILY_SEND_CAP: z.coerce.number().int().min(0).default(6),
+  BETA_DAILY_SEND_CAP: z.coerce.number().int().min(0).default(5),
   MAIL_PROVIDER: z.enum(["mock", "ses", "sendgrid"]).default("mock"),
   MAILDIR: z.string().default(".maildir"),
   // SES configuration set attached to every send — REQUIRED for delivery/open/click

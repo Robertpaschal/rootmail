@@ -49,8 +49,8 @@ const PROMISES = [
   },
   {
     icon: Users,
-    title: "A few at a time",
-    body: "We invite in small batches so the people already inside get real attention. It's a wait, but it's a short one.",
+    title: "Small on purpose",
+    body: "We invite in small batches so the people inside get real attention. Sending is capped while our email provider lifts the limits every new sender starts under — that's our constraint, not the product's, and testers using it properly is exactly what removes it.",
   },
 ];
 
@@ -62,7 +62,7 @@ export default function BetaPage() {
         <div className="text-center">
           <Badge variant="secondary">Closed beta</Badge>
           <h1 className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl">
-            Help us build rootmail
+            Help us finish rootmail
           </h1>
           <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
             Every email your business sends — receipts and newsletters — finally in one place. One

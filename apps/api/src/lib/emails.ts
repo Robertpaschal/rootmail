@@ -245,7 +245,10 @@ export function betaInviteEmail(opts: {
         `</p>` +
         `<p>${button(link, "Create your account")}</p>` +
         `<p style="color:#666;font-size:13px">Every email your business sends — receipts and newsletters — finally in one place. Everything is unlocked while we're in beta: every feature, no plan, no card.</p>` +
-        `<p style="color:#666;font-size:13px">In exchange we want to hear what's confusing, broken, or missing. ` +
+        `<p style="color:#666;font-size:13px">You are not testing a finished product — you are here to help finish it. " +
+        "Sending is capped for now while our email provider lifts the limits every new sender starts under; that is our " +
+        "constraint, not rootmail's, and testers using it properly is what removes it.</p>` +
+        `<p style="color:#666;font-size:13px">So we want to hear what's confusing, broken, or missing. ` +
         `Just reply to this email — it reaches a person.</p>` +
         `<p style="color:#666;font-size:13px;margin-top:20px">— The rootmail team</p>`,
     ),
