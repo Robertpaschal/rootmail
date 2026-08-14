@@ -48,20 +48,43 @@ export function verificationEmail(token: string, name?: string | null): EmailCon
   };
 }
 
+/**
+ * The first thing a new account hears from us.
+ *
+ * It used to say "grab an API key and send your first email, or explore the
+ * docs" — the pitch from when rootmail sold itself to developers. That is the
+ * wrong first sentence for almost everyone who signs up now: a small business
+ * owner reads "API key" and concludes they need someone technical, which is
+ * the exact belief the product exists to disprove.
+ *
+ * So it says what they can do, in their words, and points at the one screen
+ * that gets them there. Developers still get an API key — from Developers →
+ * API keys, on demand — and they will find it without being told in a welcome
+ * email.
+ */
 export function welcomeEmail(name?: string | null): EmailContent {
   const hi = name ? `Hi ${esc(name)},` : "Hi,";
   const dash = dashboardOrigin();
   return {
-    subject: "Welcome to rootmail 👋",
+    subject: "Welcome to rootmail \u{1F44B}",
     text:
-      `${name ? `Hi ${name},` : "Hi,"}\n\nYour email is verified and your rootmail account is ready.\n\n` +
-      `Open your dashboard, grab an API key, and send your first email:\n${dash}\n\n` +
-      `Docs: https://${domain()}/docs\n\n— The rootmail team`,
+      `${name ? `Hi ${name},` : "Hi,"}\n\nYour email is verified and your account is ready.\n\n` +
+      `Every email your business sends — receipts and newsletters — now lives in one place. ` +
+      `One list, one reputation, one place to look.\n\n` +
+      `Start here: ${dash}\n\n` +
+      `We'll walk you through the couple of things that matter first: who you're sending as, ` +
+      `and who you're sending to. Nothing to install, and no code unless you want it.\n\n` +
+      `— The rootmail team`,
     html: wrap(
-      `<p>${hi}</p><p>Your email is verified and your rootmail account is ready.</p>` +
-        `<p>${button(dash, "Open your dashboard")}</p>` +
-        `<p style="color:#666;font-size:13px">Grab an API key and send your first email, or explore the ` +
-        `<a href="https://${domain()}/docs">docs</a>.</p>`,
+      `<p>${hi}</p>` +
+        `<p>Your email is verified and your account is ready.</p>` +
+        `<p>Every email your business sends — receipts and newsletters — now lives in one place. ` +
+        `One list, one reputation, one place to look.</p>` +
+        `<p>${button(dash, "Start setting up")}</p>` +
+        `<p style="color:#666;font-size:13px">We'll walk you through the couple of things that ` +
+        `matter first: who you're sending as, and who you're sending to. Nothing to install, and ` +
+        `no code unless you want it.</p>` +
+        `<p style="color:#666;font-size:13px;margin-top:20px">— The rootmail team</p>`,
     ),
   };
 }
