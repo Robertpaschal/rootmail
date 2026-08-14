@@ -1,6 +1,7 @@
 import { and, count, eq, gt, isNull, like, or, sql } from "drizzle-orm";
 import { env, newId } from "@rootmail/core";
-import { betaInvites, db, ensureInternalAccount, lists } from "@rootmail/db";
+import { betaInvites, contacts, db, ensureInternalAccount, evaluateTriggers, lists } from "@rootmail/db";
+import { isTesterVerified } from "./ses-provisioning";
 
 /**
  * rootmail's own beta waitlist — an audience in our own account.
@@ -11,7 +12,19 @@ import { betaInvites, db, ensureInternalAccount, lists } from "@rootmail/db";
  * double opt-in, suppression, unsubscribe headers, growth charts and campaign
  * sending — and every bug in that path is one our customers would have hit too.
  */
-export const BETA_WAITLIST_TAG = "beta-waitlist";
+/**
+ * Applied at signup. Inert on purpose — it triggers nothing.
+ *
+ * The invite sequence fires on BETA_READY_TAG, and a tester only earns that
+ * once SES says their address is verified. Tagging them ready at signup is the
+ * bug this pair of constants exists to prevent: the sequence sent within
+ * seconds, SES refused an unverified recipient, and the enrollment completed —
+ * so the invite was never retried and the tester waited forever.
+ */
+export const BETA_WAITLIST_TAG = "beta-pending";
+
+/** The tag the invite sequence triggers on. Earned by verifying, never given. */
+export const BETA_READY_TAG = "beta-waitlist";
 const BETA_WAITLIST_NAME = "Beta waitlist";
 
 export interface BetaWaitlistAudience {
@@ -126,4 +139,41 @@ export async function autoAdmitRemaining(): Promise<{ limit: number; used: numbe
     );
   const u = used?.n ?? 0;
   return { limit, used: u, left: Math.max(0, limit - u) };
+}
+
+/**
+ * Promote everyone who has now verified their address.
+ *
+ * A tester clicks the link in Amazon's mail; nothing in our system is told. So
+ * we ask, on a short interval, and the moment SES says yes we add the tag that
+ * fires their invite. That is the whole gate: verification gets to decide when
+ * the sequence runs, instead of racing it.
+ *
+ * Cheap by construction — only contacts still waiting are checked, and the
+ * beta is a couple of dozen people at most. Returns how many moved so a log
+ * line can be quiet when nothing happened.
+ */
+export async function promoteVerifiedTesters(): Promise<number> {
+  const { workspaceId } = await betaWaitlistAudience();
+
+  const waiting = await db
+    .select({ id: contacts.id, email: contacts.email, tags: contacts.tags })
+    .from(contacts)
+    .where(and(eq(contacts.workspaceId, workspaceId), isNull(contacts.subTenantId)))
+    .limit(500);
+
+  let promoted = 0;
+  for (const c of waiting) {
+    const tags = c.tags ?? [];
+    if (!tags.includes(BETA_WAITLIST_TAG) || tags.includes(BETA_READY_TAG)) continue;
+    if (!(await isTesterVerified(c.email))) continue;
+
+    const next = [...tags, BETA_READY_TAG];
+    await db.update(contacts).set({ tags: next, updatedAt: new Date() }).where(eq(contacts.id, c.id));
+    // The same trigger evaluation a customer's own signup form runs — which is
+    // what makes the invite arrive by our own sequence engine, not a side door.
+    await evaluateTriggers(workspaceId, null, { id: c.id, email: c.email, tags: next }, { created: false });
+    promoted += 1;
+  }
+  return promoted;
 }
