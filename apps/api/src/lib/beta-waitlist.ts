@@ -48,7 +48,21 @@ export async function betaWaitlistAudience(): Promise<BetaWaitlistAudience> {
     )
     .limit(1);
 
-  if (existing) return { workspaceId: internal.workspaceId, list: existing };
+  if (existing) {
+    // Self-heal the signup tag. Changing the constant only affects list
+    // CREATION — a list made before the verification gate existed keeps the
+    // old tag in the database, so signups carried on firing the invite
+    // sequence immediately and the gate looked like it did nothing. Repair on
+    // read, the same way ensureInternalAccount fixes an unflagged internal org.
+    if (existing.signupTag !== BETA_WAITLIST_TAG) {
+      await db
+        .update(lists)
+        .set({ signupTag: BETA_WAITLIST_TAG, updatedAt: new Date() })
+        .where(eq(lists.id, existing.id));
+      return { workspaceId: internal.workspaceId, list: { ...existing, signupTag: BETA_WAITLIST_TAG } };
+    }
+    return { workspaceId: internal.workspaceId, list: existing };
+  }
 
   const [created] = await db
     .insert(lists)
