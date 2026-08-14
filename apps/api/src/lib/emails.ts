@@ -71,6 +71,12 @@ export function welcomeEmail(name?: string | null): EmailContent {
       `${name ? `Hi ${name},` : "Hi,"}\n\nYour email is verified and your account is ready.\n\n` +
       `Every email your business sends — receipts and newsletters — now lives in one place. ` +
       `One list, one reputation, one place to look.\n\n` +
+      `What's in there:\n` +
+      `  - Receipts and alerts — the mail your site sends when someone buys or resets a password\n` +
+      `  - Newsletters and campaigns — write once, send to a list you own, see who opened it\n` +
+      `  - A design studio — build the email by dragging, not by writing HTML\n` +
+      `  - Replies come back to you — answers land in a shared inbox, not a no-reply void\n` +
+      `  - An assistant that does the work — draft a template, build a sequence, explain a bounce\n\n` +
       `Start here: ${dash}\n\n` +
       `We'll walk you through the couple of things that matter first: who you're sending as, ` +
       `and who you're sending to. Nothing to install, and no code unless you want it.\n\n` +
@@ -81,6 +87,16 @@ export function welcomeEmail(name?: string | null): EmailContent {
         `<p>Every email your business sends — receipts and newsletters — now lives in one place. ` +
         `One list, one reputation, one place to look.</p>` +
         `<p>${button(dash, "Start setting up")}</p>` +
+        // Named, not listed for their own sake: someone who signed up for
+        // receipts has no idea the newsletter half exists, and vice versa —
+        // and the whole pitch is that they no longer need two tools.
+        `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:20px 0;font-size:13px;color:#444">` +
+        `<tr><td style="padding:4px 0">📨 <strong>Receipts and alerts</strong> — the mail your site sends when someone buys, resets a password, or places an order.</td></tr>` +
+        `<tr><td style="padding:4px 0">📣 <strong>Newsletters and campaigns</strong> — write it once, send it to a list you actually own, see who opened it.</td></tr>` +
+        `<tr><td style="padding:4px 0">🎨 <strong>A design studio</strong> — build the email by dragging, not by writing HTML.</td></tr>` +
+        `<tr><td style="padding:4px 0">💬 <strong>Replies come back to you</strong> — answers land in a shared inbox instead of a no-reply void.</td></tr>` +
+        `<tr><td style="padding:4px 0">🤖 <strong>An assistant that does the work</strong> — ask it to draft a template, build a sequence, or explain a bounce.</td></tr>` +
+        `</table>` +
         `<p style="color:#666;font-size:13px">We'll walk you through the couple of things that ` +
         `matter first: who you're sending as, and who you're sending to. Nothing to install, and ` +
         `no code unless you want it.</p>` +
