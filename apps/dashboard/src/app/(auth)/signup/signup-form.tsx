@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function SignupForm() {
+export function SignupForm({ inviteCode }: { inviteCode?: string }) {
   const [state, formAction, pending] = useActionState<AuthState | null, FormData>(signup, null);
 
   return (
@@ -17,7 +17,7 @@ export function SignupForm() {
           the API simply ignores it. */}
       <div className="space-y-2">
         <Label htmlFor="invite_code">Invite code</Label>
-        <Input id="invite_code" name="invite_code" placeholder="beta-XXXXXXXX" autoCapitalize="off" spellCheck={false} />
+        <Input id="invite_code" name="invite_code" placeholder="beta-XXXXXXXX" defaultValue={inviteCode} autoCapitalize="off" spellCheck={false} />
         <p className="text-xs text-muted-foreground">
           rootmail is in closed beta. Don&apos;t have one?{" "}
           <a href="https://rootmail.io/beta" className="underline underline-offset-2">Ask for access</a>.

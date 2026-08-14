@@ -686,6 +686,8 @@ export async function oauthUpsert(body: {
   email: string;
   name?: string;
   email_verified?: boolean;
+  /** Closed beta: required to create an account, ignored when signing in. */
+  invite_code?: string;
 }): Promise<AuthSession> {
   const secret = process.env.INTERNAL_API_SECRET;
   if (!secret) throw new Error("INTERNAL_API_SECRET is not set");

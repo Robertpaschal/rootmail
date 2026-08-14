@@ -3,8 +3,16 @@ import { buttonVariants } from "@/components/ui/button";
 import { enabledProviders } from "@/lib/oauth";
 import { cn } from "@/lib/utils";
 
-// Renders nothing until a provider's credentials are configured.
-export function OAuthButtons() {
+/**
+ * Renders nothing until a provider's credentials are configured.
+ *
+ * `inviteCode` rides along to /oauth/<provider>, which parks it in a cookie for
+ * the round trip. Without it, "Continue with Google" would be a door with no
+ * lock: the API refuses to CREATE an account without a code, so a tester
+ * arriving from their invite email — which links to /signup?invite_code=… —
+ * would otherwise be bounced for no visible reason.
+ */
+export function OAuthButtons({ inviteCode }: { inviteCode?: string }) {
   const providers = enabledProviders();
   if (providers.length === 0) return null;
 
@@ -14,7 +22,7 @@ export function OAuthButtons() {
         {providers.map((p) => (
           <Link
             key={p.id}
-            href={`/oauth/${p.id}`}
+            href={inviteCode ? `/oauth/${p.id}?invite_code=${encodeURIComponent(inviteCode)}` : `/oauth/${p.id}`}
             className={cn(buttonVariants({ variant: "outline" }), "w-full")}
           >
             Continue with {p.label}

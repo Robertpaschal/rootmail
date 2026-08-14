@@ -9,7 +9,14 @@ import { SignupForm } from "./signup-form";
 // statically empty.
 export const dynamic = "force-dynamic";
 
-export default function SignupPage() {
+export default async function SignupPage({
+  searchParams,
+}: {
+  // The invite email links here with the code already attached, so a tester
+  // never has to copy it by hand — and "Continue with Google" can carry it too.
+  searchParams: Promise<{ invite_code?: string; error?: string }>;
+}) {
+  const { invite_code: inviteCode, error } = await searchParams;
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-md">
@@ -25,8 +32,13 @@ export default function SignupPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <OAuthButtons />
-            <SignupForm />
+            {error ? (
+              <p className="mb-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                {error}
+              </p>
+            ) : null}
+            <OAuthButtons inviteCode={inviteCode} />
+            <SignupForm inviteCode={inviteCode} />
           </CardContent>
         </Card>
         <p className="mt-4 text-center text-sm text-muted-foreground">

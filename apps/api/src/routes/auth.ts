@@ -69,6 +69,8 @@ const oauthBody = z.object({
   email: z.string().email(),
   name: z.string().optional(),
   email_verified: z.boolean().optional(),
+  /** Closed beta: required to CREATE an account this way, ignored for sign-in. */
+  invite_code: z.string().optional(),
 });
 
 const mfaVerifyBody = z
@@ -266,10 +268,40 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     if (provided !== env.INTERNAL_API_SECRET) throw Errors.unauthorized();
 
     const body = parse(oauthBody, req.body);
+    const email = body.email.toLowerCase();
+
+    /*
+     * The closed beta has to be closed on EVERY door.
+     *
+     * This endpoint provisions an account for any verified Google or GitHub
+     * address, and it never asked for an invite code — so while the password
+     * form politely refused strangers, "Continue with Google" let them
+     * straight in and dropped them on onboarding. The gate was real and the
+     * beta was not.
+     *
+     * Signing IN is untouched: an existing tester keeps using the button they
+     * always used. Only CREATION needs a code, which is the same rule the
+     * password form follows.
+     */
+    let betaInviteId: string | null = null;
+    if (betaInviteRequired()) {
+      const [known] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+      if (!known) {
+        const invite = body.invite_code ? await redeemBetaInvite(body.invite_code) : null;
+        if (!invite) {
+          throw Errors.forbidden(
+            "rootmail is in closed beta. You'll need an invite code to create an account — ask for one at rootmail.io/beta, then sign up with it.",
+          );
+        }
+        betaInviteId = invite.id;
+      }
+    }
+
     const { user, created } = await upsertOAuthUser({
-      email: body.email.toLowerCase(),
+      email,
       name: body.name,
       emailVerified: body.email_verified ?? true,
+      betaInviteId,
     });
 
     // OAuth signups are verified on creation (they skip the verify-email step), so

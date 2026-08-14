@@ -20,6 +20,7 @@ export async function GET(
   const state = url.searchParams.get("state");
   const cookieState = req.cookies.get("rm_oauth_state")?.value;
   if (!code || !state || !cookieState || state !== cookieState) {
+    // CSRF mismatch — say nothing useful to whoever caused it.
     return NextResponse.redirect(appUrl("/login?error=oauth"));
   }
 
@@ -33,6 +34,9 @@ export async function GET(
       email: profile.email,
       name: profile.name,
       email_verified: profile.emailVerified,
+      // Closed beta: only needed to CREATE an account; the API ignores it for
+      // an existing tester signing back in.
+      invite_code: req.cookies.get("rm_oauth_invite")?.value,
     });
 
     const res = NextResponse.redirect(appUrl("/"));
@@ -44,9 +48,10 @@ export async function GET(
       maxAge: 60 * 60 * 24 * 30,
     });
     res.cookies.delete("rm_oauth_state");
+    res.cookies.delete("rm_oauth_invite");
     return res;
-  } catch {
-    return NextResponse.redirect(appUrl("/login?error=oauth"));
+  } catch (err) {
+    return NextResponse.redirect(appUrl(`/signup?error=${encodeURIComponent(String((err as { message?: string })?.message ?? "oauth"))}`));
   }
 }
 
@@ -79,7 +84,7 @@ export async function POST(
     try {
       const u = JSON.parse(userRaw) as { name?: { firstName?: string; lastName?: string } };
       name = [u.name?.firstName, u.name?.lastName].filter(Boolean).join(" ") || undefined;
-    } catch {
+    } catch (err) {
       /* ignore a malformed user blob */
     }
   }
@@ -94,6 +99,9 @@ export async function POST(
       email: profile.email,
       name: name ?? profile.name,
       email_verified: profile.emailVerified,
+      // Closed beta: only needed to CREATE an account; the API ignores it for
+      // an existing tester signing back in.
+      invite_code: req.cookies.get("rm_oauth_invite")?.value,
     });
 
     const res = NextResponse.redirect(appUrl("/"), 303);
@@ -105,8 +113,9 @@ export async function POST(
       maxAge: 60 * 60 * 24 * 30,
     });
     res.cookies.delete("rm_oauth_state");
+    res.cookies.delete("rm_oauth_invite");
     return res;
-  } catch {
+  } catch (err) {
     return NextResponse.redirect(appUrl("/login?error=oauth"), 303);
   }
 }

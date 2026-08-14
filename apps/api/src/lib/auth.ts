@@ -188,6 +188,8 @@ export async function upsertOAuthUser(params: {
   email: string;
   name?: string | null;
   emailVerified?: boolean;
+  /** Set when this social signup came through a closed-beta code. */
+  betaInviteId?: string | null;
 }): Promise<{ user: User; created: boolean }> {
   const email = params.email.toLowerCase();
   const [existing] = await db.select().from(users).where(eq(users.email, email)).limit(1);
@@ -199,7 +201,12 @@ export async function upsertOAuthUser(params: {
     }
     return { user: existing, created: false };
   }
-  const account = await provisionAccount({ email, passwordHash: null, name: params.name });
+  const account = await provisionAccount({
+    email,
+    passwordHash: null,
+    name: params.name,
+    betaInviteId: params.betaInviteId,
+  });
   const user = account.user;
   if (params.emailVerified) {
     const now = new Date();
