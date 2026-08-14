@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
+import { AwsEmailPreview } from "@/components/site/aws-email-preview";
 import { joinWaitlist, type WaitlistState } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,14 +33,19 @@ export function WaitlistForm() {
         {/* Nobody clicks an unexplained AWS email. Saying it is coming, and why,
             is the difference between a tester who gets in and one who never
             hears from us again — we cannot send them anything until they do. */}
-        <div className="mx-auto mt-5 max-w-md rounded-xl border bg-muted/40 p-4 text-left">
-          <p className="text-sm font-medium">One thing first — check for an email from Amazon</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            While we&apos;re in beta, our email provider asks each tester to confirm their address
-            once. It arrives from <span className="font-medium">Amazon Web Services</span> with the
-            subject &ldquo;Amazon SES Address Verification Request&rdquo;. Click the link inside and
-            your invite follows — until you do, we&apos;re not able to email you at all.
-          </p>
+        <div className="mx-auto mt-5 max-w-md space-y-3 text-left">
+          <div>
+            <p className="text-sm font-medium">One thing first — check for an email from Amazon</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              While we&apos;re in beta, our email provider asks each tester to confirm their address
+              once. Click the link inside and your invite follows — until you do, we&apos;re not able
+              to email you at all.
+            </p>
+          </div>
+          {/* Shown, not just described: it arrives from an unfamiliar sender with
+              a very long signed URL, which reads as phishing unless you were
+              told to expect exactly this. */}
+          <AwsEmailPreview />
         </div>
       </div>
     );
