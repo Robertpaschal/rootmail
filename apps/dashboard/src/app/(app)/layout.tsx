@@ -9,8 +9,8 @@ import { SandboxBanner } from "@/components/app/sandbox-banner";
 import { PeekBackdrop, ShellMain, SidebarProvider } from "@/components/app/sidebar-shell";
 import { Topbar } from "@/components/app/topbar";
 import { VerifyEmailBanner } from "@/components/app/verify-email-banner";
-import { api } from "@/lib/rootmail";
-import { getSessionToken } from "@/lib/session";
+import { ApiError, api } from "@/lib/rootmail";
+import { clearSessionCookie, getSessionToken } from "@/lib/session";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Belt-and-braces alongside middleware: never render the shell without a session.
@@ -22,8 +22,23 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   let me = null;
   try {
     me = await api.me();
-  } catch {
-    /* ignore — don't wedge the app on a transient lookup failure */
+  } catch (err) {
+    /*
+     * Tolerant of a blip, not of a rejection.
+     *
+     * This used to swallow everything, which conflated two very different
+     * things: a transient 500 (keep going, the shell is still useful) and a
+     * 401 (this session is not valid, and nothing on the page will work). The
+     * second rendered a signed-out shell full of broken panels — which is what
+     * you get after an account is deleted while its cookie is still in the
+     * browser, and it reads as "the product is broken" rather than "you are
+     * logged out".
+     */
+    if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+      await clearSessionCookie();
+      redirect("/login?signed_out=1");
+    }
+    /* anything else: keep the shell, it may still be useful */
   }
   // New orgs set up their business profile first — it grounds compliance (the
   // CAN-SPAM address) and personalizes the product. Existing orgs are backfilled
