@@ -10,7 +10,7 @@ import { PeekBackdrop, ShellMain, SidebarProvider } from "@/components/app/sideb
 import { Topbar } from "@/components/app/topbar";
 import { VerifyEmailBanner } from "@/components/app/verify-email-banner";
 import { ApiError, api } from "@/lib/rootmail";
-import { clearSessionCookie, getSessionToken } from "@/lib/session";
+import { getSessionToken } from "@/lib/session";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   // Belt-and-braces alongside middleware: never render the shell without a session.
@@ -35,8 +35,10 @@ export default async function AppLayout({ children }: { children: React.ReactNod
      * logged out".
      */
     if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
-      await clearSessionCookie();
-      redirect("/login?signed_out=1");
+      // Redirect only — a Server Component may not write cookies during
+      // render, and calling clearSessionCookie() here threw, turning a clean
+      // logout into a 500. /logout is a route handler, which is allowed to.
+      redirect("/logout?reason=expired");
     }
     /* anything else: keep the shell, it may still be useful */
   }
