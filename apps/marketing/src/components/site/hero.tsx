@@ -24,12 +24,21 @@ export function Hero() {
         className="absolute inset-0 -z-10 bg-grid [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_55%,transparent_100%)]"
         aria-hidden="true"
       />
-      {/* Decorative glows drift at different rates as you scroll — the parallax depth. */}
+      {/* Decorative glows drift at different rates as you scroll — the parallax
+          depth — and now breathe on their own so the page has a pulse before
+          you've touched it. Slow (18s) and out of phase, because the point is
+          that you notice it without watching it. */}
       <Parallax range={90} className="absolute left-1/2 top-[-10%] -z-10 -translate-x-1/2">
-        <div className="h-[420px] w-[720px] max-w-[90vw] rounded-full bg-primary/20 blur-[130px]" aria-hidden="true" />
+        <div
+          className="h-[420px] w-[720px] max-w-[90vw] animate-aurora rounded-full bg-primary/20 blur-[130px] motion-reduce:animate-none"
+          aria-hidden="true"
+        />
       </Parallax>
       <Parallax range={-70} className="absolute right-[8%] top-[30%] -z-10">
-        <div className="h-[260px] w-[260px] rounded-full bg-violet-500/10 blur-[100px]" aria-hidden="true" />
+        <div
+          className="h-[260px] w-[260px] animate-aurora rounded-full bg-violet-500/10 blur-[100px] [animation-delay:-9s] motion-reduce:animate-none"
+          aria-hidden="true"
+        />
       </Parallax>
 
       <div className="container flex flex-col items-center gap-10 py-20 text-center md:py-28">

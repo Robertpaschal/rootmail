@@ -20,6 +20,21 @@ export function relativeTime(iso: string | null | undefined): string {
   return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
+/** `relativeTime` pointing the other way: when something SCHEDULED lands. */
+export function countdown(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return "—";
+  const secs = Math.round((then - Date.now()) / 1000);
+  if (secs <= 60) return "any moment now";
+  const mins = Math.round(secs / 60);
+  if (mins < 60) return `in ${mins}m`;
+  const hours = Math.round(mins / 60);
+  if (hours < 24) return `in ${hours}h`;
+  const days = Math.round(hours / 24);
+  return `in ${days}d`;
+}
+
 export function titleCase(s: string): string {
   return s.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
