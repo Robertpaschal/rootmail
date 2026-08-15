@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "See who is waiting for which email",
+    date: "2026-08-15",
+    changes: [
+      {
+        kind: "Improved",
+        text: "Opening a sequence now joins the two halves of the screen. Each email in the journey shows how many people are sitting there waiting for it — click that number and the list below narrows to exactly those people. The end of the journey does the same for everyone who finished, left early, or couldn't be reached.",
+      },
+      {
+        kind: "Fixed",
+        text: "The people list used to show a step number that counted waits as steps, so “3” could mean your second email. It now names the email they're waiting for and when it lands.",
+      },
+      {
+        kind: "New",
+        text: "A countdown you can drop into an email that redraws each time it loads — so “2 days left” is worked out when the email is opened, not when you wrote it. Gmail and most webmail readers see the time left when they open it; Apple Mail shows the time left when it arrived, because Apple loads images before you do; Outlook shows your wording until images are allowed.",
+      },
+      {
+        kind: "New",
+        text: "Motion on the marketing site: a product tour that plays itself, plus a carousel and a marquee. Nothing animates content into view — if an animation never runs, everything is still readable.",
+      },
+      {
+        kind: "Fixed",
+        text: "Plain-text copies of your emails now include the wording you gave an image, instead of leaving a gap where a picture-only block was.",
+      },
+    ],
+  },
+  {
     title: "Sequences you can build without learning how sequences work",
     date: "2026-08-10",
     changes: [

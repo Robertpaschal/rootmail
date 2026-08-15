@@ -13,6 +13,8 @@ import { authRoutes } from "./routes/auth";
 import { billingRoutes } from "./routes/billing";
 import { analyticsRoutes } from "./routes/analytics";
 import { announcementRoutes } from "./routes/announcements";
+import { liveImageRoutes } from "./routes/live";
+import { viewInBrowserRoutes } from "./routes/view";
 import { campaignRoutes } from "./routes/campaigns";
 import { cmsRoutes } from "./routes/cms";
 import { contactRoutes } from "./routes/contacts";
@@ -98,6 +100,8 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(deliverabilityRoutes);
   await app.register(analyticsRoutes);
   await app.register(announcementRoutes);
+  await app.register(liveImageRoutes);
+  await app.register(viewInBrowserRoutes);
   await app.register(cmsRoutes);
   await app.register(supportRoutes);
   await app.register(testRecipientRoutes);

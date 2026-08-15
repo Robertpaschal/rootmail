@@ -3,9 +3,23 @@
 // live preview and the html stored at send time, so the two never diverge.
 //
 // A doc carries an optional design `theme` on `doc.attrs.theme` (brand color,
-// backgrounds, font, corner radius, content width). The theme is baked into the
-// stored html at save time, so the send path — which uses the stored html —
-// gets the same look with no backend change.
+// backgrounds, font, corner radius, content width, motion). The theme is baked
+// into the stored html at save time, so the send path — which uses the stored
+// html — gets the same look with no backend change.
+
+import {
+  MOTION_BUTTON_CLASS,
+  MOTION_LEVELS,
+  isMotionLevel,
+  motionClass,
+  motionStyleBlock,
+  type MotionLevel,
+} from "@rootmail/core/email-motion";
+
+// Re-exported so the studio has a single import site for everything that
+// shapes the email's look, as the header comment promises.
+export { MOTION_LEVELS };
+export type { MotionLevel };
 
 export interface DocNode {
   type: string;
@@ -28,6 +42,7 @@ export interface EmailTheme {
   font: FontKey; // one of FONT_STACKS
   radius: number; // card + button corner radius, px
   width: number; // content width, px
+  motion: MotionLevel; // entrance animation; Apple Mail runs it, Gmail/Outlook don't
 }
 
 export type FontKey = "sans" | "serif" | "rounded" | "mono";
@@ -50,6 +65,7 @@ export const DEFAULT_THEME: EmailTheme = {
   font: "sans",
   radius: 8,
   width: 600,
+  motion: "subtle",
 };
 
 function clamp(n: unknown, lo: number, hi: number, fallback: number): number {
@@ -70,6 +86,7 @@ export function resolveTheme(raw: unknown): EmailTheme {
     font,
     radius: clamp(t.radius, 0, 28, DEFAULT_THEME.radius),
     width: clamp(t.width, 480, 720, DEFAULT_THEME.width),
+    motion: isMotionLevel(t.motion) ? t.motion : DEFAULT_THEME.motion,
   };
 }
 
@@ -254,7 +271,9 @@ function renderBlock(n: DocNode, t: EmailTheme): string {
       const bg = safeColor(n.attrs?.bg) ?? t.brand;
       const fg = isLight(bg) ? "#111827" : "#ffffff";
       const align = n.attrs?.align === "center" ? "center" : n.attrs?.align === "right" ? "right" : "left";
-      return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 16px;${align === "left" ? "" : `margin-${align === "center" ? "left:auto;margin-right:auto" : "left:auto"};`}"><tr><td style="border-radius:${t.radius}px;background:${bg};"><a href="${href}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:${fg};text-decoration:none;">${label}</a></td></tr></table>`;
+      // MOTION_BUTTON_CLASS is the hover target — the rule is `.rm-btn:hover a`,
+      // so it belongs on the table that wraps the anchor, not on the anchor.
+      return `<table role="presentation" class="${MOTION_BUTTON_CLASS}" cellpadding="0" cellspacing="0" style="margin:0 0 16px;${align === "left" ? "" : `margin-${align === "center" ? "left:auto;margin-right:auto" : "left:auto"};`}"><tr><td style="border-radius:${t.radius}px;background:${bg};"><a href="${href}" style="display:inline-block;padding:12px 24px;font-size:15px;font-weight:600;color:${fg};text-decoration:none;">${label}</a></td></tr></table>`;
     }
     case "header":
       return renderHeader(n, t);
@@ -262,6 +281,8 @@ function renderBlock(n: DocNode, t: EmailTheme): string {
       return renderFooter(n);
     case "embed":
       return renderEmbed(n, t);
+    case "live":
+      return renderLive(n);
     default:
       return n.content ? n.content.map((c) => renderBlock(c, t)).join("") : "";
   }
@@ -299,6 +320,16 @@ function renderHeader(n: DocNode, t: EmailTheme): string {
 function renderFooter(n: DocNode): string {
   const a = n.attrs ?? {};
   const parts: string[] = [];
+
+  // "Can't see this email?" — {{view_in_browser_url}} is filled per-message at
+  // send time (both send paths inject it), the same way {{unsubscribe_url}} is.
+  // It goes first because that's where a reader looks when the layout is broken,
+  // which is the only time it matters.
+  if (a.showViewInBrowser !== false) {
+    parts.push(
+      `<div style="margin:0 0 10px;"><a href="{{view_in_browser_url}}" style="color:#9ca3af;text-decoration:underline;">View this email in your browser</a></div>`,
+    );
+  }
 
   const socials = Array.isArray(a.social) ? (a.social as SocialLink[]) : [];
   const socialHtml = socials
@@ -351,16 +382,55 @@ function renderEmbed(n: DocNode, t: EmailTheme): string {
   );
 }
 
+/**
+ * Wrap a top-level block so it can be animated in. The class carries the whole
+ * effect — the wrapper has no styles of its own, so a client that strips the
+ * animation is left with an inert <div> and renders exactly as it always did.
+ * Only top-level blocks animate; staggering individual list items would be
+ * noise, not motion.
+ */
+function animate(html: string, t: EmailTheme, index: number): string {
+  if (t.motion === "none" || html === "") return html;
+  return `<div class="${motionClass(t.motion, index)}">${html}</div>`;
+}
+
+/**
+ * A live-at-open image (a countdown today). `src` is a signed URL minted by the
+ * API — the image itself is drawn per fetch, so the email shows current numbers
+ * without the template changing.
+ *
+ * The alt text is STATIC and deliberately vague about the number. It's baked in
+ * at save time, so anything specific ("5 days left") would be a lie by the time
+ * the email sends. Outlook blocks remote images by default, which makes this
+ * line the whole content for those readers — it must stand on its own.
+ */
+function renderLive(n: DocNode): string {
+  const src = safeUrl(n.attrs?.src);
+  if (src === "#") return "";
+  const alt = esc(String(n.attrs?.alt ?? "This offer ends soon"));
+  const width = clamp(n.attrs?.width, 40, 100, 100);
+  return (
+    `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 16px;"><tr><td align="center">` +
+    `<img src="${esc(src)}" alt="${alt}" width="600" style="display:block;width:${width}%;max-width:100%;height:auto;border:0;"/>` +
+    `</td></tr></table>`
+  );
+}
+
 export function docToHtml(doc: DocNode | null | undefined): string {
   const t = themeOf(doc);
   const fontStack = FONT_STACKS[t.font].stack;
   const body =
     doc?.content && doc.content.length
-      ? doc.content.map((n) => renderBlock(n, t)).join("\n          ")
+      ? doc.content.map((n, i) => animate(renderBlock(n, t), t, i)).join("\n          ")
       : `<p style="color:#9ca3af;">Start writing…</p>`;
 
   return `<!doctype html>
 <html>
+  <head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    ${motionStyleBlock(t.motion)}
+  </head>
   <body style="margin:0;padding:0;background:${t.bg};">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${t.bg};">
       <tr>
@@ -386,6 +456,9 @@ export function docToText(doc: DocNode | null | undefined): string {
     if (n.type === "text") parts.push(n.text ?? "");
     if (n.type === "button") parts.push(String(n.attrs?.label ?? ""), String(n.attrs?.href ?? ""));
     if (n.type === "embed") parts.push(String(n.attrs?.title ?? "Video"), String(n.attrs?.url ?? ""), "\n");
+    // The text part can't show an image, so it carries the same static line the
+    // alt does — otherwise plain-text readers get nothing where the countdown is.
+    if (n.type === "live") parts.push(String(n.attrs?.alt ?? "This offer ends soon"), "\n");
     if (n.type === "footer" && n.attrs?.address) parts.push("\n", String(n.attrs.address));
     (n.content ?? []).forEach(walk);
     if (["paragraph", "heading", "listItem"].includes(n.type)) parts.push("\n");

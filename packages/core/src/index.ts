@@ -14,3 +14,7 @@ export * from "./proof";
 export * from "./mfa";
 export * from "./compliance";
 export * from "./branding";
+export * from "./email-motion";
+export * from "./png";
+export * from "./bitmap-font";
+export * from "./live-image";

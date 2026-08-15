@@ -196,3 +196,31 @@ export async function deleteTemplate(
   redirect("/templates");
   return {};
 }
+
+/**
+ * Mint the signed URL for a countdown block. The studio can't sign it itself —
+ * the secret lives in the API — so the deadline round-trips through here and the
+ * signed `src` is stored on the node.
+ */
+export async function signCountdownAction(input: {
+  deadline: string;
+  expiredLabel?: string;
+  accent?: string;
+  bg?: string;
+}): Promise<{ url?: string; error?: string }> {
+  const at = new Date(input.deadline);
+  if (Number.isNaN(at.getTime())) return { error: "That date doesn't look right." };
+  if (at.getTime() <= Date.now()) return { error: "Pick a deadline in the future." };
+  try {
+    const r = await api.signCountdown({
+      deadline: at.toISOString(),
+      expired_label: input.expiredLabel || undefined,
+      accent: input.accent || undefined,
+      bg: input.bg || undefined,
+    });
+    return { url: r.url };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't set up the countdown." };
+  }
+}

@@ -39,18 +39,20 @@ import {
   Quote,
   Sparkles,
   Strikethrough,
+  Timer,
   Trash2,
   Type,
   Video,
   Wand2,
   X,
 } from "lucide-react";
-import { aiDraftAction } from "./actions";
+import { aiDraftAction, signCountdownAction } from "./actions";
 import { pickMedia } from "./media-library";
 import {
   BRAND,
   DEFAULT_THEME,
   FONT_STACKS,
+  MOTION_LEVELS,
   type DocNode,
   type EmailTheme,
   type FontKey,
@@ -134,13 +136,28 @@ const EmailHeader = chromeNode(
 const EmailFooter = chromeNode(
   "footer",
   (a) => `▤ Footer${a.address ? " · address" : ""}${a.showUnsubscribe !== false ? " · unsubscribe" : ""}`,
-  { text: { default: "" }, address: { default: "" }, social: { default: [] }, links: { default: [] }, showUnsubscribe: { default: true } },
+  { text: { default: "" }, address: { default: "" }, social: { default: [] }, links: { default: [] }, showUnsubscribe: { default: true }, showViewInBrowser: { default: true } },
 );
 const EmailEmbed = chromeNode("embed", (a) => `▶ ${String(a.title || "Video / embed")}`, {
   url: { default: "" },
   thumbnail: { default: "" },
   title: { default: "Watch the video" },
 });
+// A countdown drawn by the API on every open. `src` is the signed URL; the
+// editor only ever shows a placeholder, since the real image needs the server.
+const EmailLive = chromeNode(
+  "live",
+  (a) => `⏱ Countdown${a.deadline ? ` · ends ${new Date(String(a.deadline)).toLocaleString()}` : " · set a deadline"}`,
+  {
+    src: { default: "" },
+    deadline: { default: "" },
+    alt: { default: "This offer ends soon" },
+    expiredLabel: { default: "This offer has ended" },
+    accent: { default: "" },
+    bg: { default: "" },
+    width: { default: 100 },
+  },
+);
 
 const EmailSpacer = Node.create({
   name: "spacer",
@@ -333,6 +350,7 @@ export function useEmailEditor(initialDoc: DocNode, onChange: (doc: DocNode) => 
       EmailHeader,
       EmailFooter,
       EmailEmbed,
+      EmailLive,
       EmailSpacer,
     ],
     content: initialDoc,
@@ -474,6 +492,7 @@ function slashItems(): SlashItem[] {
     { key: "button", label: "Button", keywords: "cta link", run: (e) => insertBlock(e, { type: "button", attrs: { label: "Get started", href: "{{action_url}}", bg: BRAND } }, true) },
     { key: "spacer", label: "Spacer", keywords: "space gap padding", run: (e) => insertBlock(e, { type: "spacer", attrs: { size: 24 } }, true) },
     { key: "embed", label: "Video / embed", keywords: "youtube video social media", run: (e) => insertBlock(e, { type: "embed", attrs: { title: "Watch the video" } }, true) },
+    { key: "live", label: "Countdown (live)", keywords: "countdown timer live deadline urgency clock", run: (e) => insertBlock(e, { type: "live", attrs: {} }, true) },
     { key: "header", label: "Header / logo", keywords: "logo brand top banner", run: (e) => insertBlock(e, { type: "header", attrs: { align: "center" } }, true) },
     { key: "footer", label: "Footer", keywords: "footer unsubscribe social address", run: (e) => insertBlock(e, { type: "footer", attrs: { showUnsubscribe: true } }, true) },
   ];
@@ -607,6 +626,7 @@ const PALETTE: { key: string; label: string; icon: React.ComponentType<{ classNa
   { key: "video", label: "Video", icon: Video, hint: "YouTube / link poster" },
   { key: "divider", label: "Divider", icon: Minus, hint: "A horizontal line" },
   { key: "spacer", label: "Spacer", icon: MoveVertical, hint: "Vertical space" },
+  { key: "live", label: "Countdown", icon: Timer, hint: "Redrawn each time it loads" },
   { key: "header", label: "Header", icon: PanelTop, hint: "Logo or brand bar" },
   { key: "footer", label: "Footer", icon: PanelBottom, hint: "Social + unsubscribe" },
 ];
@@ -625,6 +645,7 @@ function BlocksPalette({ editor, onInserted, onAiSubject }: { editor: Editor; on
       case "button": insertBlock(editor, { type: "button", attrs: { label: "Get started", href: "{{action_url}}", bg: BRAND } }, true); return onInserted();
       case "spacer": insertBlock(editor, { type: "spacer", attrs: { size: 24 } }, true); return onInserted();
       case "video": insertBlock(editor, { type: "embed", attrs: { title: "Watch the video" } }, true); return onInserted();
+      case "live": insertBlock(editor, { type: "live", attrs: {} }, true); return onInserted();
       case "header": insertBlock(editor, { type: "header", attrs: { align: "center" } }, true); return onInserted();
       case "footer": insertBlock(editor, { type: "footer", attrs: { showUnsubscribe: true } }, true); return onInserted();
       case "image": {
@@ -733,6 +754,24 @@ function DesignPanel({ theme, setTheme }: { theme: EmailTheme; setTheme: (t: Ema
         </div>
       </div>
 
+      <div className="space-y-1.5">
+        <Label className="text-xs">Motion</Label>
+        <div className="grid grid-cols-3 gap-1.5">
+          {MOTION_LEVELS.map((m) => (
+            <button key={m.value} type="button" onClick={() => set({ motion: m.value })} title={m.hint}
+              className={cn("rounded-md border px-2 py-1.5 text-xs font-medium transition-colors", theme.motion === m.value ? "border-primary bg-primary/5 text-foreground" : "text-muted-foreground hover:text-foreground")}>
+              {m.label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] leading-snug text-muted-foreground">
+          {MOTION_LEVELS.find((m) => m.value === theme.motion)?.hint}{" "}
+          {theme.motion !== "none" && (
+            <span>Apple Mail plays it. Gmail and Outlook show the email static — so it never carries meaning.</span>
+          )}
+        </p>
+      </div>
+
       <button type="button" onClick={() => setTheme({ ...DEFAULT_THEME })} className="text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline">
         Reset to default theme
       </button>
@@ -794,6 +833,7 @@ function Inspector({ editor, selected, onSwitchToBlocks }: { editor: Editor; sel
       {selected.type === "header" && <HeaderFields attrs={selected.attrs} patch={patch} />}
       {selected.type === "footer" && <FooterFields attrs={selected.attrs} patch={patch} />}
       {selected.type === "embed" && <EmbedFields attrs={selected.attrs} patch={patch} />}
+      {selected.type === "live" && <LiveFields attrs={selected.attrs} patch={patch} />}
       {selected.type === "spacer" && <SpacerFields attrs={selected.attrs} patch={patch} />}
       {(selected.type === "paragraph" || selected.type === "heading") && <TextBlockFields editor={editor} type={selected.type} />}
       {["bulletList", "orderedList", "blockquote", "horizontalRule"].includes(selected.type) && (
@@ -942,7 +982,12 @@ function FooterFields({ attrs, patch }: { attrs: Record<string, unknown>; patch:
         <input type="checkbox" checked={attrs.showUnsubscribe !== false} onChange={(e) => patch({ showUnsubscribe: e.target.checked })} className="accent-primary" />
         Show unsubscribe link
       </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={attrs.showViewInBrowser !== false} onChange={(e) => patch({ showViewInBrowser: e.target.checked })} className="accent-primary" />
+        Show &ldquo;view in browser&rdquo; link
+      </label>
       <p className="text-[11px] text-muted-foreground">Marketing emails always include a working unsubscribe + your postal address to stay compliant — we add it automatically.</p>
+      <p className="text-[11px] leading-snug text-muted-foreground">The browser copy renders this exact email as a web page, for readers whose inbox mangles it or blocks images. It stops working when the message passes your retention window.</p>
     </div>
   );
 }
@@ -965,6 +1010,97 @@ function EmbedFields({ attrs, patch }: { attrs: Record<string, unknown>; patch: 
       {attrs.thumbnail ? <img src={String(attrs.thumbnail)} alt="" className="w-full rounded-md border" /> : null}
       <Field label="Caption"><TextInput value={String(attrs.title ?? "")} onChange={(v) => patch({ title: v })} placeholder="Watch the video" /></Field>
       <p className="text-[11px] text-muted-foreground">Inboxes can&apos;t play video, so this becomes a clickable poster that opens the link — the reliable way to share video in email.</p>
+    </div>
+  );
+}
+
+
+/**
+ * A countdown is the one block whose content the studio can't produce on its
+ * own: the image is drawn by the API at open time, and its URL has to be signed
+ * there. So changing the deadline or colors re-mints `src` through a server
+ * action, and the block stays unconfigured (rendering nothing) until it succeeds.
+ */
+function LiveFields({ attrs, patch }: { attrs: Record<string, unknown>; patch: (p: Record<string, unknown>) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // `datetime-local` wants "YYYY-MM-DDTHH:mm" in LOCAL time; the attr is an ISO
+  // instant. Convert both ways rather than storing the local string.
+  const localValue = (() => {
+    const iso = String(attrs.deadline ?? "");
+    if (!iso) return "";
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return "";
+    return new Date(d.getTime() - d.getTimezoneOffset() * 60_000).toISOString().slice(0, 16);
+  })();
+
+  const resign = async (next: { deadline?: string; accent?: string; bg?: string; expiredLabel?: string }) => {
+    const deadline = next.deadline ?? String(attrs.deadline ?? "");
+    if (!deadline) return;
+    setBusy(true);
+    setError(null);
+    const res = await signCountdownAction({
+      deadline,
+      accent: next.accent ?? String(attrs.accent ?? ""),
+      bg: next.bg ?? String(attrs.bg ?? ""),
+      expiredLabel: next.expiredLabel ?? String(attrs.expiredLabel ?? ""),
+    });
+    setBusy(false);
+    if (res.error) {
+      setError(res.error);
+      return;
+    }
+    patch({ ...next, deadline, src: res.url });
+  };
+
+  return (
+    <div className="space-y-3">
+      <Field label="Counts down to">
+        <input
+          type="datetime-local"
+          value={localValue}
+          onChange={(e) => {
+            const v = e.target.value;
+            if (v) void resign({ deadline: new Date(v).toISOString() });
+          }}
+          className={cn(inputCls, "w-full")}
+        />
+      </Field>
+      <Field label="When it's over, say">
+        <TextInput
+          value={String(attrs.expiredLabel ?? "")}
+          onChange={(v) => patch({ expiredLabel: v })}
+          placeholder="This offer has ended"
+        />
+      </Field>
+      <button
+        type="button"
+        onClick={() => void resign({})}
+        disabled={busy || !attrs.deadline}
+        className="rounded-md border px-2.5 py-1.5 text-xs hover:bg-secondary disabled:opacity-60"
+      >
+        {busy ? "Updating…" : "Apply colors & wording"}
+      </button>
+      {error ? <p className="text-[11px] text-destructive">{error}</p> : null}
+      {attrs.src ? (
+        <img src={String(attrs.src)} alt="" className="w-full rounded-md border" />
+      ) : (
+        <p className="text-[11px] text-muted-foreground">Set a deadline to generate the countdown.</p>
+      )}
+      <Field label="Fallback line (no-image readers)">
+        <TextInput
+          value={String(attrs.alt ?? "")}
+          onChange={(v) => patch({ alt: v })}
+          placeholder="This offer ends soon"
+        />
+      </Field>
+      <p className="text-[11px] leading-snug text-muted-foreground">
+        The image is redrawn every time it loads, so Gmail and webmail readers see the time left when they open the
+        email. Apple Mail loads images on delivery instead, so those readers see the time left when it arrived, and
+        Outlook blocks images until the reader allows them. It counts in days, hours and minutes — never seconds. So
+        keep the fallback line true on its own, and don&apos;t promise to-the-minute accuracy in your copy.
+      </p>
     </div>
   );
 }

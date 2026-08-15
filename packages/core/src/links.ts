@@ -106,3 +106,42 @@ export function announcementUnsubscribeUrl(email: string): string {
   const base = env.PUBLIC_API_URL.replace(/\/$/, "");
   return `${base}/v1/announcements/unsubscribe?token=${encodeURIComponent(announcementUnsubToken(email))}`;
 }
+
+// --- View in browser --------------------------------------------------------
+// The "can't see this email?" link. A hosted copy of the message's own rendered
+// HTML, so a client that mangles the layout (or blocks images) isn't the last
+// word. Distinct `k` discriminator, same as the subscribe link, so a token
+// minted for one purpose can never be replayed as another.
+//
+// The token names a message and nothing else — no email address, no workspace.
+// Everything the page shows is looked up server-side from that id, and the page
+// stops working the moment retention scrubs the stored HTML.
+
+export interface ViewPayload {
+  /** message id */
+  m: string;
+}
+
+export function viewToken(p: ViewPayload): string {
+  const body = Buffer.from(JSON.stringify({ ...p, k: "view" })).toString("base64url");
+  return `${body}.${hmacSign(body, SECRET)}`;
+}
+
+export function verifyViewToken(token: string): ViewPayload | null {
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return null;
+  if (!safeEqual(sig, hmacSign(body, SECRET))) return null;
+  try {
+    const parsed = JSON.parse(Buffer.from(body, "base64url").toString()) as ViewPayload & { k?: string };
+    if (parsed.k !== "view" || typeof parsed.m !== "string" || !parsed.m) return null;
+    return { m: parsed.m };
+  } catch {
+    return null;
+  }
+}
+
+/** Absolute URL injected as the {{view_in_browser_url}} template var. */
+export function viewInBrowserUrl(messageId: string): string {
+  const base = env.PUBLIC_API_URL.replace(/\/$/, "");
+  return `${base}/v1/view?token=${encodeURIComponent(viewToken({ m: messageId }))}`;
+}

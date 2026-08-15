@@ -278,6 +278,14 @@ export const api = {
     }),
   aiDraft: (prompt: string) =>
     rmFetch<AiDraftResponse>("/v1/templates/ai-draft", { method: "POST", body: { prompt } }),
+  // Mints the signed URL for a live-at-open countdown image. Signing happens in
+  // the API so LINK_SIGNING_SECRET never reaches the dashboard.
+  signCountdown: (body: {
+    deadline: string;
+    expired_label?: string;
+    accent?: string;
+    bg?: string;
+  }) => rmFetch<{ url: string; alt_suggestion: string }>("/v1/live/sign", { method: "POST", body }),
   assistant: (prompt: string) =>
     rmFetch<AssistantResponse>("/v1/assistant", { method: "POST", body: { prompt } }),
   assistantCredits: () => rmFetch<AiCredits>("/v1/assistant/credits"),

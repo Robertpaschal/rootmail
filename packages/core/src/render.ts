@@ -73,6 +73,15 @@ export function htmlToText(html: string): string {
     .replace(/<script[\s\S]*?<\/script>/gi, "")
     .replace(/<\/(p|div|h[1-6]|li|tr)>/gi, "\n")
     .replace(/<br\s*\/?>/gi, "\n")
+    // Keep an image's alt text instead of deleting the whole tag. A block that
+    // is ONLY an image — a live countdown, a linked video poster — otherwise
+    // contributes literally nothing to the text/plain part, so the plain-text
+    // reader gets an email with a hole where the offer was. alt="" (decorative)
+    // still drops out, which is what an empty alt means.
+    .replace(/<img\b[^>]*?\balt\s*=\s*(?:"([^"]*)"|'([^']*)')[^>]*>/gi, (_m, dq: string, sq: string) => {
+      const alt = (dq ?? sq ?? "").trim();
+      return alt ? `\n${alt}\n` : "";
+    })
     .replace(/<[^>]+>/g, "")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
