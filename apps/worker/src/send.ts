@@ -11,6 +11,7 @@ import {
   render,
   sha256Hex,
   unsubscribeUrl,
+  viewInBrowserUrl,
   WEBHOOK_EVENTS,
   wingBrandingRequired,
 } from "@rootmail/core";
@@ -77,9 +78,15 @@ function currentPeriod(d = new Date()): string {
 export async function automationSend(
   input: AutomationSendInput,
 ): Promise<{ messageId: string; suppressed: boolean }> {
+  // The message id is minted up here rather than at insert time because the
+  // {{view_in_browser_url}} link has to name this message, and it has to be in
+  // the variables BEFORE render() runs. newId is pure, so moving it earlier is
+  // free; the insert below uses the same value.
+  const id = newId("message");
   const variables = {
     ...(input.variables ?? {}),
     unsubscribe_url: unsubscribeUrl({ w: input.workspaceId, e: input.to, s: input.subTenantId }),
+    view_in_browser_url: viewInBrowserUrl(id),
   };
   let rendered = render({
     subject: input.subject,
@@ -159,7 +166,6 @@ export async function automationSend(
     )
     .limit(1);
 
-  const id = newId("message");
   await db.insert(messages).values({
     id,
     workspaceId: input.workspaceId,

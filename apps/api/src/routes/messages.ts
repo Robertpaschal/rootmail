@@ -20,6 +20,7 @@ import {
   TEST_RECIPIENT_DOMAIN,
   testRecipientFor,
   unsubscribeUrl,
+  viewInBrowserUrl,
 } from "@rootmail/core";
 import {
   activeReplyDomain,
@@ -280,10 +281,14 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // caller's explicit variables override them, and our signed per-recipient
     // unsubscribe URL wins over any caller-supplied value of the same name.
     const contact = await findContact(workspace.id, subTenantId, toEmail);
+    // Minted before render() because {{view_in_browser_url}} has to name this
+    // message and be substituted into the body; the insert below reuses it.
+    const id = newId("message");
     const variables = {
       ...contactVariables(contact, toEmail),
       ...body.variables,
       unsubscribe_url: unsubscribeUrl({ w: workspace.id, e: toEmail, s: subTenantId }),
+      view_in_browser_url: viewInBrowserUrl(id),
     };
 
     let rendered = render({
@@ -351,7 +356,6 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
-    const id = newId("message");
     const sendAt = body.send_at ? new Date(body.send_at) : null;
 
     const insertedRows = await db
