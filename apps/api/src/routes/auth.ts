@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
@@ -16,7 +16,10 @@ import {
   verifyPassword,
   verifyTotp,
 } from "@rootmail/core";
-import { db, impersonationGrants, organizations, sessions, setPlatformOptOut, ssoConnections, type User, users } from "@rootmail/db";
+// `workspaces` is aliased: two functions in this file already bind a local
+// `workspaces` (the user's list), and a shadowed table import is the kind of
+// thing that reads fine and compiles fine right up until someone moves a query.
+import { db, impersonationGrants, organizations, sessions, setPlatformOptOut, ssoConnections, type User, users, workspaces as workspacesTable } from "@rootmail/db";
 import {
   createSession,
   defaultWorkspaceForUser,
@@ -375,6 +378,95 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/auth/me", async (req) => {
     const { user, session } = await requireSession(req);
     return mePayload(user, session);
+  });
+
+  // --- Multi-account: identify a roster of session tokens -----------------
+  /*
+   * The dashboard lets one browser hold several SIGNED-IN IDENTITIES at once
+   * (an agency with their own account plus a seat under a client's email, a
+   * freelancer with two businesses). Each identity is a separate `users` row
+   * with its own session token, kept in its own httpOnly cookie. To draw the
+   * switcher the dashboard needs a name and an email for each token it holds.
+   *
+   * ── WHY THIS IS NOT A PRIVILEGE ESCALATION ─────────────────────────────
+   * Every token in the body is resolved INDEPENDENTLY and answers only for
+   * itself. Holding a valid session for account A buys you nothing about
+   * account B — B's row comes back only because the caller demonstrated
+   * possession of B's token by sending it. This endpoint is therefore exactly
+   * N calls to /v1/auth/me with N different Bearers, collapsed into one round
+   * trip (the switcher renders on every page; N sequential /me calls would run
+   * ~4 queries each, this runs one query total).
+   *
+   * ── WHY IT STILL DEMANDS A BEARER ──────────────────────────────────────
+   * Without one it would be an unauthenticated "is this token alive?" oracle
+   * that anyone could point a list of guesses at. Requiring a live session
+   * doesn't make guessing harder in theory, but it keeps the endpoint off the
+   * public surface and inside the rate-limited, authenticated plane.
+   *
+   * A token that is unknown, revoked or expired is simply ABSENT from the
+   * response — never an error, never a reason. The dashboard drops it from the
+   * roster. `ref` is the caller's own index, so nothing has to echo a token
+   * back to identify the row.
+   */
+  const accountsBody = z.object({
+    // Bounded to keep the query small; the dashboard caps the roster lower.
+    tokens: z.array(z.string().min(1).max(200)).max(8),
+  });
+  app.post("/v1/auth/accounts", async (req) => {
+    await requireSession(req);
+    const { tokens } = parse(accountsBody, req.body);
+    if (tokens.length === 0) return { object: "list", data: [] };
+
+    // hash → the FIRST index that produced it, so a duplicated token doesn't
+    // duplicate a row in the switcher.
+    const refByHash = new Map<string, number>();
+    tokens.forEach((t, i) => {
+      const h = sha256Hex(t);
+      if (!refByHash.has(h)) refByHash.set(h, i);
+    });
+
+    const rows = await db
+      .select({
+        tokenHash: sessions.tokenHash,
+        expiresAt: sessions.expiresAt,
+        impersonatedByStaffId: sessions.impersonatedByStaffId,
+        userId: users.id,
+        email: users.email,
+        name: users.name,
+        avatarUrl: users.avatarUrl,
+        workspaceName: workspacesTable.name,
+      })
+      .from(sessions)
+      .innerJoin(users, eq(users.id, sessions.userId))
+      // The workspace this session was last on — it's what makes the switcher
+      // legible as a HIERARCHY (account ⊃ workspace) rather than a second
+      // dropdown that looks just like the workspace picker beside it.
+      .leftJoin(workspacesTable, eq(workspacesTable.id, sessions.activeWorkspaceId))
+      .where(inArray(sessions.tokenHash, [...refByHash.keys()]));
+
+    const now = Date.now();
+    return {
+      object: "list",
+      data: rows
+        .filter((r) => r.expiresAt.getTime() > now)
+        .map((r) => ({
+          ref: refByHash.get(r.tokenHash) ?? -1,
+          // Deliberately NOT serializeUser(): the switcher needs an identity,
+          // not a profile. MFA state and email preferences of a background
+          // account have no business on a page rendered for another one.
+          user: {
+            id: r.userId,
+            object: "user" as const,
+            email: r.email,
+            name: r.name,
+            avatar_url: r.avatarUrl,
+          },
+          active_workspace_name: r.workspaceName,
+          impersonating: r.impersonatedByStaffId != null,
+        }))
+        .filter((r) => r.ref >= 0)
+        .sort((a, b) => a.ref - b.ref),
+    };
   });
 
   // --- Switch the session's active workspace ------------------------------

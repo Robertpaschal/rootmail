@@ -1,8 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { ADD_REFUSAL_MESSAGE, adoptToken, refuseAdd } from "@/lib/accounts";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import { setSessionCookie } from "@/lib/session";
+import { writeRoster } from "@/lib/session";
 
 export interface AuthState {
   error?: string;
@@ -13,10 +14,45 @@ export interface AuthState {
   sent?: boolean;
 }
 
+/** True when this sign-in was started from "Add another account" inside the app. */
+function isAddFlow(formData: FormData): boolean {
+  return String(formData.get("add") ?? "") === "1";
+}
+
+/**
+ * Ask permission to add an account BEFORE any credential is checked, so we
+ * never mint a session we're about to throw away — an unused session still
+ * lives for thirty days, and the cheapest way not to leak one is not to create
+ * it. `adoptSession` asks again after the fact; this is the courteous check,
+ * that one is the enforcing check.
+ */
+async function addBlocked(): Promise<string | null> {
+  const refusal = await refuseAdd();
+  return refusal ? ADD_REFUSAL_MESSAGE[refusal] : null;
+}
+
+/** Persist a freshly-minted session, keeping the other accounts when adding. */
+async function adoptSession(token: string, add: boolean): Promise<string | null> {
+  const next = await adoptToken(token, add);
+  if (!next.ok) {
+    // Refused after the session was minted — the cap filled from another tab, or
+    // a support session started. Don't strand it.
+    await api.logout(token).catch(() => undefined);
+    return ADD_REFUSAL_MESSAGE[next.reason];
+  }
+  await writeRoster(next.tokens, next.activeIndex);
+  return null;
+}
+
 export async function login(_prev: AuthState | null, formData: FormData): Promise<AuthState> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const password = String(formData.get("password") ?? "");
+  const add = isAddFlow(formData);
   if (!email || !password) return { error: "Enter your email and password." };
+  if (add) {
+    const blocked = await addBlocked();
+    if (blocked) return { error: blocked };
+  }
 
   let result;
   try {
@@ -35,7 +71,8 @@ export async function login(_prev: AuthState | null, formData: FormData): Promis
     return { mfaRequired: true, mfaToken: result.mfa_token };
   }
 
-  await setSessionCookie(result.session_token);
+  const failed = await adoptSession(result.session_token, add);
+  if (failed) return { error: failed };
   redirect("/");
 }
 
@@ -43,6 +80,7 @@ export async function verifyMfa(_prev: AuthState | null, formData: FormData): Pr
   const mfaToken = String(formData.get("mfa_token") ?? "");
   const code = String(formData.get("code") ?? "").trim();
   const recoveryCode = String(formData.get("recovery_code") ?? "").trim();
+  const add = isAddFlow(formData);
   if (!mfaToken) return { error: "Your sign-in expired. Please start over." };
   if (!code && !recoveryCode) {
     return { error: "Enter your authenticator code.", mfaRequired: true, mfaToken };
@@ -63,7 +101,8 @@ export async function verifyMfa(_prev: AuthState | null, formData: FormData): Pr
     return { error: "That code didn't match. Try again.", mfaRequired: true, mfaToken };
   }
 
-  await setSessionCookie(session.session_token);
+  const failed = await adoptSession(session.session_token, add);
+  if (failed) return { error: failed, mfaRequired: true, mfaToken };
   redirect("/");
 }
 
@@ -73,9 +112,14 @@ export async function signup(_prev: AuthState | null, formData: FormData): Promi
   const name = String(formData.get("name") ?? "").trim();
   const organizationName = String(formData.get("organization_name") ?? "").trim();
   const inviteCode = String(formData.get("invite_code") ?? "").trim();
+  const add = isAddFlow(formData);
 
   if (!email) return { error: "Email is required." };
   if (password.length < 8) return { error: "Password must be at least 8 characters." };
+  if (add) {
+    const blocked = await addBlocked();
+    if (blocked) return { error: blocked };
+  }
 
   let token: string;
   try {
@@ -98,7 +142,8 @@ export async function signup(_prev: AuthState | null, formData: FormData): Promi
     return { error: "Something went wrong creating your account." };
   }
 
-  await setSessionCookie(token);
+  const failed = await adoptSession(token, add);
+  if (failed) return { error: failed };
   // Land new users on API keys so they can grab a key immediately.
   redirect("/api-keys");
 }

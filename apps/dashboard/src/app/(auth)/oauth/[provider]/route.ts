@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { appUrl, authorizeUrl, getProvider, isConfigured } from "@/lib/oauth";
+import { ADD_ACCOUNT_COOKIE } from "@/lib/session";
 
 function crossSiteInvite(id: string): boolean {
   return id === "apple";
@@ -26,6 +27,19 @@ export async function GET(
   const invite = req.nextUrl.searchParams.get("invite_code")?.trim();
   if (invite) {
     res.cookies.set("rm_oauth_invite", invite, {
+      httpOnly: true,
+      sameSite: crossSiteInvite(p.id) ? "none" : "lax",
+      secure: crossSiteInvite(p.id) || process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 600,
+    });
+  }
+  // Multi-account: "Add another account" started this, so the callback must
+  // JOIN the roster instead of replacing it. Same round-trip problem as the
+  // invite code above — the provider hands back only `code` and `state`.
+  // Short-lived and non-secret; it selects a code path, it doesn't authorize one.
+  if (req.nextUrl.searchParams.get("add") === "1") {
+    res.cookies.set(ADD_ACCOUNT_COOKIE, "1", {
       httpOnly: true,
       sameSite: crossSiteInvite(p.id) ? "none" : "lax",
       secure: crossSiteInvite(p.id) || process.env.NODE_ENV === "production",

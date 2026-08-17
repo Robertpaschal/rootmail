@@ -7,11 +7,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function SignupForm({ inviteCode }: { inviteCode?: string }) {
+export function SignupForm({ inviteCode, add = false }: { inviteCode?: string; add?: boolean }) {
   const [state, formAction, pending] = useActionState<AuthState | null, FormData>(signup, null);
 
   return (
     <form action={formAction} className="space-y-4">
+      {/* Multi-account: keep the account already signed in rather than replacing
+          it. The invite code below is unaffected — creating a NEW account still
+          needs one while the beta is on, whichever door it comes through. */}
+      {add ? <input type="hidden" name="add" value="1" /> : null}
       {/* Closed beta: the code is how you got here, so it is asked for first
           rather than buried under the password. Harmless once the beta ends —
           the API simply ignores it. */}

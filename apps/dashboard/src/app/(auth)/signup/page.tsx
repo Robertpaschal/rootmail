@@ -14,9 +14,13 @@ export default async function SignupPage({
 }: {
   // The invite email links here with the code already attached, so a tester
   // never has to copy it by hand — and "Continue with Google" can carry it too.
-  searchParams: Promise<{ invite_code?: string; error?: string }>;
+  // `add=1` arrives from "Add another account" — a second identity for a browser
+  // that already has one. The beta gate is untouched: the API still demands an
+  // invite code to CREATE an account, through this door like any other.
+  searchParams: Promise<{ invite_code?: string; error?: string; add?: string }>;
 }) {
-  const { invite_code: inviteCode, error } = await searchParams;
+  const { invite_code: inviteCode, error, add } = await searchParams;
+  const adding = add === "1";
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-md">
@@ -25,10 +29,15 @@ export default async function SignupPage({
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Create your account</CardTitle>
+            <CardTitle className="text-xl">
+              {adding ? "Create another account" : "Create your account"}
+            </CardTitle>
             <CardDescription>
               Free to start. You get a live workspace and a sandbox for safe testing — send your
               first email in minutes, nothing to install.
+              {adding
+                ? " The account you're already signed into stays signed in — switch between them from the menu in the top bar."
+                : null}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -37,8 +46,8 @@ export default async function SignupPage({
                 {error}
               </p>
             ) : null}
-            <OAuthButtons inviteCode={inviteCode} />
-            <SignupForm inviteCode={inviteCode} />
+            <OAuthButtons inviteCode={inviteCode} add={adding} />
+            <SignupForm inviteCode={inviteCode} add={adding} />
             {/* Someone arriving straight from an invite link never saw
                 rootmail.io/beta, so this is their only warning that an
                 unfamiliar email from Amazon is coming — and until they click
@@ -59,9 +68,20 @@ export default async function SignupPage({
         </Card>
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-foreground hover:underline">
+          <Link
+            href={adding ? "/login?add=1" : "/login"}
+            className="font-medium text-foreground hover:underline"
+          >
             Sign in
           </Link>
+          {adding ? (
+            <>
+              {" · "}
+              <Link href="/" className="font-medium text-foreground hover:underline">
+                Cancel
+              </Link>
+            </>
+          ) : null}
         </p>
       </div>
     </div>

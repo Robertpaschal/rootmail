@@ -12,9 +12,18 @@ import { cn } from "@/lib/utils";
  * arriving from their invite email — which links to /signup?invite_code=… —
  * would otherwise be bounced for no visible reason.
  */
-export function OAuthButtons({ inviteCode }: { inviteCode?: string }) {
+export function OAuthButtons({ inviteCode, add = false }: { inviteCode?: string; add?: boolean }) {
   const providers = enabledProviders();
   if (providers.length === 0) return null;
+
+  // `add` rides the same round trip as the invite code, for the same reason: the
+  // provider won't carry our query string back, so without a cookie the social
+  // button would come home as an ordinary sign-in and quietly evict the account
+  // the user was trying to keep.
+  const query = new URLSearchParams();
+  if (inviteCode) query.set("invite_code", inviteCode);
+  if (add) query.set("add", "1");
+  const suffix = query.size > 0 ? `?${query.toString()}` : "";
 
   return (
     <div className="mb-4 space-y-3">
@@ -22,7 +31,7 @@ export function OAuthButtons({ inviteCode }: { inviteCode?: string }) {
         {providers.map((p) => (
           <Link
             key={p.id}
-            href={inviteCode ? `/oauth/${p.id}?invite_code=${encodeURIComponent(inviteCode)}` : `/oauth/${p.id}`}
+            href={`/oauth/${p.id}${suffix}`}
             className={cn(buttonVariants({ variant: "outline" }), "w-full")}
           >
             Continue with {p.label}
