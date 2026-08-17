@@ -82,8 +82,15 @@ export function middleware(req: NextRequest) {
     return syncHint(req, hasSession, NextResponse.redirect(url));
   }
 
-  // Already signed in → skip the auth screens.
-  if (hasSession && isPublic) {
+  // Already signed in → skip the auth screens. The one exception is the
+  // multi-account door: `?add=1` means the user asked, from inside the app, to
+  // sign into a SECOND identity, so bouncing them home because they already
+  // have a session is precisely the behaviour we're removing. The flag only
+  // reaches the auth pages; it grants nothing on its own, and creating a new
+  // account through this door still needs an invite code while the beta is on
+  // (the API enforces that, on both the password and the social path).
+  const addingAccount = req.nextUrl.searchParams.get("add") === "1";
+  if (hasSession && isPublic && !addingAccount) {
     const url = req.nextUrl.clone();
     url.pathname = "/";
     return syncHint(req, hasSession, NextResponse.redirect(url));

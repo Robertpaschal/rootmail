@@ -1,6 +1,7 @@
 import { getClientScopeId, isClientScopedPath } from "./client-scope";
 import { getSessionToken } from "./session";
 import type {
+  AccountIdentity,
   AiDraftResponse,
   ApiKey,
   Asset,
@@ -555,6 +556,22 @@ export const api = {
   resetPassword: (body: { token: string; password: string }) =>
     rmFetch<{ reset: boolean }>("/v1/auth/reset-password", { method: "POST", body, noAuth: true }),
   me: () => rmFetch<MeResult>("/v1/auth/me"),
+  /**
+   * Name the other accounts signed in on this browser (multi-account switcher).
+   *
+   * `token` pins the Bearer to the ACTIVE account rather than re-reading the
+   * cookie, because callers that have just rewritten the roster are working
+   * with a token the request's own cookie jar doesn't have yet. Tokens that
+   * are revoked, expired or unknown come back missing, never as an error —
+   * that's how a stale account degrades out of the switcher instead of 500ing
+   * the shell.
+   */
+  resolveAccounts: (tokens: string[], token?: string) =>
+    rmFetch<ListResponse<AccountIdentity>>("/v1/auth/accounts", {
+      method: "POST",
+      body: { tokens },
+      token,
+    }),
   // Profile: display name + avatar. Personal (session-scoped), not workspace-gated.
   updateProfile: (body: { name?: string | null; remove_avatar?: boolean }) =>
     rmFetch<User>("/v1/auth/profile", { method: "POST", body }),
@@ -597,7 +614,10 @@ export const api = {
     }),
   setAnnouncementPref: (optOut: boolean) =>
     rmFetch<User>("/v1/auth/preferences", { method: "POST", body: { announcement_opt_out: optOut } }),
-  logout: () => rmFetch<{ ok: boolean }>("/v1/auth/logout", { method: "POST" }),
+  // `token` revokes a session OTHER than the cookie's — "sign out of all
+  // accounts" has to reach every identity the browser holds, not just the
+  // active one.
+  logout: (token?: string) => rmFetch<{ ok: boolean }>("/v1/auth/logout", { method: "POST", token }),
   // Exchange a one-time staff handoff code for an impersonated session.
   acceptImpersonation: (code: string) =>
     rmFetch<AuthSession>("/v1/auth/impersonate/accept", {

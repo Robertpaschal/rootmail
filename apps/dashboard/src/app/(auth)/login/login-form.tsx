@@ -7,7 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function LoginForm() {
+/**
+ * `add` is the multi-account flag, carried as a hidden field through BOTH forms
+ * — the MFA step is a second POST, and losing the flag there would silently
+ * turn "add an account" into "replace the one you had" at the last moment.
+ */
+export function LoginForm({ add = false }: { add?: boolean }) {
   const [loginState, loginAction, loginPending] = useActionState<AuthState | null, FormData>(login, null);
   const [mfaState, mfaAction, mfaPending] = useActionState<AuthState | null, FormData>(verifyMfa, null);
 
@@ -18,6 +23,7 @@ export function LoginForm() {
     return (
       <form action={mfaAction} className="space-y-4">
         <input type="hidden" name="mfa_token" value={mfaToken} />
+        {add ? <input type="hidden" name="add" value="1" /> : null}
         <div className="space-y-2">
           <Label htmlFor="code">Authentication code</Label>
           <Input
@@ -47,6 +53,7 @@ export function LoginForm() {
 
   return (
     <form action={loginAction} className="space-y-4">
+      {add ? <input type="hidden" name="add" value="1" /> : null}
       <div className="space-y-2">
         <Label htmlFor="email">Email</Label>
         <Input id="email" name="email" type="email" autoComplete="email" autoFocus required />
@@ -69,7 +76,7 @@ export function LoginForm() {
       {loginState?.error ? <p className="text-sm text-destructive">{loginState.error}</p> : null}
       <Button type="submit" className="w-full" disabled={loginPending}>
         {loginPending ? <Loader2 className="size-4 animate-spin" /> : <KeyRound className="size-4" />}
-        {loginPending ? "Signing in…" : "Sign in"}
+        {loginPending ? "Signing in…" : add ? "Add account" : "Sign in"}
       </Button>
     </form>
   );

@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/lib/rootmail";
-import { SESSION_COOKIE } from "@/lib/session";
+import { applyRoster } from "@/lib/session";
 import { appUrl } from "@/lib/urls";
 
 export const dynamic = "force-dynamic";
@@ -41,13 +41,39 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(appUrl("/login?error=impersonation"));
   }
 
-  const response = NextResponse.redirect(appUrl(next));
-  response.cookies.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 30, // matches the 30-minute impersonation session
-  });
-  return response;
+  /*
+   * ── A SUPPORT SESSION IS NEVER A PEER ────────────────────────────────────
+   *
+   * An impersonated session REPLACES the whole account roster. It never joins
+   * one, and nothing may join it.
+   *
+   * The failure this prevents: a staff member with their own account signed in,
+   * who then opens a customer for support, would otherwise end up with both
+   * identities in one menu — and "switch account" becomes a control that moves
+   * them between acting as themselves and acting as a customer. Those two
+   * things look identical once the menu is shut, and everything done in the
+   * second one is performed AS the customer, against their data, in their name.
+   * That is why the impersonation banner shouts; a one-click switch beside it
+   * would undo the shouting.
+   *
+   * It also fixes a lifetime mismatch: this session lives 30 minutes, roster
+   * slots are written for 30 days, so a session that expires by design would
+   * otherwise linger in the menu as a row that fails when clicked.
+   *
+   * Enforced in three places, because one is not enough for this:
+   *   - here, by replacing the roster (applyRoster with a single token clears
+   *     every other slot);
+   *   - refuseAdd() in lib/accounts.ts, which every sign-in door funnels
+   *     through, so nothing can be added beside it;
+   *   - switchAccount() in components/app/account-actions.ts, which refuses to
+   *     move off an impersonated session even though the first two rules should
+   *     already have made that unreachable.
+   *
+   * Leaving impersonation therefore signs the browser out entirely (`signOut`
+   * in app/actions.ts) — the staff member signs back into their own account,
+   * which is a small cost for keeping the two kinds of identity apart.
+   */
+  // 30 minutes, matching the impersonation grant — the cookies should die about
+  // when the session behind them does.
+  return applyRoster(NextResponse.redirect(appUrl(next)), [token], 0, { maxAge: 60 * 30 });
 }

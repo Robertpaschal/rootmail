@@ -172,6 +172,28 @@ export interface Workspace {
   created_at: string;
 }
 
+/**
+ * One signed-in identity in the browser's account roster (POST /v1/auth/accounts).
+ *
+ * Deliberately thinner than `User`: naming an account in the switcher needs an
+ * email, a display name and a picture. A background account's MFA state and
+ * email preferences have no business on a page rendered for a different one.
+ */
+export interface AccountIdentity {
+  /** The caller's own index into the tokens it sent — an absent index is dead. */
+  ref: number;
+  user: {
+    id: string;
+    object: "user";
+    email: string;
+    name: string | null;
+    avatar_url: string | null;
+  };
+  /** The workspace that account was last in — makes account ⊃ workspace legible. */
+  active_workspace_name: string | null;
+  impersonating: boolean;
+}
+
 export interface MeResult {
   user: User;
   workspaces: Workspace[];

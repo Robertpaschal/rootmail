@@ -14,15 +14,19 @@ export const dynamic = "force-dynamic";
 async function startSso(formData: FormData) {
   "use server";
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!email.includes("@")) redirect("/sso?error=email");
+  // Multi-account: relayed hop by hop (here → /start → the IdP → /acs) because
+  // the identity provider hands back only its assertion. /start parks it in a
+  // cookie for the leg we don't control.
+  const add = String(formData.get("add") ?? "") === "1" ? "?add=1" : "";
+  if (!email.includes("@")) redirect(`/sso?error=email${add ? "&add=1" : ""}`);
   let connectionId: string | null = null;
   try {
     connectionId = (await ssoDiscover(email)).connection_id;
   } catch {
-    redirect("/sso?error=unavailable");
+    redirect(`/sso?error=unavailable${add ? "&add=1" : ""}`);
   }
-  if (!connectionId) redirect("/sso?error=none");
-  redirect(`/sso/${connectionId}/start`);
+  if (!connectionId) redirect(`/sso?error=none${add ? "&add=1" : ""}`);
+  redirect(`/sso/${connectionId}/start${add}`);
 }
 
 const ERRORS: Record<string, string> = {
@@ -35,9 +39,10 @@ const ERRORS: Record<string, string> = {
 export default async function SsoPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; add?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, add } = await searchParams;
+  const adding = add === "1";
   return (
     <div className="flex min-h-screen items-center justify-center p-6">
       <div className="w-full max-w-md">
@@ -46,10 +51,13 @@ export default async function SsoPage({
         </div>
         <Card>
           <CardHeader>
-            <CardTitle className="text-xl">Single sign-on</CardTitle>
+            <CardTitle className="text-xl">
+              {adding ? "Add an account with SSO" : "Single sign-on"}
+            </CardTitle>
             <CardDescription>
               Enter your work email and we&apos;ll take you to your organization&apos;s identity
               provider.
+              {adding ? " Your current account stays signed in." : null}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -59,6 +67,7 @@ export default async function SsoPage({
               </p>
             ) : null}
             <form action={startSso} className="space-y-4">
+              {adding ? <input type="hidden" name="add" value="1" /> : null}
               <div className="space-y-1.5">
                 <Label htmlFor="email">Work email</Label>
                 <Input id="email" name="email" type="email" required placeholder="you@company.com" />
@@ -70,7 +79,10 @@ export default async function SsoPage({
           </CardContent>
         </Card>
         <p className="mt-4 text-center text-sm text-muted-foreground">
-          <Link href="/login" className="font-medium text-foreground hover:underline">
+          <Link
+            href={adding ? "/login?add=1" : "/login"}
+            className="font-medium text-foreground hover:underline"
+          >
             Back to sign in
           </Link>
         </p>

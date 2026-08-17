@@ -1,7 +1,33 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { appUrl, exchangeCode, fetchProfile, getProvider, isConfigured } from "@/lib/oauth";
-import { oauthUpsert } from "@/lib/rootmail";
-import { SESSION_COOKIE } from "@/lib/session";
+import { adoptToken } from "@/lib/accounts";
+import { api, oauthUpsert } from "@/lib/rootmail";
+import { ADD_ACCOUNT_COOKIE, applyRoster } from "@/lib/session";
+
+/**
+ * Land the session this callback just minted on the redirect that carries the
+ * browser back into the app — replacing the browser's identity for an ordinary
+ * social sign-in, or joining the account roster when "Add another account"
+ * started the flow (the `rm_add_account` cookie is how that survives the trip
+ * out to the provider and back).
+ */
+async function landSession(
+  res: NextResponse,
+  token: string,
+  add: boolean,
+  status: 302 | 303,
+): Promise<NextResponse> {
+  const next = await adoptToken(token, add);
+  if (!next.ok) {
+    // Refused (roster full, or a support session is in progress). A social door
+    // can only find this out AFTER the provider has vouched, so revoke the
+    // session rather than strand it for thirty days, and answer on the page
+    // they asked from.
+    await api.logout(token).catch(() => undefined);
+    return NextResponse.redirect(appUrl(`/login?add=1&refused=${next.reason}`), status);
+  }
+  return applyRoster(res, next.tokens, next.activeIndex);
+}
 
 // Provider redirects back here with a code: verify state, exchange for a profile,
 // upsert the user + session via the API, set the session cookie, land in the app.
@@ -39,16 +65,15 @@ export async function GET(
       invite_code: req.cookies.get("rm_oauth_invite")?.value,
     });
 
-    const res = NextResponse.redirect(appUrl("/"));
-    res.cookies.set(SESSION_COOKIE, session.session_token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
+    const res = await landSession(
+      NextResponse.redirect(appUrl("/")),
+      session.session_token,
+      req.cookies.get(ADD_ACCOUNT_COOKIE)?.value === "1",
+      302,
+    );
     res.cookies.delete("rm_oauth_state");
     res.cookies.delete("rm_oauth_invite");
+    res.cookies.delete(ADD_ACCOUNT_COOKIE);
     return res;
   } catch (err) {
     return NextResponse.redirect(appUrl(`/signup?error=${encodeURIComponent(String((err as { message?: string })?.message ?? "oauth"))}`));
@@ -104,16 +129,15 @@ export async function POST(
       invite_code: req.cookies.get("rm_oauth_invite")?.value,
     });
 
-    const res = NextResponse.redirect(appUrl("/"), 303);
-    res.cookies.set(SESSION_COOKIE, session.session_token, {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
-      maxAge: 60 * 60 * 24 * 30,
-    });
+    const res = await landSession(
+      NextResponse.redirect(appUrl("/"), 303),
+      session.session_token,
+      req.cookies.get(ADD_ACCOUNT_COOKIE)?.value === "1",
+      303,
+    );
     res.cookies.delete("rm_oauth_state");
     res.cookies.delete("rm_oauth_invite");
+    res.cookies.delete(ADD_ACCOUNT_COOKIE);
     return res;
   } catch (err) {
     return NextResponse.redirect(appUrl("/login?error=oauth"), 303);
