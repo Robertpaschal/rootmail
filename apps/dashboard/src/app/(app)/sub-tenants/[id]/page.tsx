@@ -1,18 +1,19 @@
 import type { ReactNode } from "react";
 import { ActionForm } from "@/components/app/action-form";
 import { notFound } from "next/navigation";
-import { AlertTriangle, CheckCircle2, ChevronDown, Info, ShieldCheck, XCircle } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ChevronDown, Info, PauseCircle, ShieldCheck, XCircle } from "lucide-react";
 import { verifySubTenant } from "../actions";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { CopyButton } from "@/components/app/copy-button";
 import { PageHeader } from "@/components/app/page-header";
-import { SubTenantStatusBadge } from "@/components/app/status-badge";
+import { ReputationBadge, SubTenantStatusBadge } from "@/components/app/status-badge";
+import { ReputationPanel } from "./reputation-panel";
 import { SubmitButton } from "@/components/app/submit-button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocalTime } from "@/components/app/local-time";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { EmailAuthReport, SubTenant } from "@/lib/types";
+import type { EmailAuthReport, ReputationReport, SubTenant } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { ManageSubTenant } from "./manage";
 
@@ -41,9 +42,16 @@ export default async function SubTenantDetailPage({
 
   let st: SubTenant;
   let auth: EmailAuthReport | null = null;
+  // Thresholds and the transition history. Advisory like the auth audit — the
+  // tenant record itself already carries the state, reason and metrics, so a
+  // failure here costs the history and nothing else.
+  let reputation: ReputationReport | null = null;
   try {
-    // The auth audit is advisory — never let it break the page.
-    [st, auth] = await Promise.all([api.getSubTenant(id), api.getSubTenantAuth(id).catch(() => null)]);
+    [st, auth, reputation] = await Promise.all([
+      api.getSubTenant(id),
+      api.getSubTenantAuth(id).catch(() => null),
+      api.getSubTenantReputation(id).catch(() => null),
+    ]);
   } catch (err) {
     if (err instanceof ApiError && err.status === 404) notFound();
     return (
@@ -68,7 +76,12 @@ export default async function SubTenantDetailPage({
         description={st.name}
         backHref="/sub-tenants"
         backLabel="Client domains"
-        actions={<SubTenantStatusBadge status={st.status} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <ReputationBadge state={st.reputation.state} />
+            <SubTenantStatusBadge status={st.status} />
+          </div>
+        }
       />
 
       {/* One domain, one column. The DNS values here are long TXT records — they
@@ -76,6 +89,8 @@ export default async function SubTenantDetailPage({
           behind a disclosure at the foot, the way the message page handles the
           same problem. */}
       <div className="space-y-6">
+          <ReputationPanel st={st} report={reputation} />
+
           <Card>
             <CardHeader className="flex-row items-start justify-between space-y-0">
               <div>
@@ -113,10 +128,22 @@ export default async function SubTenantDetailPage({
                   </div>
                 </div>
               ))}
+              {/* This used to read "sending from this domain is live" on the
+                  strength of DNS alone — which is exactly the contradiction that
+                  let a paused client look fine. DNS is verified either way; only
+                  reputation decides whether mail actually goes out. */}
               {st.status === "verified" ? (
                 <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
                   <CheckCircle2 className="size-4" /> Domain verified — sending from this domain is
-                  live.
+                  live
+                  {st.reputation.state === "throttled"
+                    ? ", though currently metered for reputation (see above)."
+                    : "."}
+                </div>
+              ) : st.reputation.state === "paused" ? (
+                <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+                  <PauseCircle className="size-4" /> DNS for this domain is published and valid —
+                  sending is stopped for reputation, not for DNS. See Sending reputation above.
                 </div>
               ) : null}
             </CardContent>
@@ -184,8 +211,11 @@ export default async function SubTenantDetailPage({
                 <CopyButton value={st.id} />
               </span>
             </DetailRow>
-            <DetailRow label="Status">
+            <DetailRow label="Domain verification">
               <SubTenantStatusBadge status={st.status} />
+            </DetailRow>
+            <DetailRow label="Sending reputation">
+              <ReputationBadge state={st.reputation.state} />
             </DetailRow>
             <DetailRow label="Domain">
               <span className="font-mono text-xs">{st.sending_domain}</span>

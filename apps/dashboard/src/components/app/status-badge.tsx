@@ -1,5 +1,12 @@
 import { Badge } from "@/components/ui/badge";
-import type { ContactStatus, MessageStatus, SubTenantStatus, ThreadStatus } from "@/lib/types";
+import { REPUTATION_VISUAL } from "@/lib/reputation";
+import type {
+  ContactStatus,
+  MessageStatus,
+  ReputationState,
+  SubTenantStatus,
+  ThreadStatus,
+} from "@/lib/types";
 
 type Variant = "default" | "secondary" | "success" | "warning" | "destructive" | "muted";
 
@@ -28,6 +35,31 @@ const subTenantVariant: Record<SubTenantStatus, Variant> = {
 
 export function SubTenantStatusBadge({ status }: { status: SubTenantStatus }) {
   return <Badge variant={subTenantVariant[status] ?? "secondary"}>{status.replace(/_/g, " ")}</Badge>;
+}
+
+/**
+ * How a client's mail is LANDING — deliberately a second badge rather than more
+ * values on the one above.
+ *
+ * They are different axes and they can disagree: a client whose DNS verifies
+ * perfectly can be paused for complaints, and until now this screen showed only
+ * the DNS side, so an automatically paused client read as "verified". Collapsing
+ * the two into one badge just moves the contradiction somewhere it can't be seen.
+ */
+export function ReputationBadge({
+  state,
+  className,
+}: {
+  state: ReputationState;
+  className?: string;
+}) {
+  const v = REPUTATION_VISUAL[state] ?? REPUTATION_VISUAL.ok;
+  return (
+    <Badge variant={v.badge} className={className}>
+      <span aria-hidden className={`size-1.5 rounded-full ${v.dot}`} />
+      {v.label}
+    </Badge>
+  );
 }
 
 const contactVariant: Record<ContactStatus, Variant> = {

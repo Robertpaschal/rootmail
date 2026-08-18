@@ -60,6 +60,7 @@ import type {
   OnboardingInput,
   Organization,
   ReplyDomainCheck,
+  ReputationReport,
   MfaSetup,
   Message,
   MessageStatus,
@@ -233,6 +234,13 @@ export const api = {
     rmFetch<SubTenant>(`/v1/sub-tenants/${id}`, { method: "PATCH", body }),
   deleteSubTenant: (id: string) =>
     rmFetch<{ deleted: boolean }>(`/v1/sub-tenants/${id}`, { method: "DELETE" }),
+  /** State, numbers and the full transition history for one client. */
+  getSubTenantReputation: (id: string) =>
+    rmFetch<ReputationReport>(`/v1/sub-tenants/${id}/reputation`),
+  /** Lift a reputation pause. Deliberate and human-only by design — see the
+   *  stickiness note in packages/core/src/reputation.ts. */
+  resumeSubTenant: (id: string) =>
+    rmFetch<SubTenant>(`/v1/sub-tenants/${id}/resume`, { method: "POST" }),
 
   upsertContact: (body: {
     email: string;

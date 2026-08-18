@@ -19,6 +19,13 @@ export type SubTenantStatus =
   | "verified"
   | "failed"
   | "disabled";
+/**
+ * How a client's mail is LANDING — a different axis from `SubTenantStatus`, which
+ * is only about whether their DNS verifies. A client can be `verified` and
+ * `paused` at the same time, and showing one while hiding the other is how a
+ * paused client used to read as "verified" on this screen.
+ */
+export type ReputationState = "ok" | "warn" | "throttled" | "paused";
 export type ContactStatus = "active" | "unsubscribed" | "bounced" | "complained";
 
 export interface Address {
@@ -120,7 +127,7 @@ export interface SubTenant {
   created_at: string;
   /** How this client's mail is landing, and what enforcement is doing about it. */
   reputation: {
-    state: "ok" | "warn" | "throttled" | "paused";
+    state: ReputationState;
     score: number | null;
     reason: string | null;
     metrics: Record<string, unknown>;
@@ -129,6 +136,39 @@ export interface SubTenant {
     resumed_at: string | null;
   };
   dns_records?: DnsRecord[];
+}
+
+/** One reputation transition from the append-only trail, flattened by the API. */
+export interface ReputationEvent {
+  event: string;
+  occurred_at: string;
+  actor: string;
+  from_state?: ReputationState;
+  to_state?: ReputationState;
+  reason?: string;
+  score?: number | null;
+  metric?: "bounce" | "complaint";
+  rate?: number;
+  threshold?: number;
+  window_days?: number;
+  previous_reason?: string | null;
+  previous_metrics?: Record<string, unknown>;
+}
+
+/** `GET /v1/sub-tenants/:id/reputation` — the state, the numbers, and every
+ *  warn / throttle / pause / resume this client has been through. */
+export interface ReputationReport {
+  object: "reputation";
+  sub_tenant_id: string;
+  state: ReputationState;
+  score: number | null;
+  reason: string | null;
+  metrics: Record<string, unknown>;
+  checked_at: string | null;
+  changed_at: string | null;
+  resumed_at: string | null;
+  thresholds: Record<"warn" | "throttle" | "pause", { bounce: number; complaint: number }>;
+  history: ReputationEvent[];
 }
 
 export interface VerifyResult extends SubTenant {

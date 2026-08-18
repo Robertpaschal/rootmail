@@ -213,7 +213,12 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       throw Errors.badRequest(
         `Sending is paused for "${subTenant.name}" (${subTenant.sendingDomain}). ` +
           `${subTenant.reputationReason ?? "Its bounce or complaint rate crossed the limit."} ` +
-          `Review the numbers and resume the client with POST /v1/sub-tenants/${subTenant.id}/resume.`,
+          // Point at the screen FIRST. The dashboard now shows the rates, the
+          // threshold that was crossed and a resume control; sending an operator
+          // to curl an endpoint when there is a page for it is the trap door
+          // with no ladder that this whole loop was built to avoid.
+          `Review the numbers and resume them at ${env.DASHBOARD_URL.replace(/\/$/, "")}/sub-tenants/${subTenant.id} ` +
+          `(or POST /v1/sub-tenants/${subTenant.id}/resume).`,
       );
     }
 

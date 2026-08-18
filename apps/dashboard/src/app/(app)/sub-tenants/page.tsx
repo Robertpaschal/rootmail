@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Eye, KeyRound, Network, Plus, ShieldCheck, Sparkles } from "lucide-react";
+import { AlertTriangle, ArrowRight, Eye, KeyRound, Network, PauseCircle, Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { ActionForm } from "@/components/app/action-form";
 import { actAsClientForm } from "@/components/app/client-scope-actions";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
@@ -7,11 +7,12 @@ import { EmptyState } from "@/components/app/empty-state";
 import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/components/app/feature-locked";
 import { PageHeader } from "@/components/app/page-header";
 import { Reveal } from "@/components/app/motion";
-import { SubTenantStatusBadge } from "@/components/app/status-badge";
+import { ReputationBadge, SubTenantStatusBadge } from "@/components/app/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
+import { REPUTATION_VISUAL, needsAttention } from "@/lib/reputation";
 import { getClientScopeId } from "@/lib/client-scope";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { SubTenant } from "@/lib/types";
@@ -69,6 +70,14 @@ export default async function SubTenantsPage() {
 
   const list = tenants ?? [];
   const empty = list.length === 0;
+  // Clients the sweep has acted on or flagged. Worst first — an operator opening
+  // this page after a bad night should read the pause before the warning, and
+  // should not have to scan a table of green rows to find either.
+  const RANK = { paused: 0, throttled: 1, warn: 2, ok: 3 } as const;
+  const trouble = list
+    .filter((t) => needsAttention(t.reputation.state))
+    .sort((a, b) => RANK[a.reputation.state] - RANK[b.reputation.state]);
+  const anyPaused = trouble.some((t) => t.reputation.state === "paused");
   // Which client (if any) the operator is currently acting as, so the row they're
   // already inside says so instead of offering to switch them there again.
   const activeClientId = await getClientScopeId();
@@ -119,7 +128,46 @@ export default async function SubTenantsPage() {
           </div>
         </Reveal>
       ) : (
-        <Reveal>
+        <Reveal className="space-y-4">
+          {/* The whole point of scoring clients separately is naming WHICH one is
+              going wrong. Making the operator find that by reading a column is
+              most of the way back to not having it — so it leads the page, and
+              only when there is something to say. */}
+          {trouble.length ? (
+            <div
+              className={cn(
+                "rounded-xl border p-4",
+                anyPaused
+                  ? "border-red-300 bg-red-50/70 dark:border-red-900/60 dark:bg-red-950/20"
+                  : "border-amber-300 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20",
+              )}
+            >
+              <p className="flex items-center gap-2 text-sm font-medium">
+                {anyPaused ? (
+                  <PauseCircle className="size-4 text-red-600 dark:text-red-400" />
+                ) : (
+                  <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
+                )}
+                {trouble.length} client{trouble.length === 1 ? "" : "s"} need
+                {trouble.length === 1 ? "s" : ""} your attention
+              </p>
+              <ul className="mt-2.5 space-y-2">
+                {trouble.map((t) => (
+                  <li key={t.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+                    <Link href={`/sub-tenants/${t.id}`} className="font-medium hover:underline">
+                      {t.name}
+                    </Link>
+                    <span className="font-mono text-xs text-muted-foreground">{t.sending_domain}</span>
+                    <ReputationBadge state={t.reputation.state} />
+                    <span className="w-full text-xs text-muted-foreground sm:w-auto">
+                      {t.reputation.reason ?? REPUTATION_VISUAL[t.reputation.state].effect}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">{list.length} client domain{list.length === 1 ? "" : "s"}</CardTitle>
@@ -130,7 +178,11 @@ export default async function SubTenantsPage() {
                   <TableRow>
                     <TableHead>Domain</TableHead>
                     <TableHead>Client</TableHead>
-                    <TableHead>Status</TableHead>
+                    {/* Two axes, two columns. One "Status" column could only ever
+                        show one of them, and it showed the DNS one — so a client
+                        the sweep had automatically paused still read "verified". */}
+                    <TableHead>Verification</TableHead>
+                    <TableHead>Sending</TableHead>
                     <TableHead>Added</TableHead>
                     <TableHead className="text-right" />
                   </TableRow>
@@ -139,12 +191,29 @@ export default async function SubTenantsPage() {
                   {list.map((t) => {
                     const acting = t.id === activeClientId;
                     return (
-                      <TableRow key={t.id} className={cn(acting && "bg-primary/[0.04]")}>
+                      <TableRow
+                        key={t.id}
+                        className={cn(
+                          acting && "bg-primary/[0.04]",
+                          t.reputation.state === "paused" && "bg-red-50/60 dark:bg-red-950/20",
+                        )}
+                      >
                         <TableCell className="font-mono text-sm">
                           <Link href={`/sub-tenants/${t.id}`} className="hover:underline">{t.sending_domain}</Link>
                         </TableCell>
                         <TableCell className="text-muted-foreground">{t.name}</TableCell>
                         <TableCell><SubTenantStatusBadge status={t.status} /></TableCell>
+                        <TableCell>
+                          {needsAttention(t.reputation.state) ? (
+                            // Straight to the numbers that explain it — the badge
+                            // alone answers "what", never "why".
+                            <Link href={`/sub-tenants/${t.id}`} className="hover:underline">
+                              <ReputationBadge state={t.reputation.state} />
+                            </Link>
+                          ) : (
+                            <ReputationBadge state={t.reputation.state} />
+                          )}
+                        </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">{relativeTime(t.created_at)}</TableCell>
                         <TableCell className="text-right">
                           {/* Registering a domain was as far as this page went — you

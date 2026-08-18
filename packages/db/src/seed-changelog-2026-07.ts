@@ -14,6 +14,32 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Every client's mail, numbers and proof stay their own",
+    date: "2026-08-18",
+    changes: [
+      {
+        kind: "Fixed",
+        text: "If you send on behalf of clients, a key or session limited to one client could previously read another client's message, audit trail, bounce rate or compliance export by asking for it directly. It cannot any more — the client a request belongs to is now decided by the credential, and asking for a different one is refused rather than quietly answered.",
+      },
+      {
+        kind: "New",
+        text: "Each client now has its own sending reputation, watched every 15 minutes. Bounce or complaint rates that climb get a warning, then slow sending, then a pause — so one client's bad list stops costing the others. A paused client shows why, with the numbers behind it, and only a person can resume it.",
+      },
+      {
+        kind: "New",
+        text: "API keys can be tied to a single client, and a key tied to one can no longer see or revoke your own.",
+      },
+      {
+        kind: "Improved",
+        text: "Client DKIM signing keys are encrypted where they're stored.",
+      },
+      {
+        kind: "Improved",
+        text: "We removed three claims we could not back: that clients were isolated from each other, that DKIM keys rotate automatically, and a test suite that did not exist. The first is now partly true and described precisely; the second is on the roadmap rather than in the past tense; the third exists — 81 tests, covering the paths where a silent regression would be a breach.",
+      },
+    ],
+  },
+  {
     title: "See who is waiting for which email",
     date: "2026-08-15",
     changes: [

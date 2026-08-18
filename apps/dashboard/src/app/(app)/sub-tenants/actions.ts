@@ -145,3 +145,28 @@ export async function removeSubTenant(id: string): Promise<{ error?: string }> {
   revalidatePath("/sub-tenants");
   redirect("/sub-tenants");
 }
+
+/**
+ * Lift a reputation pause.
+ *
+ * The ladder out of the trap door. Deliberately NOT a dismiss: pausing is sticky
+ * by design — a paused client that simply stops sending would otherwise "recover"
+ * on a decaying trailing average without anyone fixing the list that caused it —
+ * so only a human here can clear it, and the API re-baselines the client's window
+ * from this moment so the same old bounces can't re-pause them in fifteen minutes.
+ *
+ * Note which paths get revalidated: the LIST, never the detail page this is
+ * called from. Revalidating the current page resets the client state on it — the
+ * caller re-renders with `router.refresh()` instead, which keeps it.
+ */
+export async function resumeSubTenant(id: string): Promise<{ error?: string }> {
+  if (!id) return { error: "Missing client." };
+  try {
+    await api.resumeSubTenant(id);
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't resume this client." };
+  }
+  revalidatePath("/sub-tenants");
+  return {};
+}

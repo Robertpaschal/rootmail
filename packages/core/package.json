@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./constants": "./src/constants.ts",
+    "./reputation": "./src/reputation.ts",
     "./email-motion": "./src/email-motion.ts"
   },
   "scripts": {
