@@ -6,6 +6,7 @@ import { WhoItsFor } from "@/components/site/who-its-for";
 import { LayerModel } from "@/components/site/layer-model";
 import { Features } from "@/components/site/features";
 import { SubTenancy } from "@/components/site/subtenancy";
+import { Promises } from "@/components/site/promises";
 import { Pricing } from "@/components/site/pricing";
 import { Faq } from "@/components/site/faq";
 import { Cta } from "@/components/site/cta";
@@ -28,6 +29,7 @@ export default function HomePage() {
         <LayerModel />
         <Features />
         <SubTenancy />
+        <Promises />
         <Pricing />
         <Faq />
         <Cta />

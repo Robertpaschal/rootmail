@@ -74,7 +74,7 @@ const surface = [
   { icon: Gauge, name: "Deliverability", note: "score, fixes, DNS records" },
   { icon: BarChart3, name: "Analytics", note: "per campaign, sequence, tenant" },
   { icon: Network, name: "Client domains", note: "per-customer DKIM + verify" },
-  { icon: FileCheck2, name: "Proof exports", note: "Ed25519-signed, tamper-evident" },
+  { icon: FileCheck2, name: "Proof exports", note: "Ed25519-signed, independently verifiable" },
   { icon: Sparkles, name: "Assistant", note: "build, operate & diagnose via API" },
 ];
 

@@ -223,7 +223,7 @@ export const compliance: DocPage = {
     code(
       "ts",
       `const proof = await mail.messages.proof(msg.id);   // { bundle, signature }
-const valid = await mail.compliance.verify(proof);  // true — tamper-evident`,
+const valid = await mail.compliance.verify(proof);  // true — verifiable without us`,
       "proof.ts",
     ),
     callout("note", "Proof bundles are Ed25519-signed; any edit to the recorded events breaks the signature."),
