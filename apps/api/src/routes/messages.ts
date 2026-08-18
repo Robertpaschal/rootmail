@@ -119,11 +119,24 @@ async function resolveFrom(
   return { email: `no-reply@${env.ROOTMAIL_DOMAIN}`, name: workspace.name };
 }
 
+/**
+ * The single read gate for one message: GET, audit trail, proof bundle and event
+ * recording all come through here.
+ *
+ * Scoping MUST match the list endpoint (see `/v1/messages`): acting as a client
+ * narrows to that client's mail; no header means the whole workspace. Filtering
+ * on workspace alone let a caller scoped to client A fetch client B's message,
+ * audit trail and SIGNED PROOF BUNDLE by id — the worst possible leak for a
+ * proof product. Not "not found" but a 404 either way: an id that exists in a
+ * sibling tenant must be indistinguishable from one that doesn't exist.
+ */
 async function getScopedMessage(req: FastifyRequest, id: string): Promise<Message> {
+  const conditions = [eq(messages.id, id), eq(messages.workspaceId, req.auth.workspace.id)];
+  if (req.auth.subTenant) conditions.push(eq(messages.subTenantId, req.auth.subTenant.id));
   const [message] = await db
     .select()
     .from(messages)
-    .where(and(eq(messages.id, id), eq(messages.workspaceId, req.auth.workspace.id)))
+    .where(and(...conditions))
     .limit(1);
   if (!message) throw Errors.notFound(`Message ${id} not found`);
   return message;
@@ -191,6 +204,18 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // feature on the current plan, so an org that downgraded away from it can't
     // keep sending through its existing sub-tenants. 402 feature_locked.
     if (subTenant) await requireFeature(req, "subtenants");
+
+    // Reputation pause. Checked BEFORE the verification guard and in BOTH modes:
+    // a paused client is paused, and a sandbox that pretended otherwise would send
+    // its operator hunting for a bug instead of showing them the real reason. This
+    // is what finally makes SUBTENANT_STATUSES' "disabled" mean something.
+    if (subTenant && subTenant.reputationState === "paused") {
+      throw Errors.badRequest(
+        `Sending is paused for "${subTenant.name}" (${subTenant.sendingDomain}). ` +
+          `${subTenant.reputationReason ?? "Its bounce or complaint rate crossed the limit."} ` +
+          `Review the numbers and resume the client with POST /v1/sub-tenants/${subTenant.id}/resume.`,
+      );
+    }
 
     if (subTenant && subTenant.status !== "verified" && mode === "live") {
       throw Errors.badRequest(

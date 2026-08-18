@@ -15,14 +15,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
-import type { ApiKey } from "@/lib/types";
+import type { ApiKey, SubTenant } from "@/lib/types";
 
 interface Props {
   keys: ApiKey[];
   currentKey: { prefix: string; last4: string } | null;
+  /** Clients a key can be pinned to. Empty when the plan has no sub-tenancy. */
+  clients: SubTenant[];
 }
 
-export function ApiKeysManager({ keys, currentKey }: Props) {
+export function ApiKeysManager({ keys, currentKey, clients }: Props) {
+  const clientName = (id: string | null) => clients.find((c) => c.id === id)?.name ?? id;
   const [state, formAction] = useActionState(createApiKey, null);
   const [creating, setCreating] = useState(false);
   const active = keys.filter((k) => !k.revoked);
@@ -83,12 +86,42 @@ export function ApiKeysManager({ keys, currentKey }: Props) {
           <AnimatePresence initial={false}>
             {creating ? (
               <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.18 }} className="overflow-hidden">
-                <form action={formAction} className="flex flex-col gap-3 border-b bg-muted/20 px-5 py-4 sm:flex-row sm:items-end">
-                  <div className="grid flex-1 gap-1.5">
-                    <Label htmlFor="name">Name it — so you know where it&apos;s used</Label>
-                    <Input id="name" name="name" placeholder="Production server, Zapier, my-cli…" required autoFocus />
+                <form action={formAction} className="border-b bg-muted/20 px-5 py-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                    <div className="grid flex-1 gap-1.5">
+                      <Label htmlFor="name">Name it — so you know where it&apos;s used</Label>
+                      <Input id="name" name="name" placeholder="Production server, Zapier, my-cli…" required autoFocus />
+                    </div>
+                    {/* Scoping only exists if there are clients to scope to. */}
+                    {clients.length > 0 ? (
+                      <div className="grid gap-1.5 sm:w-64">
+                        <Label htmlFor="sub_tenant_id">Who can it act as?</Label>
+                        <select
+                          id="sub_tenant_id"
+                          name="sub_tenant_id"
+                          defaultValue=""
+                          className="h-9 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          <option value="">This whole workspace</option>
+                          {clients.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              Only {c.name} ({c.sending_domain})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : null}
+                    <SubmitButton pendingLabel="Creating…"><Plus className="size-4" /> Create key</SubmitButton>
                   </div>
-                  <SubmitButton pendingLabel="Creating…"><Plus className="size-4" /> Create key</SubmitButton>
+                  {clients.length > 0 ? (
+                    <p className="mt-2 text-xs text-muted-foreground">
+                      A workspace key can act as any client by sending the{" "}
+                      <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">X-Rootmail-Subtenant</code>{" "}
+                      header — keep those to yourself. A key scoped to one client can only ever reach
+                      that client&apos;s data, whatever headers it sends, so it&apos;s the one you can
+                      safely hand over.
+                    </p>
+                  ) : null}
                 </form>
                 {state?.error ? <p className="border-b bg-muted/20 px-5 pb-3 text-sm text-destructive">{state.error}</p> : null}
               </motion.div>
@@ -111,6 +144,7 @@ export function ApiKeysManager({ keys, currentKey }: Props) {
                   <TableHead>Name</TableHead>
                   <TableHead>Key</TableHead>
                   <TableHead>Mode</TableHead>
+                  {clients.length > 0 ? <TableHead>Acts as</TableHead> : null}
                   <TableHead>Last used</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -126,6 +160,15 @@ export function ApiKeysManager({ keys, currentKey }: Props) {
                     </TableCell>
                     <TableCell className="font-mono text-sm text-muted-foreground">{k.prefix}_…{k.last4}</TableCell>
                     <TableCell><Badge variant={k.mode === "live" ? "secondary" : "outline"}>{k.mode}</Badge></TableCell>
+                    {clients.length > 0 ? (
+                      <TableCell className="whitespace-nowrap text-sm">
+                        {k.sub_tenant_id ? (
+                          <Badge variant="outline" className="font-normal">{clientName(k.sub_tenant_id)}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground">Whole workspace</span>
+                        )}
+                      </TableCell>
+                    ) : null}
                     <TableCell className="whitespace-nowrap text-muted-foreground">{k.last_used_at ? relativeTime(k.last_used_at) : "Never"}</TableCell>
                     <TableCell className="text-right">
                       {k.revoked ? <Badge variant="destructive">Revoked</Badge> : isCurrent(k) ? <span className="text-xs text-muted-foreground">—</span> : <RevokeButton id={k.id} name={k.name} />}

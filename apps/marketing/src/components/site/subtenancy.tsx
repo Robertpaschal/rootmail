@@ -3,12 +3,15 @@ import { Badge } from "@/components/ui/badge";
 import { ReactiveCard, Reveal } from "./motion";
 
 // The agency/platform story in plain words: send for each client from THEIR
-// name, with their reputation kept separate — plain language, no jargon.
+// name, with their reputation MEASURED separately — plain language, no jargon.
+// Careful: measured separately is not the same as isolated. Sub-tenants share
+// one IP pool and one provider account, so never promise here that one client's
+// bounces can't reach another's delivery. See docs/BRIEF-2026-08-18.
 const steps = [
   "Add your client's web address in the dashboard.",
   "We prepare a short list of settings — copy them to your client (or their domain provider).",
   "rootmail checks them automatically and marks the client verified.",
-  "Send as your client, from their name — their reputation and history stay their own.",
+  "Send as your client, from their name — their reputation is scored on its own, and their history stays theirs.",
 ];
 
 const records = [
@@ -28,9 +31,9 @@ export function SubTenancy() {
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
             Run email for the businesses you serve. Each client sends from their own web address,
-            with their own sending reputation — one client&apos;s mistake never touches another&apos;s
-            delivery. Set up in the dashboard; no technical back-and-forth beyond pasting a few
-            settings.
+            and every client&apos;s sending reputation is measured separately — so you can see
+            exactly which one is going wrong, before the mailbox providers tell you. Set up in the
+            dashboard; no technical back-and-forth beyond pasting a few settings.
           </p>
           <ol className="mt-6 space-y-4">
             {steps.map((s, i) => (

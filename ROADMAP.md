@@ -5,9 +5,10 @@ the old phased roadmap and the separate product-audit POA (both folded in here).
 
 > **How we work:** every item is a branch → PR, committed at each checkpoint (◇).
 > Each item is **independent, complete, and verified** before it's checked off —
-> no TODOs left behind, no placeholders, real copy/links/values, tests where
-> behaviour can regress. **Truthful by default:** if we say it, the code does it.
-> Status: `[ ]` todo · `[~]` in progress · `[x]` done. Updated 2026-06-24.
+> no TODOs left behind, no placeholders, real copy/links/values, and a browser or
+> smoke-test walkthrough of the path it touches. **Truthful by default:** if we say
+> it, the code does it.
+> Status: `[ ]` todo · `[~]` in progress · `[x]` done. Updated 2026-08-17.
 
 ---
 
@@ -36,8 +37,21 @@ economics, enforced + Stripe-billed); **discounts/sales** everywhere pricing ren
 (plans + add-ons, honest charge); **on-page embedded checkout** (configure tiers +
 add-ons with a live total, pay without leaving the site); rootmail **dogfooding its
 own email** for lifecycle (welcome/invite/dunning/trial) + admin broadcast; full
-**dark mode**. A code scan shows **no TODOs or stubs** — every feature has a test or
-browser verification.
+**dark mode**. A code scan shows **no TODOs or stubs**.
+
+> **Testing, honestly:** `pnpm test` runs **81 tests** (`node:test` via `tsx`, no new
+> dependencies) across `core`, `db` and `api`. They are deliberately NARROW — they
+> cover only the paths where a silent regression is a customer-facing breach:
+> tenant read isolation (message / audit trail / signed proof bundle / event
+> recording, plus the compliance export), suppression scoping, rule-audience
+> validation and resolution, and the reputation threshold state machine. The
+> isolation suite is an integration test: it builds the real server and drives real
+> HTTP against a real database, because the bug it guards was one helper shared by
+> four routes.
+>
+> Everything else is still verified by manual browser walkthroughs, `scripts/smoke.ts`
+> and `tsc`. **The product does not have broad automated coverage — do not claim it
+> does.** Widening it is ordinary work; see `docs/BRIEF-2026-08-18-positioning-gaps.md`.
 
 **Apps:** `api` (Fastify) · `worker` (BullMQ) · `marketing` (Next) · `dashboard`
 (Next) · `admin` (Next). **Live services:** Stripe (test mode, incl. embedded

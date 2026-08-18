@@ -114,8 +114,9 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
               </span>
               <h2 className="mt-3 text-lg font-semibold">Whose domain are we setting up?</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Their mail will send from this domain, signed with its own DKIM key — so this client&apos;s
-                sending reputation is entirely their own, and a bad week for one client never touches another.
+                Their mail will send from this domain, signed with its own DKIM key — and this client&apos;s
+                bounces and complaints are scored separately, so a bad week shows up against the client
+                that caused it.
               </p>
 
               <div className="mt-5 space-y-4">

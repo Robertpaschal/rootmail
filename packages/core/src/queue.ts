@@ -21,6 +21,12 @@ export const SEND_QUEUE = "rootmail-send";
 export interface SendJobData {
   messageId: string;
   workspaceId: string;
+  /**
+   * How many times the per-tenant throttle has pushed this message to a later
+   * window. Capped at REPUTATION_MAX_DEFERRALS so a permanently-throttled tenant
+   * can't accumulate an immortal queue.
+   */
+  throttleDeferrals?: number;
 }
 
 // BullMQ: lower number = higher priority.
@@ -55,6 +61,26 @@ export async function enqueueSend(data: SendJobData, opts: EnqueueOptions = {}) 
     removeOnFail: { age: 7 * 86_400 },
     // One job per message — protects against duplicate enqueues (queue-level idempotency).
     jobId: data.messageId,
+  });
+}
+
+/**
+ * Re-queue a send the per-tenant throttle deferred to a later window.
+ *
+ * Deliberately WITHOUT the `jobId: messageId` that `enqueueSend` sets. That id is
+ * queue-level protection against a duplicate enqueue from the API, and BullMQ
+ * refuses to re-add an id whose completed job is still retained (24h) — so reusing
+ * it here would silently drop every throttled message. Sending twice is prevented
+ * regardless by `processSend`, which returns unless the message row is still
+ * queued/sending: the row is the real lock, the job id is only a shortcut.
+ */
+export async function enqueueSendDeferred(data: SendJobData, delayMs: number): Promise<void> {
+  await getSendQueue().add("send", data, {
+    delay: Math.max(0, delayMs),
+    attempts: 4,
+    backoff: { type: "exponential", delay: 5_000 },
+    removeOnComplete: { age: 86_400, count: 5_000 },
+    removeOnFail: { age: 7 * 86_400 },
   });
 }
 
@@ -239,5 +265,29 @@ export async function scheduleLifecycleSweep(everyMs = 24 * 60 * 60 * 1000): Pro
     "sweep",
     {},
     { repeat: { every: everyMs }, jobId: "lifecycle-sweep", removeOnComplete: true, removeOnFail: { count: 50 } },
+  );
+}
+
+// --- Per-tenant reputation -------------------------------------------------
+// A repeatable sweep scores every sending tenant against the same bands the
+// dashboard shows and warns / throttles / pauses the ones going wrong. Fifteen
+// minutes because the cost of being late is a shared provider account: this is
+// the loop that has to notice a bad tenant before the mailbox providers do.
+// ---------------------------------------------------------------------------
+export const REPUTATION_QUEUE = "rootmail-reputation";
+
+let reputationQueue: Queue | undefined;
+export function getReputationQueue(): Queue {
+  if (!reputationQueue)
+    reputationQueue = new Queue(REPUTATION_QUEUE, { connection: bullConnection(), prefix: BULL_PREFIX });
+  return reputationQueue;
+}
+
+/** Register the repeatable reputation sweep (idempotent — fixed repeat jobId). */
+export async function scheduleReputationSweep(everyMs = 15 * 60 * 1000): Promise<void> {
+  await getReputationQueue().add(
+    "sweep",
+    {},
+    { repeat: { every: everyMs }, jobId: "reputation-sweep", removeOnComplete: true, removeOnFail: { count: 50 } },
   );
 }

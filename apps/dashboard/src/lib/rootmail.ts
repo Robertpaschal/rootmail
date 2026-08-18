@@ -533,7 +533,7 @@ export const api = {
     rmFetch<ListResponse<WebhookDelivery>>(`/v1/webhook-endpoints/${id}/deliveries`),
 
   listApiKeys: () => rmFetch<ListResponse<ApiKey>>("/v1/api-keys"),
-  createApiKey: (body: { name: string }) =>
+  createApiKey: (body: { name: string; sub_tenant_id?: string }) =>
     rmFetch<CreatedApiKey>("/v1/api-keys", { method: "POST", body }),
   revokeApiKey: (id: string) => rmFetch<ApiKey>(`/v1/api-keys/${id}`, { method: "DELETE" }),
 

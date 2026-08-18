@@ -9,7 +9,8 @@
     "./email-motion": "./src/email-motion.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "bullmq": "^5.34.6",

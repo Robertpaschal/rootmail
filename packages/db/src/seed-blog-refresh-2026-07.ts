@@ -21,7 +21,7 @@ const UPDATES: { slug: string; description: string; body: string }[] = [
 Authentication is table stakes. Before anything else, your domain needs three DNS records:
 
 - **SPF** lists the servers allowed to send for your domain.
-- **DKIM** signs every message so nobody can tamper with it in transit. rootmail generates and rotates DKIM keys for every sending domain — including each sub-tenant's — automatically.
+- **DKIM** signs every message so nobody can tamper with it in transit. rootmail generates a DKIM key pair for every sending domain — including each sub-tenant's — and hands you the record to publish.
 - **DMARC** tells receivers what to do when a message fails the first two, and gives you reports on who's spoofing you. Start at p=none to observe, then move to quarantine and reject as your traffic proves clean.
 
 Run the domain check in rootmail (Deliverability → your domain, or just ask the assistant "is my domain set up?") and it will grade SPF, DKIM, DMARC, and BIMI with copy-paste fixes for anything missing. BIMI — your logo next to the message in supporting inboxes — is optional, but it's a nice trust signal once DMARC is enforcing.
@@ -120,7 +120,7 @@ One audience. One suppression state. One audit trail. One bill.
 
 ## Sub-tenancy from day one
 
-The moment your product sends email *for your customers* — invoices from their brand, notifications from their domain — most stacks fall apart. rootmail treats sub-tenancy as a first-class primitive: every customer gets their own verified sending domain with isolated DKIM keys and isolated reputation, managed through the same API you already use. A platform with a thousand customers is a thousand clean senders, not one shared blast radius.
+The moment your product sends email *for your customers* — invoices from their brand, notifications from their domain — most stacks fall apart. rootmail treats sub-tenancy as a first-class primitive: every customer gets their own verified sending domain, their own DKIM keys, their own suppression list, and their own reputation score measured separately from everyone else's — managed through the same API you already use. A platform with a thousand customers gets a thousand reputation scores it can actually read, instead of one aggregate number that tells you something is wrong but never who.
 
 ## Trust as a feature, not a promise
 

@@ -1,5 +1,29 @@
 # CLAUDE.md — working notes for rootmail
 
+> ## ⚠️ ACTIVE BRIEF — read before starting work
+> **`docs/BRIEF-2026-08-18-positioning-gaps.md`** is the current priority order.
+> It was written from an evidence-based audit against our validated buyer
+> (vertical SaaS platforms that send on behalf of their own customers).
+>
+> **P0 is urgent: three claims we currently make in public are false.**
+> `apps/marketing/src/components/site/subtenancy.tsx:31` promises tenant delivery
+> isolation we do not enforce; `packages/db/src/seed-blog-refresh-2026-07.ts:24`
+> claims automatic DKIM rotation that does not exist; `ROADMAP.md:37` claims test
+> coverage that does not exist.
+>
+> **P1.4 is a half-day fix with real exposure:** `getScopedMessage()`
+> (`apps/api/src/routes/messages.ts:122`) filters on `workspaceId` only, so the
+> message, audit-trail, proof-bundle and event routes can serve one tenant's data
+> to another. The list endpoint at line 490 already scopes correctly — copy it.
+>
+> **P1.1 is the wedge:** the per-tenant reputation enforcement loop. The scorer,
+> the per-tenant attribution, the `disabled` enum value and the send-time gate all
+> already exist — nothing connects them. Shipping it makes the isolation claim
+> true, and that is the launch.
+>
+> Do not publish a claim the brief lists under "Never claim until the code lands."
+
+
 rootmail is a unified email-infrastructure platform (see `README.md`). This file
 captures the non-obvious things an agent needs to work here productively.
 
@@ -22,7 +46,24 @@ pnpm db:migrate && pnpm db:seed   # seed prints API keys
 pnpm api                 # terminal 1
 pnpm worker              # terminal 2
 ROOTMAIL_API_KEY=rm_live_... pnpm exec tsx scripts/smoke.ts
+pnpm test                # node:test via tsx — needs infra:up (see below)
 ```
+
+## Tests
+`pnpm test` (turbo → `core`, `db`, `api`). Runner is **node's built-in `node:test`
+driven through `tsx`** — no test framework dependency, matching the "no build step"
+setup. Files are `src/**/*.test.ts` beside the code.
+
+Coverage is deliberately narrow: only the paths where a silent regression is a
+customer-facing breach. Pure suites (`core/reputation`, `db/suppression`,
+`db/segments`) need nothing. **`apps/api/src/routes/isolation.test.ts` needs Postgres
+running** (`pnpm infra:up`) — it builds the real server and drives real HTTP via
+`app.inject()`, because the leak it guards was one helper shared by four routes and a
+unit test of that helper would not have noticed. It creates and tears down its own
+org/workspace/tenants; it never depends on seed data.
+
+When you change scoping on a message route, an audience, or the suppression rules,
+run this before anything else — those are the tests that exist.
 
 ## Gotchas (learned the hard way)
 - **Ports:** this machine already runs Postgres on 5432/5433/5434 and Redis on

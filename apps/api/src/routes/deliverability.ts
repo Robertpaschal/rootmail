@@ -1,15 +1,7 @@
-import { and, eq, gte, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import {
-  MESSAGE_STATUSES,
-  type MessageStatus,
-  SUPPRESSION_REASONS,
-  type SuppressionReason,
-} from "@rootmail/core";
-import { db, messages, subTenants, suppressions } from "@rootmail/db";
-import { computeDeliverability } from "../lib/deliverability";
-import { realSendsOnly } from "../lib/real-sends";
+import { Errors, computeDeliverability } from "@rootmail/core";
+import { reputationSnapshotInput } from "@rootmail/db";
 import { parse } from "../lib/validate";
 
 const query = z.object({
@@ -22,67 +14,32 @@ export async function deliverabilityRoutes(app: FastifyInstance): Promise<void> 
   // workspace-scoped; pass ?sub_tenant_id= to scope to one sending domain.
   app.get("/v1/deliverability", async (req) => {
     const q = parse(query, req.query);
-    const wsId = req.auth.workspace.id;
-    // Explicit ?sub_tenant_id= wins; otherwise the X-Rootmail-Subtenant header
-    // scopes the snapshot, matching every other sub-tenant-aware resource.
-    const st = q.sub_tenant_id ?? req.auth.subTenant?.id;
-    const since = new Date(Date.now() - q.window_days * 86_400_000);
-
-    // Message outcomes in the window, grouped by status.
-    //
-    // Test sends are excluded, and this is not cosmetic. The product tells you
-    // in three places that the test scenarios "never affect your sending
-    // reputation" — and then invites you to run the bounce and complaint ones.
-    // Counting them made that a lie: three test sends were enough to drop a
-    // fresh workspace to 55/100, grade F, "your sending reputation is at risk".
-    // Somebody's first hour with rootmail would have been doing exactly what we
-    // asked and being told they had broken something.
-    //
-    // The address is the only marker available — `test_recipient` is derived at
-    // serialisation time from toEmail, not stored — so match on it directly, and
-    // cover raw simulator addresses too since those are never real people either.
-    const msgConds = [
-      eq(messages.workspaceId, wsId),
-      gte(messages.createdAt, since),
-      ...realSendsOnly(),
-    ];
-    if (st) msgConds.push(eq(messages.subTenantId, st));
-    const statusRows = await db
-      .select({ status: messages.status, n: sql<number>`count(*)::int` })
-      .from(messages)
-      .where(and(...msgConds))
-      .groupBy(messages.status);
-    const counts = Object.fromEntries(MESSAGE_STATUSES.map((s) => [s, 0])) as Record<MessageStatus, number>;
-    for (const r of statusRows) counts[r.status] = r.n;
-
-    // Active suppressions, grouped by reason (not windowed — list health is cumulative).
-    const supConds = [eq(suppressions.workspaceId, wsId)];
-    if (st) supConds.push(eq(suppressions.subTenantId, st));
-    const supRows = await db
-      .select({ reason: suppressions.reason, n: sql<number>`count(*)::int` })
-      .from(suppressions)
-      .where(and(...supConds))
-      .groupBy(suppressions.reason);
-    const byReason = Object.fromEntries(SUPPRESSION_REASONS.map((r) => [r, 0])) as Record<SuppressionReason, number>;
-    let supTotal = 0;
-    for (const r of supRows) {
-      byReason[r.reason] = r.n;
-      supTotal += r.n;
+    // Auth scope PINS this; a query param may narrow nothing and override
+    // nothing. "Explicit param wins" is how a client-scoped key reads a
+    // sibling's numbers — proven live: a key pinned to A passed
+    // ?sub_tenant_id=B and got B's bounce rate back. The header is rejected at
+    // the plugin, so the param was simply walking around the lock.
+    const authScope = req.auth.subTenant?.id ?? null;
+    if (authScope && q.sub_tenant_id && q.sub_tenant_id !== authScope) {
+      throw Errors.badRequest("sub_tenant_id conflicts with the X-Rootmail-Subtenant header");
     }
+    const st = authScope ?? q.sub_tenant_id ?? undefined;
 
-    // Sending-domain auth health (sub-tenant DKIM verification).
-    const stConds = [eq(subTenants.workspaceId, wsId)];
-    if (st) stConds.push(eq(subTenants.id, st));
-    const domainRows = await db.select({ status: subTenants.status }).from(subTenants).where(and(...stConds));
-    const dTotal = domainRows.length;
-    const dVerified = domainRows.filter((d) => d.status === "verified").length;
-
-    const result = computeDeliverability({
+    // The sampling lives in @rootmail/db because the worker's reputation sweep
+    // runs the SAME queries against the SAME scorer. When this route and the
+    // enforcement loop disagree about a tenant's numbers, the operator is told
+    // their client is fine while we throttle it — so there is one implementation.
+    //
+    // Note this read path counts sandbox sends and the sweep does not: the
+    // dashboard of a sandbox workspace should describe the sandbox, but nobody's
+    // client should be paused because a developer ran the bounce scenario.
+    const snapshot = await reputationSnapshotInput({
+      workspaceId: req.auth.workspace.id,
+      subTenantId: st,
       windowDays: q.window_days,
-      counts,
-      suppressions: { total: supTotal, byReason },
-      domains: { total: dTotal, verified: dVerified, unverified: dTotal - dVerified },
     });
+
+    const result = computeDeliverability(snapshot);
 
     return { object: "deliverability", scope: { sub_tenant_id: st ?? null }, ...result };
   });

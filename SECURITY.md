@@ -57,6 +57,13 @@ hardening review. (For reporting a vulnerability, email security@rootmail.io.)
 - Secrets live in gitignored `.env` / `apps/dashboard/.env.local`; `.env.example` is
   placeholders only (committed). The dashboard holds the API key in an httpOnly cookie
   and only ever calls the API server-side.
+- **Sub-tenant DKIM private keys are encrypted at rest** (AES-256-GCM, keyed by
+  `ENCRYPTION_KEY`), so a database dump no longer hands over every tenant's signing
+  key — which matters because DKIM keys have no expiry and, without rotation, no
+  revocation. This is *not* KMS: the key lives in the application environment, so it
+  defends against a stolen dump, backup or replica, not against host compromise.
+  Moving to a KMS is the next step; every caller already goes through
+  `encryptSecret`/`decryptSecret` and none knows the algorithm.
 - **Layer-3 proof bundles** are Ed25519-signed and pin a `content_hash` of the rendered
   HTML, so a message's lifecycle is independently verifiable.
 

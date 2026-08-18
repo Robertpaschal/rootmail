@@ -90,8 +90,27 @@ export const AUDIT_EVENTS = [
   "failed",
   "suppressed",
   "retried",
+  // Tenant-level reputation transitions. These are the only audit events NOT
+  // about one message, so they carry a null `message_id` — every message-trail
+  // query filters on that column, so they never leak into a message's history.
+  // They live here rather than in a table of their own because the product's
+  // promise is ONE append-only trail, and "we throttled your client" belongs in
+  // it just as much as "we delivered their mail".
+  "tenant_warned",
+  "tenant_throttled",
+  "tenant_paused",
+  "tenant_resumed",
 ] as const;
 export type AuditEvent = (typeof AUDIT_EVENTS)[number];
+
+/** The reputation transitions — the subset of AUDIT_EVENTS with no message. */
+export const TENANT_AUDIT_EVENTS = [
+  "tenant_warned",
+  "tenant_throttled",
+  "tenant_paused",
+  "tenant_resumed",
+] as const satisfies readonly AuditEvent[];
+export type TenantAuditEvent = (typeof TENANT_AUDIT_EVENTS)[number];
 
 export const PRIORITIES = ["high", "normal", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];
@@ -111,9 +130,22 @@ export const SUBTENANT_STATUSES = [
   "verifying",
   "verified",
   "failed",
+  // Set by the reputation sweep when a tenant crosses the hard threshold, and by
+  // nothing else. Cleared only by an explicit human resume — see REPUTATION_STATES.
   "disabled",
 ] as const;
 export type SubTenantStatus = (typeof SUBTENANT_STATUSES)[number];
+
+// How a sending tenant is currently being treated, independent of whether its DNS
+// verifies. `status` answers "can this domain send at all"; this answers "should
+// we let it, given how its mail is landing".
+//
+//   ok        → no restriction
+//   warn      → the parent has been told; sends unaffected
+//   throttled → sends metered to REPUTATION_THROTTLE_PER_HOUR, never dropped
+//   paused    → sends rejected; `status` is also flipped to "disabled"
+export const REPUTATION_STATES = ["ok", "warn", "throttled", "paused"] as const;
+export type ReputationState = (typeof REPUTATION_STATES)[number];
 
 export const SUPPRESSION_REASONS = ["bounce", "complaint", "unsubscribe", "manual"] as const;
 export type SuppressionReason = (typeof SUPPRESSION_REASONS)[number];
@@ -910,6 +942,13 @@ export const WEBHOOK_EVENTS = [
   "message.failed",
   "message.suppressed",
   "message.received",
+  // Reputation enforcement. A platform operator's own systems usually need these
+  // more urgently than a person does — "tenant.paused" is the one that should
+  // page someone, or flip a flag in the platform's own UI.
+  "tenant.warned",
+  "tenant.throttled",
+  "tenant.paused",
+  "tenant.resumed",
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

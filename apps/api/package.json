@@ -16,7 +16,8 @@
     "test:pricing-sales": "tsx scripts/test-pricing-sales.ts",
     "test:embedded-checkout": "tsx scripts/test-embedded-checkout.ts",
     "test:comms": "tsx scripts/test-comms.ts",
-    "cleanup:test-users": "tsx scripts/cleanup-test-users.ts"
+    "cleanup:test-users": "tsx scripts/cleanup-test-users.ts",
+    "test": "LOG_LEVEL=silent node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.104.1",

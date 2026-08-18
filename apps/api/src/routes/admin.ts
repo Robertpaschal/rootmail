@@ -86,7 +86,7 @@ import {
 } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { BETA_WAITLIST_TAG, betaWaitlistAudience } from "../lib/beta-waitlist";
-import { realSendsOnly, testSendsOnly } from "../lib/real-sends";
+import { realSendsOnly, testSendsOnly } from "@rootmail/db";
 import { parse } from "../lib/validate";
 
 const loginBody = z.object({ email: z.string().email(), password: z.string().min(1) });

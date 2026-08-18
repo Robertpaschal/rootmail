@@ -1,13 +1,17 @@
 import { and, eq } from "drizzle-orm";
 import {
   type AuditEvent,
+  decryptSecret,
+  enqueueSendDeferred,
   enqueueWebhookEvent,
   newId,
+  REPUTATION_MAX_DEFERRALS,
   type SendJobData,
+  takeThrottleToken,
   testRecipientFor,
   WEBHOOK_EVENTS,
 } from "@rootmail/core";
-import { activeReplyDomain, auditEntries, db, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
+import { activeReplyDomain, auditEntries, db, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
 import { getProviderFor } from "./providers";
 import type { OutboundAttachment } from "./providers/types";
 
@@ -68,15 +72,65 @@ async function isSuppressedAtSend(message: Message): Promise<boolean> {
     .where(
       and(eq(suppressions.workspaceId, message.workspaceId), eq(suppressions.email, message.toEmail)),
     );
-  return rows.some((r) => {
-    if (r.subTenantId !== null && r.subTenantId !== message.subTenantId) return false;
-    // Doctrine: an UNSUBSCRIBE opts out of bulk/marketing mail only — it can never
-    // block transactional one-to-one mail (password resets, receipts, replies in a
-    // live conversation). Bounces, complaints, and manual "never email" entries
-    // protect deliverability, so they stop every send type.
-    if (r.reason === "unsubscribe") return message.type === "marketing" || message.type === "sales";
-    return true;
-  });
+  // The decision — hierarchical scope, and "an unsubscribe is a bulk opt-out
+  // only" — lives in @rootmail/db/suppression as a pure function so it can be
+  // tested. See its comment for why both halves matter.
+  return isSuppressed(rows, { type: message.type, subTenantId: message.subTenantId });
+}
+
+const PAUSED_ERROR =
+  "Sending is paused for this client because of its reputation. The parent workspace can resume it from the dashboard.";
+
+type ReputationGate = "ok" | "deferred" | "paused";
+
+/**
+ * Apply the tenant's current reputation state to one send.
+ *
+ * - `paused`    → the message fails, with a reason a human can act on.
+ * - `throttled` → the message is re-queued into the next window, NOT dropped.
+ *                 Throttling is a rate, not a rejection: the mail still goes,
+ *                 just slowly enough to stop the tenant burning the shared
+ *                 provider account while its operator fixes the list.
+ * - otherwise   → straight through.
+ */
+async function reputationGate(message: Message, data: SendJobData): Promise<ReputationGate> {
+  if (!message.subTenantId) return "ok";
+
+  const [st] = await db
+    .select({ state: subTenants.reputationState })
+    .from(subTenants)
+    .where(eq(subTenants.id, message.subTenantId))
+    .limit(1);
+  if (!st) return "ok";
+  if (st.state === "paused") return "paused";
+  if (st.state !== "throttled") return "ok";
+
+  const verdict = await takeThrottleToken(message.subTenantId);
+  if (verdict.allowed) return "ok";
+
+  const deferrals = (data.throttleDeferrals ?? 0) + 1;
+  if (deferrals > REPUTATION_MAX_DEFERRALS) {
+    // Past a day of trying, a queue is just a place messages go to be forgotten.
+    // Fail it honestly so it shows up as failed rather than eternally pending.
+    await db
+      .update(messages)
+      .set({
+        status: "failed",
+        error: `Held by this client's send throttle for over ${REPUTATION_MAX_DEFERRALS} hours.`,
+        updatedAt: new Date(),
+      })
+      .where(eq(messages.id, message.id));
+    await audit(message, "failed", {
+      metadata: { reason: "throttle deferral limit reached", deferrals },
+    });
+    return "deferred";
+  }
+
+  await enqueueSendDeferred(
+    { messageId: message.id, workspaceId: message.workspaceId, throttleDeferrals: deferrals },
+    verdict.retryInMs,
+  );
+  return "deferred";
 }
 
 /** Process one send job: suppression → provider → status + audit transitions. */
@@ -88,6 +142,27 @@ export async function processSend(data: SendJobData): Promise<void> {
   }
   // Idempotent: only process a message that's still queued/sending.
   if (message.status !== "queued" && message.status !== "sending") {
+    return;
+  }
+
+  // Reputation enforcement, BEFORE the "sending" transition.
+  //
+  // The API rejects sends for a paused tenant at request time, but this message
+  // may have been queued (or scheduled days out, or fanned out by a campaign)
+  // before the pause landed. A gate that only guards the front door lets exactly
+  // the mail that caused the problem keep going out the back one.
+  //
+  // Checking here also means a throttled message can be deferred while it is
+  // still honestly `queued` — flipping it to `sending` first would leave it
+  // showing "sending" for an hour without anything being sent.
+  const gate = await reputationGate(message, data);
+  if (gate === "deferred") return;
+  if (gate === "paused") {
+    await db
+      .update(messages)
+      .set({ status: "failed", error: PAUSED_ERROR, updatedAt: new Date() })
+      .where(eq(messages.id, message.id));
+    await audit(message, "failed", { metadata: { reason: PAUSED_ERROR } });
     return;
   }
 
@@ -115,7 +190,13 @@ export async function processSend(data: SendJobData): Promise<void> {
       .where(eq(subTenants.id, message.subTenantId))
       .limit(1);
     if (st) {
-      dkim = { domain: st.sendingDomain, selector: st.dkimSelector, privateKeyPem: st.dkimPrivateKey };
+      // Stored encrypted; rows written before that shipped are plaintext and pass
+      // through untouched, so a half-backfilled table signs correctly either way.
+      dkim = {
+        domain: st.sendingDomain,
+        selector: st.dkimSelector,
+        privateKeyPem: decryptSecret(st.dkimPrivateKey),
+      };
     }
   }
 

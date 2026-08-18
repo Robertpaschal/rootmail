@@ -6,8 +6,10 @@ import {
   createRedis,
   env,
   LIFECYCLE_QUEUE,
+  REPUTATION_QUEUE,
   RETENTION_QUEUE,
   scheduleLifecycleSweep,
+  scheduleReputationSweep,
   scheduleRetentionSweep,
   scheduleSequenceTick,
   SEND_QUEUE,
@@ -21,6 +23,7 @@ import { closeDb } from "@rootmail/db";
 import { processCampaignSend } from "./campaigns";
 import { processLifecycleSweep } from "./lifecycle";
 import { processSend } from "./pipeline";
+import { processReputationSweep } from "./reputation";
 import { processRetentionSweep } from "./retention";
 import { processSequenceTick } from "./sequences";
 import { processSystemMail } from "./system-mail";
@@ -125,6 +128,23 @@ lifecycleWorker.on("ready", () => {
 });
 lifecycleWorker.on("error", (err) => console.error("lifecycle worker error:", err.message));
 
+// Per-tenant reputation: a repeatable 15-minute sweep scores every sending tenant
+// and warns / throttles / pauses the ones going wrong. Concurrency 1 — two
+// overlapping sweeps could both decide to transition the same tenant and notify
+// its operator twice for one crossing.
+const reputationWorker = new Worker(
+  REPUTATION_QUEUE,
+  async (job) => {
+    if (job.name === "sweep") await processReputationSweep();
+  },
+  { connection: createRedis() as unknown as ConnectionOptions, prefix: BULL_PREFIX, concurrency: 1 },
+);
+reputationWorker.on("ready", () => {
+  console.log(`rootmail reputation worker ready — queue "${REPUTATION_QUEUE}"`);
+  void scheduleReputationSweep();
+});
+reputationWorker.on("error", (err) => console.error("reputation worker error:", err.message));
+
 const shutdown = async (signal: string) => {
   console.log(`${signal} received — closing worker`);
   await worker.close();
@@ -134,6 +154,7 @@ const shutdown = async (signal: string) => {
   await systemMailWorker.close();
   await retentionWorker.close();
   await lifecycleWorker.close();
+  await reputationWorker.close();
   await closeDb();
   process.exit(0);
 };

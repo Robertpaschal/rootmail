@@ -118,6 +118,16 @@ export interface SubTenant {
   verified_at: string | null;
   last_checked_at: string | null;
   created_at: string;
+  /** How this client's mail is landing, and what enforcement is doing about it. */
+  reputation: {
+    state: "ok" | "warn" | "throttled" | "paused";
+    score: number | null;
+    reason: string | null;
+    metrics: Record<string, unknown>;
+    checked_at: string | null;
+    changed_at: string | null;
+    resumed_at: string | null;
+  };
   dns_records?: DnsRecord[];
 }
 
@@ -963,6 +973,8 @@ export interface ApiKey {
   prefix: string;
   last4: string;
   mode: "live" | "test";
+  /** Null = a workspace key. Set = pinned to that client and nothing else. */
+  sub_tenant_id: string | null;
   revoked: boolean;
   last_used_at: string | null;
   revoked_at: string | null;

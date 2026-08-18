@@ -27,7 +27,7 @@ const DESC =
 const STEPS = [
   { icon: Network, title: "Add the client's domain", body: "Name the client and enter the domain they'll send from, e.g. news.acme.com." },
   { icon: KeyRound, title: "Publish the DNS records", body: "We generate DKIM + SPF records; the client (or you) adds them at their DNS host — we show exactly what to paste." },
-  { icon: ShieldCheck, title: "Verify & send", body: "Once the records resolve, the domain goes verified and mail sends under it — with its reputation isolated from everyone else's." },
+  { icon: ShieldCheck, title: "Verify & send", body: "Once the records resolve, the domain goes verified and mail sends under it — with its reputation scored separately from everyone else's." },
 ];
 
 export default async function SubTenantsPage() {
@@ -52,7 +52,7 @@ export default async function SubTenantsPage() {
       <>
         <PageHeader title="Client domains" description={DESC} />
         <Reveal>
-          <FeatureLocked info={locked} blurb="Client domains let your customers send under their own verified domains, with DKIM and reputation isolated from each other." />
+          <FeatureLocked info={locked} blurb="Client domains let your customers send under their own verified domains, each with its own DKIM keys and its own reputation score." />
         </Reveal>
       </>
     );
@@ -92,7 +92,7 @@ export default async function SubTenantsPage() {
           <EmptyState
             icon={<Network className="size-6" />}
             title="No client domains yet"
-            description="Perfect for agencies and platforms: let each client send under their own domain, verified and reputation-isolated so one client's bounces never touch another's."
+            description="Perfect for agencies and platforms: let each client send under their own domain, verified, with their bounces and complaints scored separately so you can see which client is going wrong."
           />
           {/* How it works — three plain steps, then the form on demand. */}
           <div className="grid gap-4 sm:grid-cols-3">

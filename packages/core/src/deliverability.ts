@@ -1,4 +1,4 @@
-import type { MessageStatus, SuppressionReason } from "@rootmail/core";
+import type { MessageStatus, SuppressionReason } from "./constants";
 
 // Deliverability scoring. Turns raw send outcomes (delivery / bounce / complaint /
 // failure) plus domain-auth health into a single 0–100 score, the factors hurting
@@ -7,6 +7,12 @@ import type { MessageStatus, SuppressionReason } from "@rootmail/core";
 // Thresholds follow what the big mailbox providers and ESPs publish: keep bounces
 // under ~2% and complaints under ~0.1%; SES warns at 5% bounce / 0.1% complaint and
 // can suspend around 10% / 0.5%. We score against those bands.
+//
+// This lives in `core` rather than in the API because it has TWO callers now: the
+// read-only GET /v1/deliverability route, and the worker's reputation sweep, which
+// enforces against the same numbers. One scorer, one set of bands — a second
+// implementation would let the dashboard and the enforcement disagree about
+// whether a tenant is in trouble, which is the one thing that must never happen.
 
 export type DeliverabilityStatus = "no_data" | "excellent" | "good" | "at_risk" | "critical";
 export type Severity = "info" | "warning" | "critical";

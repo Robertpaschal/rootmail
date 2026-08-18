@@ -18,8 +18,15 @@ export async function createApiKey(
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Give the key a name so you can recognise it later." };
 
+  // "" is the workspace-wide option in the select — send nothing rather than an
+  // empty string, which the API would treat as a sub-tenant id and reject.
+  const subTenantId = String(formData.get("sub_tenant_id") ?? "").trim();
+
   try {
-    const created = await api.createApiKey({ name });
+    const created = await api.createApiKey({
+      name,
+      ...(subTenantId ? { sub_tenant_id: subTenantId } : {}),
+    });
     revalidatePath("/api-keys");
     return { secret: created.key, name: created.name };
   } catch (err) {

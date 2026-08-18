@@ -30,12 +30,23 @@ export async function exportRoutes(app: FastifyInstance): Promise<void> {
     const to = q.to ? new Date(q.to) : new Date();
     if (to <= from) throw Errors.badRequest("`to` must be after `from`.");
 
+    // Scope, in the same shape as GET /v1/messages: acting as a client PINS the
+    // export to that client. Without this, a caller scoped to client A could omit
+    // sub_tenant_id and walk away with a SIGNED bundle of the whole workspace, or
+    // name client B outright. A signed export is the one artefact a customer
+    // forwards to their own auditor, so it must never contain a sibling's mail.
+    const authScope = req.auth.subTenant?.id ?? null;
+    if (authScope && q.sub_tenant_id && q.sub_tenant_id !== authScope) {
+      throw Errors.badRequest("sub_tenant_id conflicts with the X-Rootmail-Subtenant header");
+    }
+    const scope = authScope ?? q.sub_tenant_id ?? null;
+
     const conds = [
       eq(messages.workspaceId, req.auth.workspace.id),
       gte(messages.createdAt, from),
       lte(messages.createdAt, to),
     ];
-    if (q.sub_tenant_id) conds.push(eq(messages.subTenantId, q.sub_tenant_id));
+    if (scope) conds.push(eq(messages.subTenantId, scope));
 
     const rows = await db
       .select()
@@ -69,7 +80,9 @@ export async function exportRoutes(app: FastifyInstance): Promise<void> {
 
     const bundle = {
       workspace_id: req.auth.workspace.id,
-      sub_tenant_id: q.sub_tenant_id ?? null,
+      // The EFFECTIVE scope, not the query param — a header-scoped export must
+      // sign what it actually contains, or the bundle misdescribes itself.
+      sub_tenant_id: scope,
       range: { from: from.toISOString(), to: to.toISOString() },
       generated_at: new Date().toISOString(),
       message_count: rows.length,

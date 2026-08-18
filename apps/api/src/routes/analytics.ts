@@ -1,9 +1,9 @@
 import { and, desc, eq, gte, inArray, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import type { MessageType } from "@rootmail/core";
+import { Errors, type MessageType } from "@rootmail/core";
 import { db, auditEntries, messages, templates } from "@rootmail/db";
-import { realSendsOnly } from "../lib/real-sends";
+import { realSendsOnly } from "@rootmail/db";
 import { parse } from "../lib/validate";
 
 const query = z.object({
@@ -28,9 +28,16 @@ export async function analyticsRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/analytics", async (req) => {
     const q = parse(query, req.query);
     const wsId = req.auth.workspace.id;
-    // Explicit ?sub_tenant_id= wins; otherwise the X-Rootmail-Subtenant header
-    // scopes the funnel, matching every other sub-tenant-aware resource.
-    const st = q.sub_tenant_id ?? req.auth.subTenant?.id;
+    // Auth scope PINS this; a query param may narrow nothing and override
+    // nothing. "Explicit param wins" is how a client-scoped key reads a
+    // sibling's numbers — proven live: a key pinned to A passed
+    // ?sub_tenant_id=B and got B's bounce rate back. The header is rejected at
+    // the plugin, so the param was simply walking around the lock.
+    const authScope = req.auth.subTenant?.id ?? null;
+    if (authScope && q.sub_tenant_id && q.sub_tenant_id !== authScope) {
+      throw Errors.badRequest("sub_tenant_id conflicts with the X-Rootmail-Subtenant header");
+    }
+    const st = authScope ?? q.sub_tenant_id ?? undefined;
     const since = new Date(Date.now() - q.window_days * 86_400_000);
     // Test sends are excluded here for the same reason as on Deliverability:
     // nobody received them, so counting them as engagement drags every real

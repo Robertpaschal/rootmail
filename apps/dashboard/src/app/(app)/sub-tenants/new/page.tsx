@@ -28,7 +28,7 @@ export default async function NewClientDomainPage() {
         <PageHeader title="Add a client domain" backHref="/sub-tenants" backLabel="Client domains" />
         <FeatureLocked
           info={locked}
-          blurb="Client domains let your customers send under their own verified domains, with DKIM and reputation isolated from each other."
+          blurb="Client domains let your customers send under their own verified domains, each with its own DKIM keys and its own reputation score."
         />
       </>
     );

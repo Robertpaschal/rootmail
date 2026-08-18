@@ -57,6 +57,15 @@ const EnvSchema = z.object({
   //   openssl genpkey -algorithm ed25519
   PROOF_SIGNING_KEY: z.string().optional(),
 
+  // Master key for encrypting secrets at rest — today, every sub-tenant's DKIM
+  // private key. Unset → a dev-only derived key, so local development needs no
+  // setup; a warning is logged once at startup. Generate prod:
+  //   openssl rand -base64 32
+  // ROTATING THIS ORPHANS EVERY ENCRYPTED VALUE. There is no re-wrap job yet, so
+  // changing it means re-provisioning DKIM for every sub-tenant. See
+  // `packages/core/src/encryption.ts`.
+  ENCRYPTION_KEY: z.string().min(32).optional(),
+
   // Dev-only escape hatch: allow outbound webhooks to loopback/private hosts so
   // a local catcher can be tested. NEVER enable in production (SSRF risk).
   WEBHOOK_ALLOW_LOCAL: z
@@ -180,6 +189,28 @@ if (!parsed.success) {
     JSON.stringify(parsed.error.flatten().fieldErrors, null, 2),
   );
   throw new Error("Invalid environment configuration");
+}
+
+/*
+ * Refuse to run without a real ENCRYPTION_KEY in production.
+ *
+ * Absent, encryption did not fail — it fell back to a literal committed in this
+ * repository, logged one warning, and produced ciphertext with the `enc:v1:`
+ * prefix. Every DKIM key would look protected while being readable by anyone
+ * with the source, at the same moment SECURITY.md began asserting AES-256-GCM.
+ * Then the first person to set a real key would break signing for every
+ * sub-tenant, unrecoverably, because there is no re-wrap job.
+ *
+ * Booting is the only safe place to catch that: a missing key is a deployment
+ * mistake, and a crash on start is loud, immediate and harmless next to
+ * silently fake encryption.
+ */
+if (parsed.data.NODE_ENV === "production" && !parsed.data.ENCRYPTION_KEY) {
+  throw new Error(
+    "ENCRYPTION_KEY is required in production (min 32 chars). Without it, stored " +
+      "secrets would be encrypted with a key published in this repository. Set it " +
+      "on every service that reads secrets — api AND worker — before any tenant exists.",
+  );
 }
 
 export const env = parsed.data;

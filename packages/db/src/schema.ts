@@ -37,6 +37,7 @@ import {
   type SequenceTrigger,
   SUPPRESSION_REASONS,
   THREAD_STATUSES,
+  REPUTATION_STATES,
   TEMPLATE_TYPES,
   WEBHOOK_ENDPOINT_STATUSES,
   WINGS,
@@ -53,6 +54,7 @@ export const auditEventEnum = pgEnum("audit_event", AUDIT_EVENTS);
 export const priorityEnum = pgEnum("priority", PRIORITIES);
 export const contactStatusEnum = pgEnum("contact_status", CONTACT_STATUSES);
 export const subTenantStatusEnum = pgEnum("sub_tenant_status", SUBTENANT_STATUSES);
+export const reputationStateEnum = pgEnum("reputation_state", REPUTATION_STATES);
 export const suppressionReasonEnum = pgEnum("suppression_reason", SUPPRESSION_REASONS);
 export const workspaceEnvironmentEnum = pgEnum("workspace_environment", WORKSPACE_ENVIRONMENTS);
 export const membershipRoleEnum = pgEnum("membership_role", MEMBERSHIP_ROLES);
@@ -583,6 +585,20 @@ export const apiKeys = pgTable("api_keys", {
   workspaceId: text("workspace_id")
     .notNull()
     .references(() => workspaces.id, { onDelete: "cascade" }),
+  /**
+   * Pins this key to ONE client.
+   *
+   * Null (the default) is a workspace key: it may act as any client by sending
+   * `X-Rootmail-Subtenant`, which is right when the platform itself holds the
+   * key. When set, the scope is the key's own — the header is ignored if it
+   * agrees and REJECTED if it doesn't, so scope can never be widened by a
+   * request. This is what makes "give my client a key that only reaches their
+   * own data" answerable, and it is the first thing every platform buyer asks.
+   *
+   * Cascade on delete: a key for a client that no longer exists must stop
+   * working, not fall back to workspace-wide access.
+   */
+  subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "cascade" }),
   name: text("name").notNull(),
   prefix: text("prefix").notNull(),
   last4: text("last4").notNull(),
@@ -611,10 +627,43 @@ export const subTenants = pgTable(
     verificationToken: text("verification_token").notNull(),
     dkimSelector: text("dkim_selector").notNull(),
     dkimPublicKey: text("dkim_public_key").notNull(),
-    // PEM private key — must be encrypted at rest / KMS-managed in production.
+    /**
+     * PEM private key, ENCRYPTED AT REST (`enc:v1:…`, AES-256-GCM keyed by
+     * ENCRYPTION_KEY — see packages/core/src/encryption.ts). Never read this
+     * column directly: go through `decryptSecret`, which passes legacy plaintext
+     * rows through unchanged so a half-backfilled table still signs correctly.
+     * Backfill with `pnpm db:encrypt-dkim`.
+     *
+     * Still not KMS: the key is in the application's environment, so this defends
+     * against a stolen dump or backup, not against host compromise.
+     */
     dkimPrivateKey: text("dkim_private_key").notNull(),
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
+
+    // --- Reputation enforcement (set by the worker's reputation sweep) --------
+    // `status` says whether this domain is allowed to send at all; these say how
+    // its mail is actually landing and what we are doing about it.
+    reputationState: reputationStateEnum("reputation_state").notNull().default("ok"),
+    /** Last 0–100 score from computeDeliverability. Null until first swept. */
+    reputationScore: integer("reputation_score"),
+    /** Plain-English why, shown to the parent and returned in the send error. */
+    reputationReason: text("reputation_reason"),
+    /** The numbers behind the decision — rates, thresholds, volume. */
+    reputationMetrics: jsonb("reputation_metrics").$type<Record<string, unknown>>().notNull().default({}),
+    reputationCheckedAt: timestamp("reputation_checked_at", { withTimezone: true }),
+    reputationChangedAt: timestamp("reputation_changed_at", { withTimezone: true }),
+    /**
+     * When a human last resumed this tenant after a pause.
+     *
+     * The sweep judges a resumed tenant only on mail sent AFTER this moment. A
+     * trailing window still full of the bounces that caused the pause would
+     * re-pause them within fifteen minutes of the operator clicking resume — a
+     * ladder out of the trap door that puts you straight back in it. Judging them
+     * on what they do next is both fairer and the only version that terminates.
+     */
+    reputationResumedAt: timestamp("reputation_resumed_at", { withTimezone: true }),
+
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
@@ -1076,9 +1125,14 @@ export const auditEntries = pgTable(
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
     subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "set null" }),
-    messageId: text("message_id")
-      .notNull()
-      .references(() => messages.id, { onDelete: "cascade" }),
+    /**
+     * Null ONLY for the tenant-level reputation events (see TENANT_AUDIT_EVENTS) —
+     * a throttle or a pause is about the tenant, not about one message. Every
+     * message-trail query filters on this column by equality or an inner join, so
+     * those rows are invisible to them; read them back with
+     * `where sub_tenant_id = … and message_id is null`.
+     */
+    messageId: text("message_id").references(() => messages.id, { onDelete: "cascade" }),
     event: auditEventEnum("event").notNull(),
     actor: text("actor").notNull().default("system"),
     actorId: text("actor_id"),

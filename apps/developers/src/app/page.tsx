@@ -58,7 +58,7 @@ const whyPoints = [
   {
     icon: Network,
     title: "Grows into platform territory",
-    body: "Sending on behalf of YOUR customers? Client domains give each their own verified identity and isolated reputation — no re-platforming the day you become a platform.",
+    body: "Sending on behalf of YOUR customers? Client domains give each their own verified identity and their own reputation score — no re-platforming the day you become a platform.",
   },
 ];
 

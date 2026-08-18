@@ -1,0 +1,2 @@
+ALTER TABLE "api_keys" ADD COLUMN "sub_tenant_id" text;--> statement-breakpoint
+ALTER TABLE "api_keys" ADD CONSTRAINT "api_keys_sub_tenant_id_sub_tenants_id_fk" FOREIGN KEY ("sub_tenant_id") REFERENCES "public"."sub_tenants"("id") ON DELETE cascade ON UPDATE no action;

@@ -172,6 +172,18 @@ export function serializeSubTenant(t: SubTenant, opts: { includeDns?: boolean } 
     verified_at: t.verifiedAt,
     last_checked_at: t.lastCheckedAt,
     created_at: t.createdAt,
+    // How this client's mail is actually landing, and what we're doing about it.
+    // Always present so a caller can branch on it without a second request —
+    // "why is my send failing" must be answerable from the object you already hold.
+    reputation: {
+      state: t.reputationState,
+      score: t.reputationScore,
+      reason: t.reputationReason,
+      metrics: t.reputationMetrics,
+      checked_at: t.reputationCheckedAt,
+      changed_at: t.reputationChangedAt,
+      resumed_at: t.reputationResumedAt,
+    },
   };
   if (!opts.includeDns) return base;
   return {
@@ -213,6 +225,9 @@ export function serializeApiKey(k: ApiKey) {
     prefix: k.prefix,
     last4: k.last4,
     mode: k.mode,
+    // Null = a workspace key that may act as any client via the header. Set = the
+    // key IS that client and cannot reach anything else.
+    sub_tenant_id: k.subTenantId,
     revoked: k.revokedAt != null,
     last_used_at: k.lastUsedAt,
     revoked_at: k.revokedAt,

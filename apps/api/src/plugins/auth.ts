@@ -26,19 +26,52 @@ function extractBearer(header: string | undefined): string | undefined {
   return token.trim();
 }
 
-/** Resolve an optional sub-tenant scope from the X-Rootmail-Subtenant header. */
-async function resolveSubTenant(req: FastifyRequest, workspaceId: string) {
-  const rawHeader = req.headers["x-rootmail-subtenant"];
-  const subId = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
-  if (!subId) return null;
-
+async function loadSubTenant(id: string, workspaceId: string) {
   const [st] = await db
     .select()
     .from(subTenants)
-    .where(and(eq(subTenants.id, subId), eq(subTenants.workspaceId, workspaceId)))
+    .where(and(eq(subTenants.id, id), eq(subTenants.workspaceId, workspaceId)))
     .limit(1);
-  if (!st) throw Errors.notFound(`Sub-tenant ${subId} not found in this workspace`);
+  if (!st) throw Errors.notFound(`Sub-tenant ${id} not found in this workspace`);
   return st;
+}
+
+/**
+ * Resolve the effective client scope for this request.
+ *
+ * Two sources, and the precedence between them is the whole security property:
+ *
+ * - A key **pinned** to a client (`api_keys.sub_tenant_id`) carries its scope in
+ *   the credential. The header cannot widen it, cannot change it, and is rejected
+ *   outright on a mismatch rather than quietly ignored — a caller who thinks they
+ *   are reading client B should be told they are not, not handed client A's data
+ *   under B's name.
+ * - An **unpinned** key (or a dashboard session) is workspace-wide and may act as
+ *   any client in that workspace via the header. That is correct when the platform
+ *   itself holds the credential.
+ *
+ * `pinned` is passed in rather than read from `req.auth` because this runs while
+ * `req.auth` is still being built.
+ */
+async function resolveSubTenant(
+  req: FastifyRequest,
+  workspaceId: string,
+  pinned: string | null = null,
+) {
+  const rawHeader = req.headers["x-rootmail-subtenant"];
+  const headerId = Array.isArray(rawHeader) ? rawHeader[0] : rawHeader;
+
+  if (pinned) {
+    if (headerId && headerId !== pinned) {
+      throw Errors.forbidden(
+        "This API key is scoped to one client and can't act as another. Drop the X-Rootmail-Subtenant header, or use a workspace key.",
+      );
+    }
+    return loadSubTenant(pinned, workspaceId);
+  }
+
+  if (!headerId) return null;
+  return loadSubTenant(headerId, workspaceId);
 }
 
 async function authenticateApiKey(req: FastifyRequest, token: string): Promise<void> {
@@ -56,7 +89,7 @@ async function authenticateApiKey(req: FastifyRequest, token: string): Promise<v
     .limit(1);
   if (!workspace) throw Errors.unauthorized();
 
-  const subTenant = await resolveSubTenant(req, workspace.id);
+  const subTenant = await resolveSubTenant(req, workspace.id, key.subTenantId);
   req.auth = { apiKey: key, user: null, workspace, subTenant, mode: key.mode };
 
   // Best-effort last-used tracking; never block the request on it.

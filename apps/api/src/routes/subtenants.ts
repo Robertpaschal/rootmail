@@ -1,18 +1,22 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
   auditEmailAuth,
   buildDnsRecords,
+  clearThrottle,
+  encryptSecret,
+  enqueueWebhookEvent,
   env,
   Errors,
   generateDkimKeypair,
   isVerified,
   newId,
   randomToken,
+  REPUTATION_THRESHOLDS,
   verifyDnsRecords,
 } from "@rootmail/core";
-import { db, type SubTenant, subTenants, workspaces } from "@rootmail/db";
+import { auditEntries, db, type SubTenant, subTenants, workspaces } from "@rootmail/db";
 import { loadOrg, requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { getAddon, getPlan } from "../lib/plans";
@@ -102,7 +106,10 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
         verificationToken: randomToken(),
         dkimSelector: dkim.selector,
         dkimPublicKey: dkim.dnsValue,
-        dkimPrivateKey: dkim.privateKeyPem,
+        // Encrypted at rest: a dump of this table would otherwise hand over every
+        // tenant's signing key, and DKIM keys have no expiry. The worker decrypts
+        // at send time. See packages/core/src/encryption.ts.
+        dkimPrivateKey: encryptSecret(dkim.privateKeyPem),
       })
       .returning();
 
@@ -199,10 +206,15 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
     const checks = await verifyDnsRecords(records);
     const verified = isVerified(checks);
 
+    // A reputation pause outranks DNS. Without this, re-running verification on a
+    // paused client would flip `status` back to "verified" and quietly reopen the
+    // send path — a pause anyone can clear by pressing the button next to it.
+    const paused = st.reputationState === "paused";
+
     const [updated] = await db
       .update(subTenants)
       .set({
-        status: verified ? "verified" : "failed",
+        status: paused ? "disabled" : verified ? "verified" : "failed",
         lastCheckedAt: new Date(),
         verifiedAt: verified ? new Date() : st.verifiedAt,
         updatedAt: new Date(),
@@ -211,5 +223,107 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
       .returning();
 
     return { ...serializeSubTenant(updated, { includeDns: true }), verified, checks };
+  });
+
+  // --- Reputation history -------------------------------------------------
+  // Every warn / throttle / pause / resume this client has been through, with the
+  // numbers that caused each one. A pause the operator cannot explain to their own
+  // customer is a support ticket they cannot answer.
+  app.get("/v1/sub-tenants/:id/reputation", async (req) => {
+    const { id } = req.params as { id: string };
+    const st = await getScopedSubTenant(req, id);
+    const trail = await db
+      .select()
+      .from(auditEntries)
+      .where(and(eq(auditEntries.subTenantId, st.id), isNull(auditEntries.messageId)))
+      .orderBy(desc(auditEntries.occurredAt))
+      .limit(100);
+
+    return {
+      object: "reputation",
+      sub_tenant_id: st.id,
+      state: st.reputationState,
+      score: st.reputationScore,
+      reason: st.reputationReason,
+      metrics: st.reputationMetrics,
+      checked_at: st.reputationCheckedAt,
+      changed_at: st.reputationChangedAt,
+      resumed_at: st.reputationResumedAt,
+      thresholds: REPUTATION_THRESHOLDS,
+      history: trail.map((a) => ({
+        event: a.event,
+        occurred_at: a.occurredAt,
+        actor: a.actor,
+        ...a.metadata,
+      })),
+    };
+  });
+
+  // --- Resume a paused client ---------------------------------------------
+  // The ladder out of the trap door. A pause with no documented way back is worse
+  // than no pause at all: the operator's customer is dead in the water and the
+  // only fix is a support ticket.
+  app.post("/v1/sub-tenants/:id/resume", async (req) => {
+    await requirePermission(req, "domains.manage");
+    const { id } = req.params as { id: string };
+    const st = await getScopedSubTenant(req, id);
+
+    if (st.reputationState !== "paused") {
+      throw Errors.badRequest(`"${st.name}" isn't paused (reputation state: ${st.reputationState}).`);
+    }
+
+    const now = new Date();
+    const [updated] = await db
+      .update(subTenants)
+      .set({
+        reputationState: "ok",
+        reputationReason: null,
+        reputationChangedAt: now,
+        // The sweep judges a resumed tenant only on mail sent after this moment —
+        // otherwise the same trailing window that paused them re-pauses them
+        // within fifteen minutes and the resume button does nothing.
+        reputationResumedAt: now,
+        // A tenant can only reach paused from verified, so this is where it returns.
+        status: "verified",
+        updatedAt: now,
+      })
+      .where(eq(subTenants.id, st.id))
+      .returning();
+
+    // The throttle meter is keyed per tenant and would otherwise still be metering
+    // a client we just let back in.
+    await clearThrottle(st.id).catch(() => {});
+
+    await db.insert(auditEntries).values({
+      id: newId("audit"),
+      workspaceId: st.workspaceId,
+      subTenantId: st.id,
+      messageId: null,
+      event: "tenant_resumed",
+      actor: req.auth.user ? "user" : "api_key",
+      actorId: req.auth.user?.id ?? req.auth.apiKey?.id ?? null,
+      metadata: {
+        from_state: "paused",
+        to_state: "ok",
+        reason: "Resumed by the parent workspace.",
+        previous_reason: st.reputationReason,
+        previous_metrics: st.reputationMetrics,
+      },
+    });
+
+    void enqueueWebhookEvent({
+      workspaceId: st.workspaceId,
+      subTenantId: st.id,
+      event: "tenant.resumed",
+      data: {
+        sub_tenant_id: st.id,
+        sending_domain: st.sendingDomain,
+        state: "ok",
+        previous_state: "paused",
+        occurred_at: now.toISOString(),
+      },
+    });
+
+    return serializeSubTenant(updated, { includeDns: true });
   });
 }

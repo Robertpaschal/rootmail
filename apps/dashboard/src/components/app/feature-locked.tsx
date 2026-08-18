@@ -50,10 +50,10 @@ const PITCHES: Record<string, { headline: string; capabilities: string[] }> = {
     ],
   },
   subtenants: {
-    headline: "Give every client their own sending domain — isolated reputation, zero shared risk.",
+    headline: "Give every client their own sending domain — and a reputation score you can read per client.",
     capabilities: [
       "Per-client DKIM keys and DNS verification, managed for you",
-      "One client's mistakes never touch another's deliverability",
+      "Every client's bounces and complaints scored separately",
       "The same API you already use, scoped per tenant",
     ],
   },

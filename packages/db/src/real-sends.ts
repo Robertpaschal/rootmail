@@ -1,6 +1,6 @@
 import { like, notLike, or } from "drizzle-orm";
 import { TEST_RECIPIENT_DOMAIN } from "@rootmail/core";
-import { messages } from "@rootmail/db";
+import { messages } from "./schema";
 
 /**
  * Conditions that narrow a `messages` query to mail sent to actual people.

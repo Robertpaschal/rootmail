@@ -136,7 +136,7 @@ export const clientDomains: DocPage = {
   summary: "Send on behalf of your own customers, each from their verified domain.",
   blocks: [
     p(
-      "If you're an agency or a platform, client domains let each of your customers send from their own address with their own reputation — isolated from one another and from you. Provision a client, hand back the DNS records, verify them, then send scoped to that client.",
+      "If you're an agency or a platform, client domains let each of your customers send from their own address, with their own DKIM keys, their own suppression list, and their own reputation score measured separately from everyone else's. Provision a client, hand back the DNS records, verify them, then send scoped to that client.",
     ),
     endpoint("GET", "/v1/sub-tenants", "List client domains."),
     endpoint("POST", "/v1/sub-tenants", "Provision a client — returns the DNS records to publish."),
@@ -184,7 +184,7 @@ await mail.messages.list();      // everything, all clients`,
       "In the dashboard this is the client switcher in the top bar: pick a client and every section narrows to them until you leave.",
     ),
     list([
-      ["One client's bounce or complaint never touches another's deliverability."],
+      ["Each client's bounces and complaints are scored on their own, so a reputation problem points at the client causing it."],
       ["Everything rolls up to you for billing and oversight."],
       ["Client domains are sold per-domain — buy them with a plan or on their own."],
     ]),
