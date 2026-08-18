@@ -46,6 +46,12 @@ function alternativeBody(email: OutboundEmail, boundary: string): string {
   ].join("\r\n");
 }
 
+/** Case-insensitive check for a header the caller already set. */
+function hasHeader(headers: { name: string }[] | undefined, name: string): boolean {
+  const want = name.toLowerCase();
+  return (headers ?? []).some((h) => h.name.toLowerCase() === want);
+}
+
 export interface MimeOptions {
   /** Angle-bracketed Message-ID, e.g. `<abc@domain>`. */
   messageId?: string;
@@ -63,7 +69,12 @@ export function buildMimeMessage(email: OutboundEmail, opts: MimeOptions = {}): 
     `To: ${email.to}`,
     email.replyTo ? `Reply-To: ${email.replyTo}` : null,
     `Subject: ${encodeHeaderWord(email.subject)}`,
-    opts.messageId ? `Message-ID: ${opts.messageId}` : null,
+    // The pipeline now supplies a Message-ID through `email.headers`, and RFC 5322
+    // permits exactly one. Whatever the caller passed here yields to it rather
+    // than emitting a second, malformed copy.
+    opts.messageId && !hasHeader(email.headers, "Message-ID")
+      ? `Message-ID: ${opts.messageId}`
+      : null,
     `Date: ${new Date().toUTCString()}`,
     opts.debugHeaders && email.dkim
       ? `X-Rootmail-DKIM: selector=${email.dkim.selector}; domain=${email.dkim.domain}; signed`

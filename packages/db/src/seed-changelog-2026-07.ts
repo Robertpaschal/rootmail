@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Replies thread properly, in your inbox and in theirs",
+    date: "2026-08-18",
+    changes: [
+      {
+        kind: "Fixed",
+        text: "A reply only reached your inbox if it kept the special reply address we put on the original. Reply to a forwarded copy, or use a mail app that ignores it, and the reply was discarded without a trace. Replies are now also matched on the standard headers every mail client sends, so those land where they belong.",
+      },
+      {
+        kind: "Fixed",
+        text: "Your replies now continue the conversation inside the recipient's own mail app instead of appearing as a separate new email beside it.",
+      },
+      {
+        kind: "Improved",
+        text: "Every message we send now carries a proper Message-ID, which is what mail clients group a conversation by.",
+      },
+    ],
+  },
+  {
     title: "We keep checking your clients' domains, not just once",
     date: "2026-08-18",
     changes: [

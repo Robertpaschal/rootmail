@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { env, newId } from "@rootmail/core";
 import { db } from "./client";
 import { type Thread, threadMessages, threads } from "./schema";
@@ -182,7 +182,16 @@ export async function findThreadForReply(workspaceId: string, inReplyTo: string)
 
 export async function appendInbound(
   thread: Thread,
-  msg: { fromEmail: string; toEmail: string; bodyHtml?: string | null; bodyText?: string | null },
+  msg: {
+    fromEmail: string;
+    toEmail: string;
+    bodyHtml?: string | null;
+    bodyText?: string | null;
+    /** The arriving mail's own Message-ID — what our reply must quote back. */
+    rfcMessageId?: string | null;
+    /** Their References chain, so our reply extends it rather than competing. */
+    rfcReferences?: string | null;
+  },
 ): Promise<void> {
   await db.insert(threadMessages).values({
     id: newId("threadMessage"),
@@ -192,6 +201,8 @@ export async function appendInbound(
     toEmail: msg.toEmail,
     bodyHtml: msg.bodyHtml ?? null,
     bodyText: msg.bodyText ?? null,
+    rfcMessageId: msg.rfcMessageId ?? null,
+    rfcReferences: msg.rfcReferences ?? null,
   });
   await db
     .update(threads)
@@ -234,4 +245,24 @@ export async function threadReplyFrom(threadId: string): Promise<string | null> 
     .where(and(eq(threadMessages.threadId, threadId), eq(threadMessages.direction, "outbound")))
     .limit(1);
   return row?.fromEmail ?? null;
+}
+
+
+/**
+ * The entry a reply into this thread should answer, newest first.
+ *
+ * Only entries that carry an RFC id are candidates — an `In-Reply-To` naming
+ * something the recipient's client never saw is worse than none, because some
+ * clients treat an unresolvable parent as the start of a new thread.
+ */
+export async function threadReplyParent(
+  threadId: string,
+): Promise<{ rfcMessageId: string; references: string | null } | null> {
+  const [row] = await db
+    .select({ id: threadMessages.rfcMessageId, refs: threadMessages.rfcReferences })
+    .from(threadMessages)
+    .where(and(eq(threadMessages.threadId, threadId), isNotNull(threadMessages.rfcMessageId)))
+    .orderBy(desc(threadMessages.createdAt))
+    .limit(1);
+  return row?.id ? { rfcMessageId: row.id, references: row.refs } : null;
 }

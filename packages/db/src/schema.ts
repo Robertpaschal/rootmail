@@ -1203,9 +1203,29 @@ export const threadMessages = pgTable(
     toEmail: text("to_email").notNull(),
     bodyHtml: text("body_html"),
     bodyText: text("body_text"),
+    /**
+     * The RFC 5322 `Message-ID` this entry carried, angle-bracketed.
+     *
+     * Mostly populated for INBOUND entries, from the arriving mail's own header —
+     * that is the id we must quote in `In-Reply-To` for our answer to thread
+     * inside the contact's client. Outbound ids are DERIVED as
+     * `<{messageId}@{domain}>` at send time rather than stored, because the
+     * thread row is written after the send is queued and a stored id would race
+     * the job that needs it.
+     *
+     * Also carries the `References` chain the contact sent, so replying appends
+     * to their chain instead of starting a competing one.
+     */
+    rfcMessageId: text("rfc_message_id"),
+    /** The `References` chain the contact's client sent, so our reply extends it. */
+    rfcReferences: text("rfc_references"),
     createdAt: createdAt(),
   },
-  (t) => [index("thread_messages_thread_idx").on(t.threadId, t.createdAt)],
+  (t) => [
+    index("thread_messages_thread_idx").on(t.threadId, t.createdAt),
+    // The lookup an inbound reply does when it has no plus-address to go on.
+    index("thread_messages_rfc_id_idx").on(t.rfcMessageId),
+  ],
 );
 
 // ---------------------------------------------------------------------------

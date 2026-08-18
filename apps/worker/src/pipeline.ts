@@ -10,8 +10,11 @@ import {
   takeThrottleToken,
   testRecipientFor,
   WEBHOOK_EVENTS,
+  buildMessageId,
+  replyThreadingHeaders,
+  env,
 } from "@rootmail/core";
-import { activeReplyDomain, auditEntries, db, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
+import { activeReplyDomain, auditEntries, db, threadReplyParent, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
 import { getProviderFor } from "./providers";
 import type { OutboundAttachment } from "./providers/types";
 
@@ -208,13 +211,30 @@ export async function processSend(data: SendJobData): Promise<void> {
     message.type === "marketing" || message.type === "sales"
       ? (message.variables as Record<string, unknown> | null)?.unsubscribe_url
       : undefined;
-  const headers =
+  const unsubHeaders =
     typeof unsubUrl === "string" && unsubUrl
       ? [
           { name: "List-Unsubscribe", value: `<${unsubUrl}>` },
           { name: "List-Unsubscribe-Post", value: "List-Unsubscribe=One-Click" },
         ]
-      : undefined;
+      : [];
+
+  // RFC 5322 threading (brief P2.5). Every outbound message gets a Message-ID
+  // DERIVED from its own id — no storage, no lookup, and no race with the thread
+  // row that is written after this job is queued. `findThreadForReply` already
+  // resolves a `msg_…` id, so an id quoted back to us needs no new machinery.
+  //
+  // Note SES REPLACES this with its own `<id@region.amazonses.com>`. It is still
+  // worth setting: it is what non-SES providers send, and the inbound matcher
+  // recognises both shapes.
+  const sendingDomain = message.fromEmail.split("@")[1] ?? env.ROOTMAIL_DOMAIN;
+  const threadingHeaders: { name: string; value: string }[] = [
+    { name: "Message-ID", value: buildMessageId(message.id, sendingDomain) },
+  ];
+  // In-Reply-To / References are appended below, once the conversation this
+  // message belongs to is known — the worker opens it a few lines further down,
+  // and that is the only place the thread id exists on this path.
+  const headers = [...unsubHeaders, ...threadingHeaders];
 
   // Route real sends through the org's dedicated IP when it has one active — its
   // SES configuration set points at the dedicated IP pool. Sandbox sends use the
@@ -269,6 +289,20 @@ export async function processSend(data: SendJobData): Promise<void> {
       bodyHtml: message.renderedHtml,
       bodyText: message.renderedText,
     });
+
+    // Now that the conversation is known, point this message at what the contact
+    // actually sent. Without it their client files our answer as a NEW thread
+    // beside the one they are reading — which is the visible half of the bug:
+    // our replies did not thread on the recipient's side at all.
+    const parent = await threadReplyParent(thread.id);
+    if (parent) {
+      headers.push(
+        ...replyThreadingHeaders({
+          rfcMessageId: parent.rfcMessageId,
+          references: parent.references,
+        }),
+      );
+    }
 
     // `explicit` wins inside resolveReplyTo, so a caller who set reply_to in
     // their API call keeps it — we add capture, we never override an
