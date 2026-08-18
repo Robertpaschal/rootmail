@@ -23,6 +23,7 @@ import { closeDb } from "@rootmail/db";
 import { processCampaignSend } from "./campaigns";
 import { processLifecycleSweep } from "./lifecycle";
 import { processSend } from "./pipeline";
+import { processDnsDriftSweep } from "./dns-drift";
 import { processReputationSweep } from "./reputation";
 import { processRetentionSweep } from "./retention";
 import { processSequenceTick } from "./sequences";
@@ -135,7 +136,12 @@ lifecycleWorker.on("error", (err) => console.error("lifecycle worker error:", er
 const reputationWorker = new Worker(
   REPUTATION_QUEUE,
   async (job) => {
-    if (job.name === "sweep") await processReputationSweep();
+    if (job.name === "sweep") {
+      await processReputationSweep();
+      // Same job, same concurrency-1 queue: two sweeps that both write
+      // sub_tenants and both mail the operator must never overlap.
+      await processDnsDriftSweep();
+    }
   },
   { connection: createRedis() as unknown as ConnectionOptions, prefix: BULL_PREFIX, concurrency: 1 },
 );

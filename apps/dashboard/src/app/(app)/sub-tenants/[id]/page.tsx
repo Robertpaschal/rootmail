@@ -7,6 +7,7 @@ import { ConnectionError as ConnectionErrorCard } from "@/components/app/connect
 import { CopyButton } from "@/components/app/copy-button";
 import { PageHeader } from "@/components/app/page-header";
 import { ReputationBadge, SubTenantStatusBadge } from "@/components/app/status-badge";
+import { DnsDriftPanel } from "./dns-drift-panel";
 import { ReputationPanel } from "./reputation-panel";
 import { SubmitButton } from "@/components/app/submit-button";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +90,7 @@ export default async function SubTenantDetailPage({
           behind a disclosure at the foot, the way the message page handles the
           same problem. */}
       <div className="space-y-6">
+          <DnsDriftPanel st={st} />
           <ReputationPanel st={st} report={reputation} />
 
           <Card>

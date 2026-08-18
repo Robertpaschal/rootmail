@@ -641,6 +641,24 @@ export const subTenants = pgTable(
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
 
+    // --- DNS drift (set by the worker's sweep) --------------------------------
+    // Verification used to be one-shot: a tenant who deleted their DKIM record
+    // the day after verifying kept a "verified" badge forever while every mail
+    // they sent failed authentication at the receiver.
+    /**
+     * When this domain's records FIRST stopped resolving, or null while healthy.
+     *
+     * A timestamp rather than a failure counter because the grace period is the
+     * point: one failed lookup is not proof a record is gone (resolvers time out,
+     * networks blip), and suspending a paying customer's sending on a transient
+     * miss is worse than the drift. Sustained past DNS_DRIFT_GRACE_HOURS, it is
+     * no longer transient. Time survives a change to the sweep interval; a count
+     * does not.
+     */
+    dnsFailingSince: timestamp("dns_failing_since", { withTimezone: true }),
+    /** Which record is missing, in plain English, for the operator to act on. */
+    dnsDriftDetail: text("dns_drift_detail"),
+
     // --- Reputation enforcement (set by the worker's reputation sweep) --------
     // `status` says whether this domain is allowed to send at all; these say how
     // its mail is actually landing and what we are doing about it.

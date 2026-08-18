@@ -100,17 +100,39 @@ export const AUDIT_EVENTS = [
   "tenant_throttled",
   "tenant_paused",
   "tenant_resumed",
+  // DNS drift. Same message-less shape, a different cause: these are about the
+  // domain's records, not the mail's numbers, and the operator fixes them
+  // somewhere we cannot reach — their DNS host.
+  "tenant_dns_drifted",
+  "tenant_dns_suspended",
+  "tenant_dns_recovered",
 ] as const;
 export type AuditEvent = (typeof AUDIT_EVENTS)[number];
 
-/** The reputation transitions — the subset of AUDIT_EVENTS with no message. */
+/** The tenant-level events — the subset of AUDIT_EVENTS with no message. */
 export const TENANT_AUDIT_EVENTS = [
   "tenant_warned",
   "tenant_throttled",
   "tenant_paused",
   "tenant_resumed",
+  "tenant_dns_drifted",
+  "tenant_dns_suspended",
+  "tenant_dns_recovered",
 ] as const satisfies readonly AuditEvent[];
 export type TenantAuditEvent = (typeof TENANT_AUDIT_EVENTS)[number];
+
+/**
+ * How long a domain's records may fail to resolve before we stop its sending.
+ *
+ * Long enough that no transient resolver failure reaches it (24 checks at the
+ * 15-minute sweep), short enough to bound how much unauthenticated mail goes out
+ * under a domain whose DKIM record is genuinely gone — which lands in spam and
+ * costs the reputation of every tenant sharing the account, not just this one.
+ */
+export const DNS_DRIFT_GRACE_HOURS = 6;
+
+/** How often one tenant's DNS is re-checked. The sweep runs far more often. */
+export const DNS_RECHECK_INTERVAL_MINUTES = 60;
 
 export const PRIORITIES = ["high", "normal", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];
@@ -949,6 +971,12 @@ export const WEBHOOK_EVENTS = [
   "tenant.throttled",
   "tenant.paused",
   "tenant.resumed",
+  // DNS drift. "tenant.dns_drifted" is the one worth acting on early — it fires
+  // while the client's mail is still going out, and the platform operator can
+  // usually reach their own customer faster than we can.
+  "tenant.dns_drifted",
+  "tenant.dns_suspended",
+  "tenant.dns_recovered",
 ] as const;
 export type WebhookEvent = (typeof WEBHOOK_EVENTS)[number];
 

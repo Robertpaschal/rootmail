@@ -22,6 +22,17 @@
 > true, and that is the launch.
 >
 > Do not publish a claim the brief lists under "Never claim until the code lands."
+>
+> **Brief 2 — `docs/BRIEF-2026-08-18b-next-tranche.md`** is the current work queue,
+> written after `afad1fc` and `d2c64ab` shipped. It is a case, not a defect list:
+> the onboarding DNS cliff, a plain-English "why did this message fail" answer,
+> silent DNS drift, and CI for the new test suite. It argues *against* per-tenant
+> dedicated IPs for now. Push back in `docs/COLLAB.md`.
+>
+> **`docs/COLLAB.md`** is the standing channel between you and the Cowork agent
+> that handles positioning and market research. Append there when you ship something
+> that changes what we can honestly claim, when you find marketing copy that outruns
+> the code, or when a build decision turns on what we want to be able to say.
 
 
 rootmail is a unified email-infrastructure platform (see `README.md`). This file
@@ -99,6 +110,19 @@ run this before anything else — those are the tests that exist.
   deploy looks clean while the table isn't there. Cost a full deploy cycle on
   0064. `db:generate` maintains the journal for you; only hand-written files
   need the entry added by hand.
+- **Adding an `AUDIT_EVENTS` value needs an `ALTER TYPE`.** `audit_entries.event`
+  is a Postgres ENUM (`audit_event`), not text — so a new event name added to the
+  TS array type-checks everywhere and then fails at runtime with `22P02 invalid
+  input value for enum`. The migration must `ALTER TYPE "public"."audit_event"
+  ADD VALUE IF NOT EXISTS '…'` *before* anything inserts it. (`audit_entries` is
+  the enum one; other tables' `action` columns are plain text — don't generalise
+  from those.)
+- **Drizzle re-runs nothing whose journal `when` isn't NEWER than the last applied
+  `created_at`.** Editing an already-applied migration file and re-running
+  `db:migrate` is a silent no-op locally — it prints success and changes nothing.
+  To re-apply during development, delete that row from
+  `drizzle.__drizzle_migrations` first. (A host that never applied it is
+  unaffected, which is why this only ever bites locally.)
 - **Drizzle `.nullsNotDistinct()`** isn't available in this version. Uniqueness
   that should treat workspace-level (null `sub_tenant_id`) rows as distinct from
   tenant rows is enforced in app code (select-then-write), not the DB.

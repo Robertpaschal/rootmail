@@ -12,7 +12,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
-import { REPUTATION_VISUAL, needsAttention } from "@/lib/reputation";
+import { REPUTATION_VISUAL, needsAttention, readDrift } from "@/lib/reputation";
 import { getClientScopeId } from "@/lib/client-scope";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { SubTenant } from "@/lib/types";
@@ -73,11 +73,26 @@ export default async function SubTenantsPage() {
   // Clients the sweep has acted on or flagged. Worst first — an operator opening
   // this page after a bad night should read the pause before the warning, and
   // should not have to scan a table of green rows to find either.
+  // Two independent ways to be in trouble: the numbers (reputation) and the
+  // records (DNS drift). Both belong here — an operator scanning this page wants
+  // "what needs me", not "what needs me, by subsystem".
   const RANK = { paused: 0, throttled: 1, warn: 2, ok: 3 } as const;
   const trouble = list
-    .filter((t) => needsAttention(t.reputation.state))
-    .sort((a, b) => RANK[a.reputation.state] - RANK[b.reputation.state]);
-  const anyPaused = trouble.some((t) => t.reputation.state === "paused");
+    .filter((t) => needsAttention(t.reputation.state) || Boolean(readDrift(t)))
+    // A stopped client outranks a warned one whatever stopped it.
+    .sort((a, b) => {
+      const rank = (t: typeof a) => {
+        const d = readDrift(t);
+        if (d?.stopped) return 0;
+        if (t.reputation.state === "paused") return 0;
+        if (d) return 1;
+        return RANK[t.reputation.state];
+      };
+      return rank(a) - rank(b);
+    });
+  const anyPaused = trouble.some(
+    (t) => t.reputation.state === "paused" || readDrift(t)?.stopped === true,
+  );
   // Which client (if any) the operator is currently acting as, so the row they're
   // already inside says so instead of offering to switch them there again.
   const activeClientId = await getClientScopeId();
@@ -158,9 +173,13 @@ export default async function SubTenantsPage() {
                       {t.name}
                     </Link>
                     <span className="font-mono text-xs text-muted-foreground">{t.sending_domain}</span>
-                    <ReputationBadge state={t.reputation.state} />
+                    {needsAttention(t.reputation.state) ? (
+                      <ReputationBadge state={t.reputation.state} />
+                    ) : null}
                     <span className="w-full text-xs text-muted-foreground sm:w-auto">
-                      {t.reputation.reason ?? REPUTATION_VISUAL[t.reputation.state].effect}
+                      {readDrift(t)?.effect ??
+                        t.reputation.reason ??
+                        REPUTATION_VISUAL[t.reputation.state].effect}
                     </span>
                   </li>
                 ))}

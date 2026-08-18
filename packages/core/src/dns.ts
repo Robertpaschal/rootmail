@@ -1,3 +1,4 @@
+import type { SubTenantStatus } from "./constants";
 import { resolveMx, resolveTxt } from "node:dns/promises";
 import { env } from "./env";
 
@@ -409,4 +410,59 @@ export async function auditEmailAuth(input: BuildDnsInput): Promise<EmailAuthRep
     items,
     summary: { passing: items.filter((i) => i.status === "pass").length, total: items.length, enforced },
   };
+}
+
+// ---------------------------------------------------------------------------
+// DNS drift (brief P2.2)
+//
+// Verification is one-shot at creation; this is the decision that re-checking
+// turns into an action. Kept PURE and here rather than in the worker for the
+// same reason `evaluateReputation` is: the rules are the product's promise about
+// when it will and won't stop a paying customer's mail, and a promise that can
+// only be exercised by standing up Postgres and Redis does not get exercised.
+// ---------------------------------------------------------------------------
+
+export type DnsDriftAction =
+  /** Healthy and was healthy — just record that we looked. */
+  | { action: "none" }
+  /** Records resolve again. `restoreSending` when we were the reason it stopped. */
+  | { action: "recovered"; restoreSending: boolean }
+  /** First failed check. Start the clock and tell them; nothing is restricted. */
+  | { action: "drifted" }
+  /** Still failing, still inside the grace period. Do not re-notify. */
+  | { action: "grace"; hoursElapsed: number }
+  /** Failing continuously past the grace period. Stop the sending. */
+  | { action: "suspend" };
+
+export interface DnsDriftInput {
+  /** Did every REQUIRED record resolve on this check? */
+  ok: boolean;
+  /** When failures started, or null if the domain was healthy at the last check. */
+  failingSince: Date | null;
+  /** The tenant's current sending status. */
+  status: SubTenantStatus;
+  /** A reputation pause outranks DNS and must survive a DNS recovery. */
+  reputationPaused: boolean;
+  now: Date;
+  graceHours: number;
+}
+
+export function decideDnsDrift(input: DnsDriftInput): DnsDriftAction {
+  const { ok, failingSince, status, reputationPaused, now, graceHours } = input;
+
+  if (ok) {
+    if (!failingSince) return { action: "none" };
+    // Only turn sending back on if DNS is why it went off. A tenant paused for
+    // bounces stays paused — fixing a TXT record is not evidence their list
+    // improved, and a pause anyone can clear by editing DNS is not a pause.
+    return { action: "recovered", restoreSending: status === "failed" && !reputationPaused };
+  }
+
+  if (!failingSince) return { action: "drifted" };
+
+  const hoursElapsed = (now.getTime() - failingSince.getTime()) / 3_600_000;
+  // Already stopped (or never sending): nothing left to escalate to.
+  if (status !== "verified") return { action: "grace", hoursElapsed };
+  if (hoursElapsed < graceHours) return { action: "grace", hoursElapsed };
+  return { action: "suspend" };
 }

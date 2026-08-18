@@ -76,7 +76,13 @@ const EnvSchema = z.object({
   ROOTMAIL_DOMAIN: z.string().default("rootmail.io"),
   DKIM_SELECTOR: z.string().default("rootmail"),
 
-  DNS_VERIFY_MODE: z.enum(["mock", "live"]).default("mock"),
+  // Domain verification. "mock" auto-passes EVERY check so the sub-tenant flow
+  // is demoable without owning a domain — which means it also auto-passes for a
+  // stranger claiming a domain they do not own. It defaults to "live" because
+  // the failure is silent and asymmetric: a self-hoster who never sets this gets
+  // a system that verifies nothing while reporting every domain as verified.
+  // Opting IN to mock is a decision; falling into it must not be an accident.
+  DNS_VERIFY_MODE: z.enum(["mock", "live"]).default("live"),
   // Closed beta: while "true", creating an account requires an invite code.
   // Defaults OFF so a fresh install and local dev are never accidentally shut.
   BETA_INVITE_REQUIRED: z.string().optional(),
@@ -205,6 +211,17 @@ if (!parsed.success) {
  * mistake, and a crash on start is loud, immediate and harmless next to
  * silently fake encryption.
  */
+// Mock verification in production would hand any tenant a "verified" badge for a
+// domain they do not control — the exact trust the badge exists to carry. There
+// is no legitimate reason to run it hosted, so refuse rather than warn.
+if (parsed.data.NODE_ENV === "production" && parsed.data.DNS_VERIFY_MODE === "mock") {
+  throw new Error(
+    "DNS_VERIFY_MODE=mock cannot be used in production: it auto-passes domain " +
+      "verification for every tenant, including domains they do not own. Unset it " +
+      "(the default is live) or set it explicitly to live.",
+  );
+}
+
 if (parsed.data.NODE_ENV === "production" && !parsed.data.ENCRYPTION_KEY) {
   throw new Error(
     "ENCRYPTION_KEY is required in production (min 32 chars). Without it, stored " +

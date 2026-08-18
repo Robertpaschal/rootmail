@@ -184,6 +184,15 @@ export function serializeSubTenant(t: SubTenant, opts: { includeDns?: boolean } 
       changed_at: t.reputationChangedAt,
       resumed_at: t.reputationResumedAt,
     },
+    // Whether the domain's records still resolve. Separate from `status` because
+    // it answers a different question: status says whether this client may send,
+    // dns says whether the thing that made them sendable is still true. A client
+    // can be "verified" and already drifting — that hour is when it is cheap to fix.
+    dns: {
+      drifting: t.dnsFailingSince !== null,
+      failing_since: t.dnsFailingSince,
+      detail: t.dnsDriftDetail,
+    },
   };
   if (!opts.includeDns) return base;
   return {

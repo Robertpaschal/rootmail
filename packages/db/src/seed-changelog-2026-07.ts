@@ -14,6 +14,28 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "We keep checking your clients' domains, not just once",
+    date: "2026-08-18",
+    changes: [
+      {
+        kind: "New",
+        text: "Domain verification used to happen once. If a client later deleted the DNS record we told them to add, nothing noticed — they kept a green \u201cverified\u201d badge while every message they sent failed authentication and went to spam. Every verified domain is now re-checked hourly.",
+      },
+      {
+        kind: "New",
+        text: "When records go missing we email you straight away with the exact record to put back, and their mail keeps flowing. If it is still missing six hours later we stop their sending, because unauthenticated mail costs the reputation of every client on your account. Put the record back and their sending resumes on its own \u2014 there is no button to press and no ticket to raise.",
+      },
+      {
+        kind: "Improved",
+        text: "One failed DNS lookup never stops anyone. A resolver that times out is not a deleted record, so the six-hour window has to elapse with every check failing before anything is switched off.",
+      },
+      {
+        kind: "Fixed",
+        text: "Self-hosted installs no longer default to the demo mode that auto-passes domain verification for every domain, including ones the tenant does not own. It is now opt-in, and refused outright in production.",
+      },
+    ],
+  },
+  {
     title: "Every client's mail, numbers and proof stay their own",
     date: "2026-08-18",
     changes: [

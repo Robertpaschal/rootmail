@@ -12,6 +12,7 @@ import {
   type ReputationState,
   sendSystemEmail,
 } from "@rootmail/core";
+import { dashUrl, esc, ownerForWorkspace } from "./tenant-alerts";
 import {
   auditEntries,
   db,
@@ -51,29 +52,8 @@ const STATE_WEBHOOK = {
   ok: "tenant.resumed",
 } as const satisfies Record<ReputationState, string>;
 
-function dash(): string {
-  return (env.DASHBOARD_URL ?? "http://localhost:3001").replace(/\/$/, "");
-}
-function esc(s: string): string {
-  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
-}
 
 /** The verified account owner for the org that owns this workspace. */
-async function ownerForWorkspace(
-  workspaceId: string,
-): Promise<{ email: string; name: string | null } | null> {
-  const [row] = await db
-    .select({ email: users.email, name: users.name, verifiedAt: users.emailVerifiedAt })
-    .from(workspaces)
-    .innerJoin(organizations, eq(organizations.id, workspaces.organizationId))
-    .innerJoin(memberships, eq(memberships.organizationId, organizations.id))
-    .innerJoin(users, eq(users.id, memberships.userId))
-    .where(and(eq(workspaces.id, workspaceId), eq(memberships.role, "owner")))
-    .limit(1);
-  if (!row || !row.verifiedAt) return null;
-  return { email: row.email, name: row.name };
-}
-
 /**
  * Record a transition on the one append-only trail, with a null `message_id` —
  * this is about the tenant, not about any message it sent.
@@ -140,7 +120,7 @@ async function notifyParent(
   const owner = await ownerForWorkspace(tenant.workspaceId);
   if (!owner) return;
 
-  const link = `${dash()}/sub-tenants/${tenant.id}`;
+  const link = `${dashUrl()}/sub-tenants/${tenant.id}`;
   const headline =
     to === "paused"
       ? `${tenant.name} has been paused`

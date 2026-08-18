@@ -135,6 +135,18 @@ export interface SubTenant {
     changed_at: string | null;
     resumed_at: string | null;
   };
+  /**
+   * Whether the sending domain's records still resolve.
+   *
+   * Distinct from `status`: a client can read "verified" and already be drifting.
+   * The hour between a record disappearing and their sending being stopped is the
+   * only cheap moment to fix it, so the UI has to be able to show that hour.
+   */
+  dns: {
+    drifting: boolean;
+    failing_since: string | null;
+    detail: string | null;
+  };
   dns_records?: DnsRecord[];
 }
 
