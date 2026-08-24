@@ -113,6 +113,14 @@ run this before anything else — those are the tests that exist.
   deploy looks clean while the table isn't there. Cost a full deploy cycle on
   0064. `db:generate` maintains the journal for you; only hand-written files
   need the entry added by hand.
+- **A full disk makes a deploy silently no-op.** Every deploy leaves a
+  `sha-<commit>` image tag; they accumulate until SSM dies with "ipc messaging
+  received timeout signal" — which looks like a broken tool, not a full disk —
+  and the container stays up on the OLD image with nothing reporting an error.
+  `docker image prune -af --filter "until=24h"` does NOT help (the sha tags are
+  fresh, which is why they survive it); use `-af` with no age filter. A daily
+  cron does this now, but always check `docker compose ps` really shows a fresh
+  container after a deploy.
 - **A Redis client handed to a plugin must be closed with the server.**
   `@fastify/rate-limit` does not own the client you pass it, so a bare
   `createRedis()` in `buildServer` outlives `app.close()` and the test process
