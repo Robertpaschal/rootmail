@@ -484,6 +484,20 @@
       "when": 1787042209414,
       "tag": "0068_rfc_threading",
       "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1787555823868,
+      "tag": "0069_dkim_rotation",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "7",
+      "when": 1787556088125,
+      "tag": "0070_message_retry",
+      "breakpoints": true
     }
   ]
 }

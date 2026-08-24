@@ -659,6 +659,29 @@ export const subTenants = pgTable(
     /** Which record is missing, in plain English, for the operator to act on. */
     dnsDriftDetail: text("dns_drift_detail"),
 
+    // --- DKIM rotation (brief P2.3) -------------------------------------------
+    // A signing key that never changes is a key that is only ever more exposed.
+    // Rotation uses DUAL SELECTORS: the new key is generated and published
+    // alongside the old one, and we keep SIGNING WITH THE OLD KEY until the new
+    // record actually resolves. Cutting over first would fail authentication on
+    // every message in the gap, which is the whole thing rotation exists to avoid.
+    /** Selector of the incoming key, or null when no rotation is in flight. */
+    nextDkimSelector: text("next_dkim_selector"),
+    nextDkimPublicKey: text("next_dkim_public_key"),
+    /** Encrypted exactly like `dkimPrivateKey` — never read it directly. */
+    nextDkimPrivateKey: text("next_dkim_private_key"),
+    /** When the pending key was generated. Also what "stalled" is measured from. */
+    dkimRotationStartedAt: timestamp("dkim_rotation_started_at", { withTimezone: true }),
+    /** When we last completed a cutover — the age that triggers the next one. */
+    dkimRotatedAt: timestamp("dkim_rotated_at", { withTimezone: true }),
+    /**
+     * The selector we just rotated AWAY from, kept so we can tell them when it is
+     * safe to delete. Mail already accepted can still be verified later (greylists,
+     * deferred queues), so the old record has to outlive the cutover.
+     */
+    previousDkimSelector: text("previous_dkim_selector"),
+    previousDkimRetireAt: timestamp("previous_dkim_retire_at", { withTimezone: true }),
+
     // --- Reputation enforcement (set by the worker's reputation sweep) --------
     // `status` says whether this domain is allowed to send at all; these say how
     // its mail is actually landing and what we are doing about it.
@@ -1115,6 +1138,15 @@ export const messages = pgTable(
     status: messageStatusEnum("status").notNull().default("queued"),
     provider: text("provider"),
     providerMessageId: text("provider_message_id"),
+    /**
+     * How many times a human has re-sent this after a failure.
+     *
+     * Load-bearing, not a stat: the send queue keys jobs by message id for
+     * idempotency, so re-enqueueing the same id is SILENTLY DROPPED while the
+     * old job is still in the failed set. The count makes each attempt a
+     * distinct job — and doubles as the "retried twice" the UI shows.
+     */
+    retryCount: integer("retry_count").notNull().default(0),
     error: text("error"),
     sandbox: boolean("sandbox").notNull().default(false),
     // Set by the retention sweep when a message's PII/content has been redacted.

@@ -52,6 +52,14 @@ export interface Message {
   sub_tenant_id: string | null;
   /** Set when this went to a rootmail test alias — the real path, safe destination. */
   test_recipient: string | null;
+  /**
+   * How many times a person re-sent this after it failed.
+   *
+   * `status` is the CURRENT state, so a message delivered on the second attempt
+   * reads exactly like one that worked first time. Analytics and reputation are
+   * right to count it once — this is what puts the earlier failure back on screen.
+   */
+  retry_count: number;
   /** The contact this reached (if a saved contact) + where it came from. */
   to_contact_id: string | null;
   campaign_id: string | null;

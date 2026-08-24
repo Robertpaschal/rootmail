@@ -106,6 +106,10 @@ export const AUDIT_EVENTS = [
   "tenant_dns_drifted",
   "tenant_dns_suspended",
   "tenant_dns_recovered",
+  // DKIM rotation. Also tenant-level, also message-less.
+  "dkim_rotation_started",
+  "dkim_rotation_completed",
+  "dkim_rotation_cancelled",
 ] as const;
 export type AuditEvent = (typeof AUDIT_EVENTS)[number];
 
@@ -118,6 +122,9 @@ export const TENANT_AUDIT_EVENTS = [
   "tenant_dns_drifted",
   "tenant_dns_suspended",
   "tenant_dns_recovered",
+  "dkim_rotation_started",
+  "dkim_rotation_completed",
+  "dkim_rotation_cancelled",
 ] as const satisfies readonly AuditEvent[];
 export type TenantAuditEvent = (typeof TENANT_AUDIT_EVENTS)[number];
 
@@ -133,6 +140,35 @@ export const DNS_DRIFT_GRACE_HOURS = 6;
 
 /** How often one tenant's DNS is re-checked. The sweep runs far more often. */
 export const DNS_RECHECK_INTERVAL_MINUTES = 60;
+
+/**
+ * How old a signing key gets before we start rotating it.
+ *
+ * Rotation is safe to begin at any time — the old key keeps signing until the
+ * new record resolves — so this is about hygiene, not risk management. Six
+ * months is the common industry cadence and is short enough that a key exposed
+ * by an old backup stops being useful.
+ */
+export const DKIM_ROTATION_AGE_DAYS = 180;
+
+/**
+ * How long the OLD record stays published after cutover.
+ *
+ * Not cosmetic: a receiver can verify a message long after accepting it —
+ * greylisting, deferred queues, forwarded copies — and it verifies against the
+ * selector the message was SIGNED with. Deleting the old record at cutover
+ * silently fails those. A week covers every realistic deferral.
+ */
+export const DKIM_PREVIOUS_RETIRE_DAYS = 7;
+
+/**
+ * How long a started rotation may sit unpublished before we say so.
+ *
+ * A stalled rotation breaks nothing — we are still signing with the old key —
+ * so this is a nag, never an enforcement. Anything that STOPPED a tenant's mail
+ * because they hadn't got round to a DNS edit would be indefensible.
+ */
+export const DKIM_ROTATION_STALL_DAYS = 14;
 
 export const PRIORITIES = ["high", "normal", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];

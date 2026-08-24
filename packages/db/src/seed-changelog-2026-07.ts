@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Send it again, when sending again is actually safe",
+    date: "2026-08-24",
+    changes: [
+      {
+        kind: "New",
+        text: "A message that failed to send now has a \u201cTry sending again\u201d button, with the reason it failed next to it. No copying the details into a new draft.",
+      },
+      {
+        kind: "New",
+        text: "It refuses when retrying would do harm, and says why: a message your provider already accepted can\u2019t be re-sent (that would put a second copy in someone\u2019s inbox), a bounce can\u2019t be re-sent (it would bounce again and cost your sending reputation), and someone who has unsubscribed since it failed stays unsubscribed.",
+      },
+      {
+        kind: "Improved",
+        text: "A message that succeeded on the second attempt now says so, instead of looking like it worked first time. Your delivery rates and reputation still count it once \u2014 as the one message it is.",
+      },
+    ],
+  },
+  {
     title: "Replies thread properly, in your inbox and in theirs",
     date: "2026-08-18",
     changes: [

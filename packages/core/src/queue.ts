@@ -48,6 +48,11 @@ export interface EnqueueOptions {
   priority?: Priority;
   /** Delay before the job becomes available (used for scheduled `send_at`). */
   delayMs?: number;
+  /**
+   * Which manual re-send this is (1-based). Only set by an explicit retry — it
+   * makes the job id distinct so the idempotency guard above does not swallow it.
+   */
+  attempt?: number;
 }
 
 export async function enqueueSend(data: SendJobData, opts: EnqueueOptions = {}) {
@@ -59,8 +64,15 @@ export async function enqueueSend(data: SendJobData, opts: EnqueueOptions = {}) 
     backoff: { type: "exponential", delay: 5_000 },
     removeOnComplete: { age: 86_400, count: 5_000 },
     removeOnFail: { age: 7 * 86_400 },
-    // One job per message — protects against duplicate enqueues (queue-level idempotency).
-    jobId: data.messageId,
+    // One job per message — protects against duplicate enqueues (queue-level
+    // idempotency). A deliberate re-send passes `attempt`, which makes a DISTINCT
+    // job id: without it the retry is silently swallowed by this very guard,
+    // because the failed job is retained for 7 days under the same id.
+    // Hyphen, NOT a colon: BullMQ rejects a job id containing ":" outright
+    // ("Custom Id cannot contain :"), the same restriction as queue names. With a
+    // colon the retry throws, and the message is left queued with no job behind
+    // it — silently never sent, which is worse than refusing to retry at all.
+    jobId: opts.attempt ? `${data.messageId}-r${opts.attempt}` : data.messageId,
   });
 }
 

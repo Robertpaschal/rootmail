@@ -94,6 +94,9 @@ run this before anything else — those are the tests that exist.
   `bullConnection()` in `packages/core/src/queue.ts` and the cast in
   `apps/worker/src/index.ts`. Don't remove these casts.
 - **BullMQ queue names can't contain `:`** → `SEND_QUEUE = "rootmail-send"`.
+  **Custom JOB ids can't either** ("Custom Id cannot contain :"). A retry that
+  built `msg_x:r1` threw at enqueue time, leaving the message `queued` with no
+  job behind it — silently never sent. Use `-` (see `enqueueSend`).
 - **Prod deploys MUST pass `--env-file .env.prod`.** The prod compose passes
   frontend config by INTERPOLATION (`ROOTMAIL_API_URL: ${PUBLIC_API_URL}`), and
   compose interpolates from a file literally named `.env` — which the hosts do

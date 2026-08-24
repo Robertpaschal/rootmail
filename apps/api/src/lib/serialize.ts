@@ -120,6 +120,13 @@ export function serializeMessage(m: Message, engagement?: MessageEngagement) {
     // path but lands on the SES mailbox simulator. Surfaced so every view can say
     // so plainly instead of showing what looks like a real customer's bounce.
     test_recipient: testRecipientFor(m.toEmail)?.slug ?? null,
+    // How many times a person re-sent this after a failure. Exposed because a
+    // message DELIVERED on the second attempt would otherwise be indistinguishable
+    // from one that worked first time — the status column is the current state,
+    // and without this the earlier failure disappears from every view but the
+    // audit trail. Analytics and reputation deliberately still count the message
+    // ONCE, by its current status; this only restores the history to the screen.
+    retry_count: m.retryCount,
     // Relationship: who this reached and where it came from — lets any message be
     // shown in the context of the contact and its source (campaign / sequence /
     // a direct transactional send), not just as a status + email address.

@@ -16,9 +16,10 @@ import {
   Send,
   ShieldOff,
   Sparkles,
+  RotateCw,
   UserX,
 } from "lucide-react";
-import { refreshMessage, simulateEvent } from "../actions";
+import { type MessageSnapshot, refreshMessage, retryMessage, simulateEvent } from "../actions";
 import type { SimulatableEvent } from "@/lib/rootmail";
 import type { AuditEntry, Message } from "@/lib/types";
 import { buttonVariants } from "@/components/ui/button";
@@ -151,6 +152,47 @@ function stagesFor(message: Message, trail: AuditEntry[]): Stage[] {
   }));
 }
 
+/**
+ * Re-send a failed message.
+ *
+ * Deliberately not a confirm dialog: a message that failed never reached
+ * anyone, so pressing this cannot do anything that needs undoing. The dangerous
+ * case — a message the provider already accepted — is refused by the API and
+ * never reaches this button, because the button only renders on `failed`.
+ */
+function RetryButton({ id, onUpdate }: { id: string; onUpdate: (s: MessageSnapshot) => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  return (
+    <div className="space-y-2">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError(null);
+          const snap = await retryMessage(id);
+          setBusy(false);
+          if ("error" in snap) setError(snap.error);
+          else onUpdate(snap);
+        }}
+        className={cn(buttonVariants({ size: "sm" }), "disabled:opacity-60")}
+      >
+        <RotateCw className={cn("mr-1.5 size-4", busy && "animate-spin")} />
+        {busy ? "Sending again…" : "Try sending again"}
+      </button>
+      {error ? (
+        // Verbatim: the API's refusal names the actual reason (already accepted,
+        // now suppressed, quota), and a generic "couldn't retry" would hide it.
+        <p className="text-sm text-rose-600 dark:text-rose-400" role="alert">
+          {error}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 export function LiveStatus({
   id,
   initialMessage,
@@ -231,6 +273,16 @@ export function LiveStatus({
             </div>
             <p className="text-sm text-muted-foreground">{meta.blurb}</p>
             {errorish && message.error ? <p className="mt-1 text-sm text-muted-foreground">Reason: <span className="text-foreground">{message.error}</span></p> : null}
+            {message.retry_count > 0 ? (
+              // The status column is the CURRENT state, so without this a message
+              // delivered on the second attempt reads exactly like one that never
+              // failed. Analytics and reputation still count it once — this is
+              // only the history, put back on screen.
+              <p className="mt-1 text-xs text-muted-foreground">
+                Re-sent {message.retry_count === 1 ? "once" : `${message.retry_count} times`} after
+                a failure — see the full history below.
+              </p>
+            ) : null}
           </div>
         </div>
 
@@ -241,6 +293,13 @@ export function LiveStatus({
           <p className="text-xs text-muted-foreground">
             Delivery, opens, and bounces appear here automatically as your mail provider reports them back.
           </p>
+        ) : null}
+
+        {/* Try again — only for a send that never left our system. The API is the
+            authority on whether it may be retried, and refuses anything the
+            provider already accepted; this just shows what it said. */}
+        {message.status === "failed" ? (
+          <RetryButton id={id} onUpdate={apply} />
         ) : null}
 
         {/* Diagnose (only when something went wrong) */}

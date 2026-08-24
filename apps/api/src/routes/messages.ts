@@ -21,6 +21,7 @@ import {
   testRecipientFor,
   unsubscribeUrl,
   viewInBrowserUrl,
+  canRetryMessage,
 } from "@rootmail/core";
 import {
   activeReplyDomain,
@@ -42,6 +43,7 @@ import {
   assertEmailVerified,
   assertMarketingSendCapacity,
   assertTransactionalSendCapacity,
+  assertCanSend,
   recordMarketingSend,
   recordTransactionalDaily,
   recordSend,
@@ -49,6 +51,7 @@ import {
   tryConsumeMarketing,
   tryConsumeQuota,
 } from "../lib/billing";
+import { authActor } from "../lib/dispatch";
 import { requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { defaultSenderFor, verifiedSenderFor } from "../lib/senders";
@@ -571,6 +574,68 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       .from(auditEntries)
       .where(eq(auditEntries.messageId, message.id));
     return serializeMessage(message, ev ?? undefined);
+  });
+
+  // --- Retry a failed send ------------------------------------------------
+  // Re-sends a message that never made it out. The interesting part is what it
+  // REFUSES: anything the provider already accepted (a retry would put a second
+  // copy in someone's inbox, and there is no undo), and anything the recipient
+  // decided (a suppression, a bounce). See canRetryMessage.
+  app.post("/v1/messages/:id/retry", async (req) => {
+    await requirePermission(req, "messages.send");
+    const { id } = req.params as { id: string };
+    const message = await getScopedMessage(req, id);
+
+    const verdict = canRetryMessage({
+      status: message.status,
+      providerMessageId: message.providerMessageId,
+      error: message.error,
+    });
+    if (!verdict.retryable) throw Errors.badRequest(verdict.reason);
+
+    // Re-check suppression AT RETRY TIME, not against what was true when the
+    // message first failed. Someone may have unsubscribed or hard-bounced in
+    // between, and a retry must not be a way to reach them anyway.
+    if (await isSuppressed(message.workspaceId, message.subTenantId, message.toEmail)) {
+      throw Errors.badRequest(
+        "This recipient has since been added to your suppression list, so this message can no longer be sent to them.",
+      );
+    }
+
+    // A retry is a real send: it counts against the quota like any other.
+    const [org] = await db
+      .select()
+      .from(organizations)
+      .where(eq(organizations.id, req.auth.workspace.organizationId))
+      .limit(1);
+    if (req.auth.mode === "live" && org) await assertCanSend(org);
+
+    const attempt = message.retryCount + 1;
+    const [updated] = await db
+      .update(messages)
+      .set({ status: "queued", error: null, retryCount: attempt, updatedAt: new Date() })
+      .where(eq(messages.id, message.id))
+      .returning();
+
+    await db.insert(auditEntries).values({
+      id: newId("audit"),
+      workspaceId: message.workspaceId,
+      subTenantId: message.subTenantId,
+      messageId: message.id,
+      event: "retried",
+      actor: authActor(req.auth).actor,
+      actorId: authActor(req.auth).actorId,
+      metadata: { attempt, previous_error: message.error },
+    });
+
+    // `attempt` is what makes this a DISTINCT job. Without it the queue's
+    // per-message idempotency silently swallows the retry.
+    await enqueueSend(
+      { messageId: message.id, workspaceId: message.workspaceId },
+      { priority: "normal", attempt },
+    );
+
+    return { ...serializeMessage(updated), retried: true, attempt };
   });
 
   // --- Audit trail --------------------------------------------------------

@@ -222,6 +222,10 @@ export const api = {
     rmFetch<Message>("/v1/messages", { method: "POST", body, subTenantId: body.sub_tenant_id }),
   recordEvent: (id: string, body: { event: SimulatableEvent; url?: string; reason?: string }) =>
     rmFetch<{ ok: boolean }>(`/v1/messages/${id}/events`, { method: "POST", body }),
+  retryMessage: (id: string) =>
+    rmFetch<Message & { retried: boolean; attempt: number }>(`/v1/messages/${id}/retry`, {
+      method: "POST",
+    }),
 
   listSubTenants: () => rmFetch<ListResponse<SubTenant>>("/v1/sub-tenants"),
   getSubTenant: (id: string) => rmFetch<SubTenant>(`/v1/sub-tenants/${id}`),

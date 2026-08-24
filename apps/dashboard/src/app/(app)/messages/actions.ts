@@ -23,6 +23,24 @@ export async function refreshMessage(id: string): Promise<MessageSnapshot> {
   }
 }
 
+/**
+ * Re-send a message that failed, then return the fresh snapshot.
+ *
+ * The API decides whether it MAY be retried — it refuses anything the provider
+ * already accepted (a second copy in someone's inbox has no undo) and anything
+ * the recipient decided. So the error here is worth showing verbatim: it is the
+ * reason, not a generic failure.
+ */
+export async function retryMessage(id: string): Promise<MessageSnapshot> {
+  try {
+    await api.retryMessage(id);
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't retry this message." };
+  }
+  return refreshMessage(id);
+}
+
 /** Sandbox only: record a simulated provider event, then return the fresh snapshot. */
 export async function simulateEvent(id: string, event: SimulatableEvent): Promise<MessageSnapshot> {
   try {
