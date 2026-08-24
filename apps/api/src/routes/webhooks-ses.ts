@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { getRedis } from "@rootmail/core";
 import { applySesInbound, applySesNotification, classify, parseSesNotification } from "../lib/ses-events";
-import { confirmSubscription, type SnsMessage, verifySnsSignature } from "../lib/sns";
+import { confirmSubscription, isAllowedTopic, type SnsMessage, verifySnsSignature } from "../lib/sns";
 
 // SNS may redeliver a notification; dedup by its envelope MessageId so we don't
 // double-audit / double-fire outbound webhooks. (Suppression itself is already
@@ -40,6 +40,14 @@ export async function sesWebhookRoutes(app: FastifyInstance): Promise<void> {
       app.log.warn({ err }, "SNS signature verification error");
     }
     if (!valid) return reply.code(403).send({ error: "invalid signature" });
+
+    // A valid signature proves AMAZON sent it, not that the topic is ours. Both
+    // notifications and confirmations are gated, because a subscription confirmed
+    // earlier would otherwise keep delivering after the allowlist was tightened.
+    if (!isAllowedTopic(msg.TopicArn)) {
+      app.log.warn({ topic: msg.TopicArn }, "SNS message from a topic we do not own — ignoring");
+      return reply.code(403).send({ error: "unrecognized topic" });
+    }
 
     if (msg.Type === "SubscriptionConfirmation") {
       await confirmSubscription(msg);

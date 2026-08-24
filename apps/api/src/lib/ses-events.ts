@@ -313,7 +313,11 @@ export async function applySesNotification(n: SesNotification): Promise<SesKind>
     const reason = n.complaint?.complaintFeedbackType
       ? `Spam complaint (${n.complaint.complaintFeedbackType})`
       : "Spam complaint";
-    await setStatus(message, "complained", reason);
+    // A complaint is the most serious outcome a message can carry and must not be
+    // overwritten by a bounce that arrives afterwards. Suppression is written
+    // either way below, so this only governs the REPORTED outcome — which is
+    // what feeds the complaint rate the enforcement thresholds run on.
+    if (message.status !== "complained") await setStatus(message, "complained", reason);
     for (const email of recipients) {
       await addSuppression(message.workspaceId, message.subTenantId, email, "complaint", message.id, "ses");
     }
@@ -328,7 +332,11 @@ export async function applySesNotification(n: SesNotification): Promise<SesKind>
   if (n.bounce?.bounceType === "Permanent") {
     const recipients = n.bounce?.bouncedRecipients?.map((r) => r.emailAddress) ?? [message.toEmail];
     const reason = diagnostic ?? `Permanent bounce${n.bounce?.bounceSubType ? ` (${n.bounce.bounceSubType})` : ""}`;
-    await setStatus(message, "bounced", reason);
+    // Do not regress a complaint. SES can deliver a bounce and a complaint for the
+    // same message out of order, and "bounced" replacing "complained" understates
+    // the complaint rate — the metric with the tightest threshold and the one our
+    // provider cares about most.
+    if (message.status !== "complained") await setStatus(message, "bounced", reason);
     for (const email of recipients) {
       await addSuppression(message.workspaceId, message.subTenantId, email, "bounce", message.id, "ses");
     }

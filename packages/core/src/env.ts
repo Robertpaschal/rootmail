@@ -127,6 +127,18 @@ const EnvSchema = z.object({
   INBOUND_S3_BUCKET: z.string().optional(),
   INBOUND_S3_PREFIX: z.string().optional(),
   INBOUND_SNS_TOPIC_ARN: z.string().optional(),
+  /**
+   * Comma-separated SNS topic ARNs whose notifications we will act on.
+   *
+   * Without this the webhook auto-confirms a subscription from ANY AWS host and
+   * then trusts what it delivers, because a valid SNS signature only proves
+   * Amazon sent it — not that WE own the topic. Anyone could subscribe our
+   * endpoint to a topic of theirs and post signed events at us.
+   *
+   * Unset means accept any topic, which is the old behaviour and is warned about
+   * at boot rather than silently continued.
+   */
+  SES_SNS_TOPIC_ARNS: z.string().optional(),
 
   SENDGRID_API_KEY: z.string().optional(),
 

@@ -1,3 +1,4 @@
+import { env } from "@rootmail/core";
 import { createVerify } from "node:crypto";
 
 // ---------------------------------------------------------------------------
@@ -76,9 +77,31 @@ export async function verifySnsSignature(msg: SnsMessage): Promise<boolean> {
   return verifier.verify(pem, msg.Signature, "base64");
 }
 
+/**
+ * Is this a topic we own?
+ *
+ * A valid SNS signature proves Amazon sent the message — not that the topic is
+ * ours. Without this check anyone could subscribe our endpoint to a topic of
+ * their own and post correctly-signed notifications at it. The signature
+ * verification above is necessary and not sufficient.
+ */
+export function isAllowedTopic(topicArn: string | undefined): boolean {
+  const allow = (env.SES_SNS_TOPIC_ARNS ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  // Unset = accept anything, the old behaviour. Warned about at boot rather
+  // than quietly relied upon.
+  if (allow.length === 0) return true;
+  return Boolean(topicArn && allow.includes(topicArn));
+}
+
 /** Visit the SubscribeURL to confirm an SNS subscription (host-checked). */
 export async function confirmSubscription(msg: SnsMessage): Promise<void> {
   if (!msg.SubscribeURL) return;
+  if (!isAllowedTopic(msg.TopicArn)) {
+    throw new Error(`refusing to confirm: ${msg.TopicArn ?? "unknown topic"} is not an allowed topic`);
+  }
   const u = new URL(msg.SubscribeURL);
   if (u.protocol !== "https:" || !isAwsHost(u.hostname)) {
     throw new Error("refusing to confirm: SubscribeURL is not an AWS host");
