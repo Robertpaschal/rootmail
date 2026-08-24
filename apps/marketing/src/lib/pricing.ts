@@ -59,12 +59,25 @@ export interface PublicPricing {
     };
   };
   addons: PublicAddon[];
+  /**
+   * The closed-beta send cap, served from the same env the API ENFORCES it from.
+   *
+   * The tiers above describe pricing as we open up; they are not what anyone can
+   * send today. A pricing page that shows a calculator running to millions of
+   * messages a month, while every real account is held to a handful a day, is
+   * making a promise we are not currently keeping — to prospects, and to our
+   * email provider, who reads this page too.
+   */
+  beta?: { active: boolean; daily_send_cap: number };
 }
 
 // Baked snapshot of the live model (packages/core constants) — the offline
 // fallback. Keep the NUMBERS in step when core pricing changes.
 export const FALLBACK_PRICING: PublicPricing = {
   yearly_months_free: 2,
+  // Conservative offline default: if we cannot reach the API we would rather
+  // under-promise than render the tiers as if they were available today.
+  beta: { active: true, daily_send_cap: 12 },
   wings: {
     transactional: {
       free_sends: 3_000,
@@ -166,6 +179,7 @@ export async function getPublicPricing(): Promise<PublicPricing> {
       yearly_months_free: json.yearly_months_free ?? 2,
       wings: json.wings,
       addons: json.addons,
+      beta: json.beta,
     };
   } catch {
     return FALLBACK_PRICING;

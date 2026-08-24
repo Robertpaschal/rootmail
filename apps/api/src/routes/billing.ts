@@ -27,6 +27,7 @@ import {
   WINGS,
   yearlyPrice,
   YEARLY_MONTHS_FREE,
+  env,
 } from "@rootmail/core";
 import { db, type Organization, organizations, type OrgAddon, orgAddons } from "@rootmail/db";
 import { currentPeriod, getAiUsage, type QuotaState, quotaState } from "../lib/billing";
@@ -339,6 +340,16 @@ export async function billingRoutes(app: FastifyInstance): Promise<void> {
         },
       },
       addons: serializeAddonCatalog(),
+      // The public pricing page markets tiers that go far beyond what anyone can
+      // actually send today. During the closed beta every account is held to a
+      // hard daily cap regardless of plan, and a pricing page that does not say
+      // so reads as a promise we are not currently keeping — including to our
+      // own email provider, who reads it. Served from the same env the cap is
+      // ENFORCED from, so the page can never drift from the gate.
+      beta: {
+        active: env.BETA_INVITE_REQUIRED === "true",
+        daily_send_cap: env.BETA_DAILY_SEND_CAP,
+      },
     };
   });
 

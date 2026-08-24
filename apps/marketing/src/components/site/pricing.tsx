@@ -46,6 +46,27 @@ export async function Pricing() {
           </p>
         </div>
 
+        {/* What you can actually send TODAY, said before the calculator rather
+            than after it. The tiers below describe where pricing lands as we
+            open up; during the closed beta every account is held to a hard daily
+            cap whatever plan it is on. Showing a calculator that runs to
+            millions a month without this reads as a promise we are not currently
+            keeping. The number comes from the API, which reads the same env the
+            cap is enforced from, so the page cannot drift from the gate. */}
+        {pricing.beta?.active ? (
+          <div className="mx-auto mb-10 max-w-2xl rounded-xl border border-amber-300 bg-amber-50/70 p-4 text-center dark:border-amber-900/60 dark:bg-amber-950/20">
+            <p className="text-sm font-medium">
+              rootmail is in closed beta — everyone is capped at{" "}
+              {pricing.beta.daily_send_cap} sends a day right now
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              The plans below are what pricing will look like as we open up, not what you can send
+              today. The cap applies to every account regardless of plan, and it lifts as we grow
+              into it.
+            </p>
+          </div>
+        ) : null}
+
         {/* The two wings, sized honestly with the product's own math. */}
         <Reveal inView delay={0.05} className="mx-auto grid max-w-5xl items-stretch gap-6 lg:grid-cols-2">
           <BlocksCalculator tx={pricing.wings.transactional} />

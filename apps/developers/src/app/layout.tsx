@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { BetaNotice } from "@/components/site/beta-notice";
 
 const description =
   "Stop rebuilding email inside your product. One integration gives you sending, templates, audiences, webhooks, deliverability, and signed proof — everything the dashboard does, the API does. Change email behavior without redeploying.";
@@ -46,7 +47,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="min-h-screen bg-background font-sans antialiased">{children}</body>
+      <body className="min-h-screen bg-background font-sans antialiased">
+        <BetaNotice />
+        {children}
+      </body>
     </html>
   );
 }
