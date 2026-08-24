@@ -547,6 +547,13 @@
       "when": 1787583384972,
       "tag": "0077_suppression_dedupe",
       "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "7",
+      "when": 1787585262399,
+      "tag": "0078_data_erased_event",
+      "breakpoints": true
     }
   ]
 }

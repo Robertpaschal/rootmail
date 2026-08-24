@@ -24,6 +24,8 @@ import {
   canRetryMessage,
   ORG_SENDS_PER_MINUTE,
   checkAndCount,
+  scanContent,
+  MAX_ATTACHMENT_BYTES,
 } from "@rootmail/core";
 import {
   activeReplyDomain,
@@ -86,7 +88,6 @@ const sendBody = z.object({
 
 // Email attachments are constrained by inbox size caps — SES rejects over ~40MB
 // and most providers strip past 25MB, so we hold the per-email total to 20MB.
-const MAX_ATTACHMENT_TOTAL_BYTES = 20 * 1024 * 1024;
 
 const listQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -439,11 +440,31 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         return { url: r.url, filename: r.filename, content_type: r.contentType, size: r.size };
       });
       const total = messageAttachments.reduce((s, a) => s + a.size, 0);
-      if (total > MAX_ATTACHMENT_TOTAL_BYTES) {
+      // The SAME limit the worker enforces when it fetches the bytes. This said
+      // 20MB while the worker refused anything over 7MB, so an 8MB attachment was
+      // accepted here and failed at send — the worst place to find out. SES
+      // rejects a message over 10MB after base64 inflation, so 7MB raw is the
+      // real ceiling either way.
+      if (total > MAX_ATTACHMENT_BYTES) {
         throw Errors.validation(
-          `Attachments total ${(total / 1048576).toFixed(1)}MB — the limit is 20MB per email.`,
+          `Attachments total ${(total / 1048576).toFixed(1)}MB — the limit is ${Math.round(MAX_ATTACHMENT_BYTES / 1048576)}MB per email.`,
         );
       }
+    }
+
+    // Content rules, before anything is queued and after attachments resolve —
+    // the filenames are only known once they do. Both rules are definite: an
+    // attachment that executes on the recipient's machine, and a link to a host
+    // an operator has blocked. Refused rather than flagged, because a warning
+    // nobody reads about a message already on the wire is not a control.
+    const contentFindings = scanContent({
+      html: rendered.html,
+      text: rendered.text,
+      attachments: messageAttachments.map((a) => ({ filename: a.filename })),
+      blockedHosts: (env.BLOCKED_LINK_HOSTS ?? "").split(",").filter(Boolean),
+    });
+    if (contentFindings.length) {
+      throw Errors.badRequest(contentFindings.map((f) => f.detail).join(" "));
     }
 
     const sendAt = body.send_at ? new Date(body.send_at) : null;

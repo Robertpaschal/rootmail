@@ -113,6 +113,10 @@ export const AUDIT_EVENTS = [
   // Who affirmed a list was permission-based, and when. Message-less like the
   // tenant events above.
   "contacts_imported",
+  // A data-subject erasure. Recorded WITHOUT the address — the point is that it
+  // is gone — but with who did it and how much it touched, because "we erased
+  // them" needs to be answerable a year later.
+  "data_erased",
 ] as const;
 export type AuditEvent = (typeof AUDIT_EVENTS)[number];
 
@@ -129,6 +133,7 @@ export const TENANT_AUDIT_EVENTS = [
   "dkim_rotation_completed",
   "dkim_rotation_cancelled",
   "contacts_imported",
+  "data_erased",
 ] as const satisfies readonly AuditEvent[];
 export type TenantAuditEvent = (typeof TENANT_AUDIT_EVENTS)[number];
 

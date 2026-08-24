@@ -139,6 +139,14 @@ const EnvSchema = z.object({
    * at boot rather than silently continued.
    */
   SES_SNS_TOPIC_ARNS: z.string().optional(),
+  /**
+   * Comma-separated hosts no customer may link to. Subdomains match.
+   *
+   * Operator-controlled rather than a reputation feed we do not have: when a
+   * provider forwards a phishing complaint naming a domain, this is where it
+   * goes, and it takes effect on the next send without a deploy.
+   */
+  BLOCKED_LINK_HOSTS: z.string().optional(),
 
   SENDGRID_API_KEY: z.string().optional(),
 
