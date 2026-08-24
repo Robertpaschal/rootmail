@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
-import { type CampaignJob, contactVariables, env } from "@rootmail/core";
+import { CAMPAIGN_CANCEL_CHECK_EVERY, type CampaignJob, contactVariables, env } from "@rootmail/core";
 import { audienceMembers, campaignOverrides, campaigns, contacts, db, lists, senderIdentities, subTenants, templates, workspaces, type Template } from "@rootmail/db";
 import { automationSend } from "./send";
 
@@ -9,6 +9,15 @@ import { automationSend } from "./send";
 export async function processCampaignSend(data: CampaignJob): Promise<void> {
   const [c] = await db.select().from(campaigns).where(eq(campaigns.id, data.campaignId)).limit(1);
   if (!c || c.status === "sent" || !c.listId || !c.templateId) return;
+
+  // A campaign cancelled before its job started must not run at all — and the
+  // status write below would otherwise flip it straight back to "sending",
+  // erasing the cancellation. This is the window between pressing send and the
+  // worker picking the job up, which is exactly when someone realises.
+  if (c.status === "cancelled") {
+    console.log(`[campaign] ${c.id} was cancelled before it started — not sending`);
+    return;
+  }
 
   await db.update(campaigns).set({ status: "sending", updatedAt: new Date() }).where(eq(campaigns.id, c.id));
 
@@ -83,7 +92,24 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
   let sent = 0;
   let suppressed = 0;
   let failed = 0;
-  for (const m of members) {
+  let cancelled = false;
+  for (const [idx, m] of members.entries()) {
+    // Re-read the campaign periodically so a cancellation can actually land.
+    // Without this the whole audience is committed the moment the job starts:
+    // a mistake sent to fifty thousand people had no stopping point, for staff
+    // or for the customer who spotted it ten seconds later.
+    if (idx > 0 && idx % CAMPAIGN_CANCEL_CHECK_EVERY === 0) {
+      const [fresh] = await db
+        .select({ status: campaigns.status })
+        .from(campaigns)
+        .where(eq(campaigns.id, c.id))
+        .limit(1);
+      if (fresh?.status === "cancelled") {
+        cancelled = true;
+        console.log(`[campaign] ${c.id} cancelled after ${sent} sends — stopping`);
+        break;
+      }
+    }
     // A/B by tags: the first variant whose tag this member carries wins.
     const hit = variants.find((v) => (m.tags ?? []).includes(v.tag));
     const vTpl = hit ? variantTemplates.get(hit.template_id) : undefined;
@@ -127,9 +153,18 @@ export async function processCampaignSend(data: CampaignJob): Promise<void> {
   await db
     .update(campaigns)
     .set({
-      status: "sent",
+      // A cancelled campaign stays cancelled — marking it "sent" would erase the
+      // fact that someone stopped it, and the stats below are what say how far
+      // it actually got before they did.
+      status: cancelled ? "cancelled" : "sent",
       sentAt: new Date(),
-      stats: { recipients: members.length, sent, suppressed, failed },
+      stats: {
+        recipients: members.length,
+        sent,
+        suppressed,
+        failed,
+        ...(cancelled ? { cancelled: true, not_sent: members.length - sent - suppressed - failed } : {}),
+      },
       updatedAt: new Date(),
     })
     .where(eq(campaigns.id, c.id));

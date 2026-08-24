@@ -1085,7 +1085,18 @@ export type SequenceStep =
 // ---------------------------------------------------------------------------
 // Campaigns (bulk send to a list) — Pro feature; volume via the monthly quota
 // ---------------------------------------------------------------------------
-export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "sent"] as const;
+export const CAMPAIGN_STATUSES = ["draft", "scheduled", "sending", "sent", "cancelled"] as const;
+
+/**
+ * How often the fan-out re-reads the campaign to see if it was cancelled.
+ *
+ * A campaign sends to its whole audience inside ONE job, so without a re-read
+ * there is no moment between "go" and "done" at which anything can intervene —
+ * a bad campaign to fifty thousand people could not be stopped, by staff or by
+ * the customer who noticed the mistake. Every 25 recipients bounds the damage to
+ * a couple of seconds' worth without turning the loop into a query storm.
+ */
+export const CAMPAIGN_CANCEL_CHECK_EVERY = 25;
 export type CampaignStatus = (typeof CAMPAIGN_STATUSES)[number];
 
 // ---------------------------------------------------------------------------

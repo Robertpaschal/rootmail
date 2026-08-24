@@ -506,6 +506,42 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   });
 
   // --- Send (or schedule) -------------------------------------------------
+  // Stop a campaign that is already going out.
+  //
+  // The fan-out sends the whole audience inside one job, so before this there was
+  // no moment between "go" and "done" at which a mistake could be stopped. The
+  // worker re-reads this status as it goes, so cancelling takes effect within a
+  // couple of seconds rather than at the end.
+  app.post("/v1/campaigns/:id/cancel", async (req) => {
+    await requirePermission(req, "messages.send");
+    const { id } = req.params as { id: string };
+    const c = await getScoped(req, id);
+
+    if (c.status === "sent" || c.status === "cancelled") {
+      throw Errors.badRequest(
+        c.status === "sent"
+          ? "This campaign has finished sending — there is nothing left to stop."
+          : "This campaign is already cancelled.",
+      );
+    }
+
+    await db
+      .update(campaigns)
+      .set({ status: "cancelled", updatedAt: new Date() })
+      .where(eq(campaigns.id, c.id));
+
+    return {
+      object: "campaign",
+      id: c.id,
+      status: "cancelled",
+      // Honest about what cancelling can and cannot undo.
+      note:
+        c.status === "sending"
+          ? "Sending stops within a few seconds. Mail already accepted by the provider cannot be recalled."
+          : "This campaign will not send.",
+    };
+  });
+
   app.post("/v1/campaigns/:id/send", async (req) => {
     await requirePermission(req, "content.manage");
     // Anti-abuse: a live campaign blast requires a verified account owner, an

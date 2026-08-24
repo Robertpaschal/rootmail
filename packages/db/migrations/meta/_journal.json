@@ -526,6 +526,13 @@
       "when": 1787573639781,
       "tag": "0074_sending_suspended",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1787575716325,
+      "tag": "0075_campaign_cancelled",
+      "breakpoints": true
     }
   ]
 }
