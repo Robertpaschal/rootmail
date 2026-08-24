@@ -57,3 +57,35 @@ export async function takeThrottleToken(
 export async function clearThrottle(subTenantId: string): Promise<void> {
   await getRedis().del(windowKey(subTenantId));
 }
+
+/**
+ * A plain "did this happen too recently / too often" counter, for public
+ * endpoints that send mail to an address nobody has authenticated.
+ *
+ * The subscribe endpoint is the case this exists for: unauthenticated, one real
+ * email per POST, list ids visible in the hosted page URL, and no per-address
+ * cooldown. That is a subscription bomb — point it at a victim's address in a
+ * loop and we deliver the abuse. AWS names this pattern in its Acceptable Use
+ * Policy specifically, and the only brake was a global 300/min limiter shared
+ * with every other route.
+ *
+ * Deliberately NOT the token bucket above: this counts distinct occurrences over
+ * a window rather than metering a send rate, and it must not consume on refusal
+ * — a refused signup should not extend its own cooldown.
+ */
+export async function checkAndCount(
+  key: string,
+  limit: number,
+  windowSec: number,
+): Promise<{ allowed: boolean; used: number; retryInSec: number }> {
+  const redis = getRedis();
+  const k = `rl:${key}`;
+  const used = Number((await redis.get(k)) ?? 0);
+  if (used >= limit) {
+    const ttl = await redis.ttl(k);
+    return { allowed: false, used, retryInSec: ttl > 0 ? ttl : windowSec };
+  }
+  const next = await redis.incr(k);
+  if (next === 1) await redis.expire(k, windowSec);
+  return { allowed: true, used: next, retryInSec: windowSec };
+}

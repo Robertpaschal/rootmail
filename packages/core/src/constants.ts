@@ -174,6 +174,17 @@ export const DKIM_PREVIOUS_RETIRE_DAYS = 7;
  */
 export const DKIM_ROTATION_STALL_DAYS = 14;
 
+/**
+ * How often ONE address may be sent a signup confirmation for ONE audience.
+ *
+ * A person who genuinely did not get the first mail retries within minutes and
+ * is served from the pending signup rather than a new send; a day is far beyond
+ * any honest retry and far below what makes an address worth targeting.
+ */
+export const SUBSCRIBE_ADDRESS_COOLDOWN_SEC = 86_400;
+/** Confirmations one audience may trigger per hour, whoever is asking. */
+export const SUBSCRIBE_LIST_HOURLY_CAP = 60;
+
 export const PRIORITIES = ["high", "normal", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];
 

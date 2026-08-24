@@ -7,6 +7,9 @@ import {
   Errors,
   subscribeConfirmUrl,
   verifySubscribeConfirmToken,
+  SUBSCRIBE_ADDRESS_COOLDOWN_SEC,
+  SUBSCRIBE_LIST_HOURLY_CAP,
+  checkAndCount,
 } from "@rootmail/core";
 import {
   admitSubscriber,
@@ -130,6 +133,21 @@ export async function subscribeRoutes(app: FastifyInstance): Promise<void> {
     if (!ctx || !ctx.list.signupEnabled) throw Errors.notFound("This audience isn't accepting signups.");
     const email = body.email.trim().toLowerCase();
     const name = body.name?.trim() || undefined;
+
+    // Rate limits BEFORE anything that sends. Unauthenticated endpoint, one real
+    // email per POST, list ids visible in the hosted page URL — without these,
+    // pointing a loop at someone's address makes us the delivery mechanism for
+    // the abuse. Both refusals report success: telling an unauthenticated caller
+    // "that address is rate-limited" confirms the address is on the list.
+    const perAddress = await checkAndCount(
+      `sub:${ctx.list.id}:${email}`,
+      1,
+      SUBSCRIBE_ADDRESS_COOLDOWN_SEC,
+    );
+    if (!perAddress.allowed) return finish("confirm_sent");
+
+    const perList = await checkAndCount(`sub:list:${ctx.list.id}`, SUBSCRIBE_LIST_HOURLY_CAP, 3600);
+    if (!perList.allowed) return finish("confirm_sent");
 
     if (ctx.list.doubleOptIn) {
       // Ask first, add on confirm. The pending signup is recorded as an event so
