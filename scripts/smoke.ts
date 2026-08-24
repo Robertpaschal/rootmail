@@ -97,6 +97,10 @@ async function main() {
   check("sub-tenant message delivered", (await tenantMail.messages.get(tMsg.id)).status === "delivered");
 
   console.log("\n[7] Suppression — an unsubscribe is a BULK opt-out");
+  // They have to be a real contact first: marketing and sales mail is refused to
+  // an address the sender never collected, so a bare send would fail for THAT
+  // reason and never reach the suppression rule this step is about.
+  await mail.contacts.upsert({ email: "optout@example.com", name: "Opt Out" });
   await mail.contacts.unsubscribe("optout@example.com");
 
   // The distinction the product exists to get right: leaving the newsletter must
