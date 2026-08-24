@@ -507,10 +507,30 @@ export const workspaces = pgTable(
     // this many days are redacted or deleted by the retention sweep.
     retentionDays: integer("retention_days"),
     retentionMode: retentionModeEnum("retention_mode").notNull().default("redact"),
+
+    // --- Reputation enforcement for ordinary senders --------------------------
+    // The same loop `sub_tenants` carries, for everyone who is NOT sending under
+    // a sub-tenant — which is most accounts, since sub-tenancy is a paid feature.
+    // Without these, the enforcement we describe publicly protected only the
+    // customers who bought the multi-tenant tier, and an ordinary account mailing
+    // a purchased list was measured by nothing at all.
+    reputationState: reputationStateEnum("reputation_state").notNull().default("ok"),
+    reputationScore: integer("reputation_score"),
+    reputationReason: text("reputation_reason"),
+    reputationMetrics: jsonb("reputation_metrics").$type<Record<string, unknown>>().notNull().default({}),
+    reputationCheckedAt: timestamp("reputation_checked_at", { withTimezone: true }),
+    reputationChangedAt: timestamp("reputation_changed_at", { withTimezone: true }),
+    /** Watermark: after a resume the sweep judges only mail sent AFTER this. */
+    reputationResumedAt: timestamp("reputation_resumed_at", { withTimezone: true }),
+
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
-  (t) => [uniqueIndex("workspaces_org_slug_uq").on(t.organizationId, t.slug)],
+  (t) => [
+    uniqueIndex("workspaces_org_slug_uq").on(t.organizationId, t.slug),
+    // The sweep selects live workspaces by state.
+    index("workspaces_reputation_idx").on(t.environment, t.reputationState),
+  ],
 );
 
 // A user's membership in an organization (the unit they sign up into).

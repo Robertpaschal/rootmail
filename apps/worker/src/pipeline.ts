@@ -97,18 +97,40 @@ type ReputationGate = "ok" | "deferred" | "paused";
  * - otherwise   → straight through.
  */
 async function reputationGate(message: Message, data: SendJobData): Promise<ReputationGate> {
-  if (!message.subTenantId) return "ok";
+  // Which reputation applies: the sub-tenant's when the send is on behalf of a
+  // client, otherwise the workspace's own.
+  //
+  // This used to `return "ok"` for anything without a sub-tenant, which — since
+  // sub-tenancy is a paid feature — meant the enforcement loop protected only
+  // customers on the multi-tenant tier. An ordinary account mailing a purchased
+  // list met no gate at all.
+  let scopeId: string;
+  let state: string;
 
-  const [st] = await db
-    .select({ state: subTenants.reputationState })
-    .from(subTenants)
-    .where(eq(subTenants.id, message.subTenantId))
-    .limit(1);
-  if (!st) return "ok";
-  if (st.state === "paused") return "paused";
-  if (st.state !== "throttled") return "ok";
+  if (message.subTenantId) {
+    const [st] = await db
+      .select({ state: subTenants.reputationState })
+      .from(subTenants)
+      .where(eq(subTenants.id, message.subTenantId))
+      .limit(1);
+    if (!st) return "ok";
+    scopeId = message.subTenantId;
+    state = st.state;
+  } else {
+    const [ws] = await db
+      .select({ state: workspaces.reputationState })
+      .from(workspaces)
+      .where(eq(workspaces.id, message.workspaceId))
+      .limit(1);
+    if (!ws) return "ok";
+    scopeId = message.workspaceId;
+    state = ws.state;
+  }
 
-  const verdict = await takeThrottleToken(message.subTenantId);
+  if (state === "paused") return "paused";
+  if (state !== "throttled") return "ok";
+
+  const verdict = await takeThrottleToken(scopeId);
   if (verdict.allowed) return "ok";
 
   const deferrals = (data.throttleDeferrals ?? 0) + 1;
@@ -119,7 +141,7 @@ async function reputationGate(message: Message, data: SendJobData): Promise<Repu
       .update(messages)
       .set({
         status: "failed",
-        error: `Held by this client's send throttle for over ${REPUTATION_MAX_DEFERRALS} hours.`,
+        error: `Held by a send throttle for over ${REPUTATION_MAX_DEFERRALS} hours.`,
         updatedAt: new Date(),
       })
       .where(eq(messages.id, message.id));

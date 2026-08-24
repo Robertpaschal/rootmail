@@ -25,6 +25,7 @@ import { processLifecycleSweep } from "./lifecycle";
 import { processSend } from "./pipeline";
 import { processDnsDriftSweep } from "./dns-drift";
 import { processReputationSweep } from "./reputation";
+import { processWorkspaceReputationSweep } from "./workspace-reputation";
 import { processRetentionSweep } from "./retention";
 import { processSequenceTick } from "./sequences";
 import { processSystemMail } from "./system-mail";
@@ -138,6 +139,9 @@ const reputationWorker = new Worker(
   async (job) => {
     if (job.name === "sweep") {
       await processReputationSweep();
+      // Ordinary senders — everyone not sending under a sub-tenant, which is
+      // most accounts. Same rules, same window, same thresholds.
+      await processWorkspaceReputationSweep();
       // Same job, same concurrency-1 queue: two sweeps that both write
       // sub_tenants and both mail the operator must never overlap.
       await processDnsDriftSweep();
