@@ -113,6 +113,13 @@ run this before anything else — those are the tests that exist.
   deploy looks clean while the table isn't there. Cost a full deploy cycle on
   0064. `db:generate` maintains the journal for you; only hand-written files
   need the entry added by hand.
+- **CI can be red for days without anyone noticing, because deploys don't wait
+  for it.** The `Build & push images` workflow is independent of `CI`, so a
+  failing smoke test never blocked a release. Flipping the `DNS_VERIFY_MODE`
+  default to `live` broke the smoke on every commit for six days — CI had relied
+  on the old `mock` default without stating it, and started doing real DNS
+  lookups for a domain invented per run. Check `gh run list --workflow=CI` after
+  changing any DEFAULT, and never let a test depend on one it doesn't set.
 - **A full disk makes a deploy silently no-op.** Every deploy leaves a
   `sha-<commit>` image tag; they accumulate until SSM dies with "ipc messaging
   received timeout signal" — which looks like a broken tool, not a full disk —

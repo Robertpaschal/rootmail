@@ -129,7 +129,13 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
     // Best-effort: if SES is unreachable the client is still created and the
     // verify route retries. What we must not do is fail creation and leave the
     // operator with nothing.
-    const identity = await ensureSendingDomainIdentity(domain);
+    // Nothing to register when SES is not the provider (local dev, self-hosters
+    // on another provider). ensureSendingDomainIdentity already returns a clean
+    // failure in that case; skipping avoids a pointless call on every create.
+    const identity =
+      env.MAIL_PROVIDER === "ses"
+        ? await ensureSendingDomainIdentity(domain)
+        : ({ ok: false, reason: "SES is not the configured provider", retryable: false } as const);
     const withIdentity = identity.ok
       ? (
           await db
@@ -273,7 +279,13 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
         .set({ sesIdentityStatus: sesStatus.dkim })
         .where(eq(subTenants.id, st.id));
     }
-    const verified = isVerified(checks) && (sesStatus?.sendingEnabled ?? false);
+    // SES is the authority ONLY when SES is the thing that will send. In mock
+    // verification mode (local, demo, CI) there is no identity to ask about, and
+    // a self-hoster on another provider has none either — requiring one there
+    // makes verification impossible rather than strict, which is what this got
+    // wrong first time: CI failed at "sub-tenant verified" with no SES account.
+    const sesRequired = env.MAIL_PROVIDER === "ses" && env.DNS_VERIFY_MODE === "live";
+    const verified = isVerified(checks) && (!sesRequired || (sesStatus?.sendingEnabled ?? false));
 
     // A reputation pause outranks DNS. Without this, re-running verification on a
     // paused client would flip `status` back to "verified" and quietly reopen the
