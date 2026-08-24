@@ -136,6 +136,13 @@ await mail.sequences.enroll(seq.id, "ada@example.com");`,
       "sequence.ts",
     ),
     callout("note", "Sequences and campaigns are Marketing-wing features — enrolling or sending checks your plan and returns a ", c("feature_locked"), " error if it isn't enabled."),
+    // "Multi-step drip that stops on reply" is the shape of a cold-outreach tool,
+    // and the restriction that makes it NOT one lived only in code. Anyone
+    // judging what this product is for reads this page.
+    callout(
+      "warn",
+      "Sequences are for people you already have a relationship with — onboarding, activation, renewals. Marketing and sales mail can only go to contacts already in your audience: a send to an address you haven't collected is refused. rootmail isn't a cold-outreach tool and won't work as one.",
+    ),
   ],
 };
 

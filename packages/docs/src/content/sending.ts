@@ -15,7 +15,7 @@ export const messages: DocPage = {
       { name: "template", type: "string", desc: ["A template slug. Use ", c("template_id"), " for the id."] },
       { name: "variables", type: "object", desc: ["Values merged into the template (Handlebars). A saved contact's details merge in automatically first — see ", a("Personalization", "messages"), " below."] },
       { name: "from / reply_to", type: "string", desc: ["Override the sender / reply-to (must be a verified sender)."] },
-      { name: "type", type: "enum", desc: ["`transactional` (default) or `marketing` — meters against the right wing."] },
+      { name: "type", type: "enum", desc: ["`transactional` (default), `marketing` or `sales` — meters against the right wing. Marketing and sales sends require the recipient to already be one of your contacts, and require a postal address on your organization; transactional has neither restriction."] },
       { name: "send_at", type: "string", desc: ["ISO 8601 — schedule for later instead of sending now."] },
       { name: "idempotency_key", type: "string", desc: ["Exactly-once — see ", a("Idempotency", "idempotency"), "."] },
       { name: "tags / metadata", type: "array / object", desc: ["Your own labels; echoed back on events."] },

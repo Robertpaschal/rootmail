@@ -142,12 +142,26 @@ export const imports: DocPage = {
     p("Move in from another provider in one step. Import contacts and, crucially, your suppression list so you never email someone who already opted out."),
     endpoint("POST", "/v1/imports/contacts", "Import contacts (CSV/JSON or a provider export)."),
     endpoint("POST", "/v1/imports/suppressions", "Import a suppression/unsubscribe list."),
+    // The affirmation was enforced in the API and mentioned nowhere here, so the
+    // most sensitive ingestion path in the product read as a frictionless bulk
+    // upload from an arbitrary CSV. Anyone assessing whether we are a responsible
+    // sender reads the docs, not the source.
+    callout(
+      "warn",
+      "Importing contacts requires `permission_confirmed: true` — your explicit confirmation that everyone on the list gave you permission to email them. Purchased, rented, scraped and appended lists aren't allowed, and the request is refused without the confirmation. We record it against the import.",
+    ),
     h("From SendGrid, Postmark, or Mailgun"),
     p("Export your contacts and suppressions from your current provider, then import both. Your history and reputation come with you."),
     code(
       "ts",
-      `await mail.imports.contacts({ file: csvBuffer, format: "csv" });
-await mail.imports.suppressions({ file: sendgridExport, format: "csv" });`,
+      `await mail.imports.suppressions({ file: sendgridExport, format: "csv" });
+
+// permission_confirmed is required — the import is refused without it.
+await mail.imports.contacts({
+  file: csvBuffer,
+  format: "csv",
+  permission_confirmed: true,
+});`,
       "migrate.ts",
     ),
     callout("tip", "Do the suppression import first, then contacts — that way a re-imported contact who previously unsubscribed stays suppressed."),
