@@ -14,6 +14,114 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Answer a data request without a support ticket",
+    date: "2026-08-24",
+    changes: [
+      {
+        kind: "New",
+        text: "If someone asks what you hold about them, or asks you to delete it, there are now two endpoints for it \u2014 a full export of everything tied to an email address, and an erasure that removes it. GDPR gives you 30 days to answer; you should not spend them writing a database query.",
+      },
+      {
+        kind: "New",
+        text: "Erasing someone keeps one thing on purpose: their unsubscribe. Deleting that would mean your next campaign emails them again, which is the opposite of what they asked for. Everything else identifying them is removed, and the messages you sent stay provable \u2014 you keep the evidence that you had permission, without keeping them.",
+      },
+      {
+        kind: "New",
+        text: "You can stop a campaign that is already going out. Cancelling takes effect within a couple of seconds rather than at the end. Mail already handed to the provider can\u2019t be recalled \u2014 we say so plainly rather than implying otherwise.",
+      },
+    ],
+  },
+  {
+    title: "We check what you\u2019re sending before it goes",
+    date: "2026-08-24",
+    changes: [
+      {
+        kind: "New",
+        text: "Executable attachments are refused \u2014 .exe, .msi, .vbs, .jar and the rest. Most mailbox providers reject them anyway, and sending them damages deliverability for everyone on the platform. Send a link to the file instead.",
+      },
+      {
+        kind: "Improved",
+        text: "The attachment limit is now 7MB per email and enforced when you send, not when it fails. It previously accepted up to 20MB and then failed at delivery, because providers reject anything over 10MB once encoded.",
+      },
+      {
+        kind: "Improved",
+        text: "Sending is now rate-limited per account rather than per API key, so the ceiling is the same whether you use one key or ten.",
+      },
+    ],
+  },
+  {
+    title: "Unsubscribing stops the newsletter \u2014 not the password reset",
+    date: "2026-08-24",
+    changes: [
+      {
+        kind: "Fixed",
+        text: "An unsubscribe was blocking every message to that address, including receipts and password resets. Someone who left your newsletter could be locked out of their own account recovery. An opt-out now applies to marketing and sales mail only, which is what it always meant and what our policy has always said.",
+      },
+      {
+        kind: "Fixed",
+        text: "Bounces and complaints still block everything, as they should \u2014 those addresses cannot receive mail at all.",
+      },
+      {
+        kind: "Fixed",
+        text: "The live status on a message no longer freezes. It could stop updating after a retry, or after you switched tabs and came back, leaving a finished send looking stuck.",
+      },
+    ],
+  },
+  {
+    title: "Every account is watched now, not just multi-client ones",
+    date: "2026-08-24",
+    changes: [
+      {
+        kind: "New",
+        text: "Bounce and complaint rates are scored for every account on a rolling seven days, and acted on automatically \u2014 a warning, then slower sending, then a pause. This previously applied only to accounts sending on behalf of clients, which meant most senders were measured by nothing at all.",
+      },
+      {
+        kind: "New",
+        text: "A client paused for its reputation can no longer be deleted and recreated to clear the pause, and repeatedly resuming one now asks you to talk to us instead. The point of a pause is that something needs fixing.",
+      },
+      {
+        kind: "Improved",
+        text: "Suppression lists survive deleting a client. Their bounces and complaints keep protecting those recipients rather than disappearing with the record.",
+      },
+    ],
+  },
+  {
+    title: "Permission, in the places it was assumed",
+    date: "2026-08-24",
+    changes: [
+      {
+        kind: "New",
+        text: "Importing contacts now asks you to confirm that everyone on the list gave you permission to email them, and records that confirmation against the import. Purchased, rented and scraped lists are not allowed \u2014 they get everyone blocked, not just the sender.",
+      },
+      {
+        kind: "New",
+        text: "Marketing and sales mail can only go to people already in your audience. A campaign to an address you never collected is refused. Transactional mail \u2014 receipts, password resets \u2014 is unaffected.",
+      },
+      {
+        kind: "New",
+        text: "Commercial email now requires your business postal address to be set. The law has always required it on the message; we were letting it be sent without one.",
+      },
+      {
+        kind: "New",
+        text: "Our sending rules are published at /legal/acceptable-use rather than buried in the Terms, with the enforcement described in plain words.",
+      },
+    ],
+  },
+  {
+    title: "Client domains are signed as the client",
+    date: "2026-08-24",
+    changes: [
+      {
+        kind: "Fixed",
+        text: "Mail for a client domain was signed under rootmail\u2019s domain rather than theirs, so it never aligned to the client for DMARC. Client domains are now registered with our sending provider directly, and their mail is signed as them.",
+      },
+      {
+        kind: "Improved",
+        text: "Setting up a client domain now means publishing three CNAME records instead of a signing key we generated. The keys are managed and rotated for you, and there is nothing of yours to keep secret.",
+      },
+    ],
+  },
+  {
     title: "Change a client's signing key without dropping a message",
     date: "2026-08-24",
     changes: [

@@ -1,4 +1,4 @@
-import { Inbox, ShieldCheck, TestTube2 } from "lucide-react";
+import { Inbox, ScrollText, ShieldCheck, TestTube2 } from "lucide-react";
 import { Reveal } from "./motion";
 
 /**
@@ -31,6 +31,16 @@ const promises = [
     // Test sends excluded from scoring; reserved test recipients take the live path.
   },
   {
+    icon: ScrollText,
+    title: "A data request you can answer the same day",
+    body:
+      "When someone asks what you hold about them — or asks you to delete it — one call returns all of " +
+      "it, and one erases it. Erasing keeps their unsubscribe, because deleting that would mean emailing " +
+      "them again, which is the opposite of what they asked for.",
+    // POST /v1/privacy/export and /v1/privacy/erase. The suppression-survives
+    // behaviour is the part worth saying: it is the detail everyone gets wrong.
+  },
+  {
     icon: ShieldCheck,
     title: "Proof you can hand to someone else",
     body:
@@ -56,7 +66,7 @@ export function Promises() {
           </p>
         </Reveal>
 
-        <div className="mt-12 grid gap-6 md:grid-cols-3">
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {promises.map((p, i) => (
             <Reveal key={p.title} inView delay={0.06 * i}>
               <div className="h-full rounded-2xl border bg-card p-6 shadow-sm">

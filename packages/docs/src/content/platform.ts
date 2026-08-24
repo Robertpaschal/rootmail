@@ -220,6 +220,23 @@ export const compliance: DocPage = {
     endpoint("POST", "/v1/proof/verify", "Verify a bundle + signature — offline-checkable."),
     endpoint("GET", "/v1/retention", "Your data-retention policy."),
     endpoint("PUT", "/v1/retention", "Set redact/delete retention rules."),
+    h("Data-subject requests"),
+    p("When one of your recipients asks what you hold about them, or asks you to delete it, these answer it directly — GDPR gives you 30 days, which is not time to be writing database queries."),
+    endpoint("POST", "/v1/privacy/export", "Everything held about one email address."),
+    endpoint("POST", "/v1/privacy/erase", "Erase a recipient. Requires confirm: true."),
+    code(
+      "ts",
+      `// What do we hold about them?
+const data = await mail.privacy.export({ email: "ada@example.com" });
+
+// Erase it. The confirmation is required, not a formality.
+await mail.privacy.erase({ email: "ada@example.com", confirm: true });`,
+      "privacy.ts",
+    ),
+    callout(
+      "note",
+      "Erasing a recipient keeps their suppression entry, deliberately. Deleting it would mean your next campaign emails them again — the opposite of what they asked for. Messages they were sent are redacted rather than deleted, so you keep the proof you were entitled to send them without keeping them.",
+    ),
     code(
       "ts",
       `const proof = await mail.messages.proof(msg.id);   // { bundle, signature }
