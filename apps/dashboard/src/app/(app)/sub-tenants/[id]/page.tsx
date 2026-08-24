@@ -7,6 +7,7 @@ import { ConnectionError as ConnectionErrorCard } from "@/components/app/connect
 import { CopyButton } from "@/components/app/copy-button";
 import { PageHeader } from "@/components/app/page-header";
 import { ReputationBadge, SubTenantStatusBadge } from "@/components/app/status-badge";
+import { DkimRotation } from "./dkim-rotation";
 import { DnsDriftPanel } from "./dns-drift-panel";
 import { ReputationPanel } from "./reputation-panel";
 import { SubmitButton } from "@/components/app/submit-button";
@@ -92,6 +93,7 @@ export default async function SubTenantDetailPage({
       <div className="space-y-6">
           <DnsDriftPanel st={st} />
           <ReputationPanel st={st} report={reputation} />
+          <DkimRotation st={st} />
 
           <Card>
             <CardHeader className="flex-row items-start justify-between space-y-0">

@@ -170,3 +170,27 @@ export async function resumeSubTenant(id: string): Promise<{ error?: string }> {
   revalidatePath("/sub-tenants");
   return {};
 }
+
+export async function rotateSubTenantDkim(id: string): Promise<{ error?: string }> {
+  if (!id) return { error: "Missing client." };
+  try {
+    await api.rotateSubTenantDkim(id);
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't start a key rotation." };
+  }
+  revalidatePath(`/sub-tenants/${id}`);
+  return {};
+}
+
+export async function cancelSubTenantDkimRotation(id: string): Promise<{ error?: string }> {
+  if (!id) return { error: "Missing client." };
+  try {
+    await api.cancelSubTenantDkimRotation(id);
+  } catch (err) {
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    return { error: "Couldn't cancel the rotation." };
+  }
+  revalidatePath(`/sub-tenants/${id}`);
+  return {};
+}

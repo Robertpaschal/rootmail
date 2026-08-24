@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Change a client's signing key without dropping a message",
+    date: "2026-08-24",
+    changes: [
+      {
+        kind: "New",
+        text: "You can now rotate a client's DKIM signing key from their page. We generate the new key and give you one record to add \u2014 alongside the existing one, never instead of it.",
+      },
+      {
+        kind: "Improved",
+        text: "Nothing switches over until we can actually see the new record. Their mail keeps signing with the current key the whole time, so there is no window where messages fail authentication, and a rotation you never finish publishing simply sits there harming nothing.",
+      },
+      {
+        kind: "Improved",
+        text: "After the switch we tell you to keep the old record for another week, and when it is safe to delete. Mail you already sent is still checked against it \u2014 removing it early is what makes delivered messages look unsigned.",
+      },
+    ],
+  },
+  {
     title: "Send it again, when sending again is actually safe",
     date: "2026-08-24",
     changes: [
