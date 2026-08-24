@@ -83,12 +83,17 @@ jobs:
         run: |
           pnpm db:migrate
           pnpm --filter @rootmail/api test:quota
-          KEY=$(pnpm db:seed 2>&1 | grep -oE 'rm_live_[A-Za-z0-9_-]+' | head -1)
+          SEED=$(pnpm db:seed 2>&1)
+          KEY=$(printf '%s' "$SEED" | grep -oE 'rm_live_[A-Za-z0-9_-]+' | head -1)
+          # The sandbox key: simulated delivery events are refused on live mail,
+          # so exercising them needs the TEST key — and the smoke asserts the
+          # live refusal as well, which is the half worth guarding.
+          TKEY=$(printf '%s' "$SEED" | grep -oE 'rm_test_[A-Za-z0-9_-]+' | head -1)
           test -n "$KEY" || { echo "no API key from seed"; exit 1; }
           pnpm --filter @rootmail/api exec tsx src/index.ts > /tmp/api.log 2>&1 &
           pnpm --filter @rootmail/worker exec tsx src/index.ts > /tmp/worker.log 2>&1 &
           for i in $(seq 1 60); do curl -sf http://localhost:4000/health >/dev/null && break; sleep 2; done
-          ROOTMAIL_API_KEY="$KEY" pnpm exec tsx scripts/smoke.ts
+          ROOTMAIL_API_KEY="$KEY" ROOTMAIL_TEST_API_KEY="$TKEY" pnpm exec tsx scripts/smoke.ts
       - name: Service logs (on failure)
         if: failure()
         run: tail -n 80 /tmp/api.log /tmp/worker.log 2>/dev/null || true

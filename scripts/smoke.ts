@@ -102,11 +102,34 @@ async function main() {
   check("send to unsubscribed → suppressed", sup.status === "suppressed", sup.status);
   check("isSuppressed() true", await mail.contacts.isSuppressed("optout@example.com"));
 
-  console.log("\n[8] Lifecycle events (open + click)");
-  await mail.messages.recordEvent(msg.id, { event: "opened", ip: "102.89.1.1" });
-  await mail.messages.recordEvent(msg.id, { event: "clicked", url: "https://rootmail.io" });
-  const ev2 = (await mail.messages.audit(msg.id)).trail.map((t) => t.event);
-  check("audit shows opened + clicked", ev2.includes("opened") && ev2.includes("clicked"));
+  console.log("\n[8] Lifecycle events (open + click) — SANDBOX only");
+  // Simulated delivery events are a sandbox affordance and are refused on live
+  // mail: otherwise an account could rewrite its own bounces as deliveries and
+  // clear the bounce rate the enforcement thresholds run on. So this step needs
+  // a TEST key, and proving the live key is REFUSED is the more valuable half.
+  const testKey = process.env.ROOTMAIL_TEST_API_KEY;
+  if (!testKey) {
+    console.log("  – skipped (set ROOTMAIL_TEST_API_KEY to exercise it)");
+  } else {
+    let liveRefused = false;
+    try {
+      await mail.messages.recordEvent(msg.id, { event: "opened", ip: "102.89.1.1" });
+    } catch {
+      liveRefused = true;
+    }
+    check("simulated events REFUSED on live mail", liveRefused);
+
+    const sandbox = new RootMail({ apiKey: testKey, baseUrl });
+    const sMsg = await sandbox.send({
+      to: "ada@example.com",
+      subject: "Sandbox lifecycle",
+      html: "<p>Hi</p>",
+    });
+    await sandbox.messages.recordEvent(sMsg.id, { event: "opened", ip: "102.89.1.1" });
+    await sandbox.messages.recordEvent(sMsg.id, { event: "clicked", url: "https://rootmail.io" });
+    const ev2 = (await sandbox.messages.audit(sMsg.id)).trail.map((t) => t.event);
+    check("sandbox audit shows opened + clicked", ev2.includes("opened") && ev2.includes("clicked"));
+  }
 
   console.log("\n[9] Mock provider output (.maildir)");
   try {
