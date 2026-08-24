@@ -189,6 +189,16 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
     await requirePermission(req, "domains.manage");
     const { id } = req.params as { id: string };
     const st = await getScopedSubTenant(req, id);
+
+    // A paused client cannot be deleted out of its pause. Without this, delete +
+    // re-create is a one-call reset of a restriction a person deliberately
+    // applied — the cheapest possible way around the enforcement loop.
+    if (st.reputationState === "paused") {
+      throw Errors.badRequest(
+        `${st.name} is paused for its sending reputation and can't be removed while it is. Resume it first if you intend to keep sending for them, or contact support if you believe the pause is wrong.`,
+      );
+    }
+
     await db.delete(subTenants).where(eq(subTenants.id, st.id));
     return { object: "sub_tenant", id: st.id, deleted: true };
   });

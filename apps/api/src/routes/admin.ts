@@ -55,6 +55,7 @@ import {
   users,
   workspaces,
 } from "@rootmail/db";
+import { autoProvisionDedicatedIp } from "../lib/provisioning";
 import { announcementEmail, betaInviteEmail } from "../lib/emails";
 import { serializeAudit } from "../lib/serialize";
 import {
@@ -1427,6 +1428,31 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         since: r.since.toISOString(),
       })),
     };
+  });
+
+  // Staff-triggered dedicated-IP provisioning.
+  //
+  // The automation still exists — it is just no longer reachable by buying the
+  // add-on. Purchase parks the org in the fulfilment queue above; a person opens
+  // it, looks at what the account actually sends, and presses this. Same SES
+  // calls, one human in front of them.
+  app.post("/v1/admin/orgs/:id/dedicated-ip/provision", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "support.manage");
+    const { id } = req.params as { id: string };
+
+    const result = await autoProvisionDedicatedIp(id);
+
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: "dedicated_ip.provision",
+      targetType: "organization",
+      targetId: id,
+      metadata: { ok: result.ok, detail: result.detail },
+    });
+
+    if (!result.ok) throw Errors.badRequest(result.detail ?? "Provisioning failed.");
+    return { object: "dedicated_ip", org_id: id, provisioned: true, detail: result.detail };
   });
 
   // Dedicated-IP provisioning: staff move an org through requested → active once

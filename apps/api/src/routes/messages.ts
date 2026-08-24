@@ -348,10 +348,23 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // unsubscribe link. Inject BEFORE hashing so the Layer-3 proof matches the
     // email actually sent. Transactional mail is exempt.
     if (body.type === "marketing" || body.type === "sales") {
+      // The address is REQUIRED, not best-effort. `appendComplianceFooter` takes
+      // it as optional and renders an unsubscribe-only footer without it, so for
+      // years a customer who skipped one settings field would have sent
+      // knowingly non-compliant commercial mail — 15 U.S.C. §7704(a)(5) requires
+      // a physical postal address on every commercial email, our own Terms §4
+      // tell customers it is mandatory, and our provider's AUP forbids sending
+      // in violation of applicable law. Refusing is the only version of that
+      // which is true.
+      if (!org?.postalAddress?.trim()) {
+        throw Errors.badRequest(
+          "Add your business postal address before sending marketing or sales email. The law requires a real physical address on commercial mail, and we won't send it without one. Set it under Settings → Organization. Transactional mail is unaffected.",
+        );
+      }
       rendered = {
         ...rendered,
         ...appendComplianceFooter(rendered, {
-          postalAddress: org?.postalAddress ?? null,
+          postalAddress: org.postalAddress,
           unsubscribeUrl: variables.unsubscribe_url,
         }),
       };
@@ -701,6 +714,20 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     const { id } = req.params as { id: string };
     const message = await getScopedMessage(req, id);
     const body = parse(eventBody, req.body);
+
+    // Simulation is a SANDBOX affordance and nothing else.
+    //
+    // In live mode this route let a customer rewrite their own delivery
+    // outcomes: iterate your bounces, POST {"event":"delivered"} at each, and
+    // the next reputation sweep reads a clean bounce rate because
+    // `outcomeCounts` groups on `messages.status`. That is the enforcement loop
+    // we describe to our provider being switched off by the account it exists
+    // to restrain. The audit row recorded `simulated: true`, but nothing read it.
+    if (req.auth.mode === "live") {
+      throw Errors.forbidden(
+        "Delivery events for live mail come from your email provider, not from you. Simulated events are a sandbox tool — switch to your Sandbox workspace to exercise them.",
+      );
+    }
 
     // A send to a reserved test recipient took the REAL provider path, so its
     // outcome arrives from the provider. Letting a simulated event overwrite it

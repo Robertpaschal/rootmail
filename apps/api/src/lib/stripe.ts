@@ -38,7 +38,6 @@ import {
   users,
   customerChanged,
 } from "@rootmail/db";
-import { autoProvisionDedicatedIp } from "./provisioning";
 import { getReportedOverage, getUsage, setReportedOverage } from "./billing";
 import { getAddon, getSale, getStripePrices, getTrialDays, planForOrg } from "./plans";
 import { getTier, tiersForWing } from "./wings";
@@ -292,10 +291,20 @@ export async function syncDedicatedIpProvisioning(orgId: string, qty: number): P
       .update(organizations)
       .set({ dedicatedIpStatus: "requested", updatedAt: new Date() })
       .where(eq(organizations.id, orgId));
-    // Try to fulfil it immediately. `requested` stays the honest resting state
-    // if SES refuses — the customer sees "setting up", never a false "active",
-    // and staff still have the manual path.
-    void autoProvisionDedicatedIp(orgId).catch(() => undefined);
+    // Deliberately NOT provisioned here any more.
+    //
+    // This used to call autoProvisionDedicatedIp straight off the webhook, which
+    // meant anyone with a card could cause our AWS account to allocate a
+    // dedicated sending IP within minutes of signing up, unattended. Two things
+    // are wrong with that. It is a reputation-laundering path — burn an IP, buy
+    // another for $30 — and it is the unattended-resource-escalation pattern our
+    // provider scrutinises hardest in exactly our category. It is also
+    // operationally incoherent: an account sending a handful of messages a day
+    // can never warm a dedicated IP, and an under-warmed IP is worse than none.
+    //
+    // The org rests at "requested", which is what the staff fulfilment queue in
+    // routes/admin.ts was built to drain. A person decides, having seen the
+    // volume. The customer sees "setting up" either way.
   } else if (qty === 0 && org.status === "requested") {
     await db
       .update(organizations)

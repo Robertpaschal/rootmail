@@ -751,7 +751,18 @@ export const suppressions = pgTable(
     workspaceId: text("workspace_id")
       .notNull()
       .references(() => workspaces.id, { onDelete: "cascade" }),
-    subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "cascade" }),
+    /**
+     * `set null`, NOT cascade — deliberately.
+     *
+     * Cascading made deletion a laundering loop: mail a bad list under a tenant,
+     * collect the bounces and complaints as suppressions scoped to it, delete the
+     * tenant (one API call), re-create it for the same domain, and every one of
+     * those suppressions is gone while reputation resets to `ok` by column
+     * default. Orphaning them instead promotes them to workspace-level, which
+     * `isSuppressed` already treats as blocking everything in the workspace — so
+     * a deleted tenant's bounces keep protecting the people who bounced.
+     */
+    subTenantId: text("sub_tenant_id").references(() => subTenants.id, { onDelete: "set null" }),
     email: text("email").notNull(),
     reason: suppressionReasonEnum("reason").notNull(),
     source: text("source"),

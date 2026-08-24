@@ -164,6 +164,13 @@ export function marketingSendAllowanceForOrg(org: WingOrg): number {
 }
 /** Per-day marketing send cap = contacts × the tier's daily multiplier. */
 export function marketingDailyLimitForOrg(org: WingOrg): number {
+  // The beta cap applies to BOTH wings. It was written only into the
+  // transactional limit, so a beta account held to a handful of transactional
+  // sends a day could still run marketing at the full free-tier rate — which is
+  // the number that actually reaches strangers, and the number we describe to
+  // our email provider as the ceiling on the whole beta. Same reasoning as
+  // txDailyLimitForOrg: unmetered() hands out CAPABILITY, never volume.
+  if (org.isBeta && !org.isInternal) return env.BETA_DAILY_SEND_CAP;
   return marketingDailyLimit(mkTierFor(org), org.marketingContacts ?? 0);
 }
 /** Monthly $ the marketing wing bills for this org (price = contacts × tier rate). */

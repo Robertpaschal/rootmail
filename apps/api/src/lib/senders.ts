@@ -5,7 +5,7 @@ import {
   SESv2Client,
 } from "@aws-sdk/client-sesv2";
 import { and, asc, desc, eq } from "drizzle-orm";
-import { env } from "@rootmail/core";
+import { Errors, env } from "@rootmail/core";
 import { db, senderIdentities, type SenderIdentity } from "@rootmail/db";
 
 // Own-address sending: an org adds e.g. hello@acme.com, SES emails that mailbox a
@@ -101,4 +101,32 @@ export async function verifiedSenderFor(
     )
     .limit(1);
   return row ?? null;
+}
+
+/**
+ * Refuse a From address the organization does not actually control.
+ *
+ * Extracted from the single-send route because campaigns accepted ANY
+ * `from_email` and never checked it. SES identity verification is ACCOUNT-wide,
+ * so that was not merely cosmetic: once any customer verified
+ * `billing@acme.com`, a different customer's campaign could send as it and SES
+ * would happily accept — and `support@<our domain>` was always accepted, letting
+ * a customer send mail that appears to come from us.
+ *
+ * One implementation, two callers, so the rule cannot drift between the path a
+ * developer uses and the path the dashboard uses.
+ */
+export async function assertSenderAllowed(opts: {
+  fromEmail: string;
+  organizationId: string | null;
+  /** The sub-tenant this send belongs to, if any — its verified domain counts. */
+  subTenantDomain?: string | null;
+}): Promise<void> {
+  const fromDomain = opts.fromEmail.split("@")[1]?.toLowerCase() ?? "";
+  if (opts.subTenantDomain && fromDomain === opts.subTenantDomain.toLowerCase()) return;
+  if (fromDomain === env.ROOTMAIL_DOMAIN.toLowerCase()) return;
+  if (opts.organizationId && (await verifiedSenderFor(opts.organizationId, opts.fromEmail))) return;
+  throw Errors.validation(
+    `"${opts.fromEmail}" isn't a verified sender for this organization. Verify it under Settings → Sending, or leave From empty to use your workspace address.`,
+  );
 }

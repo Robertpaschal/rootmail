@@ -133,6 +133,16 @@ export async function automationSend(
     orgReplyDomain = o ? activeReplyDomain(o) : null;
   }
   if (input.type === "marketing" || input.type === "sales") {
+    // Same rule as the single-send route, enforced here too because campaigns and
+    // sequences reach this path without passing through it. Failing the send is
+    // deliberately preferred to sending commercial mail with no postal address:
+    // one is a visible error the operator fixes in a minute, the other is a
+    // silent legal violation carried by every message in the campaign.
+    if (!postalAddress?.trim()) {
+      throw new Error(
+        "Missing business postal address — marketing and sales email must carry one by law. Set it under Settings → Organization.",
+      );
+    }
     rendered = {
       ...rendered,
       ...appendComplianceFooter(rendered, {

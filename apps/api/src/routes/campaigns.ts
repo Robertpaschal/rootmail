@@ -3,6 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { contactVariables, enqueueCampaignSend, Errors, newId, render } from "@rootmail/core";
 import { audienceMembers, auditEntries, type Campaign, campaignOverrides, campaigns, contacts, db, listContacts, lists, messages, sequenceEnrollments, sequences, templates } from "@rootmail/db";
+import { assertSenderAllowed } from "../lib/senders";
 import { assertContactCapacity, assertEmailVerified, assertMarketingSendCapacity } from "../lib/billing";
 import { loadOrg, requireFeature } from "../lib/features";
 import { messageFunnel } from "../lib/funnel";
@@ -16,7 +17,19 @@ async function validateRefs(
   listId?: string | null,
   templateId?: string | null,
   variantTemplateIds: string[] = [],
+  fromEmail?: string | null,
 ): Promise<void> {
+  // Campaigns accepted ANY from_email and never checked it, while the
+  // single-send route checked it properly. SES identity verification is
+  // ACCOUNT-wide, so that gap let one customer send as an address a DIFFERENT
+  // customer had verified — and as our own platform domain.
+  if (fromEmail) {
+    await assertSenderAllowed({
+      fromEmail,
+      organizationId: req.auth.workspace.organizationId,
+      subTenantDomain: req.auth.subTenant?.sendingDomain ?? null,
+    });
+  }
   if (listId) {
     const [l] = await db
       .select({ id: lists.id })
@@ -121,7 +134,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
   app.post("/v1/campaigns", async (req, reply) => {
     await requirePermission(req, "content.manage");
     const body = parse(createBody, req.body);
-    await validateRefs(req, body.list_id, body.template_id, (body.variants ?? []).map((v) => v.template_id));
+    await validateRefs(req, body.list_id, body.template_id, (body.variants ?? []).map((v) => v.template_id), body.from_email);
     const [row] = await db
       .insert(campaigns)
       .values({
@@ -466,7 +479,7 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
     if (existing.status === "sending" || existing.status === "sent") {
       throw Errors.conflict(`Can't edit a campaign that's ${existing.status}`);
     }
-    await validateRefs(req, body.list_id, body.template_id, (body.variants ?? []).map((v) => v.template_id));
+    await validateRefs(req, body.list_id, body.template_id, (body.variants ?? []).map((v) => v.template_id), body.from_email);
     const [updated] = await db
       .update(campaigns)
       .set({
