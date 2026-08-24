@@ -1,5 +1,5 @@
 import { SendEmailCommand, SESv2Client } from "@aws-sdk/client-sesv2";
-import { env, resolveDeliveryAddress } from "@rootmail/core";
+import { env, resolveDeliveryAddress, sesSafeHeaders } from "@rootmail/core";
 import { buildMimeMessage } from "./mime";
 import type { MailProvider, OutboundEmail, SendResult } from "./types";
 
@@ -42,6 +42,10 @@ export class SesProvider implements MailProvider {
     // purpose is safe. Non-test addresses pass through untouched.
     const destination = resolveDeliveryAddress(email.to);
 
+    // The Raw path builds the MIME itself, so it carries every header untouched.
+    // The Simple path hands them to SES, which validates them.
+    const sesHeaders = sesSafeHeaders(email.headers).map((h) => ({ Name: h.name, Value: h.value }));
+
     const command = hasAttachments
       ? new SendEmailCommand({
           FromEmailAddress: formatAddress(email.from.email, email.from.name),
@@ -62,10 +66,10 @@ export class SesProvider implements MailProvider {
                 Html: { Data: email.html, Charset: "UTF-8" },
                 Text: { Data: email.text, Charset: "UTF-8" },
               },
-              // e.g. List-Unsubscribe / List-Unsubscribe-Post on marketing sends.
-              Headers: email.headers?.length
-                ? email.headers.map((h) => ({ Name: h.name, Value: h.value }))
-                : undefined,
+              // e.g. List-Unsubscribe / List-Unsubscribe-Post on marketing sends,
+              // and In-Reply-To / References on a reply. Filtered, because one
+              // header SES reserves rejects the whole message.
+              Headers: sesHeaders.length ? sesHeaders : undefined,
             },
           },
         });

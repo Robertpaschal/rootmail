@@ -119,3 +119,38 @@ export function sesProviderIdFromMessageId(id: string): string | null {
   const m = /^<([^@<>\s]+)@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.amazonses\.com>$/i.exec(id.trim());
   return m ? m[1] : null;
 }
+
+
+/**
+ * Headers Amazon SES refuses on its `Simple` content path.
+ *
+ * SES owns these and assigns its own. Naming one fails the ENTIRE send with
+ * "Header <Message-ID> is not supported" — not a warning, a rejected message.
+ * This bit us in production: once the pipeline started setting a Message-ID on
+ * every outbound message for threading, every attachment-free SES send failed.
+ *
+ * Dropping Message-ID here costs nothing. SES replaces it with
+ * `<id@region.amazonses.com>` regardless, and `sesProviderIdFromMessageId`
+ * already resolves that form — which is the id recipients actually quote back.
+ *
+ * In-Reply-To and References are deliberately NOT in this set: SES passes them
+ * through, and they are what make a reply thread in the recipient's client.
+ */
+export const SES_UNSUPPORTED_HEADERS: readonly string[] = [
+  "bcc",
+  "cc",
+  "date",
+  "from",
+  "message-id",
+  "received",
+  "reply-to",
+  "return-path",
+  "subject",
+  "to",
+];
+
+/** Drop the headers SES would reject, keeping the rest in order. */
+export function sesSafeHeaders<T extends { name: string }>(headers: readonly T[] | undefined): T[] {
+  const blocked = new Set(SES_UNSUPPORTED_HEADERS);
+  return (headers ?? []).filter((h) => !blocked.has(h.name.toLowerCase()));
+}

@@ -20,7 +20,7 @@ const query = z.object({
 export async function exportRoutes(app: FastifyInstance): Promise<void> {
   // Audit-grade, Ed25519-signed export of every message + its lifecycle in a
   // window — "prove exactly what we sent, signed + timestamped." The bundle is
-  // tamper-evident and verifiable by anyone via POST /v1/proof/verify with
+  // independently verifiable by anyone via POST /v1/proof/verify with
   // { bundle, signature } (same key as single-message proofs). Enterprise.
   app.get("/v1/exports/compliance", async (req) => {
     await requireFeature(req, "proof");

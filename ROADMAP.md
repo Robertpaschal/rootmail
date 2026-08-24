@@ -443,7 +443,7 @@ Host IPs / SGs / the rebuild disk-dance are in the `prod-deployment` agent memor
 
 The positioning holds: **"email infrastructure that scales with who's asking"** — one
 core that's dead-simple for a solo dev and grows into per-tenant sub-tenancy and
-legal-grade proof. Three bets compound on that, in rough priority:
+signed, independently verifiable proof. Three bets compound on that, in rough priority:
 
 1. **The AI assistant is the operating layer** *(shipped — the first vision delivered).*
    It no longer just drafts. It **builds** (templates, lists, sequences, campaigns),
@@ -479,7 +479,7 @@ legal-grade proof. Three bets compound on that, in rough priority:
    are unique. *Phase 1 shipped:* **audit-grade compliance exports** — `GET /v1/exports/
    compliance?from=&to=` returns an Ed25519-signed bundle of every message + content hash
    + full delivery audit trail in a window ("prove exactly what we sent, signed +
-   timestamped"), tamper-evident and verifiable by anyone via the existing
+   timestamped"), independently verifiable by anyone via the existing
    `POST /v1/proof/verify` (verified: intact → valid, any edit → invalid). Enterprise-gated
    (`proof` feature); dashboard `/compliance` page generates + downloads the bundle.
    *Phase 2 shipped:* **data-retention policies** — per-workspace window (`GET`/`PUT

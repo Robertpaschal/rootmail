@@ -4,7 +4,7 @@ import type { ComplianceExport, RetentionPolicy } from "../types";
 export class Exports {
   constructor(private readonly client: RootMail) {}
 
-  /** A signed, tamper-evident bundle of every message + audit trail in a window.
+  /** A signed, independently verifiable bundle of every message + audit trail in a window.
    * Verify it with POST /v1/proof/verify ({ bundle, signature }). Enterprise. */
   compliance(params: { from: string | Date; to?: string | Date; subTenantId?: string }): Promise<ComplianceExport> {
     const iso = (d: string | Date | undefined) => (d instanceof Date ? d.toISOString() : d);

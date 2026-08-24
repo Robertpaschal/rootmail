@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  SES_UNSUPPORTED_HEADERS,
   buildMessageId,
   buildReferences,
   parseMessageIds,
   replyThreadingHeaders,
   sesProviderIdFromMessageId,
+  sesSafeHeaders,
   threadingCandidates,
 } from "./message-id";
 
@@ -114,5 +116,46 @@ describe("SES rewrites our Message-ID", () => {
     assert.equal(sesProviderIdFromMessageId("<a@notamazonses.com.evil.com>"), null);
     // A domain an attacker can register that merely ENDS in the right letters.
     assert.equal(sesProviderIdFromMessageId("<a@evilamazonses.com>"), null);
+  });
+});
+
+
+describe("headers SES will accept", () => {
+  // This is a REGRESSION test for a production outage. Once the pipeline began
+  // setting a Message-ID on every message, SES rejected every attachment-free
+  // send outright: "Header <Message-ID> is not supported". Not a warning — the
+  // whole message failed, so the main send path was down.
+  const h = (name: string) => ({ name, value: "x" });
+
+  it("drops Message-ID, which fails the entire send", () => {
+    assert.deepEqual(sesSafeHeaders([h("Message-ID")]), []);
+  });
+
+  it("is case-insensitive, because header names are", () => {
+    assert.deepEqual(sesSafeHeaders([h("message-id"), h("MESSAGE-ID")]), []);
+  });
+
+  it("keeps In-Reply-To and References — SES passes those through", () => {
+    // These are the whole point of the threading work: without them our reply
+    // opens a new thread in the recipient's client.
+    const kept = sesSafeHeaders([h("In-Reply-To"), h("References")]).map((x) => x.name);
+    assert.deepEqual(kept, ["In-Reply-To", "References"]);
+  });
+
+  it("keeps the bulk-sender headers Gmail and Yahoo require", () => {
+    const kept = sesSafeHeaders([h("List-Unsubscribe"), h("List-Unsubscribe-Post")]).map((x) => x.name);
+    assert.deepEqual(kept, ["List-Unsubscribe", "List-Unsubscribe-Post"]);
+  });
+
+  it("preserves order and passes an empty or missing list through", () => {
+    const kept = sesSafeHeaders([h("A"), h("Message-ID"), h("B")]).map((x) => x.name);
+    assert.deepEqual(kept, ["A", "B"]);
+    assert.deepEqual(sesSafeHeaders([]), []);
+    assert.deepEqual(sesSafeHeaders(undefined), []);
+  });
+
+  it("blocks every header SES documents as unsupported", () => {
+    const all = SES_UNSUPPORTED_HEADERS.map((n) => h(n));
+    assert.deepEqual(sesSafeHeaders(all), []);
   });
 });

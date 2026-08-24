@@ -634,7 +634,8 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
   proof_exports: {
     id: "proof_exports",
     name: "Proof & compliance exports",
-    description: "Cryptographically signed, tamper-evident records of exactly what you sent, exportable over any date range.",
+    description:
+      "Cryptographically signed records of exactly what you sent, verifiable by anyone without taking our word for it, exportable over any date range.",
     unit: "proof exports",
     unitNote: "One flat price enables signed compliance exports.",
     defaultUnitAmount: 25,

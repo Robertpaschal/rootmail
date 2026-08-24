@@ -31,7 +31,7 @@ export default async function CompliancePage() {
     else {
       return (
         <>
-          <PageHeader title="Compliance" description="Signed, tamper-evident records of everything you sent." />
+          <PageHeader title="Compliance" description="Signed records of everything you sent, verifiable by anyone." />
           <ConnectionErrorCard
             message={
               err instanceof ConnectionError || err instanceof ApiError ? err.message : "An unexpected error occurred."
@@ -47,7 +47,7 @@ export default async function CompliancePage() {
     <>
       <PageHeader
         title="Compliance"
-        description="Export a signed, tamper-evident record of everything you sent — prove exactly what went out, and when."
+        description="Export a signed record of everything you sent — prove exactly what went out, and when, to someone who does not have to trust us."
       />
 
       {locked ? (

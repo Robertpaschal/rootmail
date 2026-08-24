@@ -3,7 +3,7 @@
 **Email infrastructure that scales with who's asking.**
 
 One sending core that stays dead-simple for a solo developer, but exposes
-sub-tenancy, conversation threading, full audit trails, and legal-grade proof as
+sub-tenancy, conversation threading, full audit trails, and signed verifiable proof as
 the buyer's needs grow. Not "Resend + Mailchimp + Salesloft" — one data model
 that happens to satisfy all three.
 
