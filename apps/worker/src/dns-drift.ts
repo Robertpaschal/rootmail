@@ -96,6 +96,7 @@ export async function checkTenantDns(tenant: SubTenant): Promise<boolean> {
       // domain read as failing — see BuildDnsInput.
       pendingDkimSelector: tenant.nextDkimSelector,
       pendingDkimValue: tenant.nextDkimPublicKey,
+      sesDkimTokens: tenant.sesDkimTokens,
     }),
   );
 

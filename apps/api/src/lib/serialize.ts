@@ -227,6 +227,7 @@ export function serializeSubTenant(t: SubTenant, opts: { includeDns?: boolean } 
       // "replace this", which is the one instruction that breaks signing.
       pendingDkimSelector: t.nextDkimSelector,
       pendingDkimValue: t.nextDkimPublicKey,
+      sesDkimTokens: t.sesDkimTokens,
     }),
   };
 }

@@ -237,24 +237,19 @@ export async function processSend(data: SendJobData): Promise<void> {
     return;
   }
 
-  // DKIM material for the sub-tenant's domain, if this send is sub-tenant scoped.
-  let dkim: { domain: string; selector: string; privateKeyPem: string } | null = null;
-  if (message.subTenantId) {
-    const [st] = await db
-      .select()
-      .from(subTenants)
-      .where(eq(subTenants.id, message.subTenantId))
-      .limit(1);
-    if (st) {
-      // Stored encrypted; rows written before that shipped are plaintext and pass
-      // through untouched, so a half-backfilled table signs correctly either way.
-      dkim = {
-        domain: st.sendingDomain,
-        selector: st.dkimSelector,
-        privateKeyPem: decryptSecret(st.dkimPrivateKey),
-      };
-    }
-  }
+  // No DKIM material is passed to the provider, deliberately.
+  //
+  // This used to decrypt the sub-tenant's private key and hand it over, which
+  // read as per-customer signing and was not: `ses.ts` never looked at it, and
+  // SES signs with Easy DKIM on whichever identity the From domain belongs to.
+  // Carrying a key nobody uses is how "we sign as the customer" survived in the
+  // codebase for months while being false.
+  //
+  // Customer domains are now registered with SES as their own identities (see
+  // ensureSendingDomainIdentity), so Easy DKIM signs as the customer's domain
+  // and Amazon holds and rotates the key. The signing is real; it just is not
+  // ours to do.
+  const dkim = null;
 
   // RFC 8058 one-click unsubscribe on bulk mail (a Gmail/Yahoo bulk-sender
   // requirement): the signed per-recipient unsubscribe URL was injected into the

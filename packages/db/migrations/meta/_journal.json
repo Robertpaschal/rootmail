@@ -533,6 +533,13 @@
       "when": 1787575716325,
       "tag": "0075_campaign_cancelled",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1787577312714,
+      "tag": "0076_ses_tenant_identity",
+      "breakpoints": true
     }
   ]
 }

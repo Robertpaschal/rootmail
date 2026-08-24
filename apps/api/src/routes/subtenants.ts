@@ -19,6 +19,7 @@ import {
 } from "@rootmail/core";
 import { auditEntries, db, type SubTenant, subTenants, workspaces } from "@rootmail/db";
 import { authActor } from "../lib/dispatch";
+import { ensureSendingDomainIdentity, sendingDomainIdentityStatus } from "../lib/ses-provisioning";
 import { loadOrg, requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { getAddon, getPlan } from "../lib/plans";
@@ -120,7 +121,30 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
       })
       .returning();
 
-    return reply.status(201).send(serializeSubTenant(row, { includeDns: true }));
+    // Register the domain with SES straight away. It is required before this
+    // client can send at all — SES refuses a From address whose domain is not a
+    // verified identity — and it is what turns on Easy DKIM for THEIR domain, so
+    // their mail is signed as them rather than as us.
+    //
+    // Best-effort: if SES is unreachable the client is still created and the
+    // verify route retries. What we must not do is fail creation and leave the
+    // operator with nothing.
+    const identity = await ensureSendingDomainIdentity(domain);
+    const withIdentity = identity.ok
+      ? (
+          await db
+            .update(subTenants)
+            .set({
+              sesDkimTokens: identity.value.tokens,
+              sesIdentityStatus: identity.value.status,
+              updatedAt: new Date(),
+            })
+            .where(eq(subTenants.id, row.id))
+            .returning()
+        )[0]
+      : row;
+
+    return reply.status(201).send(serializeSubTenant(withIdentity, { includeDns: true }));
   });
 
   // --- List ---------------------------------------------------------------
@@ -223,9 +247,33 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
       // on the new record without letting its absence mark the domain failed.
       pendingDkimSelector: st.nextDkimSelector,
       pendingDkimValue: st.nextDkimPublicKey,
+      sesDkimTokens: st.sesDkimTokens,
     });
+    // Retry identity registration if creation could not reach SES.
+    if (!st.sesDkimTokens?.length) {
+      const identity = await ensureSendingDomainIdentity(st.sendingDomain);
+      if (identity.ok) {
+        await db
+          .update(subTenants)
+          .set({ sesDkimTokens: identity.value.tokens, sesIdentityStatus: identity.value.status })
+          .where(eq(subTenants.id, st.id));
+        st.sesDkimTokens = identity.value.tokens;
+      }
+    }
+
     const checks = await verifyDnsRecords(records);
-    const verified = isVerified(checks);
+
+    // SES is the authority on whether this domain can actually send, not our own
+    // DNS lookup. The CNAMEs can resolve while SES has not yet noticed, and a
+    // domain we called "verified" that SES will refuse is the worst of both.
+    const sesStatus = await sendingDomainIdentityStatus(st.sendingDomain);
+    if (sesStatus) {
+      await db
+        .update(subTenants)
+        .set({ sesIdentityStatus: sesStatus.dkim })
+        .where(eq(subTenants.id, st.id));
+    }
+    const verified = isVerified(checks) && (sesStatus?.sendingEnabled ?? false);
 
     // A reputation pause outranks DNS. Without this, re-running verification on a
     // paused client would flip `status` back to "verified" and quietly reopen the

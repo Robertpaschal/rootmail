@@ -1,12 +1,17 @@
 import type { SubTenantStatus } from "./constants";
-import { resolveMx, resolveTxt } from "node:dns/promises";
+import { resolveCname, resolveMx, resolveTxt } from "node:dns/promises";
 import { env } from "./env";
 
 export type DnsRecordPurpose = "ownership" | "dkim" | "dkim_next" | "spf" | "dmarc";
 
 export interface DnsRecord {
   purpose: DnsRecordPurpose;
-  type: "TXT";
+  /**
+   * CNAME appears for SES-managed DKIM: Amazon publishes the public half and
+   * holds the private half, so the customer points at Amazon rather than
+   * publishing a key we generated.
+   */
+  type: "TXT" | "CNAME";
   host: string;
   value: string;
   required: boolean;
@@ -39,6 +44,13 @@ export interface BuildDnsInput {
    */
   pendingDkimSelector?: string | null;
   pendingDkimValue?: string | null;
+  /**
+   * SES Easy-DKIM tokens for this domain. When present these REPLACE the
+   * self-generated DKIM record — Amazon holds the key and signs with it, so
+   * publishing a key of ours alongside would be a record that authenticates
+   * nothing and one more thing for the customer to get wrong.
+   */
+  sesDkimTokens?: readonly string[] | null;
 }
 
 /** The DNS records a sub-tenant must publish to verify + authenticate their domain. */
@@ -57,7 +69,20 @@ export function buildDnsRecords(input: BuildDnsInput): DnsRecord[] {
           },
         ]
       : [];
-  return pending.concat([
+  // SES-managed DKIM replaces our own record entirely when present.
+  const dkimRecords: DnsRecord[] = input.sesDkimTokens?.length
+    ? sesDkimRecords(domain, input.sesDkimTokens)
+    : [
+        {
+          purpose: "dkim",
+          type: "TXT",
+          host: `${dkimSelector}._domainkey.${domain}`,
+          value: dkimValue,
+          required: true,
+        },
+      ];
+
+  const rest: DnsRecord[] = [
     {
       purpose: "ownership",
       type: "TXT",
@@ -65,13 +90,7 @@ export function buildDnsRecords(input: BuildDnsInput): DnsRecord[] {
       value: `rootmail-verify=${verificationToken}`,
       required: true,
     },
-    {
-      purpose: "dkim",
-      type: "TXT",
-      host: `${dkimSelector}._domainkey.${domain}`,
-      value: dkimValue,
-      required: true,
-    },
+    ...dkimRecords,
     {
       purpose: "spf",
       type: "TXT",
@@ -88,12 +107,19 @@ export function buildDnsRecords(input: BuildDnsInput): DnsRecord[] {
       value: `v=DMARC1; p=none; rua=mailto:dmarc@${domain}`,
       required: false,
     },
-  ]);
+  ];
+  return pending.concat(rest);
 }
 
 const stripWs = (s: string) => s.replace(/\s+/g, "");
 
 function matches(record: DnsRecord, txtValues: string[]): boolean {
+  // A CNAME either points where we said or it does not — no parsing, and the
+  // trailing dot and case are normalised at lookup.
+  if (record.type === "CNAME") {
+    const want = record.value.replace(/\.$/, "").toLowerCase();
+    return txtValues.some((v) => v === want);
+  }
   switch (record.purpose) {
     case "ownership":
       return txtValues.some((v) => stripWs(v) === stripWs(record.value));
@@ -139,8 +165,13 @@ export async function verifyDnsRecords(records: DnsRecord[]): Promise<DnsCheck[]
   return Promise.all(
     records.map(async (record): Promise<DnsCheck> => {
       try {
-        const txts = await resolveTxt(record.host);
-        const flat = txts.map((chunks) => chunks.join(""));
+        // CNAME records (SES-managed DKIM) resolve through a different query
+        // than TXT, and a TXT lookup against a CNAME host returns nothing —
+        // which would read as "the customer never published it".
+        const flat =
+          record.type === "CNAME"
+            ? (await resolveCname(record.host)).map((h) => h.replace(/\.$/, "").toLowerCase())
+            : (await resolveTxt(record.host)).map((chunks) => chunks.join(""));
         return {
           purpose: record.purpose,
           host: record.host,
@@ -491,4 +522,34 @@ export function decideDnsDrift(input: DnsDriftInput): DnsDriftAction {
   if (status !== "verified") return { action: "grace", hoursElapsed };
   if (hoursElapsed < graceHours) return { action: "grace", hoursElapsed };
   return { action: "suspend" };
+}
+
+
+// ---------------------------------------------------------------------------
+// SES-managed DKIM for a customer domain.
+//
+// We used to generate a keypair per sub-tenant, have the customer publish it as
+// a TXT record, verify it, encrypt the private half and rotate it — and then
+// never sign anything with it, because SES signs with Easy DKIM on OUR verified
+// domain. So `d=` was ours, DMARC did not align for the customer, and the entire
+// key ceremony authenticated nothing.
+//
+// The fix is not to sign it ourselves. SES will not accept a From address whose
+// domain is not a verified identity in the account, so a customer domain has to
+// be registered with SES regardless — and once it is, Easy DKIM signs as THAT
+// domain and Amazon manages the keys and their rotation. Three CNAMEs replace
+// our TXT record and the customer's mail is finally signed as their own.
+// ---------------------------------------------------------------------------
+
+/** The three CNAMEs SES asks a domain owner to publish for Easy DKIM. */
+export function sesDkimRecords(domain: string, tokens: readonly string[]): DnsRecord[] {
+  return tokens.map((t) => ({
+    purpose: "dkim" as const,
+    type: "CNAME" as const,
+    host: `${t}._domainkey.${domain}`,
+    value: `${t}.dkim.amazonses.com`,
+    // Required: without these the domain cannot send at all, because SES will
+    // not verify the identity and will refuse the From address.
+    required: true,
+  }));
 }

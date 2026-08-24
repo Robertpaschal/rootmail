@@ -670,6 +670,22 @@ export const subTenants = pgTable(
      * against a stolen dump or backup, not against host compromise.
      */
     dkimPrivateKey: text("dkim_private_key").notNull(),
+    /**
+     * The three Easy-DKIM tokens SES issues for this domain.
+     *
+     * SES holds the private half and signs with it, so mail for this customer is
+     * finally signed as THEIR domain. The keypair columns above are the old
+     * scheme — we generated a key, had them publish it, encrypted it, rotated
+     * it, and never signed anything with it, because SES signs with Easy DKIM on
+     * our own identity. `d=` was ours and DMARC never aligned for the customer.
+     *
+     * Registering the domain with SES is required regardless: SES refuses a From
+     * address whose domain is not a verified identity in the account.
+     */
+    sesDkimTokens: jsonb("ses_dkim_tokens").$type<string[]>(),
+    /** What SES says about the identity: pending until the CNAMEs resolve. */
+    sesIdentityStatus: text("ses_identity_status"),
+
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
 

@@ -315,3 +315,83 @@ export async function isTesterVerified(email: string): Promise<boolean> {
     return false;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Per-customer sending domains.
+//
+// SES refuses a From address whose domain is not a verified identity in the
+// account, so every sub-tenant domain has to be registered here before it can
+// send at all. Registering it also turns on Easy DKIM for THAT domain, which is
+// what finally makes customer mail signed as the customer rather than as us.
+// ---------------------------------------------------------------------------
+
+/**
+ * Register a customer's sending domain with SES and return its DKIM tokens.
+ *
+ * Idempotent: an identity that already exists is read rather than recreated, so
+ * re-running this (a retry, a re-verify, a second sub-tenant on the same domain)
+ * returns the same three tokens instead of failing.
+ */
+export async function ensureSendingDomainIdentity(
+  domain: string,
+): Promise<ProvisionResult<{ tokens: string[]; status: string }>> {
+  const client = sesv2();
+  if (!client) return { ok: false, reason: "SES is not configured", retryable: false };
+
+  const read = async (): Promise<{ tokens: string[]; status: string } | null> => {
+    try {
+      const got = await client.send(new GetEmailIdentityCommand({ EmailIdentity: domain }));
+      const tokens = got.DkimAttributes?.Tokens ?? [];
+      return tokens.length
+        ? { tokens, status: got.DkimAttributes?.Status ?? "PENDING" }
+        : null;
+    } catch (e) {
+      if ((e as { name?: string })?.name !== "NotFoundException") throw e;
+      return null;
+    }
+  };
+
+  try {
+    const existing = await read();
+    if (existing) return { ok: true, value: existing };
+
+    await client.send(
+      new CreateEmailIdentityCommand({
+        EmailIdentity: domain,
+        // Easy DKIM: Amazon generates and holds the key and rotates it. The
+        // alternative — bring-your-own-DKIM — is what we were half-doing, and it
+        // is strictly more to get wrong for no benefit the customer can see.
+        DkimSigningAttributes: { NextSigningKeyLength: "RSA_2048_BIT" },
+      }),
+    );
+
+    const created = await read();
+    if (!created) {
+      return { ok: false, reason: "SES accepted the domain but returned no DKIM tokens", retryable: true };
+    }
+    return { ok: true, value: created };
+  } catch (e) {
+    return {
+      ok: false,
+      reason: `Could not register ${domain} with SES — ${described(e)}`,
+      retryable: !isAccessDenied(e),
+    };
+  }
+}
+
+/** What SES currently thinks of a sending domain. Null when it has no identity. */
+export async function sendingDomainIdentityStatus(
+  domain: string,
+): Promise<{ dkim: string; sendingEnabled: boolean } | null> {
+  const client = sesv2();
+  if (!client) return null;
+  try {
+    const got = await client.send(new GetEmailIdentityCommand({ EmailIdentity: domain }));
+    return {
+      dkim: got.DkimAttributes?.Status ?? "PENDING",
+      sendingEnabled: got.VerifiedForSendingStatus === true,
+    };
+  } catch {
+    return null;
+  }
+}
