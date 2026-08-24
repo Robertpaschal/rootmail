@@ -96,10 +96,28 @@ async function main() {
   await sleep(900);
   check("sub-tenant message delivered", (await tenantMail.messages.get(tMsg.id)).status === "delivered");
 
-  console.log("\n[7] Suppression");
+  console.log("\n[7] Suppression — an unsubscribe is a BULK opt-out");
   await mail.contacts.unsubscribe("optout@example.com");
-  const sup = await mail.send({ to: "optout@example.com", subject: "Hello", html: "<p>Hi</p>" });
-  check("send to unsubscribed → suppressed", sup.status === "suppressed", sup.status);
+
+  // The distinction the product exists to get right: leaving the newsletter must
+  // not lock someone out of their own password reset. This test previously
+  // asserted the opposite, because the API blocked every type regardless of the
+  // suppression's reason — so the smoke was encoding the bug.
+  const supMarketing = await mail.send({
+    to: "optout@example.com",
+    type: "marketing",
+    subject: "Newsletter",
+    html: "<p>Hi</p>",
+  });
+  check("marketing to unsubscribed → suppressed", supMarketing.status === "suppressed", supMarketing.status);
+
+  const supTx = await mail.send({
+    to: "optout@example.com",
+    subject: "Reset your password",
+    html: "<p>Hi</p>",
+  });
+  check("transactional to unsubscribed → still sends", supTx.status !== "suppressed", supTx.status);
+
   check("isSuppressed() true", await mail.contacts.isSuppressed("optout@example.com"));
 
   console.log("\n[8] Lifecycle events (open + click) — SANDBOX only");
