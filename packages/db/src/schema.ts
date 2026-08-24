@@ -218,6 +218,18 @@ export const organizations = pgTable("organizations", {
    * then works for us unchanged, which is the entire point. A parallel
    * "internal messaging" system would be the thing we are trying not to build.
    */
+  /**
+   * Staff stop-switch. Set by a person; nothing automatic ever sets it.
+   *
+   * There was no way to stop a sender short of a manual SQL update — the admin
+   * API had sixty endpoints and not one halted sending. When a provider forwards
+   * a phishing complaint, "we will run an UPDATE" is not an answer. Checked at
+   * the API front door AND in the worker's send gate, so it stops mail already
+   * queued rather than only new requests.
+   */
+  sendingSuspended: boolean("sending_suspended").notNull().default(false),
+  sendingSuspendedReason: text("sending_suspended_reason"),
+  sendingSuspendedAt: timestamp("sending_suspended_at", { withTimezone: true }),
   isInternal: boolean("is_internal").notNull().default(false),
   /**
    * Signed up with a beta invite. Two jobs, deliberately one column each:

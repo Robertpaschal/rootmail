@@ -113,6 +113,15 @@ run this before anything else — those are the tests that exist.
   deploy looks clean while the table isn't there. Cost a full deploy cycle on
   0064. `db:generate` maintains the journal for you; only hand-written files
   need the entry added by hand.
+- **There is no single send chokepoint — `assertCanSend` is not it.** `POST
+  /v1/messages` builds and enqueues inline and calls `tryConsumeQuota` /
+  `assertTransactionalSendCapacity` directly; `dispatchMessage` serves OTHER
+  callers; `assertCanSend` is only reached by the retry route; campaigns and
+  sequences enter through the worker. A guard that must apply to all sending
+  needs BOTH the route-level check and `reputationGate` in the worker (which is
+  what stops mail already queued). Adding one and assuming coverage is how the
+  staff stop-switch silently did nothing on the main path — an end-to-end test
+  caught it; typecheck could not.
 - **Adding an `AUDIT_EVENTS` value needs an `ALTER TYPE`.** `audit_entries.event`
   is a Postgres ENUM (`audit_event`), not text — so a new event name added to the
   TS array type-checks everywhere and then fails at runtime with `22P02 invalid

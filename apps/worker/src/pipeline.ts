@@ -84,7 +84,17 @@ async function isSuppressedAtSend(message: Message): Promise<boolean> {
 const PAUSED_ERROR =
   "Sending is paused for this client because of its reputation. The parent workspace can resume it from the dashboard.";
 
-type ReputationGate = "ok" | "deferred" | "paused";
+const SUSPENDED_ERROR =
+  "Sending is suspended for this account. Contact support to resolve it.";
+
+const DNS_SUSPENDED_ERROR =
+  "Sending is stopped for this client because its DNS records no longer resolve. Restore the record and sending resumes automatically at the next check.";
+
+// "paused" is the reputation stop; "dns_suspended" is the domain-authentication
+// stop. Two different causes with two different fixes, so they must not share a
+// message — an operator told "paused for reputation" would go and look at bounce
+// rates that are fine.
+type ReputationGate = "ok" | "deferred" | "paused" | "dns_suspended" | "suspended";
 
 /**
  * Apply the tenant's current reputation state to one send.
@@ -109,11 +119,19 @@ async function reputationGate(message: Message, data: SendJobData): Promise<Repu
 
   if (message.subTenantId) {
     const [st] = await db
-      .select({ state: subTenants.reputationState })
+      .select({ state: subTenants.reputationState, status: subTenants.status })
       .from(subTenants)
       .where(eq(subTenants.id, message.subTenantId))
       .limit(1);
     if (!st) return "ok";
+
+    // DNS drift stops sending too, and it was enforced only at the API front
+    // door. A campaign fan-out or a scheduled send queued BEFORE the domain was
+    // suspended would still go out — under a domain whose DKIM record has gone,
+    // which is precisely the unauthenticated mail the suspension exists to
+    // prevent. The queue is exactly where the check was missing.
+    if (st.status !== "verified") return "dns_suspended";
+
     scopeId = message.subTenantId;
     state = st.state;
   } else {
@@ -126,6 +144,17 @@ async function reputationGate(message: Message, data: SendJobData): Promise<Repu
     scopeId = message.workspaceId;
     state = ws.state;
   }
+
+  // The staff stop-switch, checked HERE as well as at the API. A campaign
+  // already fanned out into the queue is exactly the case where "we suspended
+  // them" has to mean the mail stops, not that the next request is refused.
+  const [orgRow] = await db
+    .select({ suspended: organizations.sendingSuspended })
+    .from(organizations)
+    .innerJoin(workspaces, eq(workspaces.organizationId, organizations.id))
+    .where(eq(workspaces.id, message.workspaceId))
+    .limit(1);
+  if (orgRow?.suspended) return "suspended";
 
   if (state === "paused") return "paused";
   if (state !== "throttled") return "ok";
@@ -182,12 +211,14 @@ export async function processSend(data: SendJobData): Promise<void> {
   // showing "sending" for an hour without anything being sent.
   const gate = await reputationGate(message, data);
   if (gate === "deferred") return;
-  if (gate === "paused") {
+  if (gate === "paused" || gate === "dns_suspended" || gate === "suspended") {
+    const reason =
+      gate === "paused" ? PAUSED_ERROR : gate === "suspended" ? SUSPENDED_ERROR : DNS_SUSPENDED_ERROR;
     await db
       .update(messages)
-      .set({ status: "failed", error: PAUSED_ERROR, updatedAt: new Date() })
+      .set({ status: "failed", error: reason, updatedAt: new Date() })
       .where(eq(messages.id, message.id));
-    await audit(message, "failed", { metadata: { reason: PAUSED_ERROR } });
+    await audit(message, "failed", { metadata: { reason } });
     return;
   }
 

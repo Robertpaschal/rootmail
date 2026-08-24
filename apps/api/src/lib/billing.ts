@@ -608,6 +608,16 @@ export async function assertEmailVerified(org: Organization): Promise<void> {
  * overage); the Free allowance throws 402 once reached — buy send blocks to scale.
  */
 export async function assertCanSend(org: Organization): Promise<void> {
+  // The stop-switch outranks everything, including a paid plan and a clean
+  // quota. A suspended account is one a person decided must stop sending, and
+  // no amount of allowance overrides that.
+  if (org.sendingSuspended) {
+    throw Errors.forbidden(
+      org.sendingSuspendedReason?.trim()
+        ? `Sending is suspended for this account: ${org.sendingSuspendedReason}`
+        : "Sending is suspended for this account. Contact support to resolve it.",
+    );
+  }
   await assertEmailVerified(org);
   // Both walls, every time: the monthly allowance AND the per-day burst cap.
   // (assertTransactionalSendCapacity throws the specific 402 for whichever is hit.)

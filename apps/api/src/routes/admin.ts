@@ -1430,6 +1430,48 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     };
   });
 
+  // The stop-switch. The endpoint that was missing when a provider forwards a
+  // phishing complaint and the honest answer was "we will run an UPDATE".
+  //
+  // Deliberately requires a reason: a suspension nobody can explain later is one
+  // nobody can defend, or lift with confidence.
+  app.post("/v1/admin/orgs/:id/sending", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "support.manage");
+    const { id } = req.params as { id: string };
+    const b = parse(
+      z.object({ suspended: z.boolean(), reason: z.string().min(3).max(500).optional() }),
+      req.body,
+    );
+    if (b.suspended && !b.reason?.trim()) {
+      throw Errors.validation("Give a reason for the suspension — it is shown to the customer and kept on the record.");
+    }
+
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, id)).limit(1);
+    if (!org) throw Errors.notFound("Organization not found");
+
+    const now = new Date();
+    await db
+      .update(organizations)
+      .set({
+        sendingSuspended: b.suspended,
+        sendingSuspendedReason: b.suspended ? (b.reason ?? null) : null,
+        sendingSuspendedAt: b.suspended ? now : null,
+        updatedAt: now,
+      })
+      .where(eq(organizations.id, id));
+
+    await writeStaffAudit({
+      staffUserId: staff.id,
+      action: b.suspended ? "org.sending_suspended" : "org.sending_restored",
+      targetType: "organization",
+      targetId: id,
+      metadata: { reason: b.reason ?? null },
+    });
+
+    return { object: "organization", id, sending_suspended: b.suspended, reason: b.reason ?? null };
+  });
+
   // Staff-triggered dedicated-IP provisioning.
   //
   // The automation still exists — it is just no longer reachable by buying the

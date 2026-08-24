@@ -261,6 +261,18 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       .from(organizations)
       .where(eq(organizations.id, workspace.organizationId))
       .limit(1);
+
+    // The staff stop-switch, on the path this route actually takes. It went into
+    // `assertCanSend` first, which this route never calls — only the retry route
+    // does — so a suspended account carried on sending and only its RE-sends were
+    // refused. Checked here, and again in the worker for mail already queued.
+    if (org?.sendingSuspended) {
+      throw Errors.forbidden(
+        org.sendingSuspendedReason?.trim()
+          ? `Sending is suspended for this account: ${org.sendingSuspendedReason}`
+          : "Sending is suspended for this account. Contact support to resolve it.",
+      );
+    }
     // Verify the sender, then atomically reserve quota (transactional only). The
     // reserve is the single source of truth for the cap (no read-then-write race);
     // replays are short-circuited by the idempotency check above.

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, gte, sql} from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
@@ -35,6 +35,11 @@ const createBody = z.object({
     .regex(/^[a-z0-9.-]+\.[a-z]{2,}$/i, "Must be a valid domain like sunsetvillas.com"),
   inherits_templates_from: z.enum(["parent", "none"]).default("parent"),
 });
+
+/** How far back repeat resumes are counted. */
+const RESUME_WINDOW_DAYS = 30;
+/** Resumes a customer may perform themselves inside that window. */
+const MAX_SELF_RESUMES = 2;
 
 async function getScopedSubTenant(req: FastifyRequest, id: string): Promise<SubTenant> {
   const [st] = await db
@@ -385,6 +390,32 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
 
     if (st.reputationState !== "paused") {
       throw Errors.badRequest(`"${st.name}" isn't paused (reputation state: ${st.reputationState}).`);
+    }
+
+    // Resume was unlimited, and resuming resets the judging window — so pause →
+    // resume → pause was a loop the customer could run forever, buying a full
+    // sweep interval of unrestricted sending each time for the price of one API
+    // call. The pause was sticky against the machine but not against the person
+    // causing the harm.
+    //
+    // Two resumes is a fair reading of "they fixed it and it went wrong again".
+    // A third inside a month is a pattern, and a pattern needs a human who does
+    // not work for the sender.
+    const since = new Date(Date.now() - RESUME_WINDOW_DAYS * 86_400_000);
+    const [{ n: recentResumes } = { n: 0 }] = await db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(auditEntries)
+      .where(
+        and(
+          eq(auditEntries.subTenantId, st.id),
+          eq(auditEntries.event, "tenant_resumed"),
+          gte(auditEntries.occurredAt, since),
+        ),
+      );
+    if (recentResumes >= MAX_SELF_RESUMES) {
+      throw Errors.badRequest(
+        `${st.name} has been resumed ${recentResumes} times in the last ${RESUME_WINDOW_DAYS} days and has been paused again each time. We can't keep clearing it from here — the list itself needs fixing. Contact support and we'll go through the numbers with you.`,
+      );
     }
 
     const now = new Date();

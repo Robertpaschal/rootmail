@@ -1,5 +1,4 @@
-import {
-  enqueueSend,
+import {Errors, enqueueSend,
   type MessageType,
   newId,
   type Priority,
@@ -57,6 +56,21 @@ export interface DispatchInput {
 export async function dispatchMessage(
   input: DispatchInput,
 ): Promise<{ message: Message; suppressed: boolean }> {
+  // The staff stop-switch, on the path every API send actually takes.
+  //
+  // It first went into `assertCanSend`, which turned out to be called by the
+  // RETRY route and not by `POST /v1/messages` — so a suspended account kept
+  // sending and only re-sends were refused. Putting it here, at the one function
+  // all API sends funnel through, is what makes "suspended" mean suspended. The
+  // worker's gate carries the same check for mail already queued.
+  if (input.org?.sendingSuspended) {
+    throw Errors.forbidden(
+      input.org.sendingSuspendedReason?.trim()
+        ? `Sending is suspended for this account: ${input.org.sendingSuspendedReason}`
+        : "Sending is suspended for this account. Contact support to resolve it.",
+    );
+  }
+
   const rendered = render({
     subject: input.subject,
     html: input.html,
