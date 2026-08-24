@@ -1,6 +1,10 @@
 import { and, eq, isNull } from "drizzle-orm";
-import { newId, type SuppressionReason } from "@rootmail/core";
-import { contacts, db, suppressions, templates } from "@rootmail/db";
+import { newId, type SuppressionReason,
+  type MessageType,
+} from "@rootmail/core";
+import { contacts, db, suppressions, templates,
+  isSuppressed as sharedIsSuppressed,
+} from "@rootmail/db";
 
 export async function findContact(workspaceId: string, subTenantId: string | null, email: string) {
   const [contact] = await db
@@ -18,19 +22,32 @@ export async function findContact(workspaceId: string, subTenantId: string | nul
 }
 
 /**
- * A recipient is suppressed if there's a workspace-global suppression (null
- * sub-tenant) OR one scoped to the sub-tenant the send is going through.
+ * Is this recipient suppressed for a send of this KIND?
+ *
+ * The kind matters, and this used to ignore it. An `unsubscribe` is an opt-out
+ * of bulk mail — it must never block a password reset or a receipt — and the
+ * worker's `suppressionBlocks` has always known that, while this copy blocked
+ * everything. So a customer who unsubscribed from a newsletter was silently
+ * locked out of their own account recovery, and the API and the worker disagreed
+ * about the same list. It is also the rule we now publish in our Acceptable Use
+ * Policy, which makes the divergence a claim as well as a bug.
+ *
+ * Delegates to the shared rule rather than restating it, because two
+ * implementations of "who may we email" is how they drifted in the first place.
  */
 export async function isSuppressed(
   workspaceId: string,
   subTenantId: string | null,
   email: string,
+  // Defaults to marketing — the STRICTER reading. A caller that forgets to say
+  // what it is sending gets the conservative answer, never the permissive one.
+  type: MessageType = "marketing",
 ): Promise<boolean> {
   const rows = await db
-    .select({ subTenantId: suppressions.subTenantId })
+    .select({ subTenantId: suppressions.subTenantId, reason: suppressions.reason })
     .from(suppressions)
     .where(and(eq(suppressions.workspaceId, workspaceId), eq(suppressions.email, email)));
-  return rows.some((r) => r.subTenantId === null || r.subTenantId === subTenantId);
+  return sharedIsSuppressed(rows, { type, subTenantId });
 }
 
 export async function addSuppression(

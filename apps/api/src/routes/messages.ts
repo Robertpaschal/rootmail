@@ -420,7 +420,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         );
       }
     }
-    const suppressed = await isSuppressed(workspace.id, subTenantId, toEmail);
+    const suppressed = await isSuppressed(workspace.id, subTenantId, toEmail, body.type);
 
     // Resolve attachment references to owned assets (scoped to the workspace),
     // preserving the caller's order. The worker fetches the bytes at send time.
@@ -653,7 +653,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // Re-check suppression AT RETRY TIME, not against what was true when the
     // message first failed. Someone may have unsubscribed or hard-bounced in
     // between, and a retry must not be a way to reach them anyway.
-    if (await isSuppressed(message.workspaceId, message.subTenantId, message.toEmail)) {
+    if (await isSuppressed(message.workspaceId, message.subTenantId, message.toEmail, message.type)) {
       throw Errors.badRequest(
         "This recipient has since been added to your suppression list, so this message can no longer be sent to them.",
       );

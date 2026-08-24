@@ -79,7 +79,7 @@ export async function dispatchMessage(
   });
   const contentHash = sha256Hex(rendered.html);
   const contact = await findContact(input.workspace.id, input.subTenantId, input.to);
-  const suppressed = await isSuppressed(input.workspace.id, input.subTenantId, input.to);
+  const suppressed = await isSuppressed(input.workspace.id, input.subTenantId, input.to, input.type);
   const id = newId("message");
 
   const [message] = await db

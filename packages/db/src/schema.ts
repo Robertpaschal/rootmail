@@ -820,6 +820,14 @@ export const suppressions = pgTable(
   },
   (t) => [
     uniqueIndex("suppressions_scope_email_uq").on(t.workspaceId, t.subTenantId, t.email),
+    // NOT declared here, deliberately: `suppressions_workspace_email_uq` is a
+    // PARTIAL unique index (WHERE sub_tenant_id IS NULL), created by migration
+    // 0077. Drizzle cannot express the WHERE clause, so declaring it would make
+    // the next `db:generate` emit a FULL unique index on (workspace_id, email) —
+    // which fails against real data the moment two sub-tenants suppress the same
+    // address. It exists because Postgres treats NULLs as distinct, so the index
+    // above never constrains two workspace-level rows for one address; they
+    // duplicated freely and inflated the counts feeding the reputation score.
     index("suppressions_email_idx").on(t.email),
   ],
 );

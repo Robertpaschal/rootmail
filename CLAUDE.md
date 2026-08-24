@@ -155,9 +155,14 @@ run this before anything else — those are the tests that exist.
   To re-apply during development, delete that row from
   `drizzle.__drizzle_migrations` first. (A host that never applied it is
   unaffected, which is why this only ever bites locally.)
-- **Drizzle `.nullsNotDistinct()`** isn't available in this version. Uniqueness
-  that should treat workspace-level (null `sub_tenant_id`) rows as distinct from
-  tenant rows is enforced in app code (select-then-write), not the DB.
+- **Drizzle `.nullsNotDistinct()`** isn't available in this version, so a unique
+  index containing a nullable column does NOT constrain rows where it is null —
+  Postgres treats NULLs as distinct, and `onConflictDoNothing` therefore never
+  matches. `suppressions` duplicated workspace-level rows this way for months,
+  inflating the counts that feed the reputation score. The fix is a **partial
+  unique index** (`WHERE col IS NULL`) written by hand: Drizzle cannot express
+  the WHERE clause, so do NOT also declare it in `schema.ts` or the next
+  `db:generate` emits a full unique index that fails against real data.
 - **DNS verification:** `DNS_VERIFY_MODE=mock` (default) auto-passes sub-tenant
   domain verification so the flow is demoable without a real domain. Set `live`
   for real TXT lookups.
