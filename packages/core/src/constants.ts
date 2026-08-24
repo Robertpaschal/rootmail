@@ -198,6 +198,16 @@ export const SUBSCRIBE_LIST_HOURLY_CAP = 60;
  */
 export const ORG_SENDS_PER_MINUTE = 120;
 
+/**
+ * Total attachment bytes one message may carry.
+ *
+ * SES rejects a message over 10MB after MIME encoding, and base64 inflates by
+ * about a third — so anything approaching this would be refused by the provider
+ * anyway. The cap exists so the WORKER refuses first, in bounded memory, rather
+ * than buffering an arbitrarily large customer-supplied file to find out.
+ */
+export const MAX_ATTACHMENT_BYTES = 7 * 1024 * 1024;
+
 export const PRIORITIES = ["high", "normal", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];
 

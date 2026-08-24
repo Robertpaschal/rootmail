@@ -13,21 +13,52 @@ import {
   buildMessageId,
   replyThreadingHeaders,
   env,
+  MAX_ATTACHMENT_BYTES,
+  assertPublicUrl,
 } from "@rootmail/core";
 import { activeReplyDomain, auditEntries, db, threadReplyParent, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
 import { getProviderFor } from "./providers";
 import type { OutboundAttachment } from "./providers/types";
 
 /** Fetch each attachment's bytes from its public asset URL (host-independent). */
+/**
+ * Fetch the bytes for each attachment.
+ *
+ * The URL comes from the CUSTOMER, and this used to be a bare `fetch` — which is
+ * a server-side request forgery with delivery attached: point an attachment at
+ * `http://169.254.169.254/latest/meta-data/`, or at anything else inside our
+ * network, and we would fetch it and email the contents to an address of your
+ * choosing. `assertPublicUrl` is the same guard webhooks have used all along; it
+ * simply was never applied here.
+ *
+ * Also capped. Without a size limit a customer could point at an arbitrarily
+ * large file and have the worker hold it in memory — and SES rejects the message
+ * anyway well below that.
+ */
 async function loadAttachments(list: MessageAttachment[]): Promise<OutboundAttachment[]> {
   const out: OutboundAttachment[] = [];
+  let total = 0;
   for (const a of list) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 20_000);
     try {
-      const res = await fetch(a.url, { signal: controller.signal });
+      // Refuse before the request leaves, not after.
+      await assertPublicUrl(a.url);
+      const res = await fetch(a.url, { signal: controller.signal, redirect: "error" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      out.push({ filename: a.filename, contentType: a.content_type, content: Buffer.from(await res.arrayBuffer()) });
+
+      // Trust the body, not the header: Content-Length is advisory and absent on
+      // a chunked response, so it is a fast reject and never the real check.
+      const declared = Number(res.headers.get("content-length") ?? 0);
+      if (declared > MAX_ATTACHMENT_BYTES) {
+        throw new Error(`larger than the ${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)}MB limit`);
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      total += buf.byteLength;
+      if (buf.byteLength > MAX_ATTACHMENT_BYTES || total > MAX_ATTACHMENT_BYTES) {
+        throw new Error(`larger than the ${Math.round(MAX_ATTACHMENT_BYTES / 1024 / 1024)}MB limit`);
+      }
+      out.push({ filename: a.filename, contentType: a.content_type, content: buf });
     } catch (err) {
       // Surface a clear, recorded reason instead of an opaque "fetch failed".
       throw new Error(`Couldn't load attachment "${a.filename}": ${err instanceof Error ? err.message : String(err)}`);
