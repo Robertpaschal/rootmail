@@ -61,7 +61,17 @@ async function ensureOrganization(): Promise<Organization> {
 
   const [row] = await db
     .insert(organizations)
-    .values({ id: newId("organization"), name: "Acme Inc", slug: "acme", ...DEMO_ENTITLEMENTS })
+    .values({
+      id: newId("organization"),
+      name: "Acme Inc",
+      slug: "acme",
+      // Marketing and sales sends are refused without one — CAN-SPAM requires a
+      // physical address on commercial mail. A seed org without it cannot
+      // exercise the marketing path at all, which is not a realistic demo of an
+      // organisation that would be sending any.
+      postalAddress: "500 Terry Francine St, San Francisco, CA 94158, USA",
+      ...DEMO_ENTITLEMENTS,
+    })
     .returning();
   return row;
 }
