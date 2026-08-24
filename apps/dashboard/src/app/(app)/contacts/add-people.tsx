@@ -164,6 +164,9 @@ function ImportPeople({ lists }: { lists: { id: string; name: string }[] }) {
   const [pending, start] = useTransition();
 
   const entries = useMemo(() => extractEntries(csv, "contacts"), [csv]);
+  // Deliberately not remembered between imports: the affirmation is about THIS
+  // list, and a box that stays ticked stops being a statement about anything.
+  const [permission, setPermission] = useState(false);
 
   const run = () => {
     setResult(null);
@@ -173,12 +176,15 @@ function ImportPeople({ lists }: { lists: { id: string; name: string }[] }) {
     start(async () => {
       const res = await importContactsAction(
         entries.map((e) => ({ email: e.email, name: e.name })),
-        dest === "new" ? { newAudienceName: newName } : { listId: dest || undefined },
+        dest === "new"
+          ? { newAudienceName: newName, permissionConfirmed: permission }
+          : { listId: dest || undefined, permissionConfirmed: permission },
       );
       if (res.error) return void setError(res.error);
       setResult(res.result ?? null);
       setCsv("");
       setFileName(null);
+      setPermission(false);
       router.refresh();
     });
   };
@@ -188,6 +194,26 @@ function ImportPeople({ lists }: { lists: { id: string; name: string }[] }) {
       <p className="text-sm text-muted-foreground">
         Paste or upload a CSV from your old provider — we find the email and name columns automatically.
         Imports never auto-enroll anyone in sequences.
+      </p>
+      {/* The one control on this screen that is not about convenience. An
+          uploaded list is where someone else's consent problem becomes ours, so
+          it is stated plainly, required, and recorded against the import. */}
+      <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border bg-muted/40 p-3 text-sm">
+        <input
+          type="checkbox"
+          checked={permission}
+          onChange={(e) => setPermission(e.target.checked)}
+          className="mt-0.5 size-4 shrink-0 accent-primary"
+        />
+        <span>
+          <span className="font-medium">Everyone on this list gave me permission to email them.</span>
+          <span className="mt-0.5 block text-xs text-muted-foreground">
+            Purchased, rented and scraped lists aren&apos;t allowed — they get us all blocked. We
+            record this confirmation against the import.
+          </span>
+        </span>
+      </label>
+      <p className="text-sm text-muted-foreground">
       </p>
 
       <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-dashed px-4 py-4 text-sm text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground">

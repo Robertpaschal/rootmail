@@ -60,16 +60,21 @@ export async function unsubscribeContact(
  * audience (an existing one, or a brand-new one named on the spot). */
 export async function importContactsAction(
   entries: { email: string; name?: string }[],
-  opts: { listId?: string; newAudienceName?: string },
+  opts: { listId?: string; newAudienceName?: string; permissionConfirmed?: boolean },
 ): Promise<{ result?: ImportResult; error?: string; listId?: string }> {
   if (entries.length === 0) return { error: "No email addresses to import." };
+  // Checked here as well as in the API, so the person sees it next to the box
+  // they didn't tick rather than as a validation error from somewhere else.
+  if (!opts.permissionConfirmed) {
+    return { error: "Please confirm you have permission to email everyone on this list." };
+  }
   let listId = opts.listId || undefined;
   try {
     if (!listId && opts.newAudienceName?.trim()) {
       const l = await api.createList({ name: opts.newAudienceName.trim() });
       listId = l.id;
     }
-    const result = await api.importContacts({ entries, list_id: listId });
+    const result = await api.importContacts({ entries, list_id: listId, permission_confirmed: true });
     revalidatePath("/contacts");
     if (listId) revalidatePath(`/lists/${listId}`);
     return { result, listId };

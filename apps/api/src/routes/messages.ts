@@ -314,6 +314,20 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // caller's explicit variables override them, and our signed per-recipient
     // unsubscribe URL wins over any caller-supplied value of the same name.
     const contact = await findContact(workspace.id, subTenantId, toEmail);
+
+    // Bulk marketing already draws from audiences the customer built. This is the
+    // single-send path, and without this guard it was a way to put marketing mail
+    // in front of an address typed from anywhere — which is cold email, and is
+    // exactly what we tell recipients and our provider we do not do.
+    //
+    // Transactional is deliberately untouched: a receipt or a password reset goes
+    // to whoever took the action, and requiring them to be a saved contact first
+    // would break the honest case to police the dishonest one.
+    if ((body.type === "marketing" || body.type === "sales") && !contact) {
+      throw Errors.badRequest(
+        `${toEmail} isn't in your audience, so we can't send marketing to them. Marketing and sales mail can only go to people you collected — add them through a signup form, or import them and confirm you have their permission. Transactional mail (receipts, password resets) has no such restriction.`,
+      );
+    }
     // Minted before render() because {{view_in_browser_url}} has to name this
     // message and be substituted into the body; the insert below reuses it.
     const id = newId("message");

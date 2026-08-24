@@ -370,7 +370,12 @@ export const api = {
 
   importSuppressions: (body: { entries: { email: string; reason?: string }[]; source?: string }) =>
     rmFetch<ImportResult>("/v1/imports/suppressions", { method: "POST", body }),
-  importContacts: (body: { entries: { email: string; name?: string; tags?: string[] }[]; list_id?: string }) =>
+  importContacts: (body: {
+    entries: { email: string; name?: string; tags?: string[] }[];
+    list_id?: string;
+    /** The importer's affirmation. The API rejects the request without it. */
+    permission_confirmed: true;
+  }) =>
     rmFetch<ImportResult>("/v1/imports/contacts", { method: "POST", body }),
 
   getComplianceExport: (q: { from: string; to?: string; sub_tenant_id?: string }) =>

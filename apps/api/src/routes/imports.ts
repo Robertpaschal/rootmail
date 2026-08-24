@@ -2,8 +2,9 @@ import { and, eq, inArray, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { Errors, newId, type SuppressionReason } from "@rootmail/core";
-import { contacts, db, listContacts, lists, suppressions } from "@rootmail/db";
+import { auditEntries, contacts, db, listContacts, lists, suppressions } from "@rootmail/db";
 import { assertContactCapacity } from "../lib/billing";
+import { authActor } from "../lib/dispatch";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { parse } from "../lib/validate";
@@ -33,6 +34,24 @@ const suppressionBody = z.object({
 
 const contactsBody = z.object({
   list_id: z.string().optional(),
+  /**
+   * The importer's affirmation that everyone on this list gave them permission.
+   *
+   * Required, and deliberately un-defaulted: an uploaded list is the one place a
+   * platform like ours can take on someone else's consent problem, and the only
+   * honest control is to make the person doing it say so, on the record, every
+   * time. `z.literal(true)` means omitting it is a validation error rather than
+   * a quiet false.
+   *
+   * It is recorded on the import so the affirmation is auditable afterwards —
+   * an affirmation nobody can look up later is not a control.
+   */
+  permission_confirmed: z.literal(true, {
+    errorMap: () => ({
+      message:
+        "Set permission_confirmed to true to confirm every address on this list gave you permission to email them. We can't accept purchased, rented or scraped lists.",
+    }),
+  }),
   entries: z
     .array(z.object({ email: z.string(), name: z.string().optional(), tags: z.array(z.string()).optional() }))
     .min(1)
@@ -152,9 +171,30 @@ export async function importRoutes(app: FastifyInstance): Promise<void> {
       }
     }
 
+    // The affirmation, on the record. An import is the one moment we take on
+    // someone else's consent problem, so who said what, and when, has to survive
+    // the request — including when the list later turns out to be bad.
+    await db.insert(auditEntries).values({
+      id: newId("audit"),
+      workspaceId: req.auth.workspace.id,
+      subTenantId,
+      messageId: null,
+      event: "contacts_imported",
+      actor: authActor(req.auth).actor,
+      actorId: authActor(req.auth).actorId,
+      metadata: {
+        permission_confirmed: true,
+        total: body.entries.length,
+        imported: inserted.length,
+        list_id: listId,
+        ip: req.ip,
+      },
+    });
+
     return {
       object: "import_result",
       kind: "contacts",
+      permission_confirmed: true,
       total: body.entries.length,
       imported: inserted.length,
       existing: existingByEmail.size,

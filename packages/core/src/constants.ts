@@ -110,6 +110,9 @@ export const AUDIT_EVENTS = [
   "dkim_rotation_started",
   "dkim_rotation_completed",
   "dkim_rotation_cancelled",
+  // Who affirmed a list was permission-based, and when. Message-less like the
+  // tenant events above.
+  "contacts_imported",
 ] as const;
 export type AuditEvent = (typeof AUDIT_EVENTS)[number];
 
@@ -125,6 +128,7 @@ export const TENANT_AUDIT_EVENTS = [
   "dkim_rotation_started",
   "dkim_rotation_completed",
   "dkim_rotation_cancelled",
+  "contacts_imported",
 ] as const satisfies readonly AuditEvent[];
 export type TenantAuditEvent = (typeof TENANT_AUDIT_EVENTS)[number];
 
