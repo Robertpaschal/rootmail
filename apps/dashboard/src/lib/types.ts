@@ -155,6 +155,21 @@ export interface SubTenant {
     failing_since: string | null;
     detail: string | null;
   };
+  /**
+   * Signing-key rotation. While `rotating` is true a new record is waiting to be
+   * published and the CURRENT key is still signing every message — nothing
+   * switches over until DNS agrees, so this state is safe to sit in indefinitely.
+   */
+  dkim: {
+    selector: string;
+    rotating: boolean;
+    pending_selector: string | null;
+    rotation_started_at: string | null;
+    rotated_at: string | null;
+    /** Still published on purpose: mail already sent verifies against it. */
+    previous_selector: string | null;
+    previous_removable_after: string | null;
+  };
   dns_records?: DnsRecord[];
 }
 

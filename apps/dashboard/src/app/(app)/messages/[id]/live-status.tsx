@@ -205,6 +205,11 @@ export function LiveStatus({
   const [message, setMessage] = useState(initialMessage);
   const [trail, setTrail] = useState(initialTrail);
   const startedAt = useRef(Date.now());
+  // Bumped when a retry puts this message back in flight. The poll effect below
+  // deliberately does NOT depend on `message.status` — it would tear down and
+  // rebuild the interval on every hop — so a message that arrived here already
+  // terminal needs an explicit nudge to start watching again.
+  const [pollKey, setPollKey] = useState(0);
 
   const apply = useCallback((snap: Awaited<ReturnType<typeof refreshMessage>>) => {
     if ("message" in snap && snap.message) {
@@ -219,15 +224,51 @@ export function LiveStatus({
   // on a bad terminal state or after the ~6 minute cap.
   useEffect(() => {
     if (STOP.has(message.status)) return;
-    const iv = setInterval(async () => {
+    // Each run gets its own budget. Without this a retry pressed more than six
+    // minutes after the page loaded would start a poller that immediately hits
+    // the cap and stops — leaving the screen frozen on "Sending" while the send
+    // has long since finished. That is exactly how this broke.
+    startedAt.current = Date.now();
+    // The cap must count time we were actually WATCHING. A tab left in the
+    // background still burns the six minutes while deliberately not polling, so
+    // a user who looked away and came back would find a frozen screen and no way
+    // to tell it apart from a stuck send. Hidden time is not spent.
+    let hiddenSince: number | null = document.hidden ? Date.now() : null;
+
+    const tick = async () => {
       if (document.hidden) return; // don't poll a backgrounded tab
-      if (Date.now() - startedAt.current > 6 * 60_000) return void clearInterval(iv);
+      if (Date.now() - startedAt.current > 6 * 60_000) return void stop();
       const next = apply(await refreshMessage(id));
-      if (next && STOP.has(next)) clearInterval(iv);
-    }, 4000);
-    return () => clearInterval(iv);
+      if (next && STOP.has(next)) stop();
+    };
+
+    const iv = setInterval(tick, 4000);
+    const stop = () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        hiddenSince = Date.now();
+        return;
+      }
+      // Credit back the time we spent not looking, then check immediately rather
+      // than making someone stare at a stale status for another four seconds.
+      if (hiddenSince !== null) {
+        startedAt.current += Date.now() - hiddenSince;
+        hiddenSince = null;
+      }
+      void tick();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      clearInterval(iv);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, pollKey]);
 
   // The headline reflects the furthest thing that happened: engagement (from the
   // trail) outranks the stored status, which caps at "delivered".
@@ -299,7 +340,14 @@ export function LiveStatus({
             authority on whether it may be retried, and refuses anything the
             provider already accepted; this just shows what it said. */}
         {message.status === "failed" ? (
-          <RetryButton id={id} onUpdate={apply} />
+          <RetryButton
+            id={id}
+            onUpdate={(snap) => {
+              apply(snap);
+              // Back in flight — start watching again, with a fresh time budget.
+              setPollKey((k) => k + 1);
+            }}
+          />
         ) : null}
 
         {/* Diagnose (only when something went wrong) */}

@@ -200,6 +200,19 @@ export function serializeSubTenant(t: SubTenant, opts: { includeDns?: boolean } 
       failing_since: t.dnsFailingSince,
       detail: t.dnsDriftDetail,
     },
+    // Key rotation. `pending_selector` is the whole state a caller needs: while
+    // it is set, a new record is waiting to be published and the CURRENT key is
+    // still the one signing. Nothing switches until DNS agrees.
+    dkim: {
+      selector: t.dkimSelector,
+      rotating: t.nextDkimSelector !== null,
+      pending_selector: t.nextDkimSelector,
+      rotation_started_at: t.dkimRotationStartedAt,
+      rotated_at: t.dkimRotatedAt,
+      // Still published, still needed: mail already sent verifies against it.
+      previous_selector: t.previousDkimSelector,
+      previous_removable_after: t.previousDkimRetireAt,
+    },
   };
   if (!opts.includeDns) return base;
   return {
@@ -209,6 +222,11 @@ export function serializeSubTenant(t: SubTenant, opts: { includeDns?: boolean } 
       verificationToken: t.verificationToken,
       dkimSelector: t.dkimSelector,
       dkimValue: t.dkimPublicKey,
+      // During a rotation the caller must see BOTH records — the list is what
+      // the dashboard renders, and showing only the new one would read as
+      // "replace this", which is the one instruction that breaks signing.
+      pendingDkimSelector: t.nextDkimSelector,
+      pendingDkimValue: t.nextDkimPublicKey,
     }),
   };
 }

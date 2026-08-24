@@ -11,6 +11,7 @@ import {
   verifyDnsRecords,
 } from "@rootmail/core";
 import { auditEntries, db, type SubTenant, subTenants } from "@rootmail/db";
+import { applyDkimRotation } from "./dkim-rotation";
 import { sendTenantAlert } from "./tenant-alerts";
 
 // DNS drift.
@@ -89,8 +90,18 @@ export async function checkTenantDns(tenant: SubTenant): Promise<boolean> {
       verificationToken: tenant.verificationToken,
       dkimSelector: tenant.dkimSelector,
       dkimValue: tenant.dkimPublicKey,
+      // Included so ONE lookup pass answers both questions: is the domain still
+      // healthy, and has the incoming key's record appeared yet. It is emitted
+      // `required: false`, so a rotation nobody has published can never make the
+      // domain read as failing — see BuildDnsInput.
+      pendingDkimSelector: tenant.nextDkimSelector,
+      pendingDkimValue: tenant.nextDkimPublicKey,
     }),
   );
+
+  // Rotation runs off the same lookup, before the drift verdict: promoting a key
+  // is not a drift transition and must not be mistaken for one.
+  await applyDkimRotation(tenant, checks);
   const ok = isVerified(checks);
   const now = new Date();
   const detail = describeDrift(checks);

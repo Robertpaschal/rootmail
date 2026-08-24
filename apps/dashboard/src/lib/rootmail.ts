@@ -230,6 +230,12 @@ export const api = {
   listSubTenants: () => rmFetch<ListResponse<SubTenant>>("/v1/sub-tenants"),
   getSubTenant: (id: string) => rmFetch<SubTenant>(`/v1/sub-tenants/${id}`),
   getSubTenantAuth: (id: string) => rmFetch<EmailAuthReport>(`/v1/sub-tenants/${id}/auth`),
+  rotateSubTenantDkim: (id: string) =>
+    rmFetch<SubTenant & { rotation_started: boolean }>(`/v1/sub-tenants/${id}/dkim/rotate`, {
+      method: "POST",
+    }),
+  cancelSubTenantDkimRotation: (id: string) =>
+    rmFetch<SubTenant>(`/v1/sub-tenants/${id}/dkim/rotate/cancel`, { method: "POST" }),
   createSubTenant: (body: { name: string; sending_domain: string; external_id?: string }) =>
     rmFetch<SubTenant>("/v1/sub-tenants", { method: "POST", body }),
   verifySubTenant: (id: string) =>

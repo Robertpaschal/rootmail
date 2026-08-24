@@ -15,8 +15,10 @@ import {
   randomToken,
   REPUTATION_THRESHOLDS,
   verifyDnsRecords,
+  nextDkimSelector,
 } from "@rootmail/core";
 import { auditEntries, db, type SubTenant, subTenants, workspaces } from "@rootmail/db";
+import { authActor } from "../lib/dispatch";
 import { loadOrg, requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { getAddon, getPlan } from "../lib/plans";
@@ -202,6 +204,10 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
       verificationToken: st.verificationToken,
       dkimSelector: st.dkimSelector,
       dkimValue: st.dkimPublicKey,
+      // Checked but NOT required, so pressing "verify" during a rotation reports
+      // on the new record without letting its absence mark the domain failed.
+      pendingDkimSelector: st.nextDkimSelector,
+      pendingDkimValue: st.nextDkimPublicKey,
     });
     const checks = await verifyDnsRecords(records);
     const verified = isVerified(checks);
@@ -223,6 +229,105 @@ export async function subTenantRoutes(app: FastifyInstance): Promise<void> {
       .returning();
 
     return { ...serializeSubTenant(updated, { includeDns: true }), verified, checks };
+  });
+
+  // --- Rotate the DKIM signing key ----------------------------------------
+  // Dual-selector overlap. This generates the NEW key and hands back its record;
+  // it does NOT switch anything over. We keep signing with the current key until
+  // the new record actually resolves — cutting over first would fail
+  // authentication on every message sent in the gap, which is the outage
+  // rotation exists to prevent. The sweep promotes it once DNS agrees.
+  app.post("/v1/sub-tenants/:id/dkim/rotate", async (req) => {
+    await requirePermission(req, "domains.manage");
+    const { id } = req.params as { id: string };
+    const st = await getScopedSubTenant(req, id);
+
+    if (st.nextDkimSelector) {
+      throw Errors.badRequest(
+        `A key rotation is already in progress for ${st.sendingDomain}. Publish the record for "${st.nextDkimSelector}" and it completes on its own, usually within the hour.`,
+      );
+    }
+    // A key that has never signed anything is not worth rotating, and rotating a
+    // tenant mid-setup would hand them two records to add instead of one.
+    if (!st.verifiedAt) {
+      throw Errors.badRequest(
+        "This client's domain hasn't been verified yet, so there is no signing key in use to rotate.",
+      );
+    }
+
+    const selector = nextDkimSelector(st.dkimSelector, new Date());
+    const keypair = generateDkimKeypair(selector);
+
+    const [updated] = await db
+      .update(subTenants)
+      .set({
+        nextDkimSelector: selector,
+        nextDkimPublicKey: keypair.dnsValue,
+        nextDkimPrivateKey: encryptSecret(keypair.privateKeyPem),
+        dkimRotationStartedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(subTenants.id, st.id))
+      .returning();
+
+    await db.insert(auditEntries).values({
+      id: newId("audit"),
+      workspaceId: st.workspaceId,
+      subTenantId: st.id,
+      messageId: null,
+      event: "dkim_rotation_started",
+      actor: authActor(req.auth).actor,
+      actorId: authActor(req.auth).actorId,
+      metadata: { from_selector: st.dkimSelector, to_selector: selector },
+    });
+
+    return {
+      ...serializeSubTenant(updated, { includeDns: true }),
+      rotation_started: true,
+      // The one record they must add. Named separately from `dns_records` so an
+      // integration does not have to diff two lists to find what changed.
+      publish: {
+        type: "TXT",
+        host: `${selector}._domainkey.${st.sendingDomain}`,
+        value: keypair.dnsValue,
+        note: "Add this alongside your existing signing record — do not remove the old one yet.",
+      },
+    };
+  });
+
+  // --- Cancel a rotation in progress --------------------------------------
+  app.post("/v1/sub-tenants/:id/dkim/rotate/cancel", async (req) => {
+    await requirePermission(req, "domains.manage");
+    const { id } = req.params as { id: string };
+    const st = await getScopedSubTenant(req, id);
+    if (!st.nextDkimSelector) throw Errors.badRequest("No key rotation is in progress.");
+
+    const [updated] = await db
+      .update(subTenants)
+      .set({
+        nextDkimSelector: null,
+        nextDkimPublicKey: null,
+        nextDkimPrivateKey: null,
+        dkimRotationStartedAt: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(subTenants.id, st.id))
+      .returning();
+
+    await db.insert(auditEntries).values({
+      id: newId("audit"),
+      workspaceId: st.workspaceId,
+      subTenantId: st.id,
+      messageId: null,
+      event: "dkim_rotation_cancelled",
+      actor: authActor(req.auth).actor,
+      actorId: authActor(req.auth).actorId,
+      metadata: { abandoned_selector: st.nextDkimSelector },
+    });
+
+    // Nothing was ever switched over, so cancelling cannot break a send. The
+    // pending record they may already have published is simply unused.
+    return { ...serializeSubTenant(updated, { includeDns: true }), rotation_cancelled: true };
   });
 
   // --- Reputation history -------------------------------------------------

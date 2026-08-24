@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { DKIM_PREVIOUS_RETIRE_DAYS, DKIM_ROTATION_AGE_DAYS, DKIM_ROTATION_STALL_DAYS } from "./constants";
 import { decideDkimRotation, type DkimRotationInput, nextDkimSelector, previousRetireAt } from "./dkim-rotation";
+import { buildDnsRecords, isVerified } from "./dns";
 
 // DKIM rotation (brief P2.3). The property under test is that rotating never
 // drops a message: we sign with the old key until the new record resolves, and
@@ -146,5 +147,42 @@ describe("choosing the next selector", () => {
   it("disambiguates a second rotation inside the same month", () => {
     // Publishing the same selector twice would overwrite the record still in use.
     assert.equal(nextDkimSelector("rootmail-202608", NOW), "rootmail-202608b");
+  });
+});
+
+
+describe("the pending record must never endanger a healthy tenant", () => {
+  const base = { domain: "acme.com", verificationToken: "tok", dkimSelector: "rootmail", dkimValue: "v=DKIM1; p=AAA" };
+
+  it("is published alongside the current key, not instead of it", () => {
+    const recs = buildDnsRecords({ ...base, pendingDkimSelector: "rootmail-202608", pendingDkimValue: "v=DKIM1; p=BBB" });
+    const dkim = recs.filter((r) => r.purpose === "dkim" || r.purpose === "dkim_next");
+    assert.equal(dkim.length, 2, "both selectors must be published during overlap");
+    assert.ok(dkim.some((r) => r.host === "rootmail._domainkey.acme.com"));
+    assert.ok(dkim.some((r) => r.host === "rootmail-202608._domainkey.acme.com"));
+  });
+
+  it("is NOT required — otherwise starting a rotation fails the domain", () => {
+    // THE interlock between rotation and drift detection. `isVerified` and the
+    // drift sweep judge required records only. A required pending record would
+    // mean: ask them to add a record → their domain reads as failing → six hours
+    // later the drift sweep STOPS THEIR SENDING. For doing nothing wrong.
+    const recs = buildDnsRecords({ ...base, pendingDkimSelector: "rootmail-202608", pendingDkimValue: "v=DKIM1; p=BBB" });
+    const next = recs.find((r) => r.purpose === "dkim_next")!;
+    assert.equal(next.required, false);
+  });
+
+  it("a domain stays verified while a rotation is unpublished", () => {
+    const recs = buildDnsRecords({ ...base, pendingDkimSelector: "rootmail-202608", pendingDkimValue: "v=DKIM1; p=BBB" });
+    // Every required record resolves; the pending one does not.
+    const checks = recs.map((r) => ({
+      purpose: r.purpose, host: r.host, required: r.required,
+      ok: r.purpose !== "dkim_next", expected: r.value, found: [] as string[],
+    }));
+    assert.equal(isVerified(checks), true);
+  });
+
+  it("emits no pending record when no rotation is in flight", () => {
+    assert.equal(buildDnsRecords(base).some((r) => r.purpose === "dkim_next"), false);
   });
 });

@@ -2,7 +2,7 @@ import type { SubTenantStatus } from "./constants";
 import { resolveMx, resolveTxt } from "node:dns/promises";
 import { env } from "./env";
 
-export type DnsRecordPurpose = "ownership" | "dkim" | "spf" | "dmarc";
+export type DnsRecordPurpose = "ownership" | "dkim" | "dkim_next" | "spf" | "dmarc";
 
 export interface DnsRecord {
   purpose: DnsRecordPurpose;
@@ -27,12 +27,37 @@ export interface BuildDnsInput {
   verificationToken: string;
   dkimSelector: string;
   dkimValue: string;
+  /**
+   * The INCOMING signing key during a rotation, published alongside the current
+   * one. Emitted as `required: false` — deliberately and load-bearingly so.
+   *
+   * `isVerified()` and the drift sweep judge REQUIRED records only. If this were
+   * required, merely starting a rotation would mark a perfectly healthy tenant's
+   * DNS as failing, and six hours later the drift sweep would stop their sending
+   * — because we asked them to add a record and they hadn't yet. Rotation must
+   * never be able to do that.
+   */
+  pendingDkimSelector?: string | null;
+  pendingDkimValue?: string | null;
 }
 
 /** The DNS records a sub-tenant must publish to verify + authenticate their domain. */
 export function buildDnsRecords(input: BuildDnsInput): DnsRecord[] {
   const { domain, verificationToken, dkimSelector, dkimValue } = input;
-  return [
+  const pending: DnsRecord[] =
+    input.pendingDkimSelector && input.pendingDkimValue
+      ? [
+          {
+            purpose: "dkim_next",
+            type: "TXT",
+            host: `${input.pendingDkimSelector}._domainkey.${domain}`,
+            value: input.pendingDkimValue,
+            // See BuildDnsInput.pendingDkimSelector — never required.
+            required: false,
+          },
+        ]
+      : [];
+  return pending.concat([
     {
       purpose: "ownership",
       type: "TXT",
@@ -63,7 +88,7 @@ export function buildDnsRecords(input: BuildDnsInput): DnsRecord[] {
       value: `v=DMARC1; p=none; rua=mailto:dmarc@${domain}`,
       required: false,
     },
-  ];
+  ]);
 }
 
 const stripWs = (s: string) => s.replace(/\s+/g, "");
@@ -72,6 +97,7 @@ function matches(record: DnsRecord, txtValues: string[]): boolean {
   switch (record.purpose) {
     case "ownership":
       return txtValues.some((v) => stripWs(v) === stripWs(record.value));
+    case "dkim_next":
     case "dkim": {
       // Match on the unique public-key body (p=...) so selector/whitespace differences don't matter.
       const p = record.value.split("p=")[1];
