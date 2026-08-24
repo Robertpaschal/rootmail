@@ -22,6 +22,8 @@ import {
   unsubscribeUrl,
   viewInBrowserUrl,
   canRetryMessage,
+  ORG_SENDS_PER_MINUTE,
+  checkAndCount,
 } from "@rootmail/core";
 import {
   activeReplyDomain,
@@ -261,6 +263,22 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
       .from(organizations)
       .where(eq(organizations.id, workspace.organizationId))
       .limit(1);
+
+    // Per-ORGANIZATION burst brake, on top of the daily allowance.
+    //
+    // The global limiter keys on the credential, so an account could multiply
+    // its own ceiling by minting more API keys — nothing caps how many. Keyed
+    // here on the organization, that stops mattering. It also stops a full day's
+    // allowance leaving in the first two minutes after midnight, which daily
+    // quota accounting alone permits.
+    if (org) {
+      const burst = await checkAndCount(`send:${org.id}`, ORG_SENDS_PER_MINUTE, 60);
+      if (!burst.allowed) {
+        throw Errors.rateLimited(
+          `You're sending faster than ${ORG_SENDS_PER_MINUTE} messages a minute. Retry in ${burst.retryInSec}s — this is a burst limit, not your daily allowance.`,
+        );
+      }
+    }
 
     // The staff stop-switch, on the path this route actually takes. It went into
     // `assertCanSend` first, which this route never calls — only the retry route

@@ -2,7 +2,7 @@ import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import Fastify, { type FastifyInstance } from "fastify";
-import { env } from "@rootmail/core";
+import { createRedis, env } from "@rootmail/core";
 import "./context";
 import { registerAuth } from "./plugins/auth";
 import { registerErrorHandler } from "./plugins/errors";
@@ -67,10 +67,32 @@ export async function buildServer(): Promise<FastifyInstance> {
   });
 
   await app.register(sensible);
+
+  // Held so it can be CLOSED with the server. @fastify/rate-limit does not own
+  // the client it is handed, so without this the connection outlives the app and
+  // the process never exits — which is how a hung test suite happens rather than
+  // a failing one.
+  const rateLimitRedis = createRedis();
+  app.addHook("onClose", async () => {
+    await rateLimitRedis.quit().catch(() => undefined);
+  });
+
   await app.register(rateLimit, {
     max: 300,
     timeWindow: "1 minute",
-    // Key by API key when present, else by IP. (In-memory store for local dev.)
+    // SHARED store, not per-process. The default in-memory store meant the real
+    // ceiling was replicas × 300, and it reset on every deploy — so the number
+    // in the config was never the number in force.
+    redis: rateLimitRedis,
+    // Deliberately still keyed on the credential, NOT the resolved account:
+    // this is an `onRequest` hook registered before `registerAuth`, so `req.auth`
+    // does not exist yet, and moving auth earlier would mean a bad token is
+    // rejected before it is ever rate-limited — losing the brute-force brake to
+    // gain a bucket. This limiter stays a coarse per-credential/per-IP guard.
+    //
+    // The abuse it therefore cannot stop — one account minting many keys to
+    // multiply its own send ceiling — is handled where the account IS known, by
+    // the per-organization send-rate limit in routes/messages.ts.
     keyGenerator: (req) => req.headers.authorization ?? req.ip,
     allowList: (req) => req.url === "/" || req.url.startsWith("/health"),
   });

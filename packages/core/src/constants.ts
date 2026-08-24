@@ -185,6 +185,19 @@ export const SUBSCRIBE_ADDRESS_COOLDOWN_SEC = 86_400;
 /** Confirmations one audience may trigger per hour, whoever is asking. */
 export const SUBSCRIBE_LIST_HOURLY_CAP = 60;
 
+/**
+ * Sends one account may start per minute through the API, on top of its daily
+ * allowance.
+ *
+ * The daily quota alone let a full day's allowance leave in the first two
+ * minutes after midnight, and the global limiter keys on the credential — so an
+ * account could multiply its own ceiling just by minting more API keys, which
+ * nothing caps. This is the burst brake, keyed on the organization, where the
+ * number of keys makes no difference. Generous: real integrations send in
+ * bursts, and campaigns do not come through this path at all.
+ */
+export const ORG_SENDS_PER_MINUTE = 120;
+
 export const PRIORITIES = ["high", "normal", "low"] as const;
 export type Priority = (typeof PRIORITIES)[number];
 

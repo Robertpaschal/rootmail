@@ -113,6 +113,11 @@ run this before anything else — those are the tests that exist.
   deploy looks clean while the table isn't there. Cost a full deploy cycle on
   0064. `db:generate` maintains the journal for you; only hand-written files
   need the entry added by hand.
+- **A Redis client handed to a plugin must be closed with the server.**
+  `@fastify/rate-limit` does not own the client you pass it, so a bare
+  `createRedis()` in `buildServer` outlives `app.close()` and the test process
+  never exits — the suite HANGS rather than failing, which looks like an
+  infinite loop in your own code. Register an `onClose` hook that quits it.
 - **There is no single send chokepoint — `assertCanSend` is not it.** `POST
   /v1/messages` builds and enqueues inline and calls `tryConsumeQuota` /
   `assertTransactionalSendCapacity` directly; `dispatchMessage` serves OTHER
