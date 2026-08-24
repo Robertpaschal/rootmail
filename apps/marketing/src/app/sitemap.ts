@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/contact", priority: 0.5, changeFrequency: "monthly" },
     { path: "/legal/privacy", priority: 0.3, changeFrequency: "yearly" },
     { path: "/legal/terms", priority: 0.3, changeFrequency: "yearly" },
+    { path: "/legal/acceptable-use", priority: 0.4, changeFrequency: "yearly" },
     { path: "/legal/dpa", priority: 0.3, changeFrequency: "yearly" },
     { path: "/legal/security", priority: 0.4, changeFrequency: "monthly" },
   ];

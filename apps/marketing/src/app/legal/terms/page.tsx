@@ -47,7 +47,10 @@ export default function TermsPage() {
       </ul>
 
       <h2>4. Acceptable use &amp; anti-spam</h2>
-      <p>You agree that you and your users will not:</p>
+      <p>
+        Our <a href="/legal/acceptable-use">Acceptable Use Policy</a> sets out the sending rules in
+        full and forms part of these Terms. In summary, you agree that you and your users will not:
+      </p>
       <ul>
         <li>send to recipients without a lawful basis or valid consent, or send unsolicited bulk email (spam);</li>
         <li>violate anti-spam or privacy laws (e.g. CAN-SPAM, CASL, GDPR/ePrivacy), including the requirements for a valid physical mailing address and a working unsubscribe in marketing and sales mail;</li>

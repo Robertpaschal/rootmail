@@ -35,6 +35,9 @@ const columns = [
     links: [
       { label: "Privacy", href: "/legal/privacy" },
       { label: "Terms", href: "/legal/terms" },
+      // Discoverable on purpose: an email platform that sends for other people is
+      // judged partly on whether its sending rules are findable, not just filed.
+      { label: "Acceptable use", href: "/legal/acceptable-use" },
       { label: "DPA", href: "/legal/dpa" },
       { label: "Security", href: "/legal/security" },
     ],
