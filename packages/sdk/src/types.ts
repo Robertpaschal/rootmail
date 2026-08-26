@@ -402,3 +402,41 @@ export interface CampaignPreviewRecipient {
   html: string;
   text: string;
 }
+
+/** What's connected as the sending account. Credentials are never returned. */
+export interface SendingProviderInfo {
+  object: "sending_provider";
+  id?: string;
+  connected?: false;
+  provider?: "ses" | "mailgun";
+  sending_domain?: string | null;
+  status?: "pending" | "active" | "failed";
+  last_error?: string | null;
+  verified_at?: string | null;
+  note?: string;
+}
+
+/** Everything held about one recipient. Message BODIES are deliberately absent. */
+export interface DataSubjectExport {
+  object: "data_subject_export";
+  email: string;
+  generated_at: string;
+  contact: Record<string, unknown> | null;
+  audiences: { list: string; listId: string }[];
+  messages: Record<string, unknown>[];
+  conversations: Record<string, unknown>[];
+  events: Record<string, unknown>[];
+  suppressions: Record<string, unknown>[];
+}
+
+export interface ErasureResult {
+  object: "erasure";
+  email: string;
+  erased: boolean;
+  contact_deleted: boolean;
+  messages_redacted: number;
+  conversations_deleted: number;
+  /** Kept on purpose: deleting it would mean emailing them again. */
+  suppressions_retained: number;
+  note: string;
+}

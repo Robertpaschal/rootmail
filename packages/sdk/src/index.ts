@@ -15,6 +15,8 @@ export { Exports, Retention } from "./resources/compliance";
 export { Imports } from "./resources/imports";
 export { Assistant } from "./resources/assistant";
 export { Suppressions } from "./resources/suppressions";
+export { SendingProvider } from "./resources/sending-provider";
+export { Privacy } from "./resources/privacy";
 export { Billing } from "./resources/billing";
 export { Testing } from "./resources/testing";
 export * from "./types";

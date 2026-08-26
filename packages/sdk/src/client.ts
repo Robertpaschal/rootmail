@@ -8,6 +8,8 @@ import { Imports } from "./resources/imports";
 import { AnalyticsResource, DeliverabilityResource } from "./resources/insights";
 import { Lists } from "./resources/lists";
 import { Suppressions } from "./resources/suppressions";
+import { SendingProvider } from "./resources/sending-provider";
+import { Privacy } from "./resources/privacy";
 import { Testing } from "./resources/testing";
 import { Messages } from "./resources/messages";
 import { Sequences } from "./resources/sequences";
@@ -60,6 +62,8 @@ export class RootMail {
   readonly imports: Imports;
   readonly assistant: Assistant;
   readonly suppressions: Suppressions;
+  readonly sendingProvider: SendingProvider;
+  readonly privacy: Privacy;
   readonly billing: Billing;
   readonly testing: Testing;
 
@@ -96,6 +100,8 @@ export class RootMail {
     this.imports = new Imports(this);
     this.assistant = new Assistant(this);
     this.suppressions = new Suppressions(this);
+    this.sendingProvider = new SendingProvider(this);
+    this.privacy = new Privacy(this);
     this.billing = new Billing(this);
     this.testing = new Testing(this);
   }
