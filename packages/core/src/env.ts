@@ -105,7 +105,7 @@ const EnvSchema = z.object({
   // the same 96/day and buys a real loop: send, read the results, change
   // something, send again.
   BETA_DAILY_SEND_CAP: z.coerce.number().int().min(0).default(12),
-  MAIL_PROVIDER: z.enum(["mock", "ses", "sendgrid"]).default("mock"),
+  MAIL_PROVIDER: z.enum(["mock", "ses", "mailgun", "sendgrid"]).default("mock"),
   MAILDIR: z.string().default(".maildir"),
   // SES configuration set attached to every send — REQUIRED for delivery/open/click
   // events to be published to SNS (→ /v1/webhooks/ses). Without it, messages that
@@ -156,6 +156,15 @@ const EnvSchema = z.object({
    * guard, the banner, the nominate flow — disappears on its own.
    */
   SES_SANDBOX_MODE: z.string().optional(),
+
+  // --- Mailgun (a peer provider to SES, not a fallback) ---------------------
+  MAILGUN_API_KEY: z.string().optional(),
+  /** Default sending domain; a send from a verified domain uses that instead. */
+  MAILGUN_DOMAIN: z.string().optional(),
+  /** "eu" for EU-hosted accounts — a different hostname, not a parameter. */
+  MAILGUN_REGION: z.enum(["us", "eu"]).default("us"),
+  /** Verifies inbound Mailgun webhook signatures. Bounces are worthless without it. */
+  MAILGUN_WEBHOOK_SIGNING_KEY: z.string().optional(),
 
   SENDGRID_API_KEY: z.string().optional(),
 

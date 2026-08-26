@@ -1,4 +1,5 @@
 import { env, testRecipientFor } from "@rootmail/core";
+import { MailgunProvider } from "./mailgun";
 import { MockProvider } from "./mock";
 import { SendgridProvider } from "./sendgrid";
 import { SesProvider } from "./ses";
@@ -10,6 +11,7 @@ let mock: MockProvider | undefined;
 export function getProvider(): MailProvider {
   if (provider) return provider;
   if (env.MAIL_PROVIDER === "ses") provider = new SesProvider();
+  else if (env.MAIL_PROVIDER === "mailgun") provider = new MailgunProvider();
   else if (env.MAIL_PROVIDER === "sendgrid") provider = new SendgridProvider();
   else provider = new MockProvider();
   return provider;
