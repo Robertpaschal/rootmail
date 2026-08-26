@@ -22,6 +22,10 @@ const steps = [
   "We keep checking. If their settings ever disappear, you hear about it the same hour — not weeks later from a customer.",
 ];
 
+// Answers the objection a platform buyer raises immediately: "I already send
+// through Mailgun." They keep it — this sits on top.
+const provider = "Works with the provider you already send through — connect your own Amazon SES or Mailgun and the mail leaves on your account, your IPs and your reputation. Or send through ours.";
+
 const records = [
   { purpose: "who owns it", host: "sunsetvillas.com", value: "confirms the address is really theirs" },
   { purpose: "signature", host: "sunsetvillas.com", value: "signs every email as authentic" },
@@ -44,6 +48,9 @@ export function SubTenancy() {
             going wrong, rootmail doesn&apos;t just show you a number: it warns you, then slows that
             client&apos;s sending, then stops it — on its own, while you sleep. Set up in the
             dashboard; no technical back-and-forth beyond pasting a few settings.
+          </p>
+          <p className="mt-4 rounded-xl border bg-card/60 p-4 text-sm text-muted-foreground">
+            {provider}
           </p>
           <ol className="mt-6 space-y-4">
             {steps.map((s, i) => (

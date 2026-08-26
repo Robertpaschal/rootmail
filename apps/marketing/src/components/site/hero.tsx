@@ -6,9 +6,20 @@ import { Parallax, ReactiveCard, Reveal } from "./motion";
 import { cn } from "@/lib/utils";
 import { CtaButton } from "./cta-button";
 
-// The main site sells the PRODUCT, not the plumbing: rootmail is the one place
-// for every email a business sends and receives (the switch motivator is
-// unification, not "no code"). The developer story lives at developers.rootmail.io.
+// Leads with the LAYER positioning: rootmail sits between your app and whoever
+// delivers the mail, and the thing it gives you is per-client separation.
+//
+// This is a deliberate narrowing from the older "all your email in one place"
+// consolidation pitch. Competing with an established sending provider on
+// delivery is a losing game — they have IP reputation and mailbox-provider
+// relationships that cannot be bought. Being the multi-tenant layer ABOVE
+// whichever provider a buyer already chose is defensible, and it is the problem
+// they describe in their own words: "one customer sends spam and the reputation
+// of the entire platform collapses."
+//
+// The simpler path — a business that just wants its own email handled, with no
+// provider of its own — is still served and still linked; it is no longer what
+// the headline argues.
 const proofs = [
   { icon: Send, text: "Receipts & resets your site sends itself" },
   { icon: Megaphone, text: "Campaigns & newsletters to your audience" },
@@ -45,23 +56,24 @@ export function Hero() {
         <Reveal className="flex max-w-3xl flex-col items-center gap-6">
           <Link href="#platform">
             <Badge variant="muted" className="py-1 pl-2.5 pr-2.5">
-              Every email your business runs on — one place
+              Keep your sending provider — add what it is missing
               <ArrowRight className="size-3" />
             </Badge>
           </Link>
 
           <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            All your email,{" "}
+            Send for your customers{" "}
             <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
-              in one place.
+              without inheriting their mistakes.
             </span>
           </h1>
 
           <p className="max-w-2xl text-balance text-lg text-muted-foreground">
-            The receipts your website sends, the newsletters your audience opens, and the replies
-            they send back — designed, delivered, and understood together, instead of juggling a
-            sending service, a separate newsletter tool, and a personal inbox. If you can write an
-            email, you can run rootmail.
+            One client&apos;s bad list should not cost every other client their delivery. rootmail
+            gives each of your customers their own sending domain, their own signing keys, their own
+            suppression list and their own reputation score — measured separately and acted on
+            automatically, so the one going wrong gets slowed down instead of everyone. Keep the
+            email provider you already use, or let us send it.
           </p>
 
           <div className="flex flex-col items-center gap-3 sm:flex-row">

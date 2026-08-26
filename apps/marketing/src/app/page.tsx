@@ -4,6 +4,7 @@ import { Marquee } from "@/components/site/marquee";
 import { ProductShow } from "@/components/site/product-show";
 import { WhoItsFor } from "@/components/site/who-its-for";
 import { LayerModel } from "@/components/site/layer-model";
+import { LayerModelSection } from "@/components/site/layer";
 import { Features } from "@/components/site/features";
 import { SubTenancy } from "@/components/site/subtenancy";
 import { Promises } from "@/components/site/promises";
@@ -24,6 +25,7 @@ export default function HomePage() {
         {/* Show it before explaining it: the tour sits between "what is this"
             and "who is it for", so nobody has to read twelve feature cards to
             find out what the app looks like. */}
+        <LayerModelSection />
         <ProductShow />
         <WhoItsFor />
         <LayerModel />

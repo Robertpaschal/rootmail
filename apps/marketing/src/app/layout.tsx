@@ -2,33 +2,36 @@ import { BetaNotice } from "@/components/site/beta-notice";
 import type { Metadata } from "next";
 import "./globals.css";
 
+// Matches what the page now argues. Search results and link previews are the
+// first impression a platform buyer gets, and "all your email in one place" reads
+// as a consolidation tool to replace their provider rather than a layer above it.
 const description =
-  "The receipts your website sends, the newsletters your audience opens, and the replies they send back — designed, delivered, and understood from one place, instead of juggling a sending service, a newsletter tool, and a personal inbox. If you can write an email, you can run rootmail.";
+  "Send email for your customers without inheriting their mistakes. Every client gets their own sending domain, signing keys, suppression list and reputation score — measured separately and enforced automatically. Keep the provider you already use, or let us deliver it.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://rootmail.io"),
   title: {
-    default: "Rootmail — all your email, in one place",
+    default: "Rootmail — email infrastructure for platforms that send for their customers",
     template: "%s · rootmail",
   },
   description,
   applicationName: "rootmail",
   keywords: [
-    "email marketing",
-    "newsletter software",
+    "multi-tenant email",
+    "email for SaaS platforms",
+    "send email on behalf of customers",
+    "per-tenant email reputation",
+    "sub-tenant email API",
     "transactional email",
-    "all-in-one email platform",
-    "email campaigns",
-    "email templates",
-    "shared inbox",
     "email deliverability",
     "email API",
+    "newsletter software",
   ],
   authors: [{ name: "rootmail" }],
   openGraph: {
     type: "website",
     siteName: "rootmail",
-    title: "Rootmail — all your email, in one place",
+    title: "Rootmail — email infrastructure for platforms that send for their customers",
     description,
     url: "https://rootmail.io",
   },

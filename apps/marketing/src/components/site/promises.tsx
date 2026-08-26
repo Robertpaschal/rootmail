@@ -1,4 +1,4 @@
-import { Inbox, ScrollText, ShieldCheck, TestTube2 } from "lucide-react";
+import { Inbox, Plug, ScrollText, ShieldCheck, TestTube2 } from "lucide-react";
 import { Reveal } from "./motion";
 
 /**
@@ -12,6 +12,15 @@ import { Reveal } from "./motion";
  * Every sentence here is checkable against the codebase. Nothing aspirational.
  */
 const promises = [
+  {
+    icon: Plug,
+    title: "We don't ask you to leave your provider",
+    body:
+      "If you already send email, you already have a reputation you built. Connect your own Amazon " +
+      "SES or Mailgun and your mail keeps leaving on your account — rootmail becomes the layer above " +
+      "it, not a replacement for it. Nothing about your current setup changes.",
+    // POST /v1/sending-provider — credentials checked live before they're stored.
+  },
   {
     icon: Inbox,
     title: "Unsubscribing stops the newsletter, not the password reset",
@@ -66,7 +75,7 @@ export function Promises() {
           </p>
         </Reveal>
 
-        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {promises.map((p, i) => (
             <Reveal key={p.title} inView delay={0.06 * i}>
               <div className="h-full rounded-2xl border bg-card p-6 shadow-sm">
