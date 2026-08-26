@@ -42,6 +42,7 @@ import {
   type SubTenant,
   type Workspace,
   verifiedRecipients,
+  orgSendingProviders,
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
 import {
@@ -428,7 +429,30 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // The following identities failed the check in region US-EAST-1". That is
     // AWS explaining our constraint to our customer, which is the wrong voice
     // and the wrong moment. Catch it here and say what to do about it.
-    if (env.SES_SANDBOX_MODE !== "false" && mode === "live" && !testRecipientFor(toEmail)) {
+    // Applies ONLY when this message will actually go through OUR SES account.
+    //
+    // The first cut checked the sandbox flag alone, which made it fire wherever
+    // SES was not the sender at all — CI runs MAIL_PROVIDER=mock and every send
+    // was refused. Worse, an organization that has connected their OWN provider
+    // has no relationship with our sandbox whatsoever; blocking their mail on it
+    // would defeat the entire point of letting them bring their own account.
+    // Same mistake as gating sub-tenant verification on SES a few days ago:
+    // an SES constraint is only a constraint when SES is doing the sending.
+    const usesPlatformSes = env.MAIL_PROVIDER === "ses" && env.SES_SANDBOX_MODE !== "false";
+    const [ownProvider] = usesPlatformSes
+      ? await db
+          .select({ id: orgSendingProviders.id })
+          .from(orgSendingProviders)
+          .where(
+            and(
+              eq(orgSendingProviders.organizationId, workspace.organizationId),
+              eq(orgSendingProviders.status, "active"),
+            ),
+          )
+          .limit(1)
+      : [undefined];
+
+    if (usesPlatformSes && !ownProvider && mode === "live" && !testRecipientFor(toEmail)) {
       const [ok] = await db
         .select({ status: verifiedRecipients.status })
         .from(verifiedRecipients)
