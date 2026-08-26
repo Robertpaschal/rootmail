@@ -209,6 +209,48 @@ console.log(stats.rates.open, stats.rates.click);`, "analytics.ts"),
   ],
 };
 
+export const sendingProvider: DocPage = {
+  slug: "sending-provider",
+  title: "Your own sending account",
+  summary: "Send through your own Amazon SES or Mailgun instead of rootmail's.",
+  blocks: [
+    p("rootmail can deliver your mail, or you can keep the provider you already use. Connect your own account and messages send on your credentials, your IPs and your reputation — rootmail stays the layer above it: per-client domains, per-client reputation scoring, suppression, threading and proof."),
+    p("This is usually the right choice if you already send email at any scale. Your deliverability history is an asset; there is no reason to start a new one."),
+    endpoint("GET", "/v1/sending-provider", "What's connected, if anything."),
+    endpoint("POST", "/v1/sending-provider", "Connect an account. Credentials are checked before they're stored."),
+    endpoint("DELETE", "/v1/sending-provider", "Disconnect. Sending returns to rootmail's account."),
+    code(
+      "ts",
+      `// Amazon SES — the key needs ses:SendEmail and ses:GetAccount.
+await mail.sendingProvider.connect({
+  provider: "ses",
+  access_key_id: "AKIA…",
+  secret_access_key: "…",
+  region: "us-east-1",
+});
+
+// Or Mailgun — the domain must already be verified there.
+await mail.sendingProvider.connect({
+  provider: "mailgun",
+  api_key: "…",
+  domain: "mg.yourcompany.com",
+  region: "us",
+});`,
+      "sending-provider.ts",
+    ),
+    callout(
+      "note",
+      "Credentials are encrypted at rest and never returned by the API — reads tell you whether they work, not what they are.",
+    ),
+    callout(
+      "warn",
+      "A connected SES account that is still in its own sandbox can only reach addresses it has verified. We check for that when you connect and say so, rather than letting you find out on a campaign.",
+    ),
+    h("What stays on rootmail"),
+    p("Sandbox sends never leave, whoever is connected, and our reserved test addresses always take the real path so a bounce test is a real bounce. If a connected account's credentials stop working we fall back to rootmail's own sending rather than failing your messages, and report it on the settings page."),
+  ],
+};
+
 export const compliance: DocPage = {
   slug: "compliance",
   title: "Proof & compliance",

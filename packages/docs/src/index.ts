@@ -4,7 +4,7 @@ import { errors, idempotency, pagination, rateLimits, sandbox } from "./content/
 import { messages, senders, suppressions, templates } from "./content/sending";
 import { contacts, imports, lists } from "./content/audience";
 import { campaigns, sequences, threads } from "./content/marketing";
-import { assistant, clientDomains, compliance, insights, webhooks } from "./content/platform";
+import { assistant, clientDomains, compliance, insights, sendingProvider, webhooks } from "./content/platform";
 import { cli, migration, sdk } from "./content/tooling";
 
 export * from "./types";
@@ -18,7 +18,7 @@ export const DOCS: DocSection[] = [
   { label: "Sending", pages: [messages, templates, senders, suppressions] },
   { label: "Audience", pages: [contacts, lists, imports] },
   { label: "Marketing", pages: [campaigns, sequences, threads] },
-  { label: "Platform", pages: [clientDomains, webhooks, insights, compliance, assistant] },
+  { label: "Platform", pages: [clientDomains, sendingProvider, webhooks, insights, compliance, assistant] },
   { label: "Tooling", pages: [sdk, cli, migration] },
 ];
 

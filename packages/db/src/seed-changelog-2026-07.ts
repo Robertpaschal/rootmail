@@ -14,6 +14,24 @@ import { changelogEntries } from "./schema";
 // Add it back here as part of the publish step.
 const ENTRIES: { title: string; date: string; changes: ChangeItem[] }[] = [
   {
+    title: "Keep the email provider you already use",
+    date: "2026-08-26",
+    changes: [
+      {
+        kind: "New",
+        text: "If you already send email, you already have a provider and a reputation you built. Connect your own Amazon SES or Mailgun account under Settings \u2192 Sending, and your mail sends from yours \u2014 your domains, your reputation, your limits. rootmail becomes the layer on top: per-client domains, per-client reputation, suppression, replies and proof.",
+      },
+      {
+        kind: "New",
+        text: "We check the credentials against the provider before saving them, and tell you exactly what came back. \u201cThat AWS account is still in the SES sandbox\u201d is something you can act on; \u201ccouldn\u2019t connect\u201d is not.",
+      },
+      {
+        kind: "Improved",
+        text: "Nothing about your existing setup changes, and nothing is locked in \u2014 disconnect and sending returns to rootmail\u2019s account. If a connected account\u2019s credentials stop working, we fall back rather than failing your sends, and tell you on the settings page.",
+      },
+    ],
+  },
+  {
     title: "Answer a data request without a support ticket",
     date: "2026-08-24",
     changes: [
