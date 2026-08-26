@@ -37,15 +37,16 @@ export function LayerModelSection() {
     <section id="layer" className="border-y bg-secondary/30 py-20 md:py-28">
       <div className="container">
         <Reveal inView className="mx-auto max-w-3xl text-center">
-          <Badge className="mb-4">Already sending email?</Badge>
+          <Badge className="mb-4">Sending for other people?</Badge>
           <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
             Keep what delivers your mail. Replace what you had to build around it.
           </h2>
           <p className="mt-4 text-balance text-lg text-muted-foreground">
-            A sending provider gets your email delivered and tells you what happened to it. If you
-            send on behalf of your own customers, everything after that — keeping them apart,
-            noticing which one is going wrong, and stopping it before it costs the others — is
-            yours to build. That is the part we are.
+            If you only send your own email, ignore this section — the product above is the whole
+            thing. But the moment you send on behalf of your own customers, a sending provider stops
+            being enough: it delivers the mail and tells you what happened, and everything after
+            that — keeping clients apart, noticing which one is going wrong, and stopping it before
+            it costs the others — is yours to build. That is the part we are.
           </p>
         </Reveal>
 
@@ -90,12 +91,12 @@ export function LayerModelSection() {
         {/* The other audience, kept visible rather than argued with. */}
         <Reveal inView delay={0.15}>
           <p className="mx-auto mt-10 max-w-2xl text-center text-sm text-muted-foreground">
-            No sending provider of your own?{" "}
+            Don&apos;t send for anyone else, or have no provider of your own?{" "}
             <a href="#pricing" className="font-medium text-primary underline-offset-2 hover:underline">
-              We deliver it too
+              None of this is required
               <ArrowRight className="ml-0.5 inline size-3.5 align-[-2px]" />
             </a>{" "}
-            — the same product, with us as the provider.
+            — sign up, write an email, send it. We deliver it.
           </p>
         </Reveal>
       </div>

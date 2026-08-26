@@ -6,20 +6,20 @@ import { Parallax, ReactiveCard, Reveal } from "./motion";
 import { cn } from "@/lib/utils";
 import { CtaButton } from "./cta-button";
 
-// Leads with the LAYER positioning: rootmail sits between your app and whoever
-// delivers the mail, and the thing it gives you is per-client separation.
+// TWO readers, both first-class, in that order — and the order matters.
 //
-// This is a deliberate narrowing from the older "all your email in one place"
-// consolidation pitch. Competing with an established sending provider on
-// delivery is a losing game — they have IP reputation and mailbox-provider
-// relationships that cannot be bought. Being the multi-tenant layer ABOVE
-// whichever provider a buyer already chose is defensible, and it is the problem
-// they describe in their own words: "one customer sends spam and the reputation
-// of the entire platform collapses."
+// Most people arriving here just want their own email handled: receipts, a
+// newsletter, the replies that come back. That is the whole product for them and
+// the headline has to say so, or they leave before the rest lands.
 //
-// The simpler path — a business that just wants its own email handled, with no
-// provider of its own — is still served and still linked; it is no longer what
-// the headline argues.
+// The second reader sends on behalf of THEIR customers, and needs to know within
+// one sentence that each client stays separate. Both sentences are in the
+// headline for that reason: the first is the product, the second is what makes
+// it safe at the moment you are sending for other people.
+//
+// An earlier pass led with the platform story alone and lost the first reader
+// entirely — "send for your customers" reads as an agency pitch to a bakery.
+// Leading with the layer does not mean speaking only to the layer.
 const proofs = [
   { icon: Send, text: "Receipts & resets your site sends itself" },
   { icon: Megaphone, text: "Campaigns & newsletters to your audience" },
@@ -56,24 +56,24 @@ export function Hero() {
         <Reveal className="flex max-w-3xl flex-col items-center gap-6">
           <Link href="#platform">
             <Badge variant="muted" className="py-1 pl-2.5 pr-2.5">
-              Keep your sending provider — add what it is missing
+              Your email, and every client's — kept apart
               <ArrowRight className="size-3" />
             </Badge>
           </Link>
 
           <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            Send for your customers{" "}
+            All your email in one place.{" "}
             <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
-              without inheriting their mistakes.
+              Every client&apos;s, kept apart.
             </span>
           </h1>
 
           <p className="max-w-2xl text-balance text-lg text-muted-foreground">
-            One client&apos;s bad list should not cost every other client their delivery. rootmail
-            gives each of your customers their own sending domain, their own signing keys, their own
-            suppression list and their own reputation score — measured separately and acted on
-            automatically, so the one going wrong gets slowed down instead of everyone. Keep the
-            email provider you already use, or let us send it.
+            The receipts your site sends, the newsletters your audience opens and the replies they
+            send back — designed, delivered and understood together. And if you send on behalf of
+            your own customers, each of them gets their own sending domain, suppression list and
+            reputation score, so one bad list never costs the others. Keep the email provider you
+            already use, or let us deliver it. If you can write an email, you can run rootmail.
           </p>
 
           <div className="flex flex-col items-center gap-3 sm:flex-row">

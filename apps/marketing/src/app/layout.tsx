@@ -2,16 +2,17 @@ import { BetaNotice } from "@/components/site/beta-notice";
 import type { Metadata } from "next";
 import "./globals.css";
 
-// Matches what the page now argues. Search results and link previews are the
-// first impression a platform buyer gets, and "all your email in one place" reads
-// as a consolidation tool to replace their provider rather than a layer above it.
+// Both readers, in the order the page argues them. A search result is the first
+// impression for someone who just wants their own email handled AND for a
+// platform sending on behalf of others; a description that only speaks to the
+// second loses the first before they ever arrive.
 const description =
-  "Send email for your customers without inheriting their mistakes. Every client gets their own sending domain, signing keys, suppression list and reputation score — measured separately and enforced automatically. Keep the provider you already use, or let us deliver it.";
+  "Receipts, newsletters and the replies that come back — designed, delivered and understood in one place. And if you send on behalf of your own customers, every client gets their own sending domain, suppression list and reputation score, so one bad list never costs the others. Keep the provider you already use, or let us deliver it.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://rootmail.io"),
   title: {
-    default: "Rootmail — email infrastructure for platforms that send for their customers",
+    default: "Rootmail — all your email in one place, every client\u2019s kept apart",
     template: "%s · rootmail",
   },
   description,
@@ -31,7 +32,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "rootmail",
-    title: "Rootmail — email infrastructure for platforms that send for their customers",
+    title: "Rootmail — all your email in one place, every client\u2019s kept apart",
     description,
     url: "https://rootmail.io",
   },
