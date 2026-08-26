@@ -41,6 +41,7 @@ import {
   subTenants,
   type SubTenant,
   type Workspace,
+  verifiedRecipients,
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
 import {
@@ -421,6 +422,31 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         );
       }
     }
+    // While our sending account is provider-limited, mail to an address the
+    // provider has not verified is refused BY THE PROVIDER — with its wording,
+    // after the message is queued, surfacing as "Email address is not verified.
+    // The following identities failed the check in region US-EAST-1". That is
+    // AWS explaining our constraint to our customer, which is the wrong voice
+    // and the wrong moment. Catch it here and say what to do about it.
+    if (env.SES_SANDBOX_MODE !== "false" && mode === "live" && !testRecipientFor(toEmail)) {
+      const [ok] = await db
+        .select({ status: verifiedRecipients.status })
+        .from(verifiedRecipients)
+        .where(
+          and(
+            eq(verifiedRecipients.workspaceId, workspace.id),
+            eq(verifiedRecipients.email, toEmail),
+            eq(verifiedRecipients.status, "verified"),
+          ),
+        )
+        .limit(1);
+      if (!ok) {
+        throw Errors.badRequest(
+          `While rootmail is in its provider's sandbox we can only deliver to addresses that have confirmed they want mail from us. ${toEmail} hasn't yet. Add them under Testing & sandbox and they'll get one confirmation email — after they click it, this send will work. Sandbox-mode sends and our reserved test addresses are unaffected.`,
+        );
+      }
+    }
+
     const suppressed = await isSuppressed(workspace.id, subTenantId, toEmail, body.type);
 
     // Resolve attachment references to owned assets (scoped to the workspace),

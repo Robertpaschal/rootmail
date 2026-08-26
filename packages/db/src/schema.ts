@@ -792,6 +792,39 @@ export const contacts = pgTable(
   ],
 );
 
+/**
+ * Recipients a customer has confirmed they may email while we are provider-limited.
+ *
+ * Our sending provider will not deliver to an unverified address until the
+ * account leaves its sandbox, and that approval is outside our control. Rather
+ * than let a tester discover this as a raw provider error mid-send, the product
+ * owns it: they nominate the addresses they want to test with, each person gets
+ * a confirmation mail from the provider, and the dashboard shows who is ready.
+ *
+ * The row is per-workspace even though the provider identity is account-wide —
+ * one customer must not be able to enumerate another's recipients, and the
+ * account-level list has no idea who added what.
+ *
+ * Kept when the sandbox ends: "these are my test addresses" stays useful.
+ */
+export const verifiedRecipients = pgTable(
+  "verified_recipients",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    /** Mirrors the provider: pending until they click, then verified. */
+    status: text("status").notNull().default("pending"),
+    label: text("label"),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  (t) => [uniqueIndex("verified_recipients_ws_email_uq").on(t.workspaceId, t.email)],
+);
+
 export const suppressions = pgTable(
   "suppressions",
   {

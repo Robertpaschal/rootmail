@@ -147,6 +147,15 @@ const EnvSchema = z.object({
    * goes, and it takes effect on the next send without a deploy.
    */
   BLOCKED_LINK_HOSTS: z.string().optional(),
+  /**
+   * "false" once our sending account has production access.
+   *
+   * While true, the provider refuses any recipient it has not verified, so the
+   * product asks customers to nominate their test recipients and explains why.
+   * Set it to "false" the day access is granted and the whole apparatus — the
+   * guard, the banner, the nominate flow — disappears on its own.
+   */
+  SES_SANDBOX_MODE: z.string().optional(),
 
   SENDGRID_API_KEY: z.string().optional(),
 

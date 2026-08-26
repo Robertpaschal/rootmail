@@ -32,6 +32,7 @@ import { adminRoutes } from "./routes/admin";
 import { organizationRoutes } from "./routes/organization";
 import { proofRoutes } from "./routes/proof";
 import { privacyRoutes } from "./routes/privacy";
+import { verifiedRecipientRoutes } from "./routes/verified-recipients";
 import { retentionRoutes } from "./routes/retention";
 import { roleRoutes } from "./routes/roles";
 import { samlRoutes } from "./routes/saml";
@@ -143,6 +144,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(proofRoutes);
   await app.register(retentionRoutes);
   await app.register(privacyRoutes);
+  await app.register(verifiedRecipientRoutes);
   await app.register(assistantRoutes);
   await app.register(leadRoutes);
   await app.register(adminRoutes);

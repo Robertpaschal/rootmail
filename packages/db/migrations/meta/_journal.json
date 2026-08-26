@@ -554,6 +554,13 @@
       "when": 1787585262399,
       "tag": "0078_data_erased_event",
       "breakpoints": true
+    },
+    {
+      "idx": 79,
+      "version": "7",
+      "when": 1787756305493,
+      "tag": "0079_verified_recipients",
+      "breakpoints": true
     }
   ]
 }
