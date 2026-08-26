@@ -825,6 +825,49 @@ export const verifiedRecipients = pgTable(
   (t) => [uniqueIndex("verified_recipients_ws_email_uq").on(t.workspaceId, t.email)],
 );
 
+/**
+ * A customer's OWN sending provider.
+ *
+ * The buyer for this product is a platform that already sends email — a booking
+ * system, a CRM, a membership site. They are not shopping for an MTA; they have
+ * one. What they lack is the per-client layer: separate domains, separate
+ * reputation, separate suppression, isolation, proof.
+ *
+ * So rootmail does not have to BE the sender. When a customer connects their own
+ * provider, their mail leaves on THEIR account, THEIR IPs and THEIR reputation,
+ * under approval they already hold — and the platform's own provider approval
+ * stops being a gate on anybody's launch, including ours.
+ *
+ * Credentials are encrypted with the same envelope as DKIM keys. Never read
+ * `credentials` directly; go through `decryptSecret`.
+ */
+export const orgSendingProviders = pgTable(
+  "org_sending_providers",
+  {
+    id: text("id").primaryKey(),
+    organizationId: text("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    /** "ses" | "mailgun" — the same names MAIL_PROVIDER uses. */
+    provider: text("provider").notNull(),
+    /** Encrypted JSON. Shape depends on the provider. */
+    credentials: text("credentials").notNull(),
+    /** Their verified sending domain at that provider. */
+    sendingDomain: text("sending_domain"),
+    /** "pending" until a live credential check passes, then "active". */
+    status: text("status").notNull().default("pending"),
+    /** Why the last check failed, shown to the customer verbatim. */
+    lastError: text("last_error"),
+    lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
+    verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    createdAt: createdAt(),
+    updatedAt: updatedAt(),
+  },
+  // One connected provider per org for now. Routing between several is a
+  // different feature and should not be smuggled in through a missing index.
+  (t) => [uniqueIndex("org_sending_providers_org_uq").on(t.organizationId)],
+);
+
 export const suppressions = pgTable(
   "suppressions",
   {

@@ -17,7 +17,7 @@ import {
   assertPublicUrl,
 } from "@rootmail/core";
 import { activeReplyDomain, auditEntries, db, threadReplyParent, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
-import { getProviderFor } from "./providers";
+import { providerForMessage } from "./providers/for-org";
 import type { OutboundAttachment } from "./providers/types";
 
 /** Fetch each attachment's bytes from its public asset URL (host-independent). */
@@ -402,7 +402,8 @@ export async function processSend(data: SendJobData): Promise<void> {
     /* threading is non-critical to the send */
   }
 
-  const provider = getProviderFor(message.sandbox, message.toEmail);
+  // The customer's own account when they have connected one, ours otherwise.
+  const provider = await providerForMessage(message);
   try {
     // Inside the try: if an attachment can't be fetched, the send fails cleanly
     // (status "failed" + reason) instead of throwing past the catch and leaving

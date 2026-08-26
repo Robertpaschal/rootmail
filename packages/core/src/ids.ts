@@ -17,6 +17,7 @@ export const ID_PREFIXES = {
   audit: "aud",
   suppression: "sup",
   verifiedRecipient: "vrcp",
+  sendingProvider: "sprv",
   event: "evt",
   thread: "thr",
   threadMessage: "tms",

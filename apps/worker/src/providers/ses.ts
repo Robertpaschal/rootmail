@@ -20,9 +20,32 @@ function formatAddress(email: string, name?: string | null): string {
  * Region + credentials resolve through the SDK's default chain (AWS_REGION,
  * AWS_ACCESS_KEY_ID/SECRET, or an instance role in prod).
  */
+/** A customer's own SES credentials, when they have connected their account. */
+export interface SesCredentials {
+  accessKeyId: string;
+  secretAccessKey: string;
+  region?: string;
+}
+
 export class SesProvider implements MailProvider {
   readonly name = "ses";
-  private readonly client = new SESv2Client(env.AWS_REGION ? { region: env.AWS_REGION } : {});
+  private readonly client: SESv2Client;
+
+  /**
+   * With no argument this is OUR account, resolving through the SDK's default
+   * chain. With credentials it is the CUSTOMER'S account — their IPs, their
+   * reputation, their provider approval — which is the whole point: a platform
+   * that already sends email does not need us to be its MTA, and our own
+   * approval should not gate their launch.
+   */
+  constructor(creds?: SesCredentials) {
+    this.client = creds
+      ? new SESv2Client({
+          region: creds.region ?? env.AWS_REGION ?? "us-east-1",
+          credentials: { accessKeyId: creds.accessKeyId, secretAccessKey: creds.secretAccessKey },
+        })
+      : new SESv2Client(env.AWS_REGION ? { region: env.AWS_REGION } : {});
+  }
 
   async send(email: OutboundEmail): Promise<SendResult> {
     const hasAttachments = (email.attachments?.length ?? 0) > 0;

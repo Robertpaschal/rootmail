@@ -24,24 +24,42 @@ import type { MailProvider, OutboundEmail, SendResult } from "./types";
  *  - The response `id` IS the RFC Message-ID, angle brackets included. Stored as
  *    `providerMessageId` like SES's, so the inbound matcher can resolve it.
  */
+/** A customer's own Mailgun credentials. */
+export interface MailgunCredentials {
+  apiKey: string;
+  domain?: string;
+  region?: "us" | "eu";
+}
+
 export class MailgunProvider implements MailProvider {
   readonly name = "mailgun";
+  private readonly creds: MailgunCredentials | undefined;
+
+  /** No argument = the platform's own account; credentials = the customer's. */
+  constructor(creds?: MailgunCredentials) {
+    this.creds = creds;
+  }
+
+  private key(): string | undefined {
+    return this.creds?.apiKey ?? env.MAILGUN_API_KEY;
+  }
 
   private baseUrl(): string {
     // EU-hosted accounts are a different hostname entirely; posting to the US
     // one with EU credentials fails in a way that reads as a bad API key.
-    return env.MAILGUN_REGION === "eu" ? "https://api.eu.mailgun.net/v3" : "https://api.mailgun.net/v3";
+    const region = this.creds?.region ?? env.MAILGUN_REGION;
+    return region === "eu" ? "https://api.eu.mailgun.net/v3" : "https://api.mailgun.net/v3";
   }
 
   /** Which Mailgun domain sends this — the From domain, else the configured default. */
   private sendingDomain(fromEmail: string): string {
     const domain = fromEmail.split("@")[1]?.toLowerCase();
-    return domain || env.MAILGUN_DOMAIN || "";
+    return domain || this.creds?.domain || env.MAILGUN_DOMAIN || "";
   }
 
   async send(email: OutboundEmail): Promise<SendResult> {
-    const key = env.MAILGUN_API_KEY;
-    if (!key) throw new Error("MAILGUN_API_KEY is not set");
+    const key = this.key();
+    if (!key) throw new Error("No Mailgun API key — connect an account or set MAILGUN_API_KEY");
 
     const domain = this.sendingDomain(email.from.email);
     if (!domain) throw new Error("No Mailgun sending domain — set MAILGUN_DOMAIN or send from a verified domain");
