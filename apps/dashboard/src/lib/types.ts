@@ -1243,3 +1243,22 @@ export interface CampaignPreviewRecipient {
   html: string;
   text: string;
 }
+
+/**
+ * The account a customer's mail actually leaves from.
+ *
+ * Absent `id` means nothing is connected and sending goes through rootmail's own
+ * account. Credentials are never returned — only whether they work.
+ */
+export interface SendingProvider {
+  object: "sending_provider";
+  id?: string;
+  connected?: false;
+  provider?: "ses" | "mailgun";
+  sending_domain?: string | null;
+  status?: "pending" | "active" | "failed";
+  last_error?: string | null;
+  verified_at?: string | null;
+  last_checked_at?: string | null;
+  note?: string;
+}

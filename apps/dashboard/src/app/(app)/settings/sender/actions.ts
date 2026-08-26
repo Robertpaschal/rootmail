@@ -120,3 +120,56 @@ export async function deleteSenderAction(id: string): Promise<{ error?: string }
     return { error: "Couldn't remove that address." };
   }
 }
+
+export interface ProviderState {
+  error?: string;
+  ok?: string;
+}
+
+/**
+ * Connect the customer's own sending account.
+ *
+ * The API checks the credentials against the live provider before storing them,
+ * so an error here is a real answer from AWS or Mailgun — worth showing verbatim
+ * rather than flattening to "couldn't connect".
+ */
+export async function connectSendingProvider(
+  _prev: ProviderState | null,
+  formData: FormData,
+): Promise<ProviderState> {
+  const provider = String(formData.get("provider") ?? "");
+  const body: Record<string, unknown> =
+    provider === "ses"
+      ? {
+          provider: "ses",
+          access_key_id: String(formData.get("access_key_id") ?? "").trim(),
+          secret_access_key: String(formData.get("secret_access_key") ?? "").trim(),
+          region: String(formData.get("region") ?? "us-east-1").trim(),
+        }
+      : {
+          provider: "mailgun",
+          api_key: String(formData.get("api_key") ?? "").trim(),
+          domain: String(formData.get("domain") ?? "").trim(),
+          region: String(formData.get("mg_region") ?? "us"),
+        };
+
+  try {
+    const res = await api.connectSendingProvider(body);
+    revalidatePath("/settings/sender");
+    return { ok: res.note ?? "Connected." };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't connect that account." };
+  }
+}
+
+export async function disconnectSendingProvider(): Promise<ProviderState> {
+  try {
+    const res = await api.disconnectSendingProvider();
+    revalidatePath("/settings/sender");
+    return { ok: res.note };
+  } catch (err) {
+    if (err instanceof ApiError || err instanceof ConnectionError) return { error: err.message };
+    return { error: "Couldn't disconnect." };
+  }
+}

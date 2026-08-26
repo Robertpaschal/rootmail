@@ -80,6 +80,7 @@ import type {
   WingCheckoutResult,
   Workspace,
   WorkspacesResult,
+  SendingProvider,
 } from "./types";
 
 /** Where the rootmail REST API lives. The dashboard only ever calls it server-side. */
@@ -226,6 +227,12 @@ export const api = {
     rmFetch<Message & { retried: boolean; attempt: number }>(`/v1/messages/${id}/retry`, {
       method: "POST",
     }),
+
+  getSendingProvider: () => rmFetch<SendingProvider>("/v1/sending-provider"),
+  connectSendingProvider: (body: Record<string, unknown>) =>
+    rmFetch<SendingProvider>("/v1/sending-provider", { method: "POST", body }),
+  disconnectSendingProvider: () =>
+    rmFetch<{ disconnected: boolean; note: string }>("/v1/sending-provider", { method: "DELETE" }),
 
   listSubTenants: () => rmFetch<ListResponse<SubTenant>>("/v1/sub-tenants"),
   getSubTenant: (id: string) => rmFetch<SubTenant>(`/v1/sub-tenants/${id}`),

@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { Organization, SenderIdentity } from "@/lib/types";
+import type { Organization, SenderIdentity , SendingProvider} from "@/lib/types";
 import { SettingsItem, SettingsSection, StateBadge } from "../setting-item";
 import { OwnReplyDomain } from "./own-reply-domain";
 import { PostalAddress } from "./postal-address";
 import { ReplySettings } from "./reply-settings";
 import { SendersManager } from "./senders-manager";
+import { SendingAccount } from "./sending-account";
 
 export const metadata: Metadata = { title: "Sending · Settings" };
 
@@ -19,13 +20,18 @@ export const metadata: Metadata = { title: "Sending · Settings" };
 export default async function SenderSettingsPage() {
   let org: Organization;
   let senders: SenderIdentity[] = [];
+  let sendingProvider: SendingProvider | null = null;
   try {
-    const [o, sn] = await Promise.all([
+    const [o, sn, sp] = await Promise.all([
       api.getOrganization(),
       api.listSenders().catch(() => ({ data: [] as SenderIdentity[] })),
+      // Never fatal: not having connected an account is the common case, and a
+      // failure to READ that fact should not take down the whole page.
+      api.getSendingProvider().catch(() => null),
     ]);
     org = o;
     senders = sn.data;
+    sendingProvider = sp;
   } catch (err) {
     return (
       <ConnectionErrorCard
@@ -46,6 +52,18 @@ export default async function SenderSettingsPage() {
 
   return (
     <div className="space-y-8">
+      {/* First on the page, because it is upstream of everything below it: which
+          account the mail actually leaves from decides whose reputation and whose
+          limits apply to all of it. */}
+      <SettingsSection
+        title="Where your mail sends from"
+        hint="rootmail can deliver your mail, or you can keep the provider you already use and let rootmail be the layer on top."
+      >
+        <div className="divide-y rounded-xl border bg-card">
+          <SendingAccount current={sendingProvider} />
+        </div>
+      </SettingsSection>
+
       {/* A collection, not a setting — it gets room to be a list. */}
       <SettingsSection
         title="Your sending addresses"
