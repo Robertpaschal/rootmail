@@ -197,6 +197,85 @@ run this before anything else — those are the tests that exist.
   really persisted, so the only symptom was the transcript disappearing. Only
   revalidate OTHER pages the action changed.
 
+## Design system — read before touching any UI
+
+**`docs/design/00-PHILOSOPHY.md` is the constitution.** Read it, *including §9
+Amendments and §10 The austerity correction*, before changing anything visual.
+The one-line version: email is a chain of custody and the enemy is the black box.
+
+**§10 reversed several §5/§9 rules — do not restore them from memory.** Radius is
+`1rem` with a full scale (not `0.25rem`); depth is a token (`shadow-e1/e2/e3`),
+not banned; type is **three** roles — Fraunces for headlines *and figures*,
+Schibsted Grotesk for UI, JetBrains Mono for ids/timestamps/sourcing lines only.
+Colour is no longer only ever state: **brass = what you can act on** (buttons,
+links, focus), while `witnessed`/`acted`/`stopped` mean what happened to a
+message and never appear on a control. `01-REFERENCES.md` is the measured evidence,
+`02-AUDIT.md` the diagnosis it was written against.
+
+**`packages/design` is the single source of ground, ink and type.** All four
+apps import it. Before it existed they each kept a private copy of the theme and
+had already drifted — different radii, and status colours hardcoded to raw
+palette values with no dark-mode counterpart.
+
+- `@rootmail/design/tokens.css` — imported at the TOP of each app's
+  `globals.css`. It **remaps the shadcn names** (`--background`, `--primary`, …)
+  onto the new palette, which is why re-grounding ~45k lines of TSX took one
+  import per app. New work should prefer the semantic names (`--ink`,
+  `--witnessed`).
+- `@rootmail/design/preset` — the shared Tailwind preset. Each app's
+  `tailwind.config.ts` is now `presets: [rootmailPreset]` plus anything
+  genuinely app-only.
+- `@rootmail/design` — `<Line>`, `<Metric>`, `<Fact>`, `messageStations()`.
+
+**The rendering law.** `<Line>` has four states and they are not styling
+choices: solid = we witnessed it, hollow = we *inferred* it (opens, anything
+from a pixel or heuristic), dotted = we don't know or haven't built it, severed
+= it stopped and a number says why. **Never draw a solid line through something
+we did not observe.** `messageStations()` encodes this so a caller cannot get it
+wrong — use it rather than hand-building stations. `<Metric>` requires `window`
+and `method` by TYPE, so a naked number cannot be constructed.
+
+**Consistency is checked, not asserted.** `scripts/design-audit.ts` scans all
+four apps for the rules above and exits non-zero on a blocking violation:
+
+```bash
+pnpm exec tsx scripts/design-audit.ts                    # summary per app
+pnpm exec tsx scripts/design-audit.ts --files            # every offending file
+pnpm exec tsx scripts/design-audit.ts --rule=raw-palette --files
+```
+
+Run it before and after any UI work. It exists because a redesign that reaches
+the homepage and stops is worse than no redesign — the product then reads as a
+demo, and nobody notices the long tail until a customer does. It also caught the
+reverse error: a naive `initial={{opacity:0}}` scan reported 84 violations, but
+a panel that mounts on a click is legitimately absent until the click, so the
+rule now exempts files using `AnimatePresence` and the real number was **6**.
+When adding a rule, make it that specific or it will be ignored.
+
+Gotchas learned building it:
+- **`tokens.css` must not use `@layer base`.** Next resolves the import as its
+  OWN PostCSS module, so Tailwind sees `@layer` with no matching `@tailwind`
+  directive in that file and fails the build — with a webpack error that names
+  only the generated module and never the cause. Custom properties don't need a
+  layer, and outside one they still win over base.
+- Each app needs `@rootmail/design` in **`transpilePackages`** (raw TS, same as
+  `@rootmail/docs`) and `../../packages/design/src/**/*.{ts,tsx}` in its
+  Tailwind `content`, or the package's own classes get purged.
+- **`duration-300` should not survive review.** Motion is two tiers with an
+  empty middle: `duration-interaction` (100ms) and `duration-narrative` (700ms).
+- **admin overrides the ground on bare `:root` and never sets `.dark`** — so
+  every token its override does not RESTATE keeps its **light** value while
+  sitting on a near-black page, silently. This bit twice: `--brass-text` at its
+  light cut is 3.48:1 there (fails AA), and `--elev-1/2/3` were light drop
+  shadows, invisible on near-black, so `shadow-e*` did nothing in that app.
+  **When you add a token to the `.dark` half of `packages/design/tokens.css`,
+  restate it in `apps/admin/src/app/globals.css` too.**
+- **admin has no light mode, on purpose.** Its stated reason to exist is that
+  staff can tell at a glance they are not in a customer's dashboard, and its old
+  light ground was the same cold grey the dashboard used — so in light mode the
+  two consoles were near-indistinguishable, in exactly the case that matters.
+  It now has one dark ground and its (now meaningless) theme toggle is gone.
+
 ## Conventions
 - Public ids are prefixed: `newId("message")` → `msg_…` (`packages/core/src/ids.ts`).
 - API keys: `rm_live_…` / `rm_test_…`; only the SHA-256 hash is stored. **Signup mints no

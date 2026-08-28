@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "jsx": "react-jsx",
+    // `scrub.tsx` is a client component and touches real DOM APIs
+    // (getBoundingClientRect, PointerEvent). The other files here don't, which
+    // is why this was only needed once an interaction landed.
+    "lib": ["DOM", "DOM.Iterable", "ES2022"]
+  },
+  "include": ["src", "*.ts"]
+}

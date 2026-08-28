@@ -1,0 +1,191 @@
+/*
+ * rootmail design tokens — "Ledger Luminous".
+ *
+ * A ledger's authority, lit from above, with generous curves.
+ * Read `docs/design/00-PHILOSOPHY.md` §9 before changing a value.
+ *
+ * WHAT CHANGED, AND WHY (2026-08-28)
+ * ----------------------------------
+ * The previous system was coherent and the owner's verdict on it was "flat and
+ * boring and square". Three rules had compounded: a 0.25rem radius, "rings and
+ * hairlines, never shadows", and "saturated colour is reserved for state" —
+ * which left no colour anywhere else. The mistake was conflating EPISTEMIC
+ * HONESTY (never claim what we did not observe) with VISUAL AUSTERITY. They are
+ * separable: everything below still draws an inferred station hollow and still
+ * prints a window and a method under every number. It is simply alive.
+ *
+ * THE RULE THAT REPLACED "COLOUR IS ONLY EVER STATE"
+ * Brass is for what YOU can act on — buttons, links, focus. Green / amber / red
+ * stay reserved for what happened to a message, and never appear on a control.
+ * A coloured thing is still unambiguous: brass means press it, the others mean
+ * the system is telling you something.
+ *
+ * WHY THIS FILE REMAPS THE SHADCN NAMES
+ * Four apps and ~45k lines of TSX already consume `--background`, `--primary`
+ * and friends, so those names are re-pointed at this palette. Importing this
+ * file re-grounds an entire app without touching its components. New work
+ * should prefer the semantic names (`--ink`, `--brass`, `--witnessed`).
+ *
+ * NO `@layer base` WRAPPER, deliberately. Next resolves this import as its own
+ * PostCSS module, so `@layer base` here has no matching `@tailwind base` in the
+ * same file and Tailwind fails the build with a webpack error that names only
+ * the generated module, never the cause.
+ *
+ * Values are space-separated HSL channels unless noted, consumed as `hsl(var(--x))`.
+ */
+
+:root {
+  /* ---- Type: THREE roles, not two ------------------------------------ */
+  /* Display carries headlines AND figures. Measured off the references: the
+     big numbers on a page belong in the display face at size, not squeezed
+     into a mono — that made the most important numbers the hardest to read. */
+  --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
+  --font-sans: var(--font-schibsted), ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  /* Mono now marks ids, timestamps and sourcing lines only — still "this is a
+     value we recorded", just no longer at the expense of legibility. */
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, "SF Mono",
+    Menlo, Consolas, "Liberation Mono", monospace;
+
+  /* Fraunces variable axes. WONK is the angled terminal that gives it warmth;
+     SOFT rounds the corners. Both dialled back for figures (see --display-vf-num). */
+  --display-vf: "opsz" 120, "SOFT" 24, "WONK" 1;
+  --display-vf-num: "opsz" 144, "SOFT" 20, "WONK" 0;
+
+  --track-display: -0.028em;
+  --track-heading: -0.02em;
+  --track-body: -0.008em;
+
+  /* ---- Ground and ink — warm ivory, warm ink ------------------------- */
+  --paper: 36 38% 96%;
+  --paper-raised: 40 50% 99%;
+  --paper-lift: 34 30% 93%;
+  --ink: 28 32% 11%;
+  --ink-muted: 30 12% 40%;
+  --rule: 34 22% 87%;
+
+  /* ---- Brass: the one thing you can press ---------------------------- */
+  --brass: 38 72% 52%;
+  /* A darker cut for brass TEXT on a light ground — the fill value is only
+     3.1:1 against paper, which fails AA for anything small. */
+  --brass-text: 33 78% 33%;
+  --brass-ink: 30 60% 8%;
+
+  /* ---- State: what happened to a message ----------------------------- */
+  --witnessed: 145 45% 32%;
+  --acted: 36 78% 36%;
+  --stopped: 9 68% 43%;
+  --witnessed-tint: 145 40% 92%;
+  --acted-tint: 38 70% 92%;
+  --stopped-tint: 9 65% 94%;
+
+  --line-dim: 34 16% 76%;
+
+  /* ---- Curves -------------------------------------------------------- */
+  /* Generous, but a scale rather than one bubble radius: dense app tables and
+     a marketing hero want different amounts of curve. */
+  --radius: 1rem;
+  /* Section-scale curve. A slab needs more than a card or it reads as a
+     big card rather than as a sheet. */
+  --radius-slab: 2rem;
+
+  /* ---- Elevation: light from above, glow from far away --------------- */
+  --elev-1: 0 1px 2px -1px hsl(28 30% 20% / 0.10), 0 2px 6px -2px hsl(28 30% 20% / 0.08);
+  --elev-2: 0 1px 0 0 hsl(40 60% 100% / 0.7) inset,
+            0 8px 20px -10px hsl(28 30% 20% / 0.16),
+            0 24px 48px -28px hsl(28 30% 20% / 0.22);
+  --elev-3: 0 1px 0 0 hsl(40 60% 100% / 0.9) inset,
+            0 16px 36px -14px hsl(28 30% 20% / 0.20),
+            0 40px 72px -34px hsl(28 30% 20% / 0.28);
+
+  --ease-interaction: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --ease-narrative: cubic-bezier(0.32, 0.72, 0, 1);
+  --t-interaction: 0.1s;
+  --t-narrative: 0.7s;
+
+  /* ---- shadcn compatibility layer ------------------------------------ */
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-raised);
+  --popover-foreground: var(--ink);
+  /* Primary is BRASS now, not ink: primary is the thing you press. */
+  --primary: var(--brass);
+  --primary-foreground: var(--brass-ink);
+  --secondary: 34 30% 93%;
+  --secondary-foreground: var(--ink);
+  --muted: 34 30% 93%;
+  --muted-foreground: var(--ink-muted);
+  --accent: 36 40% 90%;
+  --accent-foreground: var(--ink);
+  --destructive: var(--stopped);
+  --destructive-foreground: 40 50% 99%;
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--brass);
+}
+
+.dark {
+  --paper: 30 22% 8%;
+  --paper-raised: 30 20% 11%;
+  --paper-lift: 34 16% 15%;
+  --ink: 34 40% 92%;
+  --ink-muted: 30 12% 62%;
+  --rule: 30 14% 20%;
+
+  --brass: 38 72% 58%;
+  --brass-text: 38 78% 64%;
+  --brass-ink: 30 60% 8%;
+
+  /* Signals lift in lightness so they hold against a dark ground; tints become
+     low-alpha washes rather than pale fills — a `-100` tint on a dark ground is
+     the contrast bug this system exists to prevent. */
+  --witnessed: 145 42% 58%;
+  --acted: 38 80% 62%;
+  --stopped: 9 72% 62%;
+  --witnessed-tint: 145 35% 16%;
+  --acted-tint: 38 55% 16%;
+  --stopped-tint: 9 45% 18%;
+
+  --line-dim: 32 10% 32%;
+
+  /* On a dark ground depth comes from LIGHT, not from a darker shadow: an
+     inset top highlight reads as "lit from above", and a wide, very dim brass
+     glow reads as distance. A pure drop shadow is invisible here. */
+  --elev-1: 0 1px 0 0 hsl(40 60% 90% / 0.05) inset, 0 8px 20px -12px hsl(0 0% 0% / 0.7);
+  --elev-2: 0 1px 0 0 hsl(40 60% 90% / 0.08) inset,
+            0 20px 44px -22px hsl(0 0% 0% / 0.85),
+            0 0 100px -58px hsl(var(--brass));
+  --elev-3: 0 1px 0 0 hsl(40 60% 90% / 0.13) inset,
+            0 32px 68px -26px hsl(0 0% 0% / 0.9),
+            0 0 130px -50px hsl(var(--brass));
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--brass);
+  --primary-foreground: var(--brass-ink);
+  --secondary: 32 14% 17%;
+  --secondary-foreground: var(--ink);
+  --muted: 32 14% 17%;
+  --muted-foreground: var(--ink-muted);
+  --accent: 32 14% 20%;
+  --accent-foreground: var(--ink);
+  --destructive: var(--stopped);
+  --destructive-foreground: 30 22% 8%;
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--brass);
+}
+
+/* Figures never jitter between renders: a count that shifts horizontally reads
+   as unreliable, which is the one thing this product cannot look like. */
+.tabular,
+time,
+[data-fact] {
+  font-variant-numeric: tabular-nums lining;
+}
