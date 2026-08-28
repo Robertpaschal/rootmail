@@ -22,6 +22,7 @@ import { type MessageSnapshot, refreshMessage, retryMessage, simulateEvent } fro
 import type { SimulatableEvent } from "@/lib/rootmail";
 import type { AuditEntry, Message } from "@/lib/types";
 import { buttonVariants } from "@/components/ui/button";
+import { operatorReason } from "@/lib/provider-copy";
 import { cn } from "@/lib/utils";
 
 // Everyday-user view of a send: a status headline + a stage tracker that advances
@@ -165,7 +166,7 @@ function eventsFrom(message: Message, stations: Station[], trail: AuditEntry[]):
       return {
         at: t(message.status),
         method: "provider feedback",
-        detail: message.error ?? undefined,
+        detail: operatorReason(message.error) ?? undefined,
       };
     }
     return { at: t(st.label.toLowerCase()) ?? undefined, method: method[st.label] };
@@ -232,7 +233,7 @@ function RetryButton({ id, onUpdate }: { id: string; onUpdate: (s: MessageSnapsh
         // Verbatim: the API's refusal names the actual reason (already accepted,
         // now suppressed, quota), and a generic "couldn't retry" would hide it.
         <p className="text-sm text-stopped" role="alert">
-          {error}
+          {operatorReason(error) ?? error}
         </p>
       ) : null}
     </div>
@@ -368,7 +369,7 @@ export function LiveStatus({
               {live ? <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[11px] font-medium text-muted-foreground" data-fact><span className="size-1.5 animate-throb rounded-full bg-ink-muted motion-reduce:animate-none" /> watching</span> : null}
             </div>
             <p className="text-sm text-muted-foreground">{meta.blurb}</p>
-            {errorish && message.error ? <p className="mt-1 text-sm text-muted-foreground">Reason: <span className="text-foreground">{message.error}</span></p> : null}
+            {errorish && operatorReason(message.error) ? <p className="mt-1 text-sm text-muted-foreground">Reason: <span className="text-foreground">{operatorReason(message.error)}</span></p> : null}
             {message.retry_count > 0 ? (
               // The status column is the CURRENT state, so without this a message
               // delivered on the second attempt reads exactly like one that never
@@ -422,7 +423,7 @@ export function LiveStatus({
         {/* Diagnose (only when something went wrong) */}
         {errorish ? (
           <Link
-            href={`/assistant?prompt=${encodeURIComponent(`Why did the email to ${message.to} ${message.status}? (message id ${message.id}) Explain the cause in plain terms and how to fix it.`)}`}
+            href={`/assistant?prompt=${encodeURIComponent(`Why did the email to ${message.to} ${message.status}? (message id ${message.id}) Explain the cause in plain terms and how to fix it.`)`}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           >
             <Sparkles className="mr-1.5 size-4" /> Ask the assistant what happened
@@ -464,13 +465,15 @@ function ActivityTrail({ entries }: { entries: AuditEntry[] }) {
           const m = STATUS_META[e.event];
           const Icon = EVENT_ICON[e.event] ?? Inbox;
           const reason =
-            typeof e.metadata?.reason === "string"
-              ? e.metadata.reason
-              : typeof e.metadata?.url === "string"
-                ? e.metadata.url
-                : typeof e.metadata?.error === "string"
-                  ? e.metadata.error
-                  : undefined;
+            typeof e.metadata?.url === "string"
+              ? e.metadata.url
+              : operatorReason(
+                  typeof e.metadata?.reason === "string"
+                    ? e.metadata.reason
+                    : typeof e.metadata?.error === "string"
+                      ? e.metadata.error
+                      : undefined,
+                ) ?? undefined;
           // Where the step came from, in the user's words.
           const source =
             e.metadata?.simulated === true
