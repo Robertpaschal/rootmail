@@ -8,7 +8,6 @@ import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Template } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { TemplatesTable, type TemplateRow } from "./templates-table";
-import { wireframe } from "./wireframe";
 
 export default async function TemplatesPage() {
   let templates: Template[] | null = null;
@@ -25,22 +24,14 @@ export default async function TemplatesPage() {
     }
   }
 
-  // The wireframe is read off the stored HTML here, on the server — the shape
-  // on each card is the template's real block structure, never a stock sketch.
-  const rows: TemplateRow[] = (templates ?? []).map((t) => {
-    const { bands, blocks } = wireframe(t.html);
-    return {
-      id: t.id,
-      name: t.name,
-      slug: t.slug,
-      type: t.type,
-      subject: t.subject,
-      current_version: t.current_version,
-      updated_at: t.updated_at,
-      bands,
-      blocks,
-    };
-  });
+  const rows: TemplateRow[] = (templates ?? []).map((t) => ({
+    id: t.id,
+    name: t.name,
+    slug: t.slug,
+    type: t.type,
+    current_version: t.current_version,
+    updated_at: t.updated_at,
+  }));
 
   return (
     <>

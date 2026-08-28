@@ -64,14 +64,7 @@ function rulesFor(kind: Kind): ScrubRule[] {
     {
       at: PROVIDER_SUSPENDS[kind],
       labelAt: CONFIG[kind].max,
-      // "≥" rather than the bare figure, for two reasons that happen to agree:
-      // the provider's published policy is "at or above", and OUR pause sits on
-      // the identical number — so a bare figure makes the two rules
-      // indistinguishable to the eye AND collides in `Scrub`'s React keys,
-      // which silently drops one of the two ticks. (The key derivation lives in
-      // packages/design/src/scale.tsx and should stop using `value` as an id;
-      // until it does, the two rules must print differently.)
-      value: `≥${fmt(PROVIDER_SUSPENDS[kind])}`,
+      value: fmt(PROVIDER_SUSPENDS[kind]),
       label: "your provider can suspend the whole account",
       tone: "stopped",
       row: 1,

@@ -43,31 +43,18 @@ export function ClientLine({
   const trunk: Station = {
     label: "Shared pool",
     state: "witnessed",
-    at: scale === "page" ? "one account" : undefined,
+    at: scale === "page" ? "one provider account, every client" : undefined,
   };
 
   // The domain station carries the DNS axis, which is independent of reputation:
   // a client can verify perfectly and still be paused for complaints.
-  // At page scale the caller already prints the domain beside the client's name,
-  // and `Line` centres each label inside one 64px gap — so a 30-character host
-  // here lands on top of both its neighbours. The station says what we know
-  // about the domain; the domain itself is spelled out next to it in the row.
-  const domainLabel =
-    scale === "page"
-      ? tenant.status === "verified"
-        ? "Signed"
-        : tenant.status === "failed"
-          ? "Not signed"
-          : "Unverified"
-      : tenant.sending_domain;
-
   const domain: Station = drift?.stopped
-    ? { label: domainLabel, state: "stopped", reason: drift.detail ?? "records unreachable" }
+    ? { label: tenant.sending_domain, state: "stopped", reason: drift.detail ?? "records unreachable" }
     : {
-        label: domainLabel,
+        label: tenant.sending_domain,
         state:
           tenant.status === "verified" ? "witnessed" : tenant.status === "failed" ? "stopped" : "unknown",
-        at: scale === "page" ? (tenant.status === "verified" ? "DKIM + SPF" : tenant.status) : undefined,
+        at: scale === "page" ? (tenant.status === "verified" ? "DKIM + SPF resolve" : tenant.status) : undefined,
         reason: tenant.status === "failed" ? (drift?.detail ?? "verification failed") : undefined,
       };
 
@@ -81,18 +68,18 @@ export function ClientLine({
             label: `Metered${rate ? ` · ${rate}` : ""}`,
             state: "witnessed",
             inFlight: true,
-            at: scale === "page" ? (rate ? `at ${rate}` : "metered") : undefined,
+            at: scale === "page" ? reason : undefined,
           }
         : state === "warn"
           ? {
               label: `Flagged${rate ? ` · ${rate}` : ""}`,
               state: "witnessed",
-              at: scale === "page" ? (rate ? `at ${rate}` : "not restricted") : undefined,
+              at: scale === "page" ? (reason ?? "nothing restricted yet") : undefined,
             }
           : {
               label: "Sending",
               state: "witnessed",
-              at: scale === "page" ? "in limits" : undefined,
+              at: scale === "page" ? "within limits" : undefined,
             };
 
   return (

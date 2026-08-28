@@ -1,5 +1,37 @@
 # CLAUDE.md — working notes for rootmail
 
+> ## ⛔ STANDING RULE — the dashboard's ease of use is not up for redesign
+> **Owner, 2026-08-28: "we can improve the product to be cohesive in product
+> design language but we cannot lose what worked and ease of access in the
+> dashboard as it were."**
+>
+> Two things got conflated and must stay separate from now on:
+>
+> - **Visual language** — type, colour, depth, curves, motion. Cohesive across
+>   all four apps, lives in `packages/design`, changes in one file, reversible.
+>   Improve this freely.
+> - **Information architecture and interaction** — what is in the nav, what a
+>   page is, how a list is sorted, where things live. **This is the product.**
+>   It is what users learned. Do not restructure it as a side effect of a visual
+>   pass.
+>
+> Two specific failures, both reverted, both caused by agents redesigning
+> behaviour while asked for design:
+>
+> 1. **The sidebar was cut to "Mail + Settings"** (`625a677`), deleting every
+>    other destination. It shipped to production and the owner found it.
+> 2. **Nine routes were reshaped** (`5a959da`) — `/messages` from a sortable
+>    table into a "register", `/contacts` into a "roster", `/templates` into a
+>    "shelf" — on the reasoning that operators ask a different question. That was
+>    an opinion about users asserted with no evidence, and it removed working
+>    capability (sorting by recipient). Reverted.
+>
+> **If a change alters what is in the nav, what a page IS, or removes a control
+> that worked — that is a product decision. Ask. Do not ship it inside a design
+> change.** Keeping the old pattern is the default; the burden of proof is on
+> replacing it.
+
+
 > ## ⚠️ ACTIVE BRIEF — read before starting work
 > **`docs/BRIEF-2026-08-18-positioning-gaps.md`** is the current priority order.
 > It was written from an evidence-based audit against our validated buyer

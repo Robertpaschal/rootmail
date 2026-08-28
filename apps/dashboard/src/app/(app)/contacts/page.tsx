@@ -36,6 +36,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { LocalTime } from "@/components/app/local-time";
 import { relativeTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
@@ -43,7 +44,6 @@ import { cn } from "@/lib/utils";
 import type { Contact, ContactList, ContactsBrowse, ContactStagesSummary, ListTag } from "@/lib/types";
 import { CONTACT_STAGES, STAGE_META, type ContactStage } from "@/lib/stages";
 import { CrmBoard, type BoardColumn } from "./crm-board";
-import { PeopleRoster } from "./people-roster";
 
 // 20 a page. Twenty-five was an arbitrary number that filled more than a
 // screen, so the pager was already off-view by the time you wanted it.
@@ -390,7 +390,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                       view === "table" ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    <Rows3 className="size-3.5" /> Roster
+                    <Rows3 className="size-3.5" /> Table
                   </Link>
                   <Link
                     href={hubUrl({ q: sp.q, tag: sp.tag, status, stage, view: "board" })}
@@ -462,7 +462,55 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
 
               {/* The people themselves. */}
               {browse && browse.data.length > 0 ? (
-                <PeopleRoster people={browse.data} />
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Stage</TableHead>
+                          <TableHead>Tags</TableHead>
+                          <TableHead className="text-right">Added</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {browse.data.map((c) => (
+                          <TableRow key={c.id}>
+                            <TableCell>
+                              {/* Straight into their CRM profile — the relationship, not a peek. */}
+                              <Link href={`/contacts/${c.id}`} className="font-medium hover:underline">
+                                {c.email}
+                              </Link>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">{c.name ?? "—"}</TableCell>
+                            <TableCell><ContactStatusBadge status={c.status} /></TableCell>
+                            <TableCell>
+                              <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium", STAGE_META[c.stage].badge)}>
+                                <span className={cn("size-1.5 rounded-full", STAGE_META[c.stage].dot)} /> {STAGE_META[c.stage].label}
+                              </span>
+                            </TableCell>
+                            <TableCell>
+                              {c.tags.length ? (
+                                <span className="flex flex-wrap gap-1">
+                                  {c.tags.map((t) => (
+                                    <Badge key={t} variant="secondary" className="font-mono text-[10px]">{t}</Badge>
+                                  ))}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-right text-xs text-muted-foreground">
+                              {relativeTime(c.created_at)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
               ) : (
                 <EmptyState
                   icon={<Search className="size-6" />}
@@ -529,50 +577,40 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
           ) : (
             <>
               <NewAudience tags={tags} defaultOpen={sp.create === "1"} />
-              {/* An audience is a SIZE — that is what a campaign sends to and
-                  what marketing plans are priced on. So each one is drawn
-                  against the largest, which turns three numbers you have to
-                  compare into one picture you can read. Three columns of text
-                  did not encode that at all. */}
-              <ul className="border-t border-rule">
-                {lists.map((l) => {
-                  const biggest = Math.max(1, ...lists.map((x) => x.contacts));
-                  return (
-                    <li key={l.id} className="flex items-center gap-4 border-b border-rule py-3.5">
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-baseline gap-x-2">
-                          <Link href={`/lists/${l.id}`} className="font-medium tracking-heading hover:underline">
-                            {l.name}
-                          </Link>
-                          {l.description ? (
-                            <span className="truncate text-xs text-muted-foreground">{l.description}</span>
-                          ) : null}
-                        </div>
-                        <div className="mt-1.5 flex items-center gap-3">
-                          <span className="h-1.5 max-w-[18rem] flex-1 overflow-hidden rounded-full bg-secondary">
-                            <span
-                              className="block h-full rounded-full bg-ink/50"
-                              style={{ width: `${(l.contacts / biggest) * 100}%` }}
-                            />
-                          </span>
-                          <span className="shrink-0 font-mono text-[11px] text-muted-foreground" data-fact>
-                            {l.contacts.toLocaleString()} people · now · membership
-                          </span>
-                        </div>
-                      </div>
-                      <span className="hidden shrink-0 font-mono text-[11px] text-muted-foreground sm:block" data-fact>
-                        {relativeTime(l.created_at)}
-                      </span>
-                      <ActionForm action={deleteList} className="inline">
-                        <input type="hidden" name="id" value={l.id} />
-                        <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" aria-label={`Delete ${l.name}`}>
-                          <Trash2 className="size-4" />
-                        </Button>
-                      </ActionForm>
-                    </li>
-                  );
-                })}
-              </ul>
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>People</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead className="text-right" />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {lists.map((l) => (
+                        <TableRow key={l.id}>
+                          <TableCell>
+                            <Link href={`/lists/${l.id}`} className="font-medium hover:underline">{l.name}</Link>
+                            {l.description ? <span className="ml-2 text-xs text-muted-foreground">{l.description}</span> : null}
+                          </TableCell>
+                          <TableCell className="tabular-nums">{l.contacts.toLocaleString()}</TableCell>
+                          <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{relativeTime(l.created_at)}</TableCell>
+                          <TableCell className="text-right">
+                            <ActionForm action={deleteList} className="inline">
+                              <input type="hidden" name="id" value={l.id} />
+                              <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" aria-label={`Delete ${l.name}`}>
+                                <Trash2 className="size-4" />
+                              </Button>
+                            </ActionForm>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
               <p className="text-xs text-muted-foreground">
                 A person can be in several audiences — marketing plans are sized by total memberships across them.
               </p>
