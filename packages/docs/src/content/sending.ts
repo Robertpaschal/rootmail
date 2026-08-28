@@ -76,7 +76,7 @@ export const messages: DocPage = {
   "created_at": "2026-07-22T10:00:00Z",
   "updated_at": "2026-07-22T10:00:00Z"
 }`,
-      "201 Created — the message",
+      "202 Accepted — the message, queued",
     ),
     callout("note", "Pass idempotency either as the ", c("idempotency_key"), " field or an ", c("Idempotency-Key"), " request header — a retried key returns the SAME message instead of sending twice."),
     h("Personalization"),

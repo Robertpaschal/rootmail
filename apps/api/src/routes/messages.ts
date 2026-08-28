@@ -182,6 +182,28 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     await requirePermission(req, "messages.send");
     const body = parse(sendBody, req.body);
     const { workspace, subTenant: headerSub, mode, apiKey, user } = req.auth;
+
+    /**
+     * Idempotency key: the body field OR the `Idempotency-Key` request header.
+     *
+     * The docs have promised the header in two places since they were written
+     * (`packages/docs/src/content/concepts.ts` and `sending.ts`) and the SDK has
+     * always SENT it (`packages/sdk/src/client.ts`) — but nothing here ever read
+     * it. The SDK was safe only by accident, because `Messages.create` also puts
+     * the key in the body; a developer following the documented HTTP contract
+     * and sending only the header got NO idempotency at all, which means a
+     * duplicate email on every retry, silently. That is precisely the failure
+     * this endpoint exists to prevent, on a promise we publish.
+     *
+     * The body still wins when both are present, so no existing caller changes
+     * behaviour. Read it once here rather than at the three sites below, so the
+     * fast path, the insert and the race-loser lookup cannot disagree.
+     */
+    const headerIdem = req.headers["idempotency-key"];
+    const idempotencyKey =
+      body.idempotency_key ?? (typeof headerIdem === "string" && headerIdem.trim() !== ""
+        ? headerIdem.trim()
+        : undefined);
     // Who's sending: an API key (SDK) or a logged-in dashboard user.
     const sender = apiKey
       ? { actor: "api_key", actorId: apiKey.id }
@@ -240,14 +262,14 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     const toEmail = typeof body.to === "string" ? body.to : body.to.email;
 
     // Idempotency fast path.
-    if (body.idempotency_key) {
+    if (idempotencyKey) {
       const [existing] = await db
         .select()
         .from(messages)
         .where(
           and(
             eq(messages.workspaceId, workspace.id),
-            eq(messages.idempotencyKey, body.idempotency_key),
+            eq(messages.idempotencyKey, idempotencyKey),
           ),
         )
         .limit(1);
@@ -546,7 +568,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         tags: body.tags,
         metadata: body.metadata,
         attachments: messageAttachments,
-        idempotencyKey: body.idempotency_key ?? null,
+        idempotencyKey: idempotencyKey ?? null,
         status: suppressed ? "suppressed" : "queued",
         sandbox: mode === "test",
       })
@@ -561,7 +583,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         .where(
           and(
             eq(messages.workspaceId, workspace.id),
-            eq(messages.idempotencyKey, body.idempotency_key ?? ""),
+            eq(messages.idempotencyKey, idempotencyKey ?? ""),
           ),
         )
         .limit(1);

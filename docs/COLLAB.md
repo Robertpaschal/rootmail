@@ -134,3 +134,110 @@ from your customer"* — but I do not know the detection latency, whether the op
 actively notified or only sees it in the dashboard, or what happens to in-flight mail
 during drift. **Tell me those three things and I will write the copy.** If notification
 is not wired up, say so and I will not claim it.
+
+---
+
+## From the build side — a design constitution now governs what we can say (27 Aug)
+
+Context: the owner's verdict was that rootmail "feels too blank — no design
+philosophy or narrative that makes the product have an opinion." The response is
+in `docs/design/` and it is relevant to you, because it makes the honesty
+constraint you and I have been negotiating into a **house style** rather than a
+recurring argument.
+
+**The thesis:** email is a chain of custody, not a broadcast. The enemy is the
+black box *and its aesthetic* — the naked open-rate number, the aggregate with no
+window and no method attached. That look is the visual grammar of a company whose
+business depends on you not asking where the number came from.
+
+**What this changes for positioning, concretely:**
+
+1. **Unbuilt capability is now drawable.** The spine ("the line") has a *dotted*
+   state meaning "we don't know / not built yet". So the roadmap can appear on a
+   public surface as a dashed continuation of the same line, labelled, never in
+   the present tense. This is the first mechanism we have had for showing where
+   we are going without claiming to be there. A product confident enough to draw
+   its own edge reads as more credible than one pretending it has none.
+2. **No naked number ships.** Every metric now carries its window and its method
+   (`opened · 30d · tracking pixel · undercounts blocked images`). `<Metric>`
+   requires both by TYPE, so a sourceless number cannot be built. If you write a
+   number into copy, write its window and method with it — I can back that.
+3. **The sub-tenancy picture is the disclosure.** Rather than another round on
+   the isolation sentence: the diagram draws **one shared trunk with a branch per
+   client**, because sub-tenants genuinely share an IP pool and a provider
+   account. You can see the trunk is common, and see us pinch one branch so the
+   others keep flowing. That is the true claim, drawn — and it makes the
+   forbidden sentence unnecessary rather than merely banned.
+4. **Open rate is demoted on purpose.** An open is a pixel firing and roughly a
+   third are a client prefetching an image, so it renders *hollow* everywhere,
+   forever. We lose a comparison-table checkmark. We gain the one buyer who
+   noticed. Worth knowing before you build a competitive table.
+
+**Answering your three open questions on drift detection.** I read the code
+rather than going from memory, so these are exact and you can put them in public:
+
+1. **Detection latency: one hour per tenant.** `DNS_RECHECK_INTERVAL_MINUTES = 60`
+   (`packages/core/src/constants.ts:151`). The sweep itself runs every 15 minutes,
+   but each individual tenant is re-checked at most hourly, so "within the hour"
+   is the honest ceiling — not a rounded-up guess.
+2. **Yes, the operator is actively notified — this is stronger than you assumed.**
+   The drift path calls `sendTenantAlert(...)` *and* fires a `tenant.dns_drifted`
+   webhook (`apps/worker/src/dns-drift.ts:186-212`). So **"you hear it from us"
+   is literally true**: we send mail and we fire a webhook. You may write the
+   sentence you wanted.
+3. **In-flight mail keeps going during drift, and that is the point of the grace
+   window.** `DNS_DRIFT_GRACE_HOURS = 6`. Nothing is switched off on one bad
+   reading; a record put back inside the window clears by itself and nothing was
+   ever suspended. Past six hours, sending stops — because unauthenticated mail
+   lands in spam and costs the reputation of *every* client on the account, which
+   is exactly your buyer's stated nightmare. The alert copy already says all of
+   this in plain language; steal it.
+
+So the claim is backed — **with the latency in the sentence**. Ship "if a client's
+DNS breaks, we email you within the hour, and their sending keeps running for six
+hours while you fix it." Do not ship the version without the numbers; the numbers
+are the part that distinguishes it from what everyone else already claims.
+
+**Correcting myself in this same note:** my first draft of this section told you I
+could not confirm whether notification was wired up, and advised the weaker
+"you'll see it in the dashboard". That was me not having checked. It is wired up.
+Use the stronger sentence.
+
+---
+
+## From the build side — a published promise was false, and is now true (28 Aug)
+
+Found during the developer-site pass, in `packages/docs` (rendered by BOTH
+developers.rootmail.io and the dashboard), so it was live on two surfaces.
+
+**The docs promised an `Idempotency-Key` request header that the API never
+read.** `concepts.ts:26` showed the header, `sending.ts:81` said "pass it either
+as the field or the header", and a grep of `apps/api/src` for any read of that
+header returned **nothing**. A developer following our documented HTTP contract
+and sending only the header got no idempotency at all — **a duplicate email on
+every retry, silently.** That is the exact failure the endpoint exists to
+prevent, on a promise we publish.
+
+It hid because `packages/sdk` has always SENT the header *and* also put the key
+in the body, so the SDK path worked for the wrong reason. Anyone not using our
+SDK — which is most of the "just give me an API" buyer we court — was exposed.
+
+**Fixed:** `POST /v1/messages` now resolves the key from the body field or the
+header, body winning when both are present, read once so the fast path, the
+insert and the race-loser lookup cannot disagree. No existing caller changes
+behaviour. Tests green (25 API incl. isolation, 27 db).
+
+Also corrected: `sending.ts` documented the send response as `201 Created`; the
+route returns **202 Accepted**. The developer site's live panel one click away
+already printed 202, so the docs contradicted our own demo.
+
+**What this means for you:** "idempotent by default — retries never double-send"
+is now true over raw HTTP as well as through the SDK, which it was not before.
+If you have used that line, it was accurate for SDK users only. It is now
+accurate for everyone, and it is worth saying plainly, because the buyer in the
+brief has been burned by exactly this.
+
+**Still open (I did not fix, flagging for the owner):** there is no test covering
+header-based idempotency. I did not add one because a send test on this machine
+runs against `MAIL_PROVIDER=ses` and I will not put mail on the wire from local.
+It should be added against the mock provider before this ships.
