@@ -1,9 +1,16 @@
 import type { Metadata } from "next";
-import { Cta } from "@/components/site/cta";
 import { Footer } from "@/components/site/footer";
 import { Navbar } from "@/components/site/navbar";
-import { Pricing } from "@/components/site/pricing";
-import { PricingArgument } from "@/components/site/pricing-argument";
+import {
+  PricingAddons,
+  PricingFloor,
+  PricingClaim,
+  PricingClose,
+  PricingEdges,
+  PricingIncluded,
+  PricingMeters,
+} from "@/components/site/pricing-page";
+import { getPublicPricing } from "@/lib/pricing";
 
 export const metadata: Metadata = {
   title: "Pricing",
@@ -12,18 +19,31 @@ export const metadata: Metadata = {
 };
 
 /**
- * The page opens with its own h1 and its own argument now, instead of being two
- * homepage sections stacked. `PricingArgument` carries the h1; `Pricing` keeps
- * its default h2 so the outline is correct.
+ * Seven sections, seven shapes — the composition lives in
+ * `components/site/pricing-page.tsx`, which documents why each one is the shape
+ * it is. This page's only job is the order and the data fetch.
+ *
+ * The order is the order of a purchase decision, not of a feature list: the
+ * claim, then the number, then the ceiling on the number, then what is NOT
+ * behind a plan, then what you can add, then the worries, then the ask.
  */
-export default function PricingPage() {
+export default async function PricingPage() {
+  const pricing = await getPublicPricing();
+
   return (
     <>
       <Navbar />
-      <main>
-        <PricingArgument />
-        <Pricing />
-        <Cta />
+      {/* Slabs sit ON a ground rather than butting against each other; P1 and
+          P7 sit on the ground itself, which is what makes them read as speech
+          rather than as panels. */}
+      <main className="px-3 pb-4 sm:px-5">
+        <PricingClaim />
+        <PricingMeters pricing={pricing} />
+        <PricingFloor pricing={pricing} />
+        <PricingIncluded />
+        <PricingAddons pricing={pricing} />
+        <PricingEdges />
+        <PricingClose />
       </main>
       <Footer />
     </>

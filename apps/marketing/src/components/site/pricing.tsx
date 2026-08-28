@@ -29,9 +29,12 @@ const baseline = [
  * grid is the honest shape for it. A feature row is evidence for a claim made
  * elsewhere, so it is prose. Same page, two shapes, one rule.
  *
- * `heading` lets `/pricing` pass its own `<h1>` — the dedicated pricing page
- * used to render zero h1 elements because this component was written to live
- * inside a page that already had one.
+ * SCOPE, since 2026-08-28: this component is the HOMEPAGE's pricing section
+ * only. `/pricing` no longer renders it — that page has its own seven-shape
+ * composition in `pricing-page.tsx` and borrows just the two calculators, so a
+ * reader arriving from the nav is not met with a section they scrolled past on
+ * the homepage. The `heading` prop is kept because it costs nothing and the
+ * next caller who needs an `<h1>` should not have to re-derive it.
  */
 export async function Pricing({
   heading = "h2",
