@@ -25,11 +25,10 @@ export default async function ResetPasswordPage({
               <ResetForm token={token} />
             ) : (
               <p className="text-sm text-destructive">
-                This reset link is missing its token. Request a new one from the{" "}
-                <Link href="/forgot-password" className="underline">
-                  forgot password
-                </Link>{" "}
-                page.
+                This reset link is missing its token.{" "}
+                <Link href="/login" className="underline">
+                  Back to sign in
+                </Link>.
               </p>
             )}
           </CardContent>

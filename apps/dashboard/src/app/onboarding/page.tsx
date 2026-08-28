@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { SIGNED_IN_HOME } from "@/lib/home";
 import { Logo } from "@/components/app/logo";
 import { api } from "@/lib/rootmail";
 import { getSessionToken } from "@/lib/session";
@@ -30,7 +31,7 @@ export default async function OnboardingPage() {
   }
   // Redirects live OUTSIDE the try — redirect() throws, and a catch would eat it.
   // A transient failure falls back to the app rather than wedging a new user here.
-  if (failed || alreadyDone) redirect("/");
+  if (failed || alreadyDone) redirect(SIGNED_IN_HOME);
 
   return (
     <div className="min-h-screen bg-background">

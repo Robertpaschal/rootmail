@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/lib/rootmail";
 import { applyRoster } from "@/lib/session";
 import { appUrl } from "@/lib/urls";
+import { SIGNED_IN_HOME } from "@/lib/home";
 
 export const dynamic = "force-dynamic";
 
@@ -19,9 +20,9 @@ export const dynamic = "force-dynamic";
  * is nothing for a caller to learn from an error here.
  */
 function safeNext(raw: string | null): string {
-  if (!raw || !raw.startsWith("/")) return "/";
-  if (raw.startsWith("//") || raw.startsWith("/\\")) return "/";
-  if (raw.includes(":") || raw.includes("\\")) return "/";
+  if (!raw || !raw.startsWith("/")) return SIGNED_IN_HOME;
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return SIGNED_IN_HOME;
+  if (raw.includes(":") || raw.includes("\\")) return SIGNED_IN_HOME;
   return raw;
 }
 

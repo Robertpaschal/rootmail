@@ -61,7 +61,7 @@ function buildGroups(opts: { sandbox: boolean; workspaceName: string | null }): 
   return [
     {
       items: [
-        { href: "/", label: "Overview", icon: LayoutDashboard, exact: true },
+        { href: "/overview", label: "Overview", icon: LayoutDashboard, exact: true },
         // The one destination in here that is not an object type. Thirteen of
         // the fifteen others are a noun you can list; this is what the system
         // NOTICED and what it DID — throttles, pauses, DNS drift, the
@@ -76,7 +76,7 @@ function buildGroups(opts: { sandbox: boolean; workspaceName: string | null }): 
       // share. Proof rides with the mail it certifies.
       label: "Email",
       items: [
-        { href: "/messages", label: "Messages", icon: Mail },
+        { href: "/messages", label: "Mail", icon: Mail },
         { href: "/inbox", label: "Replies", icon: Inbox },
         { href: "/campaigns", label: "Campaigns", icon: Megaphone },
         { href: "/sequences", label: "Sequences", icon: Workflow },

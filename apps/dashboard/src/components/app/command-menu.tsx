@@ -17,13 +17,13 @@ interface Item {
 }
 
 const SHARED: Item[] = [
-  { label: "Overview", href: "/", kw: "home dashboard start" },
+  { label: "Overview", href: "/overview", kw: "setup checklist dashboard furniture" },
   { label: "Assistant", href: "/assistant", kw: "ai help chat copilot diagnose" },
 ];
 
 // Mirrors the sidebar's IA: one product fabric, grouped by what things are FOR.
 const EMAIL: Item[] = [
-  { label: "Messages", href: "/messages", kw: "sends log history every email one-to-one transactional" },
+  { label: "Mail", href: "/messages", kw: "home messages sends log history every email one-to-one transactional" },
   { label: "Replies", href: "/inbox", kw: "inbox conversations threads responses" },
   { label: "Campaigns", href: "/campaigns", kw: "broadcast blast newsletter marketing" },
   { label: "Sequences", href: "/sequences", kw: "automation drip flow onboarding" },

@@ -22,6 +22,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import type { SubTenant, TestRecipient } from "@/lib/types";
+import { SEND_HALT_REASON } from "@/lib/home";
+import { operatorReason } from "@/lib/provider-copy";
 import { cn } from "@/lib/utils";
 
 export interface ComposeTemplate {
@@ -70,6 +72,7 @@ export function SendForm({
   testRecipients = [],
   myEmail = null,
   productName = null,
+  canSend = false,
 }: {
   tenants: SubTenant[];
   templates: ComposeTemplate[];
@@ -82,6 +85,8 @@ export function SendForm({
   myEmail?: string | null;
   /** The org / product name — fills {{product}} in the preview. */
   productName?: string | null;
+  /** False when the workspace has no sending identity — Send must not fire. */
+  canSend?: boolean;
 }) {
   const [state, formAction, pending] = useActionState<SendState | null, FormData>(sendMessage, null);
   const router = useRouter();
@@ -205,7 +210,9 @@ export function SendForm({
     if (fileRef.current) fileRef.current.value = "";
   };
 
-  const fromLabel = from.startsWith("id:")
+  const fromLabel = !canSend
+    ? "no sending identity"
+    : from.startsWith("id:")
     ? from.slice(3)
     : from.startsWith("st:")
       ? (tenants.find((t) => t.id === from.slice(3))?.sending_domain ?? "your domain")
@@ -269,10 +276,7 @@ export function SendForm({
                     ))}
                   </Select>
                 ) : (
-                  <span className="flex-1 text-sm">
-                    Workspace address{" "}
-                    <Link href="/settings/sender" className="text-xs text-muted-foreground underline hover:text-foreground">send from your own address</Link>
-                  </span>
+                  <span className="flex-1 text-sm text-ink-muted">No sending identity</span>
                 )}
               </div>
 
@@ -455,7 +459,7 @@ export function SendForm({
               </p>
             ) : null}
 
-            {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
+            {state?.error ? <p className="text-sm text-destructive">{operatorReason(state.error) ?? state.error}</p> : null}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
               <Button type="button" variant="ghost" onClick={goWrite}>
@@ -463,24 +467,32 @@ export function SendForm({
               </Button>
               <div className="flex items-center gap-3">
                 {/* Prove it before a person gets it — same path, safe destination. */}
-                <SendTest
-                  recipients={testRecipients}
-                  myEmail={myEmail}
-                  openUp
-                  disabled={pending || uploading}
-                  onSend={(dest) =>
-                    sendTestMessage({
-                      to: dest,
-                      subject: sourceSubject,
-                      html: bodyHtml,
-                      template: startFrom || undefined,
-                      from_email: senders[0]?.email,
-                    })
-                  }
-                />
-                <Button type="submit" disabled={pending || uploading}>
+                {canSend ? (
+                  <SendTest
+                    recipients={testRecipients}
+                    myEmail={myEmail}
+                    openUp
+                    disabled={pending || uploading}
+                    onSend={(dest) =>
+                      sendTestMessage({
+                        to: dest,
+                        subject: sourceSubject,
+                        html: bodyHtml,
+                        template: startFrom || undefined,
+                        from_email: senders[0]?.email,
+                      })
+                    }
+                  />
+                ) : null}
+                <Button
+                  type="submit"
+                  disabled={!canSend || pending || uploading}
+                  variant={canSend ? "default" : "secondary"}
+                  className={canSend ? undefined : "text-ink-muted shadow-none"}
+                  title={canSend ? undefined : SEND_HALT_REASON}
+                >
                   {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
-                  {pending ? "Sending…" : `Send to ${previewPerson.name ?? to}`}
+                  {pending ? "Sending…" : canSend ? `Send to ${previewPerson.name ?? to}` : "Send"}
                 </Button>
               </div>
             </div>

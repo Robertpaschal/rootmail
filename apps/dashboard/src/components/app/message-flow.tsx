@@ -1,4 +1,5 @@
 import { Line, messageStations, type Station } from "@rootmail/design";
+import { operatorReason } from "@/lib/provider-copy";
 import type { Message } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -72,7 +73,7 @@ export function stationsFor(
     deliveredAt,
     openedAt: m.opened_at,
     clickedAt: m.clicked_at,
-    stoppedReason: dead ? (m.error ?? null) : null,
+    stoppedReason: dead ? operatorReason(m.error) : null,
   }).map((s) => {
     // Never let the sentinel reach the screen.
     const cleaned: Station = s.at === SEEN ? { ...s, at: undefined } : s;
@@ -117,6 +118,7 @@ function furthest(stations: Station[]): { label: string; state: Station["state"]
 export function MessageFlow({ message }: { message: FlowInput }) {
   const stations = stationsFor(message);
   const { label, state } = furthest(stations);
+  const why = operatorReason(message.error);
   const title = stations
     .map((s) => (s.state === "unknown" ? `${s.label} (not yet)` : s.label))
     .join(" → ");
@@ -141,13 +143,13 @@ export function MessageFlow({ message }: { message: FlowInput }) {
         >
           {label}
         </span>
-        {state === "stopped" && message.error ? (
+        {state === "stopped" && why ? (
           <span
             className="min-w-0 truncate font-mono text-[10px] text-muted-foreground"
             data-fact
-            title={message.error}
+            title={why}
           >
-            {message.error}
+            {why}
           </span>
         ) : null}
       </span>

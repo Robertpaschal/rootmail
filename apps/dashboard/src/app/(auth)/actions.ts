@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { SIGNED_IN_HOME } from "@/lib/home";
 import { ADD_REFUSAL_MESSAGE, adoptToken, refuseAdd } from "@/lib/accounts";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import { writeRoster } from "@/lib/session";
@@ -73,7 +74,7 @@ export async function login(_prev: AuthState | null, formData: FormData): Promis
 
   const failed = await adoptSession(result.session_token, add);
   if (failed) return { error: failed };
-  redirect("/");
+  redirect(SIGNED_IN_HOME);
 }
 
 export async function verifyMfa(_prev: AuthState | null, formData: FormData): Promise<AuthState> {
@@ -103,7 +104,7 @@ export async function verifyMfa(_prev: AuthState | null, formData: FormData): Pr
 
   const failed = await adoptSession(session.session_token, add);
   if (failed) return { error: failed, mfaRequired: true, mfaToken };
-  redirect("/");
+  redirect(SIGNED_IN_HOME);
 }
 
 export async function signup(_prev: AuthState | null, formData: FormData): Promise<AuthState> {
@@ -144,21 +145,15 @@ export async function signup(_prev: AuthState | null, formData: FormData): Promi
 
   const failed = await adoptSession(token, add);
   if (failed) return { error: failed };
-  // Land new users on API keys so they can grab a key immediately.
-  redirect("/api-keys");
+  // Signed-in home is Mail. API keys live under Developers.
+  redirect(SIGNED_IN_HOME);
 }
 
-export async function forgotPassword(_prev: AuthState | null, formData: FormData): Promise<AuthState> {
-  const email = String(formData.get("email") ?? "").trim().toLowerCase();
-  if (!email) return { error: "Enter your email." };
-  try {
-    await api.forgotPassword(email);
-  } catch (err) {
-    if (err instanceof ConnectionError) return { error: err.message };
-    // Any other error is swallowed: the endpoint never reveals whether the
-    // address is registered, and neither should we.
-  }
-  return { sent: true };
+export async function forgotPassword(_prev: AuthState | null, _formData: FormData): Promise<AuthState> {
+  // Hidden this week. The login link is gone; PUBLIC_PATHS does not include
+  // /forgot-password, so a signed-out visit bounces to /login. Do not turn
+  // this into a send — SES sandbox, zero sending identities.
+  return { error: "Password reset is paused this week." };
 }
 
 export async function resetPassword(_prev: AuthState | null, formData: FormData): Promise<AuthState> {

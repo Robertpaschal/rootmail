@@ -31,13 +31,14 @@ export async function OnboardingChecklist() {
   let templates = 0;
   let messages = 0;
   let replyDecided = false;
+  let org: { postal_address?: string | null; reply_mode?: string } | null = null;
   try {
-    const [me, snd, l, t, m, org, threads] = await Promise.all([
+    const [me, snd, l, t, m, organization, threads] = await Promise.all([
       api.me(),
       api.listSenders(),
       api.listLists(),
       api.listTemplates(),
-      api.listMessages({ limit: 1 }),
+      api.listMessages({ limit: 100 }),
       api.getOrganization().catch(() => null),
       api.listThreads().catch(() => ({ data: [] })),
     ]);
@@ -47,9 +48,10 @@ export async function OnboardingChecklist() {
     lists = l.data.length;
     growthOn = l.data.some((x) => x.signup_enabled);
     templates = t.data.length;
-    messages = m.data.length;
+    messages = m.data.filter((x) => ["sent", "delivered", "bounced", "complained"].includes(x.status)).length;
     // "Done" once they've either chosen to handle replies in their own mailbox or
     // actually have a conversation flowing into the inbox.
+    org = organization;
     replyDecided = org?.reply_mode === "own_mailbox" || threads.data.length > 0;
   } catch {
     return null;
@@ -87,19 +89,14 @@ export async function OnboardingChecklist() {
     {
       done: messages > 0,
       label: "Send one real email and watch it land",
-      desc: "To yourself, right now, on the real path — real provider, real record. You will see the line complete: queued, sent, delivered. This is what every message in rootmail looks like from here on, and it is the only step that proves any of the rest is worth doing.",
+      desc: "To yourself, on the real path — real provider, real record. Sending is paused until this workspace has a sending identity.",
       href: "/messages/new",
       minutes: 2,
-      crucial: true,
-      sub: [
-        "Compose one to your own address",
-        "Watch the line on the message page — it advances on its own",
-      ],
     },
     {
       done: hasVerifiedSender,
       label: "Send from your own address",
-      desc: "So mail goes out from hello@yourcompany.com, not a rootmail one. This is the step people stall on, because it is the one that waits on DNS — we re-check every hour and tell you the moment it resolves.",
+      desc: "A sending identity is required before anything can leave. Add an address and confirm it — until then, Send is paused.",
       href: "/settings/sender",
       minutes: 5,
       crucial: true,
@@ -109,10 +106,10 @@ export async function OnboardingChecklist() {
       ],
     },
     {
-      done: onboarded,
+      done: onboarded && Boolean(org?.postal_address?.trim()),
       label: "Complete your business profile",
       desc: "Your details + postal address — required by anti-spam law on any marketing mail, and used to personalize rootmail.",
-      href: "/onboarding",
+      href: onboarded ? "/settings/sender" : "/onboarding",
       minutes: 2,
     },
     {
