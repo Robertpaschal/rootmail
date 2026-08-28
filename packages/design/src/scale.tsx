@@ -65,6 +65,19 @@ const TEXT = {
   stopped: "text-stopped",
 } as const;
 
+/**
+ * A rule's identity is its label AND its position, never its value alone.
+ *
+ * Two rules legitimately sit on the same number — our pause threshold and the
+ * provider's published ceiling are the same figure — and keying on the value
+ * made them one React child, so one of the two ticks silently vanished. A
+ * disappearing threshold on a scale whose whole job is "how much room do I
+ * have" is the worst possible thing for this component to get wrong quietly.
+ */
+function ruleKey(r: ScrubRule, i: number): string {
+  return `${i}:${r.label ?? ""}:${r.value}`;
+}
+
 export function Scrub({
   min,
   max,
@@ -118,9 +131,9 @@ export function Scrub({
       <div className="relative hidden h-9 text-[11px] sm:block">
         {rules
           .filter((r) => r.row !== 1)
-          .map((r) => (
+          .map((r, i) => (
             <span
-              key={r.value}
+              key={ruleKey(r, i)}
               className="absolute bottom-0 -translate-x-1/2 whitespace-nowrap text-center font-mono"
               style={{ left: `${pct(r.at)}%` }}
               data-fact
@@ -165,10 +178,10 @@ export function Scrub({
         {/* The scale itself: one hairline the whole width. */}
         <span className="absolute left-0 right-0 top-1/2 h-[2px] -translate-y-1/2 bg-rule" />
 
-        {rules.map((r) =>
+        {rules.map((r, i) =>
           r.zone ? (
             <span
-              key={`z-${r.value}`}
+              key={`z-${ruleKey(r, i)}`}
               aria-hidden="true"
               className={cx("absolute top-1/2 h-[2px] -translate-y-1/2 opacity-70", TONE[r.tone])}
               style={{ left: `${pct(r.at)}%`, right: 0 }}
@@ -176,9 +189,9 @@ export function Scrub({
           ) : null,
         )}
 
-        {rules.map((r) => (
+        {rules.map((r, i) => (
           <span
-            key={`r-${r.value}`}
+            key={`r-${ruleKey(r, i)}`}
             aria-hidden="true"
             className={cx("absolute top-1/2 h-5 w-[2px] -translate-y-1/2", TONE[r.tone])}
             style={{ left: `${pct(r.at)}%` }}
@@ -208,9 +221,9 @@ export function Scrub({
       <div className="relative mt-5 hidden h-8 text-[11px] leading-tight sm:block">
         {rules
           .filter((r) => r.row !== 1)
-          .map((r) => (
+          .map((r, i) => (
             <span
-              key={`l-${r.value}`}
+              key={`l-${ruleKey(r, i)}`}
               className={cx("absolute top-0 w-24 -translate-x-1/2 text-center", TEXT[r.tone])}
               style={{ left: `${pct(r.at)}%` }}
             >
@@ -223,9 +236,9 @@ export function Scrub({
         <div className="relative hidden h-8 text-[11px] leading-tight sm:block">
           {rules
             .filter((r) => r.row === 1)
-            .map((r) => (
+            .map((r, i) => (
               <span
-                key={`l1-${r.value}`}
+                key={`l1-${ruleKey(r, i)}`}
                 className={cx(
                   "absolute top-0 w-40",
                   r.align === "right" ? "-translate-x-full text-right" : "-translate-x-1/2 text-center",
@@ -244,8 +257,8 @@ export function Scrub({
 
       {/* The narrow-screen route to the same four facts. */}
       <ul className="mt-4 divide-y divide-rule border-t border-rule text-[11px] sm:hidden">
-        {rules.map((r) => (
-          <li key={`m-${r.value}`} className="flex items-baseline gap-3 py-2">
+        {rules.map((r, i) => (
+          <li key={`m-${ruleKey(r, i)}`} className="flex items-baseline gap-3 py-2">
             <span className={cx("w-16 shrink-0 font-mono", TEXT[r.tone])} data-fact>
               {r.value}
             </span>

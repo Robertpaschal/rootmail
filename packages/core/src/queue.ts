@@ -303,3 +303,40 @@ export async function scheduleReputationSweep(everyMs = 15 * 60 * 1000): Promise
     { repeat: { every: everyMs }, jobId: "reputation-sweep", removeOnComplete: true, removeOnFail: { count: 50 } },
   );
 }
+
+/**
+ * Close every queue this process opened, and forget them.
+ *
+ * The counterpart to `closeDb()`, and it exists for the same reason: a BullMQ
+ * `Queue` holds its own Redis connection, so a process that enqueued anything
+ * never exits on its own. In a `node:test` run that does not fail — the suite
+ * HANGS with no output, which reads as an infinite loop in the code under test
+ * rather than an open handle. (`buildServer` already closes the rate-limit
+ * client it owns for exactly this reason; the queues had no such hook because
+ * until now no test enqueued.)
+ *
+ * Idempotent: safe to call when nothing was ever opened.
+ */
+export async function closeQueues(): Promise<void> {
+  const open = [
+    sendQueue,
+    webhookQueue,
+    sequenceQueue,
+    campaignQueue,
+    systemMailQueue,
+    retentionQueue,
+    lifecycleQueue,
+    reputationQueue,
+  ].filter((q): q is NonNullable<typeof q> => q !== undefined);
+
+  sendQueue = undefined;
+  webhookQueue = undefined;
+  sequenceQueue = undefined;
+  campaignQueue = undefined;
+  systemMailQueue = undefined;
+  retentionQueue = undefined;
+  lifecycleQueue = undefined;
+  reputationQueue = undefined;
+
+  await Promise.allSettled(open.map((q) => q.close()));
+}
