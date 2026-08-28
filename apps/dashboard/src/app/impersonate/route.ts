@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * cookie — the most valuable moment to steal a click. So it is an allow-shaped
  * check, not a deny-list.
  *
- * A path only. It must start with a single "/" — "//evil.com" and "/\\evil.com"
+ * A path only. It must start with a single "/" — "//evil.com" and "/\evil.com"
  * are both browser-legal ways to leave this origin, and a value containing ":"
  * can carry a scheme. Anything else silently becomes the dashboard home; there
  * is nothing for a caller to learn from an error here.
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   }
 
   /*
-   * ── A SUPPORT SESSION IS NEVER A PEER ────────────────────────────
+   * ── A SUPPORT SESSION IS NEVER A PEER ────────────────────────────────────
    *
    * An impersonated session REPLACES the whole account roster. It never joins
    * one, and nothing may join it.
