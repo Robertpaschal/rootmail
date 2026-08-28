@@ -8,10 +8,9 @@ import { EmptyState } from "@/components/app/empty-state";
 import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/components/app/feature-locked";
 import { PageHeader } from "@/components/app/page-header";
 import { Reveal } from "@/components/app/motion";
-import { ReputationBadge, SubTenantStatusBadge } from "@/components/app/status-badge";
+import { ReputationBadge } from "@/components/app/status-badge";
 import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
 import { REPUTATION_VISUAL, needsAttention, readDrift } from "@/lib/reputation";
 import { getClientScopeId } from "@/lib/client-scope";
@@ -120,20 +119,28 @@ export default async function SubTenantsPage() {
             description="Give every client their own sending domain, verified and signed under their own name, with their bounces and complaints scored separately. They share our IP pool — so when one client&apos;s list goes bad, we throttle that client and the rest keep flowing."
           />
           {/* How it works — three plain steps, then the form on demand. */}
-          <div className="grid gap-4 sm:grid-cols-3">
+          {/* A real sequence — you cannot verify records that have not been
+              published — so it is drawn as one line with three stops, not as
+              three boxes that happen to be numbered. */}
+          <ol className="relative ml-3 border-l border-rule pl-7">
             {STEPS.map((s, i) => (
-              <Card key={s.title}>
-                <CardContent className="p-5">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="grid size-8 place-items-center rounded border border-rule text-ink-muted"><s.icon className="size-4" /></span>
-                    <span className="text-xs font-semibold text-muted-foreground">Step {i + 1}</span>
-                  </div>
-                  <p className="text-sm font-medium">{s.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{s.body}</p>
-                </CardContent>
-              </Card>
+              <li key={s.title} className="relative pb-7 last:pb-0">
+                <span
+                  aria-hidden
+                  className="absolute -left-[2.15rem] top-0 grid size-7 place-items-center rounded-full border border-rule bg-background shadow-knockout"
+                >
+                  <s.icon className="size-3.5 text-ink-muted" />
+                </span>
+                <p className="flex items-baseline gap-2 text-sm font-medium">
+                  <span className="font-mono text-[11px] text-muted-foreground" data-fact>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  {s.title}
+                </p>
+                <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">{s.body}</p>
+              </li>
             ))}
-          </div>
+          </ol>
           <div className="flex flex-wrap items-center gap-4">
             <Link href="/sub-tenants/new" className={cn(buttonVariants({ size: "lg" }))}>
               Set up your first client domain <ArrowRight className="size-4" />
@@ -192,85 +199,84 @@ export default async function SubTenantsPage() {
             </div>
           ) : null}
 
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">{list.length} client domain{list.length === 1 ? "" : "s"}</CardTitle>
-            </CardHeader>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Domain</TableHead>
-                    <TableHead>Client</TableHead>
-                    {/* Two axes, two columns. One "Status" column could only ever
-                        show one of them, and it showed the DNS one — so a client
-                        the sweep had automatically paused still read "verified". */}
-                    <TableHead>Verification</TableHead>
-                    <TableHead>Branch</TableHead>
-                    <TableHead>Sending</TableHead>
-                    <TableHead>Added</TableHead>
-                    <TableHead className="text-right" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {list.map((t) => {
-                    const acting = t.id === activeClientId;
-                    return (
-                      <TableRow
-                        key={t.id}
-                        className={cn(
-                          acting && "bg-primary/[0.04]",
-                          t.reputation.state === "paused" && "bg-stopped-tint",
-                        )}
+          {/* ONE TRUNK, MANY BRANCHES.
+              Seven columns of badges is a spreadsheet of a thing that is
+              actually a picture: every client hangs off one shared pool, and
+              the product's whole claim is that we can pinch one branch without
+              touching the others. `ClientLine` at page scale already draws
+              exactly that — shared pool → their domain → what their mail is
+              doing — so each client is that drawing with its name on it, and
+              the two axes that used to be columns (DNS, reputation) are the
+              stations of their own line. */}
+          <section>
+            <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink/20 pb-2">
+              <h2 className="text-sm font-medium uppercase tracking-wide">
+                {list.length} client domain{list.length === 1 ? "" : "s"}
+              </h2>
+              <span className="font-mono text-[11px] text-muted-foreground" data-fact>
+                one provider account · one IP pool · {list.length} separately-scored sender
+                {list.length === 1 ? "" : "s"}
+              </span>
+            </div>
+
+            <ul>
+              {list.map((t) => {
+                const acting = t.id === activeClientId;
+                const stopped = t.reputation.state === "paused" || readDrift(t)?.stopped === true;
+                return (
+                  <li
+                    key={t.id}
+                    className={cn(
+                      "-mx-3 border-b border-rule px-3 py-4",
+                      acting && "bg-primary/[0.04]",
+                      stopped && "bg-stopped-tint",
+                    )}
+                  >
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <Link
+                        href={`/sub-tenants/${t.id}`}
+                        className="font-medium tracking-heading hover:underline"
                       >
-                        <TableCell className="font-mono text-sm">
-                          <Link href={`/sub-tenants/${t.id}`} className="hover:underline">{t.sending_domain}</Link>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">{t.name}</TableCell>
-                        <TableCell><SubTenantStatusBadge status={t.status} /></TableCell>
-                        <TableCell>
-                          <ClientLine tenant={t} />
-                        </TableCell>
-                        <TableCell>
-                          {needsAttention(t.reputation.state) ? (
-                            // Straight to the numbers that explain it — the badge
-                            // alone answers "what", never "why".
-                            <Link href={`/sub-tenants/${t.id}`} className="hover:underline">
-                              <ReputationBadge state={t.reputation.state} />
-                            </Link>
-                          ) : (
-                            <ReputationBadge state={t.reputation.state} />
-                          )}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-muted-foreground">{relativeTime(t.created_at)}</TableCell>
-                        <TableCell className="text-right">
-                          {/* Registering a domain was as far as this page went — you
-                              could verify a client and then never actually WORK as
-                              them without calling the API by hand. This is the door
-                              into their mail, audience and numbers. */}
-                          {acting ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
-                              <Eye className="size-3.5" /> Viewing now
-                            </span>
-                          ) : (
-                            <ActionForm action={actAsClientForm} errorClassName="justify-end">
-                              <input type="hidden" name="id" value={t.id} />
-                              <button
-                                type="submit"
-                                className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors hover:bg-accent"
-                              >
-                                <Eye className="size-3.5" /> View as client
-                              </button>
-                            </ActionForm>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                        {t.name}
+                      </Link>
+                      <span className="font-mono text-xs text-muted-foreground" data-fact>
+                        {t.sending_domain}
+                      </span>
+                      {needsAttention(t.reputation.state) ? (
+                        <Link href={`/sub-tenants/${t.id}`}>
+                          <ReputationBadge state={t.reputation.state} />
+                        </Link>
+                      ) : null}
+                      <span className="ml-auto flex shrink-0 items-center gap-3">
+                        <span className="font-mono text-[11px] text-muted-foreground" data-fact>
+                          added {relativeTime(t.created_at)}
+                        </span>
+                        {acting ? (
+                          <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                            <Eye className="size-3.5" /> Viewing now
+                          </span>
+                        ) : (
+                          <ActionForm action={actAsClientForm} errorClassName="justify-end">
+                            <input type="hidden" name="id" value={t.id} />
+                            <button
+                              type="submit"
+                              className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors duration-interaction ease-interaction hover:bg-accent"
+                            >
+                              <Eye className="size-3.5" /> View as client
+                            </button>
+                          </ActionForm>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 overflow-x-auto pb-1">
+                      <ClientLine tenant={t} scale="page" />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         </Reveal>
       )}
     </>

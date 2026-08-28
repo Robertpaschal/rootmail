@@ -122,12 +122,16 @@ export function MessageFlow({ message }: { message: FlowInput }) {
     .join(" → ");
 
   return (
-    <span className="inline-flex items-center gap-2.5" title={title}>
+    <span className="inline-flex min-w-0 items-center gap-2.5" title={title}>
       <Line stations={stations} />
-      <span className="min-w-0">
+      {/* One line, always. In the register these sit in a fixed column and a
+          two-word status wrapping onto a second line makes one row twice the
+          height of its neighbours — which reads as significance the status does
+          not have. The reason truncates; it is printed in full on the record. */}
+      <span className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
         <span
           className={cn(
-            "text-xs font-medium",
+            "shrink-0 text-xs font-medium",
             state === "witnessed" && "text-witnessed",
             state === "stopped" && "text-stopped",
             // An inference is never drawn at full ink next to something we
@@ -139,7 +143,7 @@ export function MessageFlow({ message }: { message: FlowInput }) {
         </span>
         {state === "stopped" && message.error ? (
           <span
-            className="ml-1.5 truncate font-mono text-[10px] text-muted-foreground"
+            className="min-w-0 truncate font-mono text-[10px] text-muted-foreground"
             data-fact
             title={message.error}
           >

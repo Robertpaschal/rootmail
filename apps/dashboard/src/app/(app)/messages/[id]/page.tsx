@@ -93,15 +93,24 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
         </div>
       ) : null}
 
-      {/* The send tracker — advances on its own; sandbox gets its own treatment. */}
-      <div className="mb-6">
-        <LiveStatus id={message.id} initialMessage={message} initialTrail={trail} />
-      </div>
+      {/* A DOSSIER, not two stacked boxes.
+          A message detail is one record with a lifeline, so the page is laid
+          out as one: the record on the left — status, the line, every step we
+          witnessed — running down beside the email it describes. Stacked cards
+          made the delivery story a widget you scroll past on the way to the
+          content; here the two are read together, which is the whole point of
+          keeping a record at all. */}
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:items-start">
+        {/* The send tracker — advances on its own; sandbox gets its own treatment. */}
+        {/* `top-20`: clear of the app's `sticky top-0 h-16` topbar. */}
+        <div className="lg:sticky lg:top-20">
+          <LiveStatus id={message.id} initialMessage={message} initialTrail={trail} />
+        </div>
 
-      {/* Recipient + content + details as ONE object, the way a mail client
-          shows an email. Depth is layered behind the header chevron rather
-          than spread across four boxes in a side rail. */}
-      <MessageCard
+        {/* Recipient + content + details as ONE object, the way a mail client
+            shows an email. Depth is layered behind the header chevron rather
+            than spread across four boxes in a side rail. */}
+        <MessageCard
         message={message}
         fromLabel={fromLabel}
         sentAt={sentAt}
@@ -116,8 +125,8 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
           status: m.status,
           sent_at: m.sent_at,
         }))}
-      />
-
+        />
+      </div>
     </>
   );
 }

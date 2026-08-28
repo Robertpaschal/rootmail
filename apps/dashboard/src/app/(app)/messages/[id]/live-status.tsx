@@ -22,7 +22,6 @@ import { type MessageSnapshot, refreshMessage, retryMessage, simulateEvent } fro
 import type { SimulatableEvent } from "@/lib/rootmail";
 import type { AuditEntry, Message } from "@/lib/types";
 import { buttonVariants } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 // Everyday-user view of a send: a status headline + a stage tracker that advances
@@ -337,8 +336,15 @@ export function LiveStatus({
   const timeline = trail;
 
   return (
-    <Card>
-      <CardContent className="space-y-5 p-6">
+    // NOT a card. The send record is the SPINE of this page — the thing the
+    // page is about — and boxing it made it one widget of two, sitting above a
+    // second box of equal weight. It sits directly on the ground now, under the
+    // page's own rule, with the email itself beside it.
+    <div>
+      <h2 className="border-b border-ink/20 pb-2 text-sm font-medium uppercase tracking-wide text-muted-foreground">
+        The record
+      </h2>
+      <div className="space-y-5 pt-5">
         {simulated ? (
           // A sandbox send is not an intervention and not a failure, so it gets
           // no signal colour — a dashed rule, which is what "we did not do this
@@ -424,8 +430,8 @@ export function LiveStatus({
         ) : null}
 
         {simulated ? <SimulatePanel id={id} onUpdate={apply} status={message.status} /> : null}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 

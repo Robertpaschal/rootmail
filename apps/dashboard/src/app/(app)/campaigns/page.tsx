@@ -1,30 +1,18 @@
 import Link from "next/link";
-import { ActionForm } from "@/components/app/action-form";
-import { ArrowRight, BarChart3, Megaphone, Plus, Send, Split, Trash2, Users } from "lucide-react";
+import { ArrowRight, BarChart3, Megaphone, Plus, Split, Users } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
 import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/components/app/feature-locked";
 import { PageHeader } from "@/components/app/page-header";
 import { Reveal } from "@/components/app/motion";
-import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { relativeTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Campaign } from "@/lib/types";
-import { deleteCampaign } from "./actions";
+import { CampaignBoard } from "./campaign-board";
 
-const STATUS_VARIANT: Record<Campaign["status"], "secondary" | "warning" | "success"> = {
-  draft: "secondary",
-  scheduled: "warning",
-  sending: "warning",
-  sent: "success",
-};
-
-// The campaign story in three beats — shown when there's nothing yet, so the
-// empty page teaches the flow and doubles as the call to action.
+// The campaign story in three beats — a REAL sequence, so it is numbered and
+// drawn as one: each beat only makes sense after the one before it. (The three
+// bordered tiles this used to be encoded nothing; three tiles is what every
+// other empty state in the product also was.)
 const BEATS = [
   {
     icon: Users,
@@ -111,20 +99,29 @@ export default async function CampaignsPage() {
               </Link>
             }
           />
-          <div className="grid gap-4 sm:grid-cols-3">
+          {/* A numbered sequence, because this genuinely IS one — you cannot
+              design the message before you know who it is for. Drawn as a
+              single spine rather than three equal boxes, which is the shape of
+              three unrelated things. */}
+          <ol className="relative ml-3 border-l border-rule pl-7">
             {BEATS.map((b, i) => (
-              <Card key={b.title}>
-                <CardContent className="p-5">
-                  <div className="mb-3 flex items-center gap-2">
-                    <span className="grid size-8 place-items-center rounded border border-rule text-ink-muted"><b.icon className="size-4" /></span>
-                    <span className="text-xs font-semibold text-muted-foreground">Step {i + 1}</span>
-                  </div>
-                  <p className="text-sm font-medium">{b.title}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{b.body}</p>
-                </CardContent>
-              </Card>
+              <li key={b.title} className="relative pb-7 last:pb-0">
+                <span
+                  aria-hidden
+                  className="absolute -left-[2.15rem] top-0 grid size-7 place-items-center rounded-full border border-rule bg-background shadow-knockout"
+                >
+                  <b.icon className="size-3.5 text-ink-muted" />
+                </span>
+                <p className="flex items-baseline gap-2 text-sm font-medium">
+                  <span className="font-mono text-[11px] text-muted-foreground" data-fact>
+                    {String(i + 1).padStart(2, "0")}
+                  </span>
+                  {b.title}
+                </p>
+                <p className="mt-1 max-w-xl text-sm leading-relaxed text-muted-foreground">{b.body}</p>
+              </li>
             ))}
-          </div>
+          </ol>
           <p className="text-sm text-muted-foreground">
             Need contacts first?{" "}
             <Link href="/contacts?add=import" className="text-primary hover:underline">Import them from a file</Link>
@@ -134,70 +131,7 @@ export default async function CampaignsPage() {
         </Reveal>
       ) : (
         <Reveal>
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Results</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right" />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {list.map((c) => (
-                    <TableRow key={c.id}>
-                      <TableCell>
-                        <Link href={`/campaigns/${c.id}`} className="font-medium hover:underline">
-                          {c.name}
-                        </Link>
-                        {c.segment_tag ? (
-                          <span className="ml-2 text-xs text-muted-foreground">tag: {c.segment_tag}</span>
-                        ) : null}
-                        {c.variants.length > 0 ? (
-                          <Badge variant="outline" className="ml-2 text-[10px]">A/B ×{c.variants.length + 1}</Badge>
-                        ) : null}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={STATUS_VARIANT[c.status]}>{c.status}</Badge>
-                      </TableCell>
-                      <TableCell className="text-xs text-muted-foreground">
-                        {c.status === "sent"
-                          ? `${c.stats.sent} sent · ${c.stats.suppressed} suppressed`
-                          : c.stats.recipients
-                            ? `${c.stats.recipients} recipients`
-                            : "—"}
-                      </TableCell>
-                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">{relativeTime(c.created_at)}</TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {/* Sending from a table row gave no audience count, no readiness
-                              check and no confirm — for the one action that can't be undone.
-                              It goes to the campaign, where all three live. */}
-                          {c.status === "draft" || c.status === "scheduled" ? (
-                            <Link
-                              href={`/campaigns/${c.id}`}
-                              className={cn(buttonVariants({ size: "sm", variant: "outline" }))}
-                            >
-                              <Send className="size-3.5" /> Review &amp; send
-                            </Link>
-                          ) : null}
-                          <ActionForm action={deleteCampaign} className="inline">
-                            <input type="hidden" name="id" value={c.id} />
-                            <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
-                              <Trash2 className="size-4" />
-                            </Button>
-                          </ActionForm>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+          <CampaignBoard campaigns={list} />
         </Reveal>
       )}
     </>

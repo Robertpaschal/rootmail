@@ -235,69 +235,84 @@ export default async function OverviewPage() {
 
       {/* Shared sending health — reputation + the whole funnel belong to the
           workspace, not a wing, so they lead. */}
-      <Reveal delay={0.03} className="grid gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Deliverability</CardTitle>
-            <Link
-              href="/deliverability"
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              Details <ArrowRight className="size-3.5" />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {deliver && deliver.score != null ? (
-              <div className="flex items-center gap-4">
-                <span
-                  className={cn(
-                    "grid size-14 shrink-0 place-items-center rounded-full text-xl font-bold",
-                    gradeTone(deliver.grade),
-                  )}
-                >
-                  {deliver.grade ?? "—"}
-                </span>
-                <Metric
-                  value={`${deliver.score}/100`}
-                  label={deliver.status.replace("_", " ")}
-                  window={`${deliver.window_days}d`}
-                  method="bounce + complaint + suppression mix"
-                  threshold={deliver.confidence === "high" ? undefined : `confidence: ${deliver.confidence}`}
-                />
-              </div>
-            ) : (
-              // "A few" is the wrong number and there is a right one. The
-              // scorer damps below 20 judged sends and refuses to score at all
-              // with none (packages/core/src/deliverability.ts) — so that is
-              // the figure, not a rounder one that reads better.
-              <p className="text-sm text-muted-foreground">
-                Not enough sending to score yet — we need about <Fact>20</Fact> judged
-                messages in the window before a score means anything.
-              </p>
-            )}
-            {deliver?.recommendations?.length ? (
-              <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">{deliver.recommendations[0]}</p>
-            ) : null}
-          </CardContent>
-        </Card>
+      {/* SENDING HEALTH, AS ONE STATEMENT — not two boxes of numbers.
+          The score and the funnel are the same measurement read at two zoom
+          levels, so they sit on one band under one rule: the grade, then the
+          journey those sends took, then the share that ended badly. Two Cards
+          made them look like two unrelated readings you have to reconcile. */}
+      <Reveal delay={0.03}>
+        <section>
+          <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink/20 pb-2">
+            <h2 className="text-sm font-medium uppercase tracking-wide">Everything you send · 30 days</h2>
+            <span className="flex items-center gap-4">
+              <Link
+                href="/messages?status=bounced"
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors duration-interaction ease-interaction",
+                  bounceRate > 5
+                    ? "border-stopped/40 bg-stopped-tint text-stopped"
+                    : bounceRate > 2
+                      ? "border-acted/40 bg-acted-tint text-acted"
+                      : "text-muted-foreground hover:text-foreground",
+                )}
+                title="Bounces + spam complaints as a share of everything sent"
+              >
+                <TriangleAlert className="size-3.5" /> {pct(bounceRate)} bounced / spam
+              </Link>
+              <Link href="/deliverability" className="text-sm text-primary hover:underline">
+                Deliverability <ArrowRight className="inline size-3.5" />
+              </Link>
+              <Link href="/analytics?scope=all" className="text-sm text-primary hover:underline">
+                Analytics <ArrowRight className="inline size-3.5" />
+              </Link>
+            </span>
+          </div>
 
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Everything you send · 30 days</CardTitle>
-            <Link
-              href="/analytics?scope=all"
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-            >
-              Analytics <ArrowRight className="size-3.5" />
+          <div className="space-y-6 pt-5">
+            {/* The grade, as the first fact on the band rather than its own card. */}
+            <Link href="/deliverability" className="flex items-center gap-3">
+              {deliver && deliver.score != null ? (
+                <>
+                  <span
+                    className={cn(
+                      "display-num grid size-14 shrink-0 place-items-center rounded-full text-xl",
+                      gradeTone(deliver.grade),
+                    )}
+                  >
+                    {deliver.grade ?? "—"}
+                  </span>
+                  <Metric
+                    value={`${deliver.score}/100`}
+                    label={deliver.status.replace("_", " ")}
+                    window={`${deliver.window_days}d`}
+                    method="bounce + complaint + suppression mix"
+                    threshold={deliver.confidence === "high" ? undefined : `confidence: ${deliver.confidence}`}
+                  />
+                </>
+              ) : (
+                // "A few" is the wrong number and there is a right one: the
+                // scorer damps below 20 judged sends and refuses to score with
+                // none (packages/core/src/deliverability.ts).
+                <span className="max-w-sm text-sm text-muted-foreground">
+                  Not enough sending to score yet — we need about <Fact>20</Fact> judged messages in
+                  the window before a score means anything.
+                </span>
+              )}
             </Link>
-          </CardHeader>
-          <CardContent>
+
             {funnel ? (
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-4">
+              /* A fixed four-up, not a wrapping row: the funnel is an ORDER,
+                 and a row that wraps three-then-one puts "clicked" underneath
+                 "sent" as if it followed it. The chain is drawn as a rule
+                 between the columns rather than as arrows that wrap on their
+                 own. */
+              <div className="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-rule pt-5 lg:grid-cols-4">
                 {funnel.map((s, i) => (
                   <Fragment key={s.label}>
-                    {i > 0 ? <ArrowRight className="size-4 shrink-0 text-muted-foreground/40" /> : null}
-                    <Link href="/analytics?scope=all" className="min-w-[150px] flex-1">
+                    <Link
+                      href="/analytics?scope=all"
+                      className={cn("min-w-0", i > 0 && "border-l border-rule pl-6")}
+                    >
                       {s.inferred ? (
                         <Metric
                           value={s.value}
@@ -320,28 +335,18 @@ export default async function OverviewPage() {
                     </Link>
                   </Fragment>
                 ))}
-                <Link
-                  href="/messages?status=bounced"
-                  className={cn(
-                    "ml-auto inline-flex items-center gap-1.5 self-start rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                    bounceRate > 5
-                      ? "border-stopped/40 bg-stopped-tint text-stopped"
-                      : bounceRate > 2
-                        ? "border-acted/40 bg-acted-tint text-acted"
-                        : "text-muted-foreground hover:text-foreground",
-                  )}
-                  title="Bounces + spam complaints as a share of everything sent"
-                >
-                  <TriangleAlert className="size-3.5" /> {pct(bounceRate)} bounced / spam
-                </Link>
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">
                 Send a few emails and your journey — sent, delivered, opened, clicked — shows up here.
               </p>
             )}
-          </CardContent>
-        </Card>
+          </div>
+
+          {deliver?.recommendations?.length ? (
+            <p className="mt-4 max-w-3xl text-sm text-muted-foreground">{deliver.recommendations[0]}</p>
+          ) : null}
+        </section>
       </Reveal>
 
       {/* The two wings, each self-contained: its own metric, its own compose action,
@@ -470,51 +475,47 @@ export default async function OverviewPage() {
 
       {/* Recent activity + the workspace (the product you're in) with its billing. */}
       <Reveal delay={0.16} className="grid gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader className="flex-row items-center justify-between space-y-0">
-            <CardTitle className="text-base">Recent messages</CardTitle>
-            <Link href="/messages" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
-              View all <ArrowRight className="size-3.5" />
+        <section className="lg:col-span-2">
+          <div className="flex items-baseline justify-between gap-2 border-b border-ink/20 pb-2">
+            <h2 className="text-sm font-medium uppercase tracking-wide">Latest out the door</h2>
+            <Link href="/messages" className="text-sm text-primary hover:underline">
+              The whole register <ArrowRight className="inline size-3.5" />
             </Link>
-          </CardHeader>
-          <CardContent className="p-0">
-            {recent.length === 0 ? (
-              <p className="px-6 pb-6 text-sm text-muted-foreground">
-                The first message you send appears here within seconds, with the line showing how
-                far it got.
-              </p>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Status</TableHead>
-                    <TableHead>To</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead className="text-right">Sent</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recent.map((m) => (
-                    <TableRow key={m.id}>
-                      <TableCell>
-                        <MessageFlow message={m} />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        <Link href={`/messages/${m.id}`} className="hover:underline">
-                          {m.to}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="max-w-[220px] truncate text-muted-foreground">{m.subject}</TableCell>
-                      <TableCell className="whitespace-nowrap text-right text-muted-foreground">
-                        {relativeTime(m.created_at)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+          </div>
+          {recent.length === 0 ? (
+            <p className="pt-5 text-sm text-muted-foreground">
+              The first message you send appears here within seconds, with the line showing how far
+              it got.
+            </p>
+          ) : (
+            /* The same object as /messages, at ten rows: the line leads, the
+               recipient identifies, the subject is secondary. A four-column
+               table here and a register there would be two vocabularies for
+               one thing. */
+            <ul className="mt-1">
+              {recent.map((m) => (
+                <li key={m.id} className="border-b border-rule">
+                  <Link
+                    href={`/messages/${m.id}`}
+                    className="-mx-2 flex items-center gap-4 rounded-md px-2 py-2.5 transition-colors duration-interaction ease-interaction hover:bg-secondary/40"
+                  >
+                    <MessageFlow message={m} />
+                    <span className="w-full min-w-0 truncate text-sm font-medium sm:w-56">{m.to}</span>
+                    <span className="hidden min-w-0 flex-1 truncate text-sm text-muted-foreground sm:block">
+                      {m.subject || "(no subject)"}
+                    </span>
+                    <span
+                      className="shrink-0 whitespace-nowrap font-mono text-[11px] text-muted-foreground"
+                      data-fact
+                    >
+                      {relativeTime(m.created_at)}
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
 
         {/* The workspace IS the product the user has — so it's titled by its name,
             and carries both the at-a-glance contents and the billing. */}
