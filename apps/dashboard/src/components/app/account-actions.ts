@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { SIGNED_IN_HOME } from "@/lib/home";
 import { firstLiveIndex, pruneRoster } from "@/lib/accounts";
 import { CLIENT_SCOPE_COOKIE } from "@/lib/client-scope";
 import { api } from "@/lib/rootmail";
@@ -90,7 +91,7 @@ export async function switchAccount(index: number): Promise<AccountActionState> 
   // across identities produces a 404 at best and, at worst, a page that looks
   // like the other account's data failed to load.
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(SIGNED_IN_HOME);
 }
 
 /**
@@ -126,7 +127,7 @@ export async function signOutAccount(): Promise<never> {
   const kept = remaining.filter((_, i) => i >= next);
   await writeRoster(kept, 0);
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(SIGNED_IN_HOME);
 }
 
 /** Sign out of every account on this browser, revoking each session. */

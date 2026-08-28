@@ -74,11 +74,11 @@ export default async function MessagesPage({
   return (
     <>
       <PageHeader
-        title="Messages"
+        title="Mail"
         description="Every email that leaves your account — one-to-one sends, campaign mail, sequence steps — each with its recipient and full delivery story."
         actions={
           <Link href="/messages/new" className={cn(buttonVariants({ size: "sm" }))}>
-            <Plus className="size-4" /> Send
+            <Plus className="size-4" /> Write
           </Link>
         }
       />

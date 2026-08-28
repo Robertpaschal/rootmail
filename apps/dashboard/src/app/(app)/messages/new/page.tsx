@@ -1,6 +1,6 @@
-import Link from "next/link";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { Line } from "@rootmail/design";
 import { PageHeader } from "@/components/app/page-header";
+import { SEND_HALT_REASON } from "@/lib/home";
 import { api } from "@/lib/rootmail";
 import type { SubTenant, TestRecipient } from "@/lib/types";
 import { SendForm, type ComposeTemplate } from "./send-form";
@@ -55,28 +55,19 @@ export default async function NewMessagePage({
     <>
       <PageHeader
         title="New email"
-        description="Write it, see it, send it — the preview shows exactly what your recipient gets."
+        description="Write it and see exactly what the recipient would get."
         backHref="/messages"
-        backLabel="Messages"
+        backLabel="Mail"
       />
       {senders.length === 0 ? (
-        <div className="mb-6 flex flex-col gap-3 rounded-lg border border-acted/50 bg-acted-tint p-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 size-5 shrink-0 text-acted" />
-            <div>
-              <p className="text-sm font-medium">Send from your own address — one-time setup (~5 min)</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                Add an address like hello@yourcompany.com and click the link we email to confirm it.
-                Until then, email goes out from a rootmail address.
-              </p>
-            </div>
-          </div>
-          <Link
-            href="/settings/sender"
-            className="inline-flex shrink-0 items-center gap-1 self-start rounded-md bg-acted px-3 py-1.5 text-sm font-medium text-white hover:bg-acted sm:self-center"
-          >
-            Verify a sender <ArrowRight className="size-4" />
-          </Link>
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <Line
+            stations={[
+              { label: "Write", state: "unknown" },
+              { label: "Send", state: "stopped", reason: "no sending identity" },
+            ]}
+          />
+          <p className="text-sm text-ink-muted">{SEND_HALT_REASON}</p>
         </div>
       ) : null}
       <SendForm
@@ -88,6 +79,7 @@ export default async function NewMessagePage({
         testRecipients={testRecipients}
         myEmail={myEmail}
         productName={productName}
+        canSend={senders.length > 0}
       />
     </>
   );

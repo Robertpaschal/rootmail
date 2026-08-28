@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { SEND_HALT_REASON } from "@/lib/home";
+import { operatorReason } from "@/lib/provider-copy";
 import { ApiError, ConnectionError, api, type SendBody, type SimulatableEvent } from "@/lib/rootmail";
 import type { AuditEntry, Message } from "@/lib/types";
 
@@ -49,6 +51,17 @@ export async function simulateEvent(id: string, event: SimulatableEvent): Promis
     // best-effort — the refresh below reflects whatever actually changed
   }
   return refreshMessage(id);
+}
+
+async function haltUnlessSendable(): Promise<string | null> {
+
+  try {
+    const snd = await api.listSenders();
+    if (snd.data.some((s) => s.status === "verified")) return null;
+  } catch {
+    /* cannot tell — do not send */
+  }
+  return SEND_HALT_REASON;
 }
 
 export async function sendMessage(
@@ -109,12 +122,15 @@ export async function sendMessage(
     }
   }
 
+  const halted = await haltUnlessSendable();
+  if (halted) return { error: halted };
+
   let id: string;
   try {
     const msg = await api.send(body);
     id = msg.id;
   } catch (err) {
-    if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
+    if (err instanceof ConnectionError || err instanceof ApiError) return { error: operatorReason(err.message) ?? err.message };
     return { error: "Failed to send the message." };
   }
 
@@ -170,6 +186,8 @@ export async function sendTestMessage(input: {
 }): Promise<string | null> {
   if (!input.subject && !input.template) return "Add a subject (or pick a template) first.";
   if (!input.html && !input.template) return "Write something in the body first.";
+  const halted = await haltUnlessSendable();
+  if (halted) return halted;
   try {
     await api.send({
       to: input.to,
@@ -183,7 +201,7 @@ export async function sendTestMessage(input: {
     revalidatePath("/messages");
     return null;
   } catch (err) {
-    if (err instanceof ApiError || err instanceof ConnectionError) return err.message;
+    if (err instanceof ApiError || err instanceof ConnectionError) return operatorReason(err.message) ?? err.message;
     return "Couldn't send the test. Please try again.";
   }
 }
