@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adoptToken } from "@/lib/accounts";
 import { appUrl } from "@/lib/oauth";
+import { SIGNED_IN_HOME } from "@/lib/home";
 import { api, samlAcs } from "@/lib/rootmail";
 import { ADD_ACCOUNT_COOKIE, applyRoster } from "@/lib/session";
 
@@ -52,7 +53,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       await api.logout(session.session_token).catch(() => undefined);
       return NextResponse.redirect(appUrl(`/login?add=1&refused=${next.reason}`), 303);
     }
-    const res = applyRoster(NextResponse.redirect(appUrl("/"), 303), next.tokens, next.activeIndex);
+    const res = applyRoster(NextResponse.redirect(appUrl(SIGNED_IN_HOME), 303), next.tokens, next.activeIndex);
     res.cookies.delete(ADD_ACCOUNT_COOKIE);
     return res;
   } catch {

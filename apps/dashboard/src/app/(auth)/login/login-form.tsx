@@ -59,12 +59,7 @@ export function LoginForm({ add = false }: { add?: boolean }) {
         <Input id="email" name="email" type="email" autoComplete="email" autoFocus required />
       </div>
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="password">Password</Label>
-          <a href="/forgot-password" className="text-xs text-muted-foreground hover:text-foreground hover:underline">
-            Forgot password?
-          </a>
-        </div>
+        <Label htmlFor="password">Password</Label>
         <Input
           id="password"
           name="password"

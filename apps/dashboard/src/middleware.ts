@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { SIGNED_IN_HOME } from "@/lib/home";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session";
 
 const PUBLIC_PATHS = ["/login", "/signup"];
@@ -92,7 +93,13 @@ export function middleware(req: NextRequest) {
   const addingAccount = req.nextUrl.searchParams.get("add") === "1";
   if (hasSession && isPublic && !addingAccount) {
     const url = req.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = SIGNED_IN_HOME;
+    return syncHint(req, hasSession, NextResponse.redirect(url));
+  }
+
+  if (hasSession && pathname === "/") {
+    const url = req.nextUrl.clone();
+    url.pathname = SIGNED_IN_HOME;
     return syncHint(req, hasSession, NextResponse.redirect(url));
   }
 

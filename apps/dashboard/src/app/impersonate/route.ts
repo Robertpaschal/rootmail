@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { api } from "@/lib/rootmail";
 import { applyRoster } from "@/lib/session";
 import { appUrl } from "@/lib/urls";
+import { SIGNED_IN_HOME } from "@/lib/home";
 
 export const dynamic = "force-dynamic";
 
@@ -13,15 +14,15 @@ export const dynamic = "force-dynamic";
  * cookie — the most valuable moment to steal a click. So it is an allow-shaped
  * check, not a deny-list.
  *
- * A path only. It must start with a single "/" — "//evil.com" and "/\evil.com"
+ * A path only. It must start with a single "/" — "//evil.com" and "/\\evil.com"
  * are both browser-legal ways to leave this origin, and a value containing ":"
  * can carry a scheme. Anything else silently becomes the dashboard home; there
  * is nothing for a caller to learn from an error here.
  */
 function safeNext(raw: string | null): string {
-  if (!raw || !raw.startsWith("/")) return "/";
-  if (raw.startsWith("//") || raw.startsWith("/\\")) return "/";
-  if (raw.includes(":") || raw.includes("\\")) return "/";
+  if (!raw || !raw.startsWith("/")) return SIGNED_IN_HOME;
+  if (raw.startsWith("//") || raw.startsWith("/\\")) return SIGNED_IN_HOME;
+  if (raw.includes(":") || raw.includes("\\")) return SIGNED_IN_HOME;
   return raw;
 }
 
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
   }
 
   /*
-   * ── A SUPPORT SESSION IS NEVER A PEER ────────────────────────────────────
+   * ── A SUPPORT SESSION IS NEVER A PEER ────────────────────────────
    *
    * An impersonated session REPLACES the whole account roster. It never joins
    * one, and nothing may join it.

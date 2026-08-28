@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { appUrl, exchangeCode, fetchProfile, getProvider, isConfigured } from "@/lib/oauth";
+import { SIGNED_IN_HOME } from "@/lib/home";
 import { adoptToken } from "@/lib/accounts";
 import { api, oauthUpsert } from "@/lib/rootmail";
 import { ADD_ACCOUNT_COOKIE, applyRoster } from "@/lib/session";
@@ -66,7 +67,7 @@ export async function GET(
     });
 
     const res = await landSession(
-      NextResponse.redirect(appUrl("/")),
+      NextResponse.redirect(appUrl(SIGNED_IN_HOME)),
       session.session_token,
       req.cookies.get(ADD_ACCOUNT_COOKIE)?.value === "1",
       302,
@@ -130,7 +131,7 @@ export async function POST(
     });
 
     const res = await landSession(
-      NextResponse.redirect(appUrl("/"), 303),
+      NextResponse.redirect(appUrl(SIGNED_IN_HOME), 303),
       session.session_token,
       req.cookies.get(ADD_ACCOUNT_COOKIE)?.value === "1",
       303,
