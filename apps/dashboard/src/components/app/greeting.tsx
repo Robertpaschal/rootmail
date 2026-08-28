@@ -9,7 +9,7 @@ export function Greeting({ name }: { name: string }) {
   const [hi, setHi] = useState("Welcome back");
   useEffect(() => {
     const h = new Date().getHours();
-    setHi(h < 5 ? "Working late" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
+    setHi(h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening");
   }, []);
   return (
     <>
