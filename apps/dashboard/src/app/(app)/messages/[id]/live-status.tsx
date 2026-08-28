@@ -423,7 +423,7 @@ export function LiveStatus({
         {/* Diagnose (only when something went wrong) */}
         {errorish ? (
           <Link
-            href={`/assistant?prompt=${encodeURIComponent(`Why did the email to ${message.to} ${message.status}? (message id ${message.id}) Explain the cause in plain terms and how to fix it.`)`}
+            href={`/assistant?prompt=${encodeURIComponent(`Why did the email to ${message.to} ${message.status}? (message id ${message.id}) Explain the cause in plain terms and how to fix it.`)}`}
             className={cn(buttonVariants({ variant: "outline", size: "sm" }))}
           >
             <Sparkles className="mr-1.5 size-4" /> Ask the assistant what happened
