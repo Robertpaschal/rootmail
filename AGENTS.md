@@ -1,90 +1,128 @@
-# AGENTS.md — working notes for rootmail
+# AGENTS.md — read this first
 
-rootmail is a unified email-infrastructure platform (see `README.md`). This file
-captures the non-obvious things an agent needs to work here productively.
+Vendor-neutral brief for **any** AI agent working on rootmail (Claude, GPT, Gemini,
+Grok, Copilot, Cursor, or a human picking this up cold). Several agents from
+different tools work on this repo, sometimes at the same time.
 
-## Layout
-- `apps/api` — Fastify REST gateway (auth, idempotency, rate-limit, routes)
-- `apps/worker` — BullMQ send pipeline (suppression → render → provider → audit)
-- `apps/marketing` — Next.js (App Router) marketing site; standalone, **no backend deps** (keeps the modular boundary clean). Tailwind v3 + hand-written shadcn/ui (new-york).
-- `apps/dashboard` — Next.js (App Router) operator console. Talks to the API **server-side only** (Server Components/Actions), authenticating as the **user**: the session token (`rm_session` httpOnly cookie) is sent as the Bearer, and the API accepts **both** session tokens and API keys (`apps/api/src/plugins/auth.ts`). So everyday use needs **no API key** — keys are an opt-in developer feature. Nav is grouped (Messaging/Audience/Content/Insights/Developers/Workspace) with a `/settings` hub. `ROOTMAIL_API_URL` (default `http://localhost:4000`).
-- `apps/admin` — Next.js (App Router) **internal staff** console (Phase 7). Same server-side pattern as the dashboard but a **separate staff session** (`rm_staff_session` httpOnly cookie) over the cross-org `/v1/admin/*` API. Distinct near-black theme so staff can't confuse it with the customer dashboard. `pnpm admin` (dev). No staff are seeded — bootstrap the first one (a superadmin) via the gated, one-time `POST /v1/admin/auth/bootstrap` (`{email,password,secret:INTERNAL_API_SECRET}`; allowed only while zero staff exist, then closed). The superadmin manages the rest in-app (roles superadmin/billing/support/readonly, enforced by capability via `STAFF_ROLE_PERMISSIONS`).
-- `packages/core` — ids, env, crypto, DKIM, DNS verify, queue, render, errors, shared `constants`
-- `packages/db` — Drizzle schema (single `src/schema.ts`), client, migrations, seed
-- `packages/sdk` — `@rootmail/node`
-- `scripts/smoke.ts` — end-to-end acceptance test via the SDK
+`CLAUDE.md` carries the same rules plus the long list of hard-won gotchas. **Read
+it too** — most of what it contains is invisible to a typecheck and has already
+cost a production incident at least once each.
 
-## Run it
+---
+
+## ⛔ Two standing rules. Break either and the work gets reverted.
+
+### 1. Information architecture is the product. Do not redesign it.
+
+**Owner, 2026-08-28:** *"we can improve the product to be cohesive in product
+design language but we cannot lose what worked and ease of access in the
+dashboard as it were."*
+
+- **Visual language** — type, colour, depth, curves, motion. Lives in
+  `packages/design`, changes in one file, reversible. **Improve this freely.**
+- **Information architecture and interaction** — what is in the nav, what a page
+  IS, how a list sorts, where things live. **This is the product**, and it is what
+  users already learned.
+
+Two failures shipped to production because agents blurred these:
+
+- The sidebar was cut to "Mail + Settings", deleting every other destination
+  (`625a677`). The owner found it live.
+- Nine routes were reshaped (`5a959da`) — `/messages` from a sortable table into
+  a "register", `/contacts` into a "roster" — justified by an opinion about what
+  operators ask, asserted with no evidence, removing a control that worked.
+
+Both reverted in `f6c3ca7`. **If a change alters what is in the nav, what a page
+IS, or removes a control that worked, that is a product decision: ask first, and
+never ship it inside a design change.** Keeping the existing pattern is the
+default; the burden of proof is on replacing it.
+
+### 2. Never draw a solid line through something we did not observe.
+
+The product's entire thesis is that email is a chain of custody and the enemy is
+the black box. The "line" has four states and they are a **rendering law**, not
+styling:
+
+| state | meaning |
+|---|---|
+| solid | we witnessed it — a provider confirmed it, or we did it |
+| hollow | we **inferred** it — a tracking pixel, a heuristic |
+| dotted | we do not know, or it is not built |
+| severed | it stopped, and a number says why |
+
+An open is a pixel firing (roughly a third are a mail client pre-loading images)
+and a click can be a security scanner, so `opened`/`clicked` render **hollow,
+forever**. `messageStations()` in `packages/design/src/line.tsx` encodes this so a
+caller cannot get it wrong; `<Metric>` requires `window` and `method` **by type**,
+so a sourceless number cannot be constructed.
+
+This is enforced, not trusted — see the checker below. Nothing here is decorative:
+the dashboard once shipped `opened` at the same weight as `delivered`, which is
+the industry's founding lie, in our own product.
+
+---
+
+## Where things stand (2026-08-28)
+
+- Branch `main`, HEAD **`f6c3ca7`**, working tree clean.
+- **Production is running `f6c3ca7`** on all five services. All four public
+  surfaces return 200: `rootmail.io`, `app.rootmail.io`, `developers.rootmail.io`,
+  `internal.rootmail.io`. API `/health` 200, 0 restarts.
+- Gates green: `pnpm typecheck` 13/13 · `pnpm test` 4/4 suites (30 API incl.
+  tenant isolation, 27 db) · `pnpm build` 6/6 · `design-audit` exits 0.
+- `apps/worker` is intentionally **not** on this SHA — no worker code changed, and
+  that host builds by image name rather than pulling (see `CLAUDE.md`).
+
+### Recently done
+A cohesive design system ("Ledger Luminous": Fraunces for headlines and figures,
+Schibsted Grotesk for UI, JetBrains Mono for recorded values, brass accent,
+`--radius: 1rem`, depth as a token) applied across all four apps from one file.
+A live DNS auditor at `/check`. And a real bug fixed: the docs promised an
+`Idempotency-Key` header the API never read, so anyone not using our SDK got a
+duplicate email on every retry, silently.
+
+### Known open items
+1. ~12 lower-traffic dashboard routes still generic tables (`/analytics`,
+   `/sequences` are the best candidates). **Restyle only — see rule 1.**
+2. Admin's authed pages (`/our-workspace`, `/orgs/[id]`, `/staff`) are built and
+   typechecked but were never walked in a browser.
+3. `/changelog` is the densest page on the site (337 words per 1,000px).
+
+---
+
+## Verify your work
+
 ```bash
-pnpm install
-pnpm infra:up            # Docker Postgres + Redis
-pnpm db:migrate && pnpm db:seed   # seed prints API keys
-pnpm api                 # terminal 1
-pnpm worker              # terminal 2
-ROOTMAIL_API_KEY=rm_live_... pnpm exec tsx scripts/smoke.ts
+pnpm infra:up                            # Docker Postgres :5435 + Redis :6380
+pnpm typecheck && pnpm test && pnpm build
+pnpm exec tsx scripts/design-audit.ts    # must exit 0
 ```
 
-## Gotchas (learned the hard way)
-- **Ports:** this machine already runs Postgres on 5432/5433/5434 and Redis on
-  6379. rootmail's Docker publishes on **5435 / 6380** via `POSTGRES_PORT` /
-  `REDIS_PORT` in `.env`. Keep `DATABASE_URL` / `REDIS_URL` in sync.
-- **pnpm build scripts:** esbuild, msgpackr-extract, and `sharp` (Next.js's image
-  optimizer, an optional dep of `next`) need approval. This lives in root
-  `package.json` → `pnpm.onlyBuiltDependencies` (the `pnpm-workspace.yaml` setting
-  was NOT honored by this pnpm version). Leave an ignored build unapproved and
-  pnpm's pre-run dependency check fails *every* script with `ERR_PNPM_IGNORED_BUILDS`.
-- **Next.js dev ports:** `apps/marketing` and `apps/dashboard` have no hardcoded
-  `--port` — they use Next's default via the `PORT` env var. Port 3000 collides with
-  Docker on this machine, so the preview harness (`.Codex/launch.json`,
-  `autoPort: true`) picks a free port. Run them with `pnpm marketing` / `pnpm dashboard`.
-- **ioredis is duplicated** (BullMQ pins a different patch). We present our
-  connection as BullMQ's `ConnectionOptions` at the boundary — see
-  `bullConnection()` in `packages/core/src/queue.ts` and the cast in
-  `apps/worker/src/index.ts`. Don't remove these casts.
-- **BullMQ queue names can't contain `:`** → `SEND_QUEUE = "rootmail-send"`.
-- **Drizzle `.nullsNotDistinct()`** isn't available in this version. Uniqueness
-  that should treat workspace-level (null `sub_tenant_id`) rows as distinct from
-  tenant rows is enforced in app code (select-then-write), not the DB.
-- **DNS verification:** `DNS_VERIFY_MODE=mock` (default) auto-passes sub-tenant
-  domain verification so the flow is demoable without a real domain. Set `live`
-  for real TXT lookups.
-- **No build step for internal packages.** `core`/`db` export TS source via
-  `exports: "./src/index.ts"`; everything runs through `tsx` and type-checks via
-  `tsc` with `moduleResolution: bundler`. Only `sdk` builds (tsup).
+`scripts/design-audit.ts` scans all four apps for twelve rules and exits non-zero
+on a blocking violation. Two of them — `inferred-as-witnessed` and
+`delivery-overclaim` — are about **truth**, not taste. Read the file; the
+reasoning for each rule is in it.
 
-- **Server components can't call helpers from `"use client"` modules.** Next only
-  lets COMPONENTS cross that boundary. `phaseForStatus()` lived in a client module,
-  a server page called it, and every campaign detail page threw in production —
-  `tsc` is perfectly happy with it. Helpers a server component calls go in a plain
-  module (see `campaigns/phase.ts`). Only walking the page catches this.
-- **A form action's return value is discarded.** `<form action={fn}>` with
-  `fn: Promise<void>` fails silently by construction — returning `{error}` changes
-  nothing. Use `<ActionForm>` (`components/app/action-form.tsx`), which wraps the
-  form in `useActionState` so the error has somewhere to go. This is why deletes
-  used to look like they worked when they'd been refused.
-- **Staged forms must keep every field mounted.** Unmounting a scene stops its
-  fields submitting. The campaign composer hides inactive scenes instead — which
-  is also why it has no slide transition between them.
-- **Never send a real campaign/message from local.** `.env` has
-  `MAIL_PROVIDER=ses`, so a send puts mail on the wire to synthetic addresses.
-  Exercise the blocked path; leave the success path to a real account.
-- **The browser preview pane freezes `requestAnimationFrame`.** Framer entrances
-  stall at their `initial` values and exits never unmount. Assert on DOM text, not
-  on animation completion — a faded screenshot there is not a bug.
+## Working alongside other agents
 
-- **Never `revalidatePath()` the page you are already on.** It re-renders the
-  server tree and resets client state, so anything held in `useState` on that
-  page is destroyed. `createChat` did this and the first message of every new
-  assistant chat vanished from the screen — the run had really completed and
-  really persisted, so the only symptom was the transcript disappearing. Only
-  revalidate OTHER pages the action changed.
+- **Several agents share one working tree.** Stage explicit paths; never
+  `git add -A`. It has already swept another session's work into the wrong commit.
+- **Check `git log origin/main` before assuming your local HEAD is current.** A
+  parallel session shipped the sidebar change while another agent was mid-task,
+  and the mismatch cost an hour of misdiagnosis.
+- Deploys are `main` → GitHub Actions builds six images → **hosts pull, they do
+  not auto-update**. `docs/deploy-runbook.md` has the commands. `--env-file
+  .env.prod` is not optional: without it every frontend var silently becomes the
+  empty string and the console breaks while the API stays healthy.
+- **Never send a real message from local.** `.env` has `MAIL_PROVIDER=ses`.
 
-## Conventions
-- Public ids are prefixed: `newId("message")` → `msg_…` (`packages/core/src/ids.ts`).
-- API keys: `rm_live_…` / `rm_test_…`; only the SHA-256 hash is stored. **Signup mints no
-  key** — `provisionAccount` creates the Production + Sandbox workspaces but no API key;
-  the dashboard runs on the user's session, and developers create keys on demand from
-  Developers → API keys (test/live = the key's workspace). `db:seed` still mints its own key.
-- API JSON is snake_case; TypeScript is camelCase. The SDK maps between them.
-- Audit log is append-only — write new entries, never update.
-- Validate request input with Zod via the `parse()` helper (returns the output type).
+## Where to read more
+
+| file | what |
+|---|---|
+| `CLAUDE.md` | full working notes + the gotcha list. Read it. |
+| `docs/design/00-PHILOSOPHY.md` | the design constitution. **§10 supersedes rules still written in §5 and §9** — do not follow those from memory. |
+| `docs/design/01-REFERENCES.md`, `02-AUDIT.md`, `04-EXPERIENCE.md`, `05-ENGAGEMENT.md` | the measured evidence behind the design decisions |
+| `docs/deploy-runbook.md` | hosts, commands, and the two traps that have bitten |
+| `docs/COLLAB.md` | channel to the positioning agent — append when you change what we can honestly claim |
+| `ROADMAP.md` | what is built and what is next |

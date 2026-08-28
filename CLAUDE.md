@@ -1,5 +1,9 @@
 # CLAUDE.md — working notes for rootmail
 
+> **`AGENTS.md` is the vendor-neutral version of this brief** — agents from other
+> tools (GPT, Gemini, Grok, Cursor, Copilot) read that one. If you change a
+> standing rule or the "where things stand" state, update BOTH.
+>
 > ## ⛔ STANDING RULE — the dashboard's ease of use is not up for redesign
 > **Owner, 2026-08-28: "we can improve the product to be cohesive in product
 > design language but we cannot lose what worked and ease of access in the
