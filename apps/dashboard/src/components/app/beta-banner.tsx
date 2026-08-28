@@ -21,7 +21,7 @@ import { MessageSquareHeart } from "lucide-react";
  */
 export function BetaBanner() {
   return (
-    <div className="border-b border-primary/25 bg-primary/10">
+    <div className="border-b border-rule bg-secondary">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm md:px-8">
         <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
           Beta

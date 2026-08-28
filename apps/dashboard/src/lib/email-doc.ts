@@ -112,7 +112,7 @@ export function emptyDoc(): DocNode {
   return {
     type: "doc",
     content: [
-      { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "Welcome, {{name}} 👋" }] },
+      { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "Welcome, {{name}}" }] },
       {
         type: "paragraph",
         content: [{ type: "text", text: "Thanks for joining {{product}} — we're glad you're here." }],

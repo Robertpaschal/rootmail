@@ -60,9 +60,9 @@ export default async function NewMessagePage({
         backLabel="Messages"
       />
       {senders.length === 0 ? (
-        <div className="mb-6 flex flex-col gap-3 rounded-lg border border-amber-400/50 bg-amber-50/60 p-4 dark:bg-amber-500/10 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-6 flex flex-col gap-3 rounded-lg border border-acted/50 bg-acted-tint p-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-start gap-3">
-            <ShieldCheck className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+            <ShieldCheck className="mt-0.5 size-5 shrink-0 text-acted" />
             <div>
               <p className="text-sm font-medium">Send from your own address — one-time setup (~5 min)</p>
               <p className="mt-0.5 text-sm text-muted-foreground">
@@ -73,7 +73,7 @@ export default async function NewMessagePage({
           </div>
           <Link
             href="/settings/sender"
-            className="inline-flex shrink-0 items-center gap-1 self-start rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-600 sm:self-center"
+            className="inline-flex shrink-0 items-center gap-1 self-start rounded-md bg-acted px-3 py-1.5 text-sm font-medium text-white hover:bg-acted sm:self-center"
           >
             Verify a sender <ArrowRight className="size-4" />
           </Link>

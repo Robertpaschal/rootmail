@@ -20,9 +20,9 @@ export async function ClientScopeBanner() {
   // right now, so this strip is the only way back — say so plainly.
   if (staleId) {
     return (
-      <div className="flex items-center justify-between gap-3 border-b border-amber-500/40 bg-amber-500/[0.08] px-4 py-2 text-sm md:px-8">
+      <div className="flex items-center justify-between gap-3 border-b border-acted/40 bg-acted/[0.08] px-4 py-2 text-sm md:px-8">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="grid size-6 shrink-0 place-items-center rounded-md bg-amber-500/20 text-amber-700 dark:text-amber-400">
+          <span className="grid size-6 shrink-0 place-items-center rounded-md bg-acted/20 text-acted">
             <AlertTriangle className="size-3.5" />
           </span>
           <p className="min-w-0 truncate">
@@ -35,7 +35,7 @@ export async function ClientScopeBanner() {
         <ActionForm action={exitClientScopeForm} className="shrink-0" errorClassName="justify-end">
           <button
             type="submit"
-            className="inline-flex items-center gap-1 rounded-md border border-amber-500/50 bg-background px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+            className="inline-flex items-center gap-1 rounded-md border border-acted/50 bg-background px-2 py-1 text-xs font-medium text-foreground transition-colors hover:bg-accent"
           >
             <X className="size-3" /> Back to the whole workspace
           </button>
@@ -65,7 +65,7 @@ export async function ClientScopeBanner() {
       <div className="flex shrink-0 items-center gap-1.5">
         <Link
           href={`/sub-tenants/${active.id}`}
-          className="hidden items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10 sm:inline-flex"
+          className="hidden items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-secondary sm:inline-flex"
         >
           Client page <ArrowRight className="size-3" />
         </Link>

@@ -116,7 +116,7 @@ export default async function CampaignsPage() {
               <Card key={b.title}>
                 <CardContent className="p-5">
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary"><b.icon className="size-4" /></span>
+                    <span className="grid size-8 place-items-center rounded border border-rule text-ink-muted"><b.icon className="size-4" /></span>
                     <span className="text-xs font-semibold text-muted-foreground">Step {i + 1}</span>
                   </div>
                   <p className="text-sm font-medium">{b.title}</p>

@@ -99,7 +99,7 @@ export function MessageCard({
             <Link
               href={`/contacts/${contact.id}`}
               title="Open their record"
-              className="grid size-10 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary transition-transform hover:scale-105"
+              className="grid size-10 shrink-0 place-items-center rounded-full border border-rule text-sm font-semibold text-ink-muted transition-transform hover:scale-105"
             >
               {initial}
             </Link>

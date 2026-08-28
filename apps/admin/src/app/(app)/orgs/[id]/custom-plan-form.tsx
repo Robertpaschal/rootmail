@@ -14,6 +14,7 @@ import {
   deactivateCustomPlan,
   saveCustomPlan,
 } from "./actions";
+import { ActionNote } from "@/components/app/action-note";
 
 const fieldClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2";
@@ -200,10 +201,10 @@ function CustomPlanFields({
         ) : null}
         {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
         {state.ok ? (
-          <p className="text-sm text-emerald-600">
+          <ActionNote>
             Saved
             {state.stripeSync && state.stripeSync !== "skipped" ? ` · Stripe ${state.stripeSync}` : ""}.
-          </p>
+          </ActionNote>
         ) : null}
       </div>
     </form>
@@ -245,9 +246,9 @@ function BillingControls({
         </form>
         {bill.error ? <p className="text-sm text-destructive">{bill.error}</p> : null}
         {bill.ok ? (
-          <p className="text-sm text-emerald-600">
+          <ActionNote>
             Subscription provisioned{bill.subscriptionId ? ` (${bill.subscriptionId})` : ""}.
-          </p>
+          </ActionNote>
         ) : null}
       </div>
     </div>

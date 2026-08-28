@@ -47,7 +47,7 @@ export function ManageSubTenant({ id, name, domain }: { id: string; name: string
     });
 
   return (
-    <div className="rounded-xl border bg-card">
+    <div className="rounded-lg border bg-card">
       <div className="flex flex-wrap items-start justify-between gap-4 px-5 py-4">
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium">Client name</p>
@@ -103,7 +103,7 @@ export function ManageSubTenant({ id, name, domain }: { id: string; name: string
               >
                 <span className="font-medium">{name}</span>
                 {saved ? (
-                  <span className="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+                  <span className="inline-flex items-center gap-1 text-xs text-witnessed">
                     <Check className="size-3.5" /> Saved
                   </span>
                 ) : null}

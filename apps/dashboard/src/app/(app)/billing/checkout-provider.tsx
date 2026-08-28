@@ -116,7 +116,7 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
             onClick={() => (phase === "checkout" || phase === "error") && close()}
           >
             <motion.div
-              className="relative my-8 w-full max-w-xl rounded-2xl border bg-background shadow-2xl"
+              className="relative my-8 w-full max-w-xl rounded-lg border bg-background shadow-2xl"
               initial={{ opacity: 0, y: 16, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: 16, scale: 0.98 }}
@@ -159,8 +159,8 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
                   animate={{ scale: 1 }}
                   className="grid place-items-center gap-3 p-12 text-center"
                 >
-                  <CheckCircle2 className="size-8 text-emerald-500" />
-                  <p className="text-sm font-medium">You&apos;re all set 🎉</p>
+                  <CheckCircle2 className="size-8 text-witnessed" />
+                  <p className="text-sm font-medium">You&apos;re all set</p>
                   <p className="text-xs text-muted-foreground">{doneMsg || `${label} is active.`}</p>
                 </motion.div>
               ) : phase === "checkout" && secret && stripePromise ? (

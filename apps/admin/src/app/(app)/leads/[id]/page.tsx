@@ -69,7 +69,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
       {/* Contact hero */}
       <div className="flex flex-wrap items-start gap-4">
-        <div className="grid size-12 shrink-0 place-items-center rounded-xl bg-primary/10 text-lg font-semibold text-primary">
+        <div className="grid size-12 shrink-0 place-items-center rounded-lg bg-primary/10 text-lg font-semibold text-primary">
           {display.charAt(0).toUpperCase()}
         </div>
         <div className="min-w-0 flex-1">

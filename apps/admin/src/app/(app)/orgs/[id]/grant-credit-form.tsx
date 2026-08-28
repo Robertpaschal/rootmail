@@ -5,6 +5,7 @@ import { SubmitButton } from "@/components/app/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type CreditState, grantCredit } from "./actions";
+import { ActionNote } from "@/components/app/action-note";
 
 export function GrantCreditForm({ orgId }: { orgId: string }) {
   const [state, action] = useActionState<CreditState, FormData>(grantCredit, {});
@@ -36,7 +37,11 @@ export function GrantCreditForm({ orgId }: { orgId: string }) {
         Grant credit
       </SubmitButton>
       {state.error ? <p className="w-full text-sm text-destructive">{state.error}</p> : null}
-      {state.ok ? <p className="w-full text-sm text-emerald-600">Credit applied.</p> : null}
+      {state.ok ? (
+        <p className="w-full">
+          <ActionNote>Credit applied.</ActionNote>
+        </p>
+      ) : null}
     </form>
   );
 }

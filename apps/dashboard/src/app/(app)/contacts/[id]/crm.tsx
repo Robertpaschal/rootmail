@@ -94,12 +94,12 @@ function initials(name: string | null, email: string): string {
 }
 
 const EVENT_META: Record<string, { label: string; Icon: typeof Mail; tone: string; dot: string }> = {
-  subscribed: { label: "Subscribed", Icon: UserPlus, tone: "text-emerald-600", dot: "bg-emerald-500" },
-  confirmed: { label: "Confirmed subscription", Icon: MailCheck, tone: "text-emerald-600", dot: "bg-emerald-500" },
-  unsubscribed: { label: "Unsubscribed", Icon: UserX, tone: "text-red-500", dot: "bg-red-500" },
+  subscribed: { label: "Subscribed", Icon: UserPlus, tone: "text-witnessed", dot: "bg-witnessed" },
+  confirmed: { label: "Confirmed subscription", Icon: MailCheck, tone: "text-witnessed", dot: "bg-witnessed" },
+  unsubscribed: { label: "Unsubscribed", Icon: UserX, tone: "text-stopped", dot: "bg-stopped" },
   imported: { label: "Imported", Icon: UserPlus, tone: "text-muted-foreground", dot: "bg-muted-foreground" },
-  waitlisted: { label: "Waitlisted (no contact room)", Icon: Ban, tone: "text-amber-600", dot: "bg-amber-500" },
-  admitted: { label: "Admitted from the waitlist", Icon: UserCheck, tone: "text-emerald-600", dot: "bg-emerald-500" },
+  waitlisted: { label: "Waitlisted (no contact room)", Icon: Ban, tone: "text-acted", dot: "bg-acted" },
+  admitted: { label: "Admitted from the waitlist", Icon: UserCheck, tone: "text-witnessed", dot: "bg-witnessed" },
   stage_changed: { label: "Stage changed", Icon: UserCheck, tone: "text-primary", dot: "bg-primary" },
 };
 
@@ -248,7 +248,7 @@ export function ContactCrm({
   const feed = useMemo(() => {
     const items: { at: string; kind: "note" | "event" | "message"; key: string; dot: string; summary: string; node: React.ReactNode }[] = [];
     for (const n of notes) {
-      items.push({ at: n.created_at, kind: "note", key: `n-${n.id}`, dot: "bg-amber-400", summary: n.body, node: <NoteRow note={n} onDelete={() => removeNote(n.id)} /> });
+      items.push({ at: n.created_at, kind: "note", key: `n-${n.id}`, dot: "bg-acted", summary: n.body, node: <NoteRow note={n} onDelete={() => removeNote(n.id)} /> });
     }
     for (const e of contact.events) {
       const meta = EVENT_META[e.kind] ?? { label: e.kind, Icon: StickyNote, tone: "text-muted-foreground", dot: "bg-muted-foreground" };
@@ -288,18 +288,18 @@ export function ContactCrm({
           : m.opened_at
             ? `Opened “${m.subject}”`
             : `Sent “${m.subject}”`,
-        dot: m.clicked_at ? "bg-blue-600" : m.opened_at ? "bg-violet-500" : "bg-blue-400",
+        dot: m.clicked_at ? "bg-ink" : m.opened_at ? "bg-ink" : "bg-ink",
         node: (
           <span className="flex flex-wrap items-center gap-2 text-sm">
-            <Mail className="size-4 shrink-0 text-blue-500" />
+            <Mail className="size-4 shrink-0 text-muted-foreground" />
             <Link href={`/messages/${m.id}`} className="min-w-0 truncate font-medium hover:underline">
               {m.subject}
             </Link>
             <span className="text-xs text-muted-foreground">{m.kind}</span>
             {m.clicked_at ? (
-              <span className="inline-flex items-center gap-1 text-xs text-blue-600"><MousePointerClick className="size-3" /> clicked</span>
+              <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><MousePointerClick className="size-3" /> clicked</span>
             ) : m.opened_at ? (
-              <span className="text-xs text-violet-600">opened</span>
+              <span className="text-xs text-muted-foreground">opened</span>
             ) : (
               <span className="text-xs text-muted-foreground">{m.status}</span>
             )}
@@ -362,7 +362,7 @@ export function ContactCrm({
                 className={cn(
                   "flex h-9 flex-1 items-center justify-center border-r px-2 text-xs transition-colors last:border-r-0",
                   s2 === "champion" && reached
-                    ? "bg-amber-500 text-white hover:bg-amber-600"
+                    ? "bg-acted text-white hover:bg-acted"
                     : reached
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "bg-transparent text-muted-foreground hover:bg-muted",
@@ -379,7 +379,7 @@ export function ContactCrm({
             {atRisk
               ? "In the at-risk lane — a win-back email or sequence is the usual next move."
               : stage === "champion"
-                ? "A champion — your best kind of customer. 🎉"
+                ? "A champion — your best kind of customer."
                 : `${STAGE_META[stage].label} · click ahead to escalate, back to de-escalate`}
           </span>
           {atRisk ? (
@@ -435,7 +435,7 @@ export function ContactCrm({
           strip; they are one surface because they answer one question. */}
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-start gap-4 p-5 pb-4">
-          <span className="grid size-12 shrink-0 place-items-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
+          <span className="grid size-12 shrink-0 place-items-center rounded-full border border-rule text-sm font-semibold text-ink-muted">
             {initials(contact.name, contact.email)}
           </span>
           <div className="min-w-0 flex-1">
@@ -460,7 +460,7 @@ export function ContactCrm({
               >
                 <span className="truncate">{contact.email}</span>
                 {copied ? (
-                  <Check className="size-3.5 shrink-0 text-emerald-500" />
+                  <Check className="size-3.5 shrink-0 text-witnessed" />
                 ) : (
                   <Copy className="size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-100" />
                 )}
@@ -551,7 +551,7 @@ export function ContactCrm({
               </span>
               {/* Things THEY did are news; things you typed are not. */}
               {theirsUnseen ? (
-                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                <span className="shrink-0 rounded border border-ink px-2 py-0.5 text-[10px] font-semibold text-foreground">
                   New
                 </span>
               ) : null}
@@ -952,7 +952,7 @@ export function ContactCrm({
                   <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate font-medium">{t.subject}</span>
                   {t.status === "needs_reply" ? (
-                    <span className="shrink-0 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-600 dark:text-amber-400">
+                    <span className="shrink-0 rounded-full bg-acted/15 px-2 py-0.5 text-[10px] font-medium text-acted">
                       Needs reply
                     </span>
                   ) : t.status === "closed" ? (
@@ -1035,13 +1035,13 @@ export function ContactCrm({
                 label="opened"
                 value={`${stats.opened}`}
                 sub={stats.sent ? `${Math.round((stats.opened / stats.sent) * 100)}%` : undefined}
-                tone={stats.opened > 0 ? "text-violet-600 dark:text-violet-400" : undefined}
+                tone={stats.opened > 0 ? "text-muted-foreground" : undefined}
               />
               <Stat
                 label="clicked"
                 value={`${stats.clicked}`}
                 sub={stats.sent ? `${Math.round((stats.clicked / stats.sent) * 100)}%` : undefined}
-                tone={stats.clicked > 0 ? "text-blue-600 dark:text-blue-400" : undefined}
+                tone={stats.clicked > 0 ? "text-muted-foreground" : undefined}
               />
             </>
           {stats.lastAt ? <Stat label="last activity" value={relativeTime(stats.lastAt)} /> : null}
@@ -1102,9 +1102,9 @@ function Stat({ label, value, sub, tone }: { label: string; value: string; sub?:
 /** A note rendered inside the activity feed — distinct card styling, author + delete. */
 function NoteRow({ note, onDelete }: { note: ContactNote; onDelete: () => void }) {
   return (
-    <div className="group rounded-lg border border-amber-300/50 bg-amber-50/60 p-3 dark:border-amber-500/30 dark:bg-amber-950/20">
+    <div className="group rounded-lg border border-acted/50 bg-acted-tint p-3">
       <div className="flex items-start justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">
+        <span className="flex items-center gap-1.5 text-xs font-medium text-acted">
           <StickyNote className="size-3.5" /> Note
         </span>
         <span className="flex items-center gap-2">

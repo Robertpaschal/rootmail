@@ -33,11 +33,11 @@ const ICONS: Record<TestRecipient["outcome"], typeof Mail> = {
 
 /** Colour carries the meaning: green = good, red = failure you asked for. */
 const TONES: Record<TestRecipient["outcome"], string> = {
-  delivered: "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10",
-  bounced: "text-red-600 dark:text-red-400 bg-red-500/10",
-  complained: "text-red-600 dark:text-red-400 bg-red-500/10",
-  suppressed: "text-amber-600 dark:text-amber-400 bg-amber-500/10",
-  delivered_ooto: "text-sky-600 dark:text-sky-400 bg-sky-500/10",
+  delivered: "text-witnessed bg-witnessed/10",
+  bounced: "text-stopped bg-stopped/10",
+  complained: "text-stopped bg-stopped/10",
+  suppressed: "text-acted bg-acted/10",
+  delivered_ooto: "text-muted-foreground bg-ink/10",
 };
 
 const OUTCOME_LABEL: Record<TestRecipient["outcome"], string> = {
@@ -63,7 +63,7 @@ function CopyAddress({ email }: { email: string }) {
       title="Copy address"
     >
       <span className="truncate">{email}</span>
-      {copied ? <Check className="size-3 shrink-0 text-emerald-500" /> : <Copy className="size-3 shrink-0" />}
+      {copied ? <Check className="size-3 shrink-0 text-witnessed" /> : <Copy className="size-3 shrink-0" />}
     </button>
   );
 }
@@ -152,7 +152,7 @@ export function Scenarios({ recipients }: { recipients: TestRecipient[] }) {
               key={r.slug}
               whileHover={{ y: -2 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="flex flex-col gap-3 rounded-xl border bg-card p-4"
+              className="flex flex-col gap-3 rounded-lg border bg-card p-4"
             >
               <div className="flex items-start gap-3">
                 <span className={cn("grid size-9 shrink-0 place-items-center rounded-lg", TONES[r.outcome])}>
@@ -183,7 +183,7 @@ export function Scenarios({ recipients }: { recipients: TestRecipient[] }) {
                     </>
                   ) : done === r.slug ? (
                     <>
-                      <Check className="size-3.5 text-emerald-500" /> Sent
+                      <Check className="size-3.5 text-witnessed" /> Sent
                     </>
                   ) : (
                     <>

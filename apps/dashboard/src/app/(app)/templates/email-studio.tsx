@@ -404,10 +404,10 @@ export function useSelectedBlock(editor: Editor | null): Selected | null {
 // --- Canvas -----------------------------------------------------------------
 
 export function EmailCanvas({ editor, theme }: { editor: Editor | null; theme: EmailTheme }) {
-  if (!editor) return <div className="min-h-[480px] rounded-xl border bg-muted/30" />;
+  if (!editor) return <div className="min-h-[480px] rounded-lg border bg-muted/30" />;
   const font = FONT_STACKS[theme.font].stack;
   return (
-    <div className="overflow-hidden rounded-xl border bg-muted/40 shadow-sm">
+    <div className="overflow-hidden rounded-lg border bg-muted/40 shadow-sm">
       <FormattingToolbar editor={editor} />
       {/* A framed "sheet" that mimics the themed email so design choices are visible while editing. */}
       <div className="flex justify-center p-4 sm:p-6" style={{ background: theme.bg }}>
@@ -595,7 +595,7 @@ export function StudioPanel({
     { id: "inspect", label: "Inspect" },
   ];
   return (
-    <div className="rounded-xl border bg-card">
+    <div className="rounded-lg border bg-card">
       <div className="flex gap-1 border-b p-1">
         {TABS.map((t) => (
           <button key={t.id} type="button" onClick={() => setTab(t.id)}

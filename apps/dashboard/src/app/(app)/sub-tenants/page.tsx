@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowRight, Eye, KeyRound, Network, PauseCircle, Plus, ShieldCheck, Sparkles } from "lucide-react";
 import { ActionForm } from "@/components/app/action-form";
+import { ClientLine } from "@/components/app/client-line";
 import { actAsClientForm } from "@/components/app/client-scope-actions";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
@@ -115,8 +116,8 @@ export default async function SubTenantsPage() {
         <Reveal className="space-y-6">
           <EmptyState
             icon={<Network className="size-6" />}
-            title="No client domains yet"
-            description="Perfect for agencies and platforms: let each client send under their own domain, verified, with their bounces and complaints scored separately so you can see which client is going wrong."
+            title="See which client is going wrong before it costs the others"
+            description="Give every client their own sending domain, verified and signed under their own name, with their bounces and complaints scored separately. They share our IP pool — so when one client&apos;s list goes bad, we throttle that client and the rest keep flowing."
           />
           {/* How it works — three plain steps, then the form on demand. */}
           <div className="grid gap-4 sm:grid-cols-3">
@@ -124,7 +125,7 @@ export default async function SubTenantsPage() {
               <Card key={s.title}>
                 <CardContent className="p-5">
                   <div className="mb-3 flex items-center gap-2">
-                    <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary"><s.icon className="size-4" /></span>
+                    <span className="grid size-8 place-items-center rounded border border-rule text-ink-muted"><s.icon className="size-4" /></span>
                     <span className="text-xs font-semibold text-muted-foreground">Step {i + 1}</span>
                   </div>
                   <p className="text-sm font-medium">{s.title}</p>
@@ -151,17 +152,17 @@ export default async function SubTenantsPage() {
           {trouble.length ? (
             <div
               className={cn(
-                "rounded-xl border p-4",
+                "rounded-lg border p-4",
                 anyPaused
-                  ? "border-red-300 bg-red-50/70 dark:border-red-900/60 dark:bg-red-950/20"
-                  : "border-amber-300 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20",
+                  ? "border-stopped bg-stopped-tint"
+                  : "border-acted bg-acted-tint",
               )}
             >
               <p className="flex items-center gap-2 text-sm font-medium">
                 {anyPaused ? (
-                  <PauseCircle className="size-4 text-red-600 dark:text-red-400" />
+                  <PauseCircle className="size-4 text-stopped" />
                 ) : (
-                  <AlertTriangle className="size-4 text-amber-600 dark:text-amber-400" />
+                  <AlertTriangle className="size-4 text-acted" />
                 )}
                 {trouble.length} client{trouble.length === 1 ? "" : "s"} need
                 {trouble.length === 1 ? "s" : ""} your attention
@@ -169,6 +170,10 @@ export default async function SubTenantsPage() {
               <ul className="mt-2.5 space-y-2">
                 {trouble.map((t) => (
                   <li key={t.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm">
+                    {/* The picture IS the disclosure: the trunk is shared, and
+                        you can see we pinch one branch so the others keep
+                        flowing. See docs/design/00-PHILOSOPHY.md §3.4. */}
+                    <ClientLine tenant={t} />
                     <Link href={`/sub-tenants/${t.id}`} className="font-medium hover:underline">
                       {t.name}
                     </Link>
@@ -201,6 +206,7 @@ export default async function SubTenantsPage() {
                         show one of them, and it showed the DNS one — so a client
                         the sweep had automatically paused still read "verified". */}
                     <TableHead>Verification</TableHead>
+                    <TableHead>Branch</TableHead>
                     <TableHead>Sending</TableHead>
                     <TableHead>Added</TableHead>
                     <TableHead className="text-right" />
@@ -214,7 +220,7 @@ export default async function SubTenantsPage() {
                         key={t.id}
                         className={cn(
                           acting && "bg-primary/[0.04]",
-                          t.reputation.state === "paused" && "bg-red-50/60 dark:bg-red-950/20",
+                          t.reputation.state === "paused" && "bg-stopped-tint",
                         )}
                       >
                         <TableCell className="font-mono text-sm">
@@ -222,6 +228,9 @@ export default async function SubTenantsPage() {
                         </TableCell>
                         <TableCell className="text-muted-foreground">{t.name}</TableCell>
                         <TableCell><SubTenantStatusBadge status={t.status} /></TableCell>
+                        <TableCell>
+                          <ClientLine tenant={t} />
+                        </TableCell>
                         <TableCell>
                           {needsAttention(t.reputation.state) ? (
                             // Straight to the numbers that explain it — the badge

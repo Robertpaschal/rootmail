@@ -32,7 +32,7 @@ export function ImpersonationBanner({ email, internal }: { email: string; intern
 
   if (internal) {
     return (
-      <div className="flex items-center justify-between gap-3 border-b border-indigo-700 bg-indigo-600 px-4 py-2 text-sm font-medium text-white">
+      <div className="flex items-center justify-between gap-3 border-b border-rule bg-ink px-4 py-2 text-sm font-medium text-white">
         <div className="flex items-center gap-2">
           <AtSign className="size-4 shrink-0" />
           <span>
@@ -46,7 +46,7 @@ export function ImpersonationBanner({ email, internal }: { email: string; intern
   }
 
   return (
-    <div className="flex items-center justify-between gap-3 border-b border-rose-700 bg-rose-600 px-4 py-2 text-sm font-medium text-white">
+    <div className="flex items-center justify-between gap-3 border-b border-stopped bg-stopped px-4 py-2 text-sm font-medium text-white">
       <div className="flex items-center gap-2">
         <UserCog className="size-4 shrink-0" />
         <span>

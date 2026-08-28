@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { Mail, Plus } from "lucide-react";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
@@ -9,6 +10,15 @@ import type { Message, MessageStatus } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { MessagesTable } from "./messages-table";
 
+/**
+ * The filters, grouped by what they MEAN rather than listed by enum order.
+ *
+ * All nine used to render as identical round pills, so a bounce and a delivery
+ * were the same visual object and the one filter an operator urgently needs —
+ * "what went wrong" — was the sixth from the left, looking like the other
+ * eight. Colour asserts state in this system or it is ink, and these are
+ * states: the four that stopped are drawn stopped.
+ */
 const STATUSES = [
   "all",
   "delivered",
@@ -20,6 +30,9 @@ const STATUSES = [
   "failed",
   "suppressed",
 ] as const;
+
+/** The four that ended. Everything else is still on its way, or arrived. */
+const STOPPED = new Set(["bounced", "complained", "failed", "suppressed"]);
 
 export default async function MessagesPage({
   searchParams,
@@ -70,20 +83,30 @@ export default async function MessagesPage({
         }
       />
 
-      <div className="mb-4 flex flex-wrap gap-2">
-        {STATUSES.map((s) => (
-          <Link
-            key={s}
-            href={s === "all" ? "/messages" : `/messages?status=${s}`}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium capitalize transition-colors",
-              active === s
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {s}
-          </Link>
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        {STATUSES.map((s, i) => (
+          <Fragment key={s}>
+            {/* A rule where the meaning changes: everything to the left is mail
+                that is arriving or has arrived; everything to the right stopped. */}
+            {STOPPED.has(s) && !STOPPED.has(STATUSES[i - 1] ?? "all") ? (
+              <span aria-hidden className="mx-1 h-4 w-px bg-rule" />
+            ) : null}
+            <Link
+              href={s === "all" ? "/messages" : `/messages?status=${s}`}
+              className={cn(
+                "rounded-md border px-3 py-1 text-xs font-medium capitalize transition-colors duration-interaction ease-interaction",
+                active === s
+                  ? STOPPED.has(s)
+                    ? "border-stopped bg-stopped-tint text-stopped"
+                    : "border-ink bg-secondary text-foreground"
+                  : STOPPED.has(s)
+                    ? "border-stopped/30 text-stopped hover:border-stopped"
+                    : "border-border text-muted-foreground hover:text-foreground",
+              )}
+            >
+              {s}
+            </Link>
+          </Fragment>
         ))}
       </div>
 
@@ -97,10 +120,10 @@ export default async function MessagesPage({
            needs a way back rather than a call to action. */
         <EmptyState
           icon={<Mail className="size-6" />}
-          title={active === "all" ? "Nothing sent yet" : `No ${active} messages`}
+          title={active === "all" ? "Nothing has left yet" : `Nothing is ${active} right now`}
           description={
             active === "all"
-              ? "Every email you send — from here, from a campaign, from a sequence, or straight through the API — lands here with what happened to it: delivered, opened, clicked, bounced."
+              ? "The first message you send appears here within seconds — from here, from a campaign, from a sequence, or straight through the API — and keeps its full record for as long as your retention window."
               : `Nothing here with that status right now. Everything you have sent is still under “All”.`
           }
           action={

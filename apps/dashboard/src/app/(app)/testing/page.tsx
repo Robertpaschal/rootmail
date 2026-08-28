@@ -90,9 +90,9 @@ export default async function TestingPage() {
         <div className="space-y-10">
           {/* ── The main event: real sends, safe destinations ─────────────── */}
           <section className="space-y-4">
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
+            <div className="rounded-lg border border-witnessed/30 bg-witnessed/[0.06] p-4">
               <p className="flex items-center gap-2 text-sm font-semibold">
-                <Radio className="size-4 text-emerald-600 dark:text-emerald-400" /> These are real sends
+                <Radio className="size-4 text-witnessed" /> These are real sends
               </p>
               <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-muted-foreground">
                 Each address below is a scenario. Mail to one is signed with your DKIM key, handed to your
@@ -100,7 +100,7 @@ export default async function TestingPage() {
                 on the provider&apos;s mailbox simulator, so no person receives it and your sending reputation is
                 untouched, even when you deliberately trigger a hard bounce.
               </p>
-              <p className="mt-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+              <p className="mt-2 text-xs font-medium text-witnessed">
                 Proves: delivery, DKIM signing, bounce &amp; complaint handling, auto-suppression, webhooks.
               </p>
             </div>
@@ -131,7 +131,7 @@ export default async function TestingPage() {
           <section className="space-y-3">
             <h2 className="text-sm font-semibold">What happened</h2>
             {runs.length === 0 ? (
-              <div className="rounded-xl border border-dashed p-8 text-center">
+              <div className="rounded-lg border border-dashed p-8 text-center">
                 <CircleDashed className="mx-auto size-6 text-muted-foreground" />
                 <p className="mt-2 text-sm font-medium">No test sends yet</p>
                 <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">
@@ -171,11 +171,11 @@ export default async function TestingPage() {
                             </TableCell>
                             <TableCell>
                               {v === "match" ? (
-                                <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-witnessed">
                                   <CheckCircle2 className="size-3.5" /> As expected
                                 </span>
                               ) : v === "mismatch" ? (
-                                <span className="inline-flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400">
+                                <span className="inline-flex items-center gap-1 text-xs font-medium text-stopped">
                                   <XCircle className="size-3.5" /> Unexpected
                                 </span>
                               ) : (
@@ -205,11 +205,11 @@ export default async function TestingPage() {
 
           {/* ── The developer rehearsal room, clearly labelled as such ─────── */}
           <section className="space-y-3">
-            <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.05] p-4">
+            <div className="rounded-lg border border-acted/30 bg-acted/[0.05] p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm font-semibold">
-                    <FlaskConical className="size-4 text-amber-600 dark:text-amber-400" /> Sandbox
+                    <FlaskConical className="size-4 text-acted" /> Sandbox
                     <span className="rounded-full border px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                       For developers
                     </span>
@@ -219,7 +219,7 @@ export default async function TestingPage() {
                     Mail you send there is rendered and recorded but never handed to a provider — it costs
                     nothing and can&apos;t reach anyone. If you&apos;re not calling the API, you never need it.
                   </p>
-                  <p className="mt-2 text-xs font-medium text-amber-700 dark:text-amber-400">
+                  <p className="mt-2 text-xs font-medium text-acted">
                     Proves: your integration, templates and rendering. Not delivery — that&apos;s the section
                     above, which works from in here too.
                   </p>
@@ -240,7 +240,7 @@ export default async function TestingPage() {
                   <span className="text-xs text-muted-foreground">Simulated mail — rendered here, sent nowhere</span>
                 </div>
                 {sandboxMail.length === 0 ? (
-                  <div className="rounded-xl border border-dashed p-8 text-center">
+                  <div className="rounded-lg border border-dashed p-8 text-center">
                     <Inbox className="mx-auto size-6 text-muted-foreground" />
                     <p className="mt-2 text-sm font-medium">Nothing rehearsed yet</p>
                     <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">

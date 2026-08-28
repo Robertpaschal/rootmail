@@ -108,8 +108,8 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
       <AnimatePresence mode="wait" initial={false}>
         {stage === 0 ? (
           <StageScene keyId="add" direction={dir}>
-            <div className="rounded-xl border bg-card p-6">
-              <span className="inline-grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+            <div className="rounded-lg border bg-card p-6">
+              <span className="inline-grid size-10 place-items-center rounded border border-rule text-ink-muted">
                 <Network className="size-5" />
               </span>
               <h2 className="mt-3 text-lg font-semibold">Whose domain are we setting up?</h2>
@@ -186,8 +186,8 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
 
         {stage === 1 && tenant ? (
           <StageScene keyId="dns" direction={dir}>
-            <div className="rounded-xl border bg-card p-6">
-              <span className="inline-grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+            <div className="rounded-lg border bg-card p-6">
+              <span className="inline-grid size-10 place-items-center rounded border border-rule text-ink-muted">
                 <KeyRound className="size-5" />
               </span>
               <h2 className="mt-3 text-lg font-semibold">
@@ -246,7 +246,7 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
 
         {stage === 2 && tenant ? (
           <StageScene keyId="verify" direction={dir}>
-            <div className="rounded-xl border bg-card p-6 text-center">
+            <div className="rounded-lg border bg-card p-6 text-center">
               <AnimatePresence mode="wait" initial={false}>
                 {verified ? (
                   <motion.div
@@ -255,7 +255,7 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 320, damping: 24 }}
                   >
-                    <span className="inline-grid size-12 place-items-center rounded-2xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    <span className="inline-grid size-12 place-items-center rounded-lg bg-witnessed/15 text-witnessed">
                       <PartyPopper className="size-6" />
                     </span>
                     <h2 className="mt-3 text-lg font-semibold">{tenant.sending_domain} is live</h2>
@@ -282,7 +282,7 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                   >
-                    <span className="inline-grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+                    <span className="inline-grid size-12 place-items-center rounded border border-rule text-ink-muted">
                       <ShieldCheck className="size-6" />
                     </span>
                     <h2 className="mt-3 text-lg font-semibold">Let&apos;s check the records</h2>
@@ -302,7 +302,7 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
                           transition={reduce ? { duration: 0 } : { duration: 0.2 }}
                           className="overflow-hidden"
                         >
-                          <span className="mx-auto mt-4 flex max-w-sm items-start gap-2 rounded-lg bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-700 dark:text-amber-400">
+                          <span className="mx-auto mt-4 flex max-w-sm items-start gap-2 rounded-lg bg-acted/10 px-3 py-2 text-left text-xs text-acted">
                             <Clock className="mt-0.5 size-3.5 shrink-0" />
                             Not showing up yet. DNS can take a while to spread — give it a few minutes and
                             check again, or double-check the records on the previous step.

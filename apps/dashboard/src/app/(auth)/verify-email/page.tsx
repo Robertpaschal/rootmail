@@ -31,7 +31,7 @@ export default async function VerifyEmailPage({
             <CardTitle className="flex items-center gap-2 text-xl">
               {ok ? (
                 <>
-                  <CheckCircle2 className="size-5 text-emerald-600" /> Email verified
+                  <CheckCircle2 className="size-5 text-witnessed" /> Email verified
                 </>
               ) : (
                 <>

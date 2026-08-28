@@ -18,17 +18,17 @@ export function DnsDriftPanel({ st }: { st: SubTenant }) {
   return (
     <section
       className={cn(
-        "rounded-xl border p-5",
+        "rounded-lg border p-5",
         drift.stopped
-          ? "border-red-300 bg-red-50/70 dark:border-red-900/60 dark:bg-red-950/20"
-          : "border-amber-300 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20",
+          ? "border-stopped bg-stopped-tint"
+          : "border-acted bg-acted-tint",
       )}
     >
       <div className="flex items-start gap-3">
         {drift.stopped ? (
-          <OctagonX className="mt-0.5 size-5 shrink-0 text-red-600 dark:text-red-400" />
+          <OctagonX className="mt-0.5 size-5 shrink-0 text-stopped" />
         ) : (
-          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600 dark:text-amber-400" />
+          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-acted" />
         )}
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold">{drift.label}</h2>

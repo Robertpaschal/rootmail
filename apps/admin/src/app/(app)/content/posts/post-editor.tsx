@@ -11,6 +11,7 @@ import type { AdminBlogPost, CmsStatus, PostCategory } from "@/lib/types";
 import { deleteBlogPost, saveBlogPost, type CmsState } from "../actions";
 import { StatusBadge } from "../status-badge";
 import { MarkdownComposer } from "./markdown-composer";
+import { ActionNote } from "@/components/app/action-note";
 
 const CATEGORIES: PostCategory[] = ["Company", "Guide", "Things we like"];
 
@@ -69,7 +70,7 @@ export function PostEditor({ post }: { post: AdminBlogPost | null }) {
         <StatusBadge status={status} />
         {state.error ? <span className="text-sm text-destructive">{state.error}</span> : null}
         {state.ok && !state.error ? (
-          <span className="text-sm text-emerald-600">{status === "published" ? "Published" : "Saved"}</span>
+          <ActionNote>{status === "published" ? "Published" : "Saved"}</ActionNote>
         ) : null}
 
         <div className="ml-auto flex items-center gap-2">

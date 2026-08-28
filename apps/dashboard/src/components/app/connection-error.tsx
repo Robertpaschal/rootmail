@@ -53,7 +53,7 @@ export function ConnectionError({
 
   return (
     <Card className="flex flex-col items-center gap-3 p-12 text-center">
-      <div className="grid size-12 place-items-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+      <div className="grid size-12 place-items-center rounded-lg bg-acted/15 text-acted">
         <AlertTriangle className="size-6" />
       </div>
 

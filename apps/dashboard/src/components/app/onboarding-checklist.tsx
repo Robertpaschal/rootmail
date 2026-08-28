@@ -55,25 +55,51 @@ export async function OnboardingChecklist() {
     return null;
   }
 
+  /**
+   * ORDER IS THE ARGUMENT HERE, and it used to be backwards.
+   *
+   * "Send your first email" was step 7 of 8 — behind a business profile, a
+   * postal address, a contacts import, a signup widget and a template design.
+   * By the checklist's own minute estimates that is ~21 minutes of
+   * configuration before a single witnessed delivery: the sequence asked for
+   * faith first and gave evidence last.
+   *
+   * `docs/design/00-PHILOSOPHY.md` §8 sets hour one: *send one real email to
+   * yourself and watch the line complete.* Not a sandbox simulation — the real
+   * path, the real provider, the real record. So the order is now
+   *
+   *   evidence (verify who you are → send one → watch it land)
+   *   then reach (your own domain, an audience, growth)
+   *   then craft (a design, replies)
+   *
+   * The MECHANICS are untouched: completion is still computed from live data,
+   * `crucial` still marks what genuinely blocks, the minute estimates are still
+   * honest, and it still hides itself when finished.
+   */
   const steps: Step[] = [
     {
       done: emailVerified,
       label: "Verify your email",
-      desc: "Confirm it's you so sending can begin.",
+      desc: "Confirm it's you. Sending cannot start until this is done.",
       href: null,
       minutes: 1,
     },
     {
-      done: onboarded,
-      label: "Complete your business profile",
-      desc: "Your details + postal address — required by anti-spam law and used to personalize rootmail.",
-      href: "/onboarding",
+      done: messages > 0,
+      label: "Send one real email and watch it land",
+      desc: "To yourself, right now, on the real path — real provider, real record. You will see the line complete: queued, sent, delivered. This is what every message in rootmail looks like from here on, and it is the only step that proves any of the rest is worth doing.",
+      href: "/messages/new",
       minutes: 2,
+      crucial: true,
+      sub: [
+        "Compose one to your own address",
+        "Watch the line on the message page — it advances on its own",
+      ],
     },
     {
       done: hasVerifiedSender,
-      label: "Verify a sending address",
-      desc: "So mail goes out from your own address (hello@yourcompany.com), not a rootmail one.",
+      label: "Send from your own address",
+      desc: "So mail goes out from hello@yourcompany.com, not a rootmail one. This is the step people stall on, because it is the one that waits on DNS — we re-check every hour and tell you the moment it resolves.",
       href: "/settings/sender",
       minutes: 5,
       crucial: true,
@@ -83,18 +109,18 @@ export async function OnboardingChecklist() {
       ],
     },
     {
+      done: onboarded,
+      label: "Complete your business profile",
+      desc: "Your details + postal address — required by anti-spam law on any marketing mail, and used to personalize rootmail.",
+      href: "/onboarding",
+      minutes: 2,
+    },
+    {
       done: lists > 0,
       label: "Build your audience",
       desc: "Import or add the people you want to reach.",
       href: "/contacts?add=import",
       minutes: 3,
-    },
-    {
-      done: growthOn,
-      label: "Turn on audience growth",
-      desc: "Get a shareable signup page + an embeddable form, so people subscribe themselves — and a welcome sequence can greet them automatically.",
-      href: "/contacts?tab=audiences",
-      minutes: 2,
     },
     {
       done: templates > 0,
@@ -104,10 +130,10 @@ export async function OnboardingChecklist() {
       minutes: 5,
     },
     {
-      done: messages > 0,
-      label: "Send your first email",
-      desc: "Compose and send from a real email surface.",
-      href: "/messages/new",
+      done: growthOn,
+      label: "Turn on audience growth",
+      desc: "Get a shareable signup page + an embeddable form, so people subscribe themselves — and a welcome sequence can greet them automatically.",
+      href: "/contacts?tab=audiences",
       minutes: 2,
     },
     {
@@ -144,13 +170,13 @@ export async function OnboardingChecklist() {
             key={s.label}
             className={cn(
               "flex items-start gap-3 rounded-md border bg-background p-3",
-              !s.done && s.crucial && "border-amber-400/60 ring-1 ring-amber-400/20",
+              !s.done && s.crucial && "border-acted/50 ring-1 ring-acted/20",
             )}
           >
             {s.done ? (
-              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-witnessed" />
             ) : s.crucial ? (
-              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-500" />
+              <AlertTriangle className="mt-0.5 size-5 shrink-0 text-acted" />
             ) : (
               <Circle className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
             )}
@@ -160,7 +186,7 @@ export async function OnboardingChecklist() {
                   {s.label}
                 </p>
                 {!s.done && s.crucial ? (
-                  <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 dark:text-amber-400">
+                  <span className="rounded-full bg-acted-tint px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-acted">
                     Required to send
                   </span>
                 ) : null}

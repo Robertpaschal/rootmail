@@ -71,7 +71,7 @@ export function LaunchPanel({
     });
 
   return (
-    <div className="mb-6 overflow-hidden rounded-xl border bg-card">
+    <div className="mb-6 overflow-hidden rounded-lg border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-4 px-5 py-4">
         <div className="min-w-0">
           <p className="text-sm font-semibold">
@@ -185,13 +185,13 @@ export function LaunchPanel({
             animate={{ height: "auto", opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={reduce ? { duration: 0 } : { height: EASE, opacity: { duration: 0.16 } }}
-            className="overflow-hidden border-t bg-amber-500/[0.04]"
+            className="overflow-hidden border-t bg-acted/[0.04]"
           >
-            <ul className="divide-y divide-amber-500/20">
+            <ul className="divide-y divide-acted/20">
               {blockers.map((b) => (
                 <li key={b.what} className="flex flex-wrap items-center justify-between gap-3 px-5 py-3">
                   <span className="flex items-center gap-2 text-sm">
-                    <AlertTriangle className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+                    <AlertTriangle className="size-4 shrink-0 text-acted" />
                     {b.what}
                   </span>
                   <Link
@@ -226,7 +226,7 @@ export function LaunchPanel({
 
       {ready && !confirming ? (
         <p className="flex items-center gap-1.5 border-t px-5 py-2.5 text-xs text-muted-foreground">
-          <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
+          <Check className="size-3.5 text-witnessed" />
           Audience, content and sending address all check out.
         </p>
       ) : null}
@@ -262,7 +262,7 @@ export function CampaignJourney({ phase }: { phase: CampaignPhase }) {
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium",
                 now && "bg-primary text-primary-foreground",
-                done && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
+                done && "bg-witnessed/15 text-witnessed",
                 !now && !done && "bg-muted text-muted-foreground",
               )}
             >

@@ -208,9 +208,9 @@ function priceLineFor(wing: Wing, w: Wings | null): string {
 
 function WingPitch({ pitch: p, priceLine, gated }: { pitch: Pitch; priceLine: string; gated: string | null }) {
   return (
-    <div className="mx-auto max-w-2xl overflow-hidden rounded-2xl border bg-card shadow-sm">
+    <div className="mx-auto max-w-2xl overflow-hidden rounded-lg border bg-card shadow-sm">
       <div className="border-b bg-muted/30 p-6 text-center">
-        <span className="inline-grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
+        <span className="inline-grid size-11 place-items-center rounded border border-rule text-ink-muted">
           <p.icon className="size-6" />
         </span>
         <h3 className="mt-3 text-xl font-bold">{p.title}</h3>
@@ -225,7 +225,7 @@ function WingPitch({ pitch: p, priceLine, gated }: { pitch: Pitch; priceLine: st
         <ul className="space-y-2.5">
           {p.includes.map((pt) => (
             <li key={pt} className="flex items-start gap-2.5 text-sm">
-              <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+              <Check className="mt-0.5 size-4 shrink-0 text-witnessed" />
               <span>{pt}</span>
             </li>
           ))}
@@ -237,7 +237,7 @@ function WingPitch({ pitch: p, priceLine, gated }: { pitch: Pitch; priceLine: st
 
         {/* Kept visibly apart from the list above: these are NOT included, and
             reading them as included is the mistake this page used to invite. */}
-        <div className="mt-5 rounded-xl border border-dashed p-4">
+        <div className="mt-5 rounded-lg border border-dashed p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Add separately, if you need it
           </p>

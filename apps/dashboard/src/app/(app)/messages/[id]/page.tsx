@@ -72,8 +72,11 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
       <PageHeader title={message.subject || "(no subject)"} description={`To ${message.to}`} backHref="/messages" backLabel="Messages" />
 
       {scenario ? (
-        <div className="mb-6 flex flex-wrap items-start gap-3 rounded-xl border border-sky-500/30 bg-sky-500/[0.07] p-4">
-          <FlaskConical className="mt-0.5 size-5 shrink-0 text-sky-600 dark:text-sky-400" />
+        // A test send is real mail to a safe destination — neither an
+        // intervention nor a stop, so it carries no signal colour. The dashed
+        // rule is this system's "not the real thing" everywhere else.
+        <div className="mb-6 flex flex-wrap items-start gap-3 rounded-lg border border-dashed bg-muted/40 p-4">
+          <FlaskConical className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Test send · {scenario.label}</p>
             <p className="mt-0.5 text-sm text-muted-foreground">
@@ -83,7 +86,7 @@ export default async function MessageDetailPage({ params }: { params: Promise<{ 
           </div>
           <Link
             href="/testing"
-            className="shrink-0 self-center text-sm font-medium text-sky-700 hover:underline dark:text-sky-400"
+            className="shrink-0 self-center text-sm font-medium hover:underline"
           >
             Testing <ArrowRight className="inline size-3.5" />
           </Link>

@@ -2,10 +2,12 @@ import type { Metadata } from "next";
 import { AlertTriangle, Inbox, Mail, ShieldOff, Users } from "lucide-react";
 import { OpenDoor } from "./open-door";
 import { PageHeader } from "@/components/app/page-header";
+import { StatCard } from "@/components/app/stat-card";
+import { StatusBadge } from "@/components/app/status-badge";
+import { Badge } from "@/components/ui/badge";
 import { adminApi } from "@/lib/admin-api";
 import type { InternalSummary } from "@/lib/types";
 import { timeAgo } from "@/lib/format";
-import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Our workspace" };
 export const dynamic = "force-dynamic";
@@ -25,45 +27,11 @@ export const dynamic = "force-dynamic";
  * paying us, and we will feel it first.
  */
 
-const STATUS_TONE: Record<string, string> = {
-  sent: "text-emerald-500",
-  delivered: "text-emerald-500",
-  queued: "text-muted-foreground",
-  suppressed: "text-amber-500",
-  bounced: "text-destructive",
-  complained: "text-destructive",
-  failed: "text-destructive",
-};
-
 const KIND_LABEL: Record<string, string> = {
   security: "Security",
   transactional: "Account",
   marketing: "Marketing",
 };
-
-function Stat({
-  icon: Icon,
-  label,
-  value,
-  sub,
-  tone,
-}: {
-  icon: typeof Mail;
-  label: string;
-  value: string;
-  sub?: string;
-  tone?: string;
-}) {
-  return (
-    <div className="rounded-lg border bg-card p-4">
-      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        <Icon className="size-3.5" /> {label}
-      </div>
-      <p className={cn("mt-1.5 text-2xl font-semibold tabular-nums", tone)}>{value}</p>
-      {sub ? <p className="mt-0.5 text-xs text-muted-foreground">{sub}</p> : null}
-    </div>
-  );
-}
 
 export default async function OurWorkspacePage() {
   let s: InternalSummary | null = null;
@@ -93,47 +61,55 @@ export default async function OurWorkspacePage() {
       ) : s ? (
         <>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <Stat
+            <StatCard
               icon={Users}
-              label="Customers reachable"
+              label="customers reachable"
               value={s.audience.active.toLocaleString()}
-              sub={
+              window="now"
+              method="our contacts"
+              caveat={
                 s.audience.total !== s.audience.active
                   ? `${(s.audience.total - s.audience.active).toLocaleString()} unsubscribed or bounced`
-                  : "everyone in our audience"
+                  : undefined
               }
             />
-            <Stat
+            <StatCard
               icon={Mail}
-              label="Sent to them · 30d"
+              label="sent to them"
               value={total.toLocaleString()}
-              sub={
+              window="30d"
+              method="our workspace"
+              threshold={`${s.sends_30d.sent.toLocaleString()} delivered`}
+              caveat={
                 s.sends_30d.tests > 0
-                  ? `${s.sends_30d.sent.toLocaleString()} delivered · ${s.sends_30d.tests.toLocaleString()} test ${s.sends_30d.tests === 1 ? "send" : "sends"} not counted`
-                  : `${s.sends_30d.sent.toLocaleString()} delivered`
+                  ? `${s.sends_30d.tests.toLocaleString()} test ${s.sends_30d.tests === 1 ? "send" : "sends"} excluded`
+                  : undefined
               }
             />
-            <Stat
+            <StatCard
               icon={AlertTriangle}
-              label="Bounced or complained"
+              label="bounced or complained"
               value={bad.toLocaleString()}
-              sub={total > 0 ? `${badRate.toFixed(1)}% of real sends` : "nothing sent yet"}
-              tone={badRate >= 2 ? "text-destructive" : undefined}
+              window="30d"
+              method="provider feedback"
+              threshold={total > 0 ? `${badRate.toFixed(1)}% of real sends · throttled at 2%` : "nothing sent yet"}
             />
-            <Stat
+            <StatCard
               icon={Inbox}
-              label="Replies waiting"
+              label="replies waiting"
               value={s.open_threads.toLocaleString()}
-              sub={s.open_threads > 0 ? "open threads in our inbox" : "nothing unanswered"}
+              window="now"
+              method="our inbox"
+              threshold={s.open_threads > 0 ? "open threads" : "nothing unanswered"}
             />
           </div>
 
           {/* We hold customers to CAN-SPAM. The address is left empty rather
               than invented, so this is the nudge that gets a real one in. */}
           {!s.postal_address ? (
-            <div className="flex items-start gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
-              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-500" />
-              <p className="text-sm text-amber-700 dark:text-amber-400">
+            <div className="flex items-start gap-2 rounded-lg border border-acted/40 bg-acted-tint p-3">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-acted" />
+              <p className="text-sm text-acted">
                 <span className="font-medium">Our marketing footers have no postal address.</span>{" "}
                 CAN-SPAM requires one on commercial email — the same rule we enforce for every
                 customer. Add rootmail&apos;s real address in the dashboard under Settings →
@@ -181,30 +157,25 @@ export default async function OurWorkspacePage() {
                 {s.recent.map((m) => (
                   <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5">
                     {m.status === "suppressed" ? (
-                      <ShieldOff className="size-3.5 shrink-0 text-amber-500" />
+                      <ShieldOff className="size-3.5 shrink-0 text-acted" />
                     ) : (
-                      <Mail className="size-3.5 shrink-0 text-muted-foreground/60" />
+                      <Mail className="size-3.5 shrink-0 text-ink-muted/60" />
                     )}
                     <span className="min-w-0 flex-1 truncate text-sm">{m.subject}</span>
-                    <span className="hidden max-w-[16rem] truncate text-xs text-muted-foreground sm:block">
+                    <span className="hidden max-w-[16rem] truncate font-mono text-xs text-ink-muted sm:block">
                       {m.to_email}
                     </span>
                     {m.kind ? (
-                      <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                      <Badge variant="muted" className="shrink-0 text-[10px]">
                         {KIND_LABEL[m.kind] ?? m.kind}
-                      </span>
+                      </Badge>
                     ) : null}
-                    <span
-                      className={cn(
-                        "shrink-0 text-xs font-medium",
-                        STATUS_TONE[m.status] ?? "text-muted-foreground",
-                      )}
-                    >
-                      {m.status}
+                    <span className="shrink-0">
+                      <StatusBadge status={m.status} />
                     </span>
-                    <span className="shrink-0 text-xs text-muted-foreground">
+                    <time className="shrink-0 font-mono text-xs text-ink-muted">
                       {timeAgo(m.created_at)}
-                    </span>
+                    </time>
                   </li>
                 ))}
               </ul>

@@ -66,15 +66,15 @@ export function StarterGallery({
       {/* Start fresh: blank canvas or raw HTML */}
       <div className="grid gap-4 sm:grid-cols-2">
         <button type="button" onClick={() => onBlank(wing)}
-          className="group flex items-center gap-4 rounded-xl border bg-card p-5 text-left transition-colors hover:border-primary/50 hover:bg-primary/5">
-          <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary"><FilePlus2 className="size-5" /></span>
+          className="group flex items-center gap-4 rounded-lg border bg-card p-5 text-left transition-colors hover:border-primary/50 hover:bg-primary/5">
+          <span className="flex size-11 shrink-0 items-center justify-center rounded border border-rule text-ink-muted"><FilePlus2 className="size-5" /></span>
           <span>
             <span className="block font-medium group-hover:text-primary">Start from scratch</span>
             <span className="mt-0.5 block text-xs text-muted-foreground">A blank canvas. Add blocks and design it your way — no code.</span>
           </span>
         </button>
         <button type="button" onClick={() => onHtml(wing)}
-          className="group flex items-center gap-4 rounded-xl border bg-card p-5 text-left transition-colors hover:border-primary/50 hover:bg-primary/5">
+          className="group flex items-center gap-4 rounded-lg border bg-card p-5 text-left transition-colors hover:border-primary/50 hover:bg-primary/5">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground group-hover:text-foreground"><Code2 className="size-5" /></span>
           <span>
             <span className="block font-medium group-hover:text-primary">Paste your own HTML</span>

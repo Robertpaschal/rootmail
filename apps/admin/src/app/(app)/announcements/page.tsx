@@ -42,8 +42,8 @@ export default async function AnnouncementsPage() {
         <div className="rounded-lg border">
           <EmptyState
             icon={Megaphone}
-            title="Nothing announced yet"
-            description="When you broadcast a product or service update to account owners, the send is archived here — subject, reach, sender, and the exact message."
+            title="Broadcasts to account owners are archived here"
+            description="Every product or service update you send is kept with its subject, reach, sender and exact body — so a claim made to customers can be produced later."
             action={
               <Link href="/announcements/new" className="text-sm font-medium text-primary hover:underline">
                 Write the first announcement →

@@ -49,7 +49,7 @@ export function CustomPlansCard({ plans }: { plans: CustomPlanListItem[] }) {
                 {p.allow_overage ? `${money(p.overage_per_1000_cents)}/1k` : "capped"}
               </td>
               <td className="py-2 pr-3">
-                {p.active ? <Badge variant="success">active</Badge> : <Badge variant="muted">ended</Badge>}
+                {p.active ? <Badge variant="witnessed">active</Badge> : <Badge variant="muted">ended</Badge>}
               </td>
               <td className="py-2 pr-3 text-right">
                 {p.active ? (

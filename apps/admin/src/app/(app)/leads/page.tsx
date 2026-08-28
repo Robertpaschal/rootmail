@@ -46,17 +46,17 @@ export default async function LeadsPage({
       />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Total" value={formatNumber(total)} icon={Contact} tone="blue" />
+        <StatCard label="leads" value={formatNumber(total)} window="all time" method="leads table" icon={Contact} />
         <StatCard
-          label="New"
+          label="new"
           value={formatNumber(c("new"))}
-          sub="need triage"
+          window="all time"
+          method="leads table"
+          caveat="awaiting triage"
           icon={Sparkles}
-          tone="amber"
-          accent={c("new") > 0}
         />
-        <StatCard label="In pipeline" value={formatNumber(pipeline)} icon={TrendingUp} tone="violet" />
-        <StatCard label="Won" value={formatNumber(c("won"))} icon={Trophy} tone="green" />
+        <StatCard label="in pipeline" value={formatNumber(pipeline)} window="all time" method="leads table" icon={TrendingUp} />
+        <StatCard label="won" value={formatNumber(c("won"))} window="all time" method="leads table" icon={Trophy} />
       </div>
 
       <div className="flex flex-wrap gap-1.5">

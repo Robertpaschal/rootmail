@@ -33,18 +33,12 @@ export interface EngagementPoint {
 type Depth = 0 | 1 | 2;
 const DEPTH_LABEL = ["Sent, not opened", "Opened", "Clicked"] as const;
 
-/** Ordinal ramp — one hue, more-is-darker on light, more-is-lighter on dark.
- *  Both directions validated against their own surface. */
-const DEPTH_FILL = [
-  "fill-blue-400 dark:fill-blue-700",
-  "fill-blue-600 dark:fill-blue-500",
-  "fill-blue-800 dark:fill-blue-300",
-] as const;
-const DEPTH_SWATCH = [
-  "bg-blue-400 dark:bg-blue-700",
-  "bg-blue-600 dark:bg-blue-500",
-  "bg-blue-800 dark:bg-blue-300",
-] as const;
+// One ink ramp, more-is-darker. It was three blues; blue asserts nothing about
+// state, and an ordinal scale needs one hue at three weights anyway — which
+// `--ink` at three opacities gives in BOTH themes, where a hardcoded
+// blue-400/blue-700 pair only ever worked in one.
+const DEPTH_FILL = ["fill-ink/25", "fill-ink/55", "fill-ink"] as const;
+const DEPTH_SWATCH = ["bg-ink/25", "bg-ink/55", "bg-ink"] as const;
 
 function depthOf(m: EngagementPoint): Depth {
   if (m.clicked_at) return 2;

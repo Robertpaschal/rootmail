@@ -105,8 +105,11 @@ export function OpenDoor({ compact = false }: { compact?: boolean }) {
               type="button"
               onClick={() => go(d.path)}
               disabled={busy}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
+              // Transform only — these doors are always rendered, and a
+              // staggered fade means a staff member with frozen frames sees an
+              // empty panel where the links should be.
+              initial={{ y: 6 }}
+              animate={{ y: 0 }}
               transition={{ ...EASE, delay: i * 0.03 }}
               whileHover={busy ? undefined : { y: -2 }}
               className={cn(

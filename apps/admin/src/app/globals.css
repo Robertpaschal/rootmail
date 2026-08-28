@@ -1,61 +1,123 @@
+/* Type, signal colours and the line come from the shared design package;
+   the ground is then overridden below. See docs/design/00-PHILOSOPHY.md. */
+@import "@rootmail/design/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-/* Admin console theme — a deliberately monochrome, near-black palette so staff
-   can tell at a glance they're in the internal tool, not the customer dashboard. */
 @layer base {
-  :root {
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-      Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
-      "Courier New", monospace;
-
-    --background: 240 6% 95%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 6% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 5% 90%;
-    --accent-foreground: 240 6% 10%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 88%;
-    --input: 240 5.9% 88%;
-    --ring: 240 6% 10%;
-    --radius: 0.6rem;
-  }
-
-  /* Dark variant — keeps the monochrome, near-black staff character. */
-  .dark {
-    --background: 240 8% 6%;
-    --foreground: 0 0% 96%;
-    --card: 240 7% 9%;
-    --card-foreground: 0 0% 96%;
-    --popover: 240 7% 9%;
-    --popover-foreground: 0 0% 96%;
-    --primary: 0 0% 92%;
-    --primary-foreground: 240 6% 10%;
-    --secondary: 240 4% 15%;
-    --secondary-foreground: 0 0% 96%;
-    --muted: 240 4% 15%;
-    --muted-foreground: 240 5% 64%;
-    --accent: 240 4% 18%;
-    --accent-foreground: 0 0% 96%;
-    --destructive: 0 62.8% 40%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 4% 16%;
-    --input: 240 4% 16%;
-    --ring: 0 0% 70%;
+  /* Only h1 in the consoles: a page title is a headline, but the h2s here are
+     dense UI labels and a serif at 14px in a table header reads as a mistake. */
+  h1 {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf);
+    font-weight: 600;
+    letter-spacing: var(--track-display);
+    line-height: 1.05;
   }
 }
+
+@layer components {
+  .display-num {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf-num);
+    font-variant-numeric: tabular-nums lining;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ADMIN GROUND — near-black in BOTH themes, on purpose.
+ *
+ * The stated intent of this console has always been that staff can tell at a
+ * glance they are in the internal tool and not a customer's dashboard. That
+ * intent was not actually delivered: the light theme's ground was `240 6% 95%`,
+ * which is the same cold grey the dashboard used, so in light mode the two
+ * consoles were near-indistinguishable — exactly the confusion the theme exists
+ * to prevent, and worst in the case that matters (a staff member acting on a
+ * real customer's account).
+ *
+ * So admin does not have a light mode. It has one ground, and it is dark. The
+ * signal colours are inherited unchanged from the design package, because
+ * "stopped" must mean the same thing to staff as it does to a customer.
+ *
+ * THE TRAP THIS BLOCK KEEPS FALLING INTO (2026-08-28)
+ * --------------------------------------------------
+ * Admin never sets `.dark` on `<html>` — it just redefines the ground on
+ * `:root`. So every token this block does NOT restate keeps its LIGHT value
+ * while sitting on a near-black page, and nothing warns you. The block already
+ * restated the signal colours for exactly that reason. §10 then added brass and
+ * elevation, which it did not, so measured on the running page:
+ *
+ *   --brass-text at its light cut ...... 3.48:1 on this ground — FAILS AA
+ *   --elev-1/2/3 at their light values .. drop shadows, invisible on near-black
+ *
+ * Both are restated below. Anything added to the `.dark` half of
+ * `@rootmail/design/tokens.css` in future must be restated here too.
+ */
+:root,
+.dark {
+  --paper: 240 8% 6%;
+  --paper-raised: 240 7% 9%;
+  --paper-lift: 240 6% 13%;
+  --ink: 0 0% 96%;
+  --ink-muted: 240 5% 58%;
+  --rule: 240 6% 18%;
+
+  /* Brass at its dark cut: 9.1:1 as a fill, 10.5:1 as text. */
+  --brass: 38 72% 58%;
+  --brass-text: 38 78% 64%;
+  --brass-ink: 30 60% 8%;
+
+  --witnessed: 152 50% 52%;
+  --acted: 35 88% 60%;
+  --stopped: 2 75% 62%;
+  --witnessed-tint: 152 40% 15%;
+  --acted-tint: 35 60% 15%;
+  --stopped-tint: 2 50% 17%;
+  --line-dim: 240 6% 28%;
+
+  /* Depth from LIGHT, not from a darker shadow — an inset top highlight reads
+     as lit from above and a far, dim brass glow reads as distance. */
+  --elev-1: 0 1px 0 0 hsl(40 60% 90% / 0.05) inset, 0 8px 20px -12px hsl(0 0% 0% / 0.7);
+  --elev-2: 0 1px 0 0 hsl(40 60% 90% / 0.08) inset,
+            0 20px 44px -22px hsl(0 0% 0% / 0.85),
+            0 0 100px -58px hsl(var(--brass));
+  --elev-3: 0 1px 0 0 hsl(40 60% 90% / 0.13) inset,
+            0 32px 68px -26px hsl(0 0% 0% / 0.9),
+            0 0 130px -50px hsl(var(--brass));
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-raised);
+  --popover-foreground: var(--ink);
+  /* Primary is BRASS, as it is in the other three apps. It was pinned to ink
+     under the withdrawn §5.2 rule ("saturated colour is reserved for state"),
+     which left the console with no accent at all — and `button.tsx` had already
+     moved on: its default variant carries a brass GLOW under a white fill,
+     which is a control that half-believes it is brass. §10.2 settles it: brass
+     is what you can press. Composure survives because brass reaches exactly one
+     control per view — everything else here is outline, ghost or muted, and
+     the destructive cross-org powers keep `--destructive` (= `--stopped`). */
+  --primary: var(--brass);
+  --primary-foreground: var(--brass-ink);
+  --secondary: 240 6% 14%;
+  --secondary-foreground: var(--ink);
+  --muted: 240 6% 14%;
+  --muted-foreground: var(--ink-muted);
+  --accent: 240 6% 16%;
+  --accent-foreground: var(--ink);
+  --destructive: var(--stopped);
+  --destructive-foreground: 240 8% 6%;
+  --border: var(--rule);
+  --input: var(--rule);
+  /* Focus is the third thing §10.2 names. An ink ring on near-black was legible
+     but said nothing; brass says "this is the thing you are about to act on". */
+  --ring: var(--brass);
+}
+
 
 @layer base {
   * {

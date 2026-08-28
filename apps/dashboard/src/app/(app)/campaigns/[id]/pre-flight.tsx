@@ -131,7 +131,7 @@ export function PreFlight({
               onClick={() => select(idx)}
               className={cn(
                 "flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-                idx === i ? "border-primary bg-primary/10 text-foreground" : "text-muted-foreground hover:text-foreground",
+                idx === i ? "border-ink bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
               {r.edited ? <PenLine className="size-3 text-primary" /> : null}
@@ -195,7 +195,7 @@ export function PreFlight({
             </div>
 
             {editing ? (
-              <div className="space-y-3 rounded-xl border bg-card p-4">
+              <div className="space-y-3 rounded-lg border bg-card p-4">
                 <div className="flex items-center gap-3 border-b pb-3">
                   <span className="w-16 shrink-0 text-sm text-muted-foreground">Subject</span>
                   <input

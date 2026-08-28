@@ -27,13 +27,13 @@ export function SignupForm({
           : [CheckCircle2, "You're on the list", `${orgName} will finish adding you shortly.`];
     return (
       <div className="text-center">
-        <Icon className="mx-auto mb-3 size-10 text-emerald-600" />
+        <Icon className="mx-auto mb-3 size-10 text-witnessed" />
         <h2 className="text-lg font-semibold">{title}</h2>
-        <p className="mt-1 text-sm text-neutral-600">{body}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{body}</p>
         {result.state === "subscribed" && redirectUrl ? (
           <a
             href={redirectUrl}
-            className="mt-4 inline-block rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white"
+            className="mt-4 inline-block rounded-lg bg-ink px-5 py-2.5 text-sm font-semibold text-white"
           >
             Continue
           </a>
@@ -52,19 +52,19 @@ export function SignupForm({
       className="space-y-3"
     >
       <div>
-        <label htmlFor="sub-name" className="mb-1 block text-sm font-medium text-neutral-700">
-          Name <span className="font-normal text-neutral-400">(optional)</span>
+        <label htmlFor="sub-name" className="mb-1 block text-sm font-medium text-foreground">
+          Name <span className="font-normal text-muted-foreground">(optional)</span>
         </label>
         <input
           id="sub-name"
           name="name"
           autoComplete="name"
-          className="w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10"
+          className="w-full rounded-lg border border-rule px-3.5 py-2.5 text-[15px] outline-none focus:border-rule focus:ring-2 focus:ring-rule/10"
           placeholder="Ada Lovelace"
         />
       </div>
       <div>
-        <label htmlFor="sub-email" className="mb-1 block text-sm font-medium text-neutral-700">
+        <label htmlFor="sub-email" className="mb-1 block text-sm font-medium text-foreground">
           Email
         </label>
         <input
@@ -73,17 +73,17 @@ export function SignupForm({
           type="email"
           required
           autoComplete="email"
-          className="w-full rounded-lg border border-neutral-300 px-3.5 py-2.5 text-[15px] outline-none focus:border-neutral-900 focus:ring-2 focus:ring-neutral-900/10"
+          className="w-full rounded-lg border border-rule px-3.5 py-2.5 text-[15px] outline-none focus:border-rule focus:ring-2 focus:ring-rule/10"
           placeholder="you@example.com"
         />
       </div>
       {/* Honeypot — visually hidden; bots fill it, humans never see it. */}
       <input type="text" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 opacity-0" />
-      {result?.error ? <p className="text-sm text-red-600">{result.error}</p> : null}
+      {result?.error ? <p className="text-sm text-stopped">{result.error}</p> : null}
       <button
         type="submit"
         disabled={pending}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-neutral-900 px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-ink px-5 py-2.5 text-sm font-semibold text-white transition-opacity disabled:opacity-60"
       >
         {pending ? <Loader2 className="size-4 animate-spin" /> : null} Subscribe
       </button>

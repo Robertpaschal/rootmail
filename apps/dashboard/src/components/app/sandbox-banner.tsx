@@ -25,13 +25,13 @@ export function SandboxBanner({
   liveName?: string | null;
 }) {
   return (
-    <div className="border-b border-amber-500/30 bg-amber-500/10">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 text-sm text-amber-700 dark:text-amber-400 md:px-8">
+    <div className="border-b border-acted/30 bg-acted/10">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-2 text-sm text-acted md:px-8">
         <span className="flex shrink-0 items-center gap-2 font-semibold">
           <FlaskConical className="size-4 shrink-0" />
           Sandbox{workspaceName ? ` · ${workspaceName}` : ""}
         </span>
-        <span className="min-w-0 flex-1 text-amber-700/80 dark:text-amber-400/80">
+        <span className="min-w-0 flex-1 text-acted">
           A rehearsal room for developers: sends here are simulated and never reach a real person, and none of
           your live data is shown.{" "}
           <Link href="/testing" className="font-medium underline underline-offset-2">

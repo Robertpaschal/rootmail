@@ -29,8 +29,11 @@ export function LeadPipeline({ id, status }: { id: string; status: LeadStatus })
                 title={`Move to ${LEAD_STATUS_LABEL[s]}`}
                 className={cn(
                   "flex h-10 w-full items-center justify-center border-r px-2 text-xs transition-colors last:border-r-0",
+                  // These are CONTROLS, so the accent is brass — the signal
+                  // colours are reserved for what happened to a message and
+                  // never appear on something you press (§10.2).
                   won
-                    ? "bg-emerald-500 text-white hover:bg-emerald-600"
+                    ? "bg-brass text-brass-ink hover:bg-brass/90"
                     : reached
                       ? "bg-primary text-primary-foreground hover:bg-primary/90"
                       : "bg-muted/30 text-muted-foreground hover:bg-muted",
@@ -49,7 +52,7 @@ export function LeadPipeline({ id, status }: { id: string; status: LeadStatus })
           {isLost
             ? "This lead is marked lost."
             : isWon
-              ? "Won — converted to a customer. 🎉"
+              ? "Won — converted to a customer."
               : `Stage ${currentIdx + 1} of ${STAGES.length} · click ahead to advance`}
         </span>
         {isLost ? (

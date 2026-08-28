@@ -28,26 +28,26 @@ const STATUS_META: Record<
 > = {
   excellent: {
     label: "Excellent",
-    text: "text-emerald-600 dark:text-emerald-400",
-    bar: "bg-emerald-500",
+    text: "text-witnessed",
+    bar: "bg-witnessed",
     verdict: "Mail is landing reliably in inboxes. Keep doing what you're doing.",
   },
   good: {
     label: "Good",
-    text: "text-emerald-600 dark:text-emerald-400",
-    bar: "bg-emerald-500",
+    text: "text-witnessed",
+    bar: "bg-witnessed",
     verdict: "Mail is landing well. A few tweaks below will keep it that way.",
   },
   at_risk: {
     label: "At risk",
-    text: "text-amber-600 dark:text-amber-400",
-    bar: "bg-amber-500",
+    text: "text-acted",
+    bar: "bg-acted",
     verdict: "Inbox placement is slipping. Address the flagged issues before it worsens.",
   },
   critical: {
     label: "Needs attention",
-    text: "text-red-600 dark:text-red-400",
-    bar: "bg-red-500",
+    text: "text-stopped",
+    bar: "bg-stopped",
     verdict: "Providers may be filtering or blocking your mail. Act on the critical items now.",
   },
   no_data: { label: "No data yet", text: "text-muted-foreground", bar: "bg-muted-foreground/40", verdict: "" },
@@ -93,8 +93,8 @@ const PILLARS = [
 ] as const;
 
 function rateTone(value: number, warn: number, crit: number): string {
-  if (value >= crit) return "text-red-600 dark:text-red-400";
-  if (value >= warn) return "text-amber-600 dark:text-amber-400";
+  if (value >= crit) return "text-stopped";
+  if (value >= warn) return "text-acted";
   return "text-foreground";
 }
 
@@ -155,7 +155,7 @@ function PillarCard({
   return (
     <Card className="h-full">
       <CardContent className="flex h-full flex-col p-5">
-        <span className="mb-3 grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+        <span className="mb-3 grid size-9 place-items-center rounded border border-rule text-ink-muted">
           <p.icon className="size-4" />
         </span>
         <p className="text-sm font-semibold">{p.title}</p>
@@ -163,7 +163,7 @@ function PillarCard({
           <p
             className={cn(
               "mt-0.5 text-xs font-medium",
-              p.stateTone === "warn" ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400",
+              p.stateTone === "warn" ? "text-acted" : "text-witnessed",
             )}
           >
             {p.state}
@@ -338,8 +338,8 @@ export default async function DeliverabilityPage({
                 dates={trend.series.map((s) => s.date)}
                 series={[
                   { label: "Sent", className: "text-muted-foreground/70", values: trend.series.map((s) => s.sent) },
-                  { label: "Delivered", className: "text-emerald-500", values: trend.series.map((s) => s.delivered ?? 0) },
-                  { label: "Bounced / spam", className: "text-red-500", values: trend.series.map((s) => s.bounced ?? 0) },
+                  { label: "Delivered", className: "text-witnessed", values: trend.series.map((s) => s.delivered ?? 0) },
+                  { label: "Bounced / spam", className: "text-stopped", values: trend.series.map((s) => s.bounced ?? 0) },
                 ]}
               />
             </CardContent>
@@ -363,10 +363,10 @@ export default async function DeliverabilityPage({
                       className={cn(
                         "mt-0.5 size-4 shrink-0",
                         f.severity === "critical"
-                          ? "text-red-600 dark:text-red-400"
+                          ? "text-stopped"
                           : f.severity === "warning"
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-emerald-600 dark:text-emerald-400",
+                            ? "text-acted"
+                            : "text-witnessed",
                       )}
                     />
                     <div className="min-w-0">
@@ -461,7 +461,7 @@ export default async function DeliverabilityPage({
               {d.domains.unverified > 0 ? (
                 <Link
                   href="/settings/sender"
-                  className="flex items-start gap-1.5 text-xs text-amber-600 hover:underline dark:text-amber-400"
+                  className="flex items-start gap-1.5 text-xs text-acted hover:underline"
                 >
                   <Info className="mt-0.5 size-3.5 shrink-0" />
                   {d.domains.unverified} domain(s) need DKIM verification — finish set-up

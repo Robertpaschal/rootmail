@@ -45,11 +45,11 @@ function Tile({
     <div
       className={cn(
         "rounded-lg border p-3",
-        crossed && "border-red-300 bg-red-50/60 dark:border-red-900/60 dark:bg-red-950/20",
+        crossed && "border-stopped bg-stopped-tint",
       )}
     >
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className={cn("mt-0.5 text-2xl font-semibold tabular-nums", crossed && "text-red-600 dark:text-red-400")}>
+      <p className={cn("mt-0.5 text-2xl font-semibold tabular-nums", crossed && "text-stopped")}>
         {value}
       </p>
       {hint ? <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p> : null}
@@ -62,9 +62,9 @@ function Tile({
 function Ladder({ warn, throttle, pause }: { warn: number; throttle: number; pause: number }) {
   return (
     <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
-      <span className="text-amber-600 dark:text-amber-400">warn {formatRate(warn)}</span> ·{" "}
-      <span className="text-amber-600 dark:text-amber-400">throttle {formatRate(throttle)}</span> ·{" "}
-      <span className="text-red-600 dark:text-red-400">pause {formatRate(pause)}</span>
+      <span className="text-acted">warn {formatRate(warn)}</span> ·{" "}
+      <span className="text-acted">throttle {formatRate(throttle)}</span> ·{" "}
+      <span className="text-stopped">pause {formatRate(pause)}</span>
     </p>
   );
 }
@@ -121,8 +121,8 @@ export function ReputationPanel({
   return (
     <Card
       className={cn(
-        paused && "border-red-300 dark:border-red-900/70",
-        state === "throttled" && "border-amber-300 dark:border-amber-900/70",
+        paused && "border-stopped",
+        state === "throttled" && "border-acted",
       )}
     >
       <CardHeader className="flex-row items-start justify-between space-y-0 gap-4">
@@ -156,8 +156,8 @@ export function ReputationPanel({
             className={cn(
               "flex items-start gap-2 rounded-lg px-3 py-2.5 text-sm",
               paused
-                ? "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-300"
-                : "bg-amber-50 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300",
+                ? "bg-stopped-tint text-stopped"
+                : "bg-acted-tint text-acted",
             )}
           >
             {paused ? (

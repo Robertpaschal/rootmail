@@ -1,75 +1,92 @@
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType } from "react";
 import Link from "next/link";
+import { Metric } from "@rootmail/design";
 import { cn } from "@/lib/utils";
 
-export type Tone = "slate" | "blue" | "green" | "amber" | "violet" | "rose";
-
-// Semantic color for data tiles — a tinted icon chip + (when accented) a matching
-// ring. Tailwind palette so it reads in both the light + near-black dark themes.
-const ICON_TONE: Record<Tone, string> = {
-  slate: "bg-muted text-muted-foreground",
-  blue: "bg-blue-500/10 text-blue-600 dark:text-blue-400",
-  green: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
-  amber: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
-  violet: "bg-violet-500/10 text-violet-600 dark:text-violet-400",
-  rose: "bg-rose-500/10 text-rose-600 dark:text-rose-400",
-};
-
-const RING_TONE: Record<Tone, string> = {
-  slate: "ring-border",
-  blue: "ring-blue-500/30",
-  green: "ring-emerald-500/30",
-  amber: "ring-amber-500/40",
-  violet: "ring-violet-500/30",
-  rose: "ring-rose-500/40",
-};
-
-/** A KPI tile for the overview + section summaries. Optionally links somewhere. */
+/**
+ * A data tile for the staff console.
+ *
+ * It used to take a `tone` — blue, green, amber, violet, rose — and paint a
+ * tinted chip behind its icon. That is precisely the thing §5.2 forbids: five
+ * saturated colours carrying no claim, spent on decoration, so that by the time
+ * something on the same screen genuinely WAS amber ("we intervened") the colour
+ * had no meaning left to spend. The tones are gone and the icon is plain ink.
+ *
+ * What replaced them is stricter, not looser. The tile is a `<Metric>` from
+ * `@rootmail/design`, whose `window` and `method` are REQUIRED BY TYPE — so a
+ * staff member reading "1,204" can always see the window it covers and where it
+ * came from, and no naked number can be added to this console without someone
+ * deleting a required prop and noticing why they shouldn't. Numbers here decide
+ * whether to suspend a paying customer's domain; they arrive sourced.
+ */
 export function StatCard({
   label,
   value,
-  sub,
+  window,
+  method,
+  threshold,
+  caveat,
+  inferred,
   icon: Icon,
   href,
-  tone = "slate",
-  accent,
+  className,
 }: {
+  /** What is being counted, lowercase: "organizations", "open tickets". */
   label: string;
-  value: ReactNode;
-  sub?: ReactNode;
+  value: string | number;
+  /** The window it covers: "all time", "this period", "30d". */
+  window: string;
+  /** Where it came from: "orgs table", "provider feedback", "stripe". */
+  method: string;
+  /** A threshold worth printing beside it: "warn at 2%". */
+  threshold?: string;
+  /** Names a bias or a qualification. Required when `inferred`. */
+  caveat?: string;
+  /** True only for a number we did not observe. Renders at reduced ink. */
+  inferred?: boolean;
   icon?: ComponentType<{ className?: string }>;
   href?: string;
-  tone?: Tone;
-  accent?: boolean;
+  className?: string;
 }) {
   const inner = (
     <>
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {label}
-        </span>
-        {Icon ? (
-          <span className={cn("grid size-8 shrink-0 place-items-center rounded-lg", ICON_TONE[tone])}>
-            <Icon className="size-4" />
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-2 text-2xl font-semibold tabular-nums">{value}</div>
-      {sub ? <div className="mt-1 text-xs text-muted-foreground">{sub}</div> : null}
+      {Icon ? (
+        <Icon className="absolute right-3 top-3 size-4 text-ink-muted/60" aria-hidden />
+      ) : null}
+      {inferred ? (
+        <Metric
+          value={value}
+          label={label}
+          window={window}
+          method={method}
+          threshold={threshold}
+          inferred
+          caveat={caveat ?? "inferred"}
+        />
+      ) : (
+        <Metric
+          value={value}
+          label={label}
+          window={window}
+          method={method}
+          threshold={threshold}
+          caveat={caveat}
+        />
+      )}
     </>
   );
 
-  const className = cn(
-    "rounded-xl border bg-card p-4 transition-colors",
-    accent && cn("ring-1", RING_TONE[tone]),
-    href && "hover:border-primary/40",
+  const box = cn(
+    "relative rounded-lg border bg-card p-4",
+    href && "transition-colors duration-interaction ease-interaction hover:border-ink/40",
+    className,
   );
 
   return href ? (
-    <Link href={href} className={cn(className, "block")}>
+    <Link href={href} className={cn(box, "block")}>
       {inner}
     </Link>
   ) : (
-    <div className={className}>{inner}</div>
+    <div className={box}>{inner}</div>
   );
 }

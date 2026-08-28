@@ -213,12 +213,12 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
         <Reveal className="space-y-4" delay={0.05}>
           {/* A message bounced back from a one-click action (e.g. plan quota). */}
           {sp.notice ? (
-            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-400/50 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:bg-amber-950/30 dark:text-amber-300">
+            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-acted/50 bg-acted-tint px-4 py-3 text-sm text-acted">
               <span>{sp.notice}</span>
               {sp.notice_link?.startsWith("/") ? (
                 <Link href={sp.notice_link} className="font-medium underline">See plans</Link>
               ) : null}
-              <Link href={hubUrl({ q: sp.q, tag: sp.tag, status })} className="ml-auto rounded p-1 text-amber-900/70 hover:text-amber-900 dark:text-amber-300/70 dark:hover:text-amber-300" aria-label="Dismiss">
+              <Link href={hubUrl({ q: sp.q, tag: sp.tag, status })} className="ml-auto rounded p-1 text-acted/70 hover:text-acted dark:hover:text-acted" aria-label="Dismiss">
                 <X className="size-4" />
               </Link>
             </div>
@@ -301,8 +301,8 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
               ) : (
               <>
               {/* The empty CRM sells its own doors: grow, bring, or add. */}
-              <div className="rounded-xl border border-dashed p-8 text-center">
-                <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+              <div className="rounded-lg border border-dashed p-8 text-center">
+                <span className="mx-auto grid size-12 place-items-center rounded border border-rule text-ink-muted">
                   <Users className="size-6" />
                 </span>
                 <h2 className="mt-3 text-lg font-semibold">Your customers will live here</h2>
@@ -441,7 +441,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                         href={active ? hubUrl({ q: sp.q, status }) : hubUrl({ q: sp.q, status, tag: t.tag })}
                         className={cn(
                           "inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-colors",
-                          active ? "border-primary bg-primary/10 font-medium text-foreground" : "text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                          active ? "border-ink bg-secondary font-medium text-foreground" : "text-muted-foreground hover:border-primary/40 hover:text-foreground",
                         )}
                       >
                         {t.tag} <span className="tabular-nums">{t.contacts.toLocaleString()}</span>
@@ -562,8 +562,8 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
             ) : (
               <EmptyState
                 icon={<ListChecks className="size-6" />}
-                title="No audiences yet"
-                description="An audience is a named group of your people — “Newsletter subscribers”, “Customers” — and it's what a campaign sends to. Start one empty, or from everyone carrying a tag."
+                title="A campaign needs somebody to send to"
+                description="An audience is a named group of your people — “Newsletter subscribers”, “Customers” — and it is what a campaign addresses. Start one empty, or from everyone already carrying a tag. Unsubscribes and bounces leave it on their own."
                 action={
                   <Link
                     href={hubUrl({ tab: "audiences", create: "1" })}

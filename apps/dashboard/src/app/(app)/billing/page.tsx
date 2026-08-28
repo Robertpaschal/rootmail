@@ -140,7 +140,7 @@ export default async function BillingPage({
               <span className="font-medium">{num(usage.used)} / {num(usage.quota)}</span>
               <span className="text-xs text-muted-foreground">sends this month</span>
             </div>
-            <Meter pct={txPct} tone={usage.over_limit ? "bg-destructive" : txPct > 80 ? "bg-amber-500" : "bg-primary"} />
+            <Meter pct={txPct} tone={usage.over_limit ? "bg-destructive" : txPct > 80 ? "bg-acted" : "bg-primary"} />
             {txDaily > 0 ? (
               <>
                 <div className="flex items-baseline justify-between text-xs text-muted-foreground">
@@ -155,7 +155,7 @@ export default async function BillingPage({
                     (usage.used_today ?? 0) >= txDaily
                       ? "bg-destructive"
                       : txDailyPct > 80
-                        ? "bg-amber-500"
+                        ? "bg-acted"
                         : "bg-primary/60"
                   }
                 />
@@ -198,7 +198,7 @@ export default async function BillingPage({
                 usage.marketing_allowance > 0 && usage.marketing_sent >= usage.marketing_allowance
                   ? "bg-destructive"
                   : mkPct > 80
-                    ? "bg-amber-500"
+                    ? "bg-acted"
                     : "bg-primary"
               }
             />
@@ -214,7 +214,7 @@ export default async function BillingPage({
                 usage.marketing_daily_limit > 0 && usage.marketing_sent_today >= usage.marketing_daily_limit
                   ? "bg-destructive"
                   : mkDailyPct > 80
-                    ? "bg-amber-500"
+                    ? "bg-acted"
                     : "bg-primary/60"
               }
             />
@@ -241,7 +241,7 @@ export default async function BillingPage({
               </span>
               <span className="text-xs text-muted-foreground">this month</span>
             </div>
-            <Meter pct={usage.ai_credits === -1 ? 4 : aiPct} tone={aiPct > 80 ? "bg-amber-500" : "bg-primary"} />
+            <Meter pct={usage.ai_credits === -1 ? 4 : aiPct} tone={aiPct > 80 ? "bg-acted" : "bg-primary"} />
             <p className="text-xs text-muted-foreground">Shared across both wings — top up with AI credit packs.</p>
             <Link href="/billing/addons?focus=ai_credit_pack" className="inline-flex items-center text-xs font-medium text-primary hover:underline">
               Add credits <ArrowRight className="ml-0.5 size-3" />
@@ -348,9 +348,9 @@ export default async function BillingPage({
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[11px] font-medium",
                             inv.status === "paid"
-                              ? "bg-emerald-500/15 text-emerald-600"
+                              ? "bg-witnessed/15 text-witnessed"
                               : inv.status === "open"
-                                ? "bg-amber-500/15 text-amber-600"
+                                ? "bg-acted/15 text-acted"
                                 : "bg-muted text-muted-foreground",
                           )}
                         >

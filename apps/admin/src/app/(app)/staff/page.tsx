@@ -39,8 +39,8 @@ export default async function StaffPage() {
           {audit.data.length === 0 ? (
             <EmptyState
               icon={History}
-              title="No staff activity yet"
-              description="Sign-ins, role changes, deactivations and password resets all land here for the audit trail."
+              title="Every staff action is written down here"
+              description="Sign-ins, role changes, deactivations and password resets, append-only — so a revoked permission can always be traced to a person and a time."
             />
           ) : (
             <Table>

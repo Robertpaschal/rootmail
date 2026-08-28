@@ -125,16 +125,16 @@ export function AddonCards({
                 className={cn(
                   "flex h-full flex-col transition-colors",
                   (owned || d > 0) && "border-primary/40 ring-1 ring-primary/15",
-                  focused && "border-primary ring-2 ring-primary/40",
+                  focused && "border-ink shadow-ring",
                 )}
               >
                 <CardContent className="flex flex-1 flex-col p-4">
                   <div className="flex items-center justify-between">
-                    <span className={cn("grid size-9 place-items-center rounded-lg", owned || d > 0 || focused ? "bg-primary/10 text-primary" : "bg-secondary text-muted-foreground")}>
+                    <span className={cn("grid size-9 place-items-center rounded-lg", owned || d > 0 || focused ? "border border-ink text-foreground" : "border border-rule text-muted-foreground")}>
                       <Icon className="size-5" />
                     </span>
                     {owned ? (
-                      <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
+                      <span className="rounded-full bg-witnessed/15 px-2 py-0.5 text-[11px] font-medium text-witnessed">
                         You have {isToggle ? "this" : h}
                       </span>
                     ) : null}
@@ -150,7 +150,7 @@ export function AddonCards({
                   <div className="mt-3">
                     {isToggle ? (
                       owned ? (
-                        <div className="flex items-center justify-center gap-1 rounded-md bg-emerald-500/10 py-1.5 text-xs font-medium text-emerald-600">
+                        <div className="flex items-center justify-center gap-1 rounded-md bg-witnessed/10 py-1.5 text-xs font-medium text-witnessed">
                           <Check className="size-3.5" /> Included
                         </div>
                       ) : (
@@ -190,7 +190,7 @@ export function AddonCards({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 10 }}
-            className="sticky bottom-4 z-10 mx-auto mt-4 w-full max-w-xl overflow-hidden rounded-xl border bg-background/95 shadow-lg backdrop-blur"
+            className="sticky bottom-4 z-10 mx-auto mt-4 w-full max-w-xl overflow-hidden rounded-lg border bg-background/95 shadow-lg backdrop-blur"
           >
             {/* Expandable order summary — exactly what this purchase is, line by line. */}
             <AnimatePresence initial={false}>

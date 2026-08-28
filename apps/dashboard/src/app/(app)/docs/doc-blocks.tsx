@@ -5,17 +5,17 @@ import { cn } from "@/lib/utils";
 // In-app renderer for the shared docs content. Internal doc links stay inside the
 // dashboard (/docs/…); external links (pricing, dashboard deep-links) open out.
 const METHOD_TONE: Record<HttpMethod, string> = {
-  GET: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  POST: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  PATCH: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  PUT: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-  DELETE: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
+  GET: "bg-witnessed/15 text-witnessed",
+  POST: "bg-ink/15 text-muted-foreground",
+  PATCH: "bg-acted/15 text-acted",
+  PUT: "bg-ink/15 text-muted-foreground",
+  DELETE: "bg-stopped/15 text-stopped",
 };
 
 const CALLOUT_TONE = {
-  note: "border-blue-500/30 bg-blue-500/5",
-  tip: "border-emerald-500/30 bg-emerald-500/5",
-  warn: "border-amber-500/30 bg-amber-500/5",
+  note: "border-rule/30 bg-ink/5",
+  tip: "border-witnessed/30 bg-witnessed/5",
+  warn: "border-acted/30 bg-acted/5",
 } as const;
 
 // A few doc slugs map to real dashboard pages — deep-link there instead of the doc.
@@ -78,7 +78,7 @@ export function DocBlockView({ block }: { block: DocBlock }) {
                 <tr key={r.name} className="align-top">
                   <td className="w-36 p-3">
                     <code className="font-mono text-[13px]">{r.name}</code>
-                    {r.required ? <span className="ml-1 text-[10px] font-medium text-rose-500">required</span> : null}
+                    {r.required ? <span className="ml-1 text-[10px] font-medium text-stopped">required</span> : null}
                     <span className="mt-0.5 block font-mono text-[11px] text-muted-foreground">{r.type}</span>
                   </td>
                   <td className="p-3 text-muted-foreground"><Runs content={r.desc} /></td>

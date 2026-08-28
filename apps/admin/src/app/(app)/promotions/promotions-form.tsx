@@ -5,6 +5,7 @@ import { SubmitButton } from "@/components/app/submit-button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type PromoState, createPromotion } from "./actions";
+import { ActionNote } from "@/components/app/action-note";
 
 export function CreatePromotionForm() {
   const [state, action] = useActionState<PromoState, FormData>(createPromotion, {});
@@ -68,7 +69,7 @@ export function CreatePromotionForm() {
       <div className="flex items-center gap-3">
         <SubmitButton pendingLabel="Creating…">Create promotion</SubmitButton>
         {state.error ? <span className="text-sm text-destructive">{state.error}</span> : null}
-        {state.ok ? <span className="text-sm text-emerald-600">Created.</span> : null}
+        {state.ok ? <ActionNote>Created.</ActionNote> : null}
       </div>
     </form>
   );

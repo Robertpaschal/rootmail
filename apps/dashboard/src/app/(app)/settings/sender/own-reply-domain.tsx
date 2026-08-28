@@ -21,7 +21,7 @@ function CopyValue({ value }: { value: string }) {
       className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
       aria-label="Copy"
     >
-      {copied ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
+      {copied ? <Check className="size-3.5 text-witnessed" /> : <Copy className="size-3.5" />}
     </button>
   );
 }
@@ -125,11 +125,11 @@ export function OwnReplyDomain({ initial }: { initial: Organization }) {
         <div className="min-w-0">
           <p className="font-mono text-sm font-medium">{org.reply_domain}</p>
           {status === "active" ? (
-            <p className="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400">
+            <p className="flex items-center gap-1.5 text-xs text-witnessed">
               <CheckCircle2 className="size-3.5" /> Live — replies arrive on your domain and land in the inbox.
             </p>
           ) : org.reply_domain_verified ? (
-            <p className="flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+            <p className="flex items-center gap-1.5 text-xs text-acted">
               <CheckCircle2 className="size-3.5" /> DNS verified — we&apos;re switching on receiving for it (usually within a business day).
             </p>
           ) : (
@@ -178,7 +178,7 @@ export function OwnReplyDomain({ initial }: { initial: Organization }) {
                       <td className="px-3 py-2 text-right">
                         {c ? (
                           c.ok ? (
-                            <span className="inline-flex items-center gap-1 text-emerald-600"><Check className="size-3.5" /> Found</span>
+                            <span className="inline-flex items-center gap-1 text-witnessed"><Check className="size-3.5" /> Found</span>
                           ) : (
                             <span className="inline-flex items-center gap-1 text-destructive"><X className="size-3.5" /> Missing</span>
                           )

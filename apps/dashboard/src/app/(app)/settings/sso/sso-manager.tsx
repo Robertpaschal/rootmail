@@ -33,7 +33,7 @@ function CopyRow({ label, value }: { label: string; value: string }) {
             setTimeout(() => setCopied(false), 1500);
           }}
         >
-          {copied ? <Check className="size-4 text-emerald-600" /> : <Copy className="size-4" />}
+          {copied ? <Check className="size-4 text-witnessed" /> : <Copy className="size-4" />}
         </Button>
       </div>
     </div>
@@ -304,9 +304,9 @@ function ScimCard({ connection }: { connection: SsoConnection }) {
             initial={{ opacity: 0, scale: 0.98, y: 4 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-50 p-3 dark:bg-amber-950/40"
+            className="space-y-2 rounded-lg border border-acted/40 bg-acted-tint p-3"
           >
-            <p className="text-xs font-medium text-amber-800 dark:text-amber-300">
+            <p className="text-xs font-medium text-acted">
               Copy this bearer token now — it&apos;s shown only once. Paste it into your IdP&apos;s
               SCIM configuration.
             </p>

@@ -52,7 +52,7 @@ export function SandboxToggle({
         className={cn(
           "inline-flex shrink-0 items-center gap-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-60",
           variant === "banner"
-            ? "border border-amber-600/40 px-2.5 py-1 text-amber-800 hover:bg-amber-500/20 dark:text-amber-300"
+            ? "border border-acted/40 px-2.5 py-1 text-acted hover:bg-acted/20"
             : "border px-3 py-1.5 hover:bg-accent",
         )}
       >

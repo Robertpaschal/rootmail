@@ -83,7 +83,7 @@ export function RetentionForm({ policy }: { policy: RetentionPolicy }) {
           the active {policy.retention_days}-day window.
         </p>
       ) : null}
-      {msg ? <p className="text-sm text-emerald-600 dark:text-emerald-400">{msg}</p> : null}
+      {msg ? <p className="text-sm text-witnessed">{msg}</p> : null}
       {err ? <p className="text-sm text-destructive">{err}</p> : null}
     </div>
   );

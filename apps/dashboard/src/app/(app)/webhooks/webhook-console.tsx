@@ -43,15 +43,15 @@ export function WebhookConsole({ initial }: { initial: WebhookEndpoint[] }) {
       <AnimatePresence>
         {state?.created ? (
           <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <div className="rounded-xl border border-emerald-500/40 bg-emerald-50 p-4 dark:bg-emerald-950/30">
-              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-300">Endpoint created. Copy your signing secret now — it won&apos;t be shown again.</p>
+            <div className="rounded-lg border border-witnessed/40 bg-witnessed-tint p-4">
+              <p className="text-sm font-medium text-witnessed">Endpoint created. Copy your signing secret now — it won&apos;t be shown again.</p>
               <div className="mt-2 flex items-center gap-2">
                 <code className="flex-1 break-all rounded-md border bg-background px-2 py-1.5 font-mono text-xs">{state.created.secret}</code>
                 <Button size="sm" variant="outline" onClick={() => { void navigator.clipboard.writeText(state.created!.secret); toast.success("Secret copied."); }}>
                   <Copy className="size-3.5" /> Copy
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-emerald-800 dark:text-emerald-400/80">
+              <p className="mt-2 text-xs text-witnessed">
                 Verify each delivery with it — the <code className="font-mono">Rootmail-Signature</code> header is an HMAC of the raw body.{" "}
                 <Link href="/docs/webhooks" className="font-medium underline">See the verify snippet in the docs</Link>.
               </p>
@@ -78,8 +78,8 @@ export function WebhookConsole({ initial }: { initial: WebhookEndpoint[] }) {
         <div className="space-y-6">
           <EmptyState
             icon={<Webhook className="size-6" />}
-            title="No endpoints yet"
-            description="Get a POST to your server the instant something happens — delivered, opened, clicked, bounced, a reply received — so your product reacts without polling."
+            title="Your server hears what we heard, the moment we hear it"
+            description="An endpoint gets a signed POST the instant a provider reports back — delivered, opened, clicked, bounced, a reply received. Nine event types, retried with backoff, every attempt and its response logged here. Nothing to poll."
             action={<Button size="sm" onClick={() => setAdding(true)}><Plus className="size-4" /> Add your first endpoint</Button>}
           />
           <div className="grid gap-4 sm:grid-cols-3">
@@ -89,7 +89,7 @@ export function WebhookConsole({ initial }: { initial: WebhookEndpoint[] }) {
               { icon: ArrowRight, title: "Retried & observable", body: "Failed deliveries retry with backoff; the delivery log here shows every attempt and its response." },
             ].map((s) => (
               <Card key={s.title}><CardContent className="p-5">
-                <span className="mb-3 grid size-8 place-items-center rounded-lg bg-primary/10 text-primary"><s.icon className="size-4" /></span>
+                <span className="mb-3 grid size-8 place-items-center rounded border border-rule text-ink-muted"><s.icon className="size-4" /></span>
                 <p className="text-sm font-medium">{s.title}</p>
                 <p className="mt-1 text-xs text-muted-foreground">{s.body}</p>
               </CardContent></Card>

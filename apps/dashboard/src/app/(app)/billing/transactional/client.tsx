@@ -105,7 +105,7 @@ export function TransactionalBilling({
     current > 0 && clamped === current && interval === billing.billing_interval && !hasAddons;
 
   const pct = Math.min(100, Math.round((usage.used / Math.max(1, usage.quota)) * 100));
-  const bar = usage.over_limit ? "bg-destructive" : pct > 80 ? "bg-amber-500" : "bg-primary";
+  const bar = usage.over_limit ? "bg-destructive" : pct > 80 ? "bg-acted" : "bg-primary";
 
   const setAddon = (a: AddonCatalogItem, qty: number) =>
     setAddons((d) => ({ ...d, [a.id]: Math.max(0, Math.min((a.max ?? 999) - have(a), qty)) }));
@@ -161,13 +161,13 @@ export function TransactionalBilling({
         <AnimatePresence mode="wait">
           {yr ? (
             <motion.p key="y" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-600">
-              🎉 2 months free — you save {money(yearlySave)}/yr
+              className="rounded-full bg-witnessed/15 px-3 py-1 text-xs font-semibold text-witnessed">
+              2 months free — you save {money(yearlySave)}/yr
             </motion.p>
           ) : (
             <motion.button key="m" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setInterval("year")} className="text-xs text-muted-foreground hover:text-foreground">
-              Switch to yearly for <span className="font-semibold text-emerald-600">2 months free</span>
+              Switch to yearly for <span className="font-semibold text-witnessed">2 months free</span>
             </motion.button>
           )}
         </AnimatePresence>
@@ -181,7 +181,7 @@ export function TransactionalBilling({
             <CardContent className="p-5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-2">
-                  <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+                  <span className="grid size-9 place-items-center rounded border border-rule text-ink-muted">
                     <Zap className="size-5" />
                   </span>
                   <div>
@@ -192,7 +192,7 @@ export function TransactionalBilling({
                   </div>
                 </div>
                 {current > 0 ? (
-                  <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 text-[11px] font-medium text-emerald-600">
+                  <span className="rounded-full bg-witnessed/15 px-2 py-0.5 text-[11px] font-medium text-witnessed">
                     You have {num(current)}
                   </span>
                 ) : null}
@@ -220,7 +220,7 @@ export function TransactionalBilling({
                   <motion.p key="delta" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
                     className="mt-2 overflow-hidden text-xs font-medium">
                     {num(current)} block{current === 1 ? "" : "s"} now → {num(clamped)} after checkout
-                    <span className={cn("ml-1.5", monthlyDelta >= 0 ? "text-primary" : "text-emerald-600")}>
+                    <span className={cn("ml-1.5", monthlyDelta >= 0 ? "text-primary" : "text-witnessed")}>
                       ({monthlyDelta >= 0 ? "+" : "−"}{money(Math.abs(monthlyDelta))}/mo)
                     </span>
                   </motion.p>
@@ -279,7 +279,7 @@ export function TransactionalBilling({
                           <p className="flex items-center gap-2 text-sm font-medium">
                             {a.name}
                             {h > 0 ? (
-                              <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
+                              <span className="rounded-full bg-witnessed/15 px-1.5 py-0.5 text-[10px] font-medium text-witnessed">
                                 you have {h}
                               </span>
                             ) : null}
@@ -371,7 +371,7 @@ export function TransactionalBilling({
                 ) : null}
               </div>
               {yr ? (
-                <p className="mt-1 text-xs font-medium text-emerald-600">Includes 2 months free</p>
+                <p className="mt-1 text-xs font-medium text-witnessed">Includes 2 months free</p>
               ) : (
                 <p className="mt-1 text-xs text-muted-foreground">
                   {money(monthly * 10 + addonLines.reduce((s, l) => s + l.qty * l.a.unit_amount * 10, 0))}/yr if paid yearly — 2 months free
@@ -473,7 +473,7 @@ function SizingQuiz({
           onClick={onClose}
         >
           <motion.div
-            className="relative w-full max-w-md rounded-2xl border bg-background p-6 shadow-2xl"
+            className="relative w-full max-w-md rounded-lg border bg-background p-6 shadow-2xl"
             initial={{ opacity: 0, y: 16, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 16, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 320, damping: 30 }}
             onClick={(ev) => ev.stopPropagation()}
@@ -483,7 +483,7 @@ function SizingQuiz({
               <X className="size-4" />
             </button>
             <div className="flex items-center gap-2">
-              <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary">
+              <span className="grid size-9 place-items-center rounded border border-rule text-ink-muted">
                 <Wand2 className="size-5" />
               </span>
               <div>
@@ -501,7 +501,7 @@ function SizingQuiz({
                 <p className="text-muted-foreground">Enter a volume to see your fit.</p>
               ) : fitsFree ? (
                 <p>
-                  <span className="font-semibold text-emerald-600">The free allowance covers you</span> — {num(freeSends)} sends/mo,
+                  <span className="font-semibold text-witnessed">The free allowance covers you</span> — {num(freeSends)} sends/mo,
                   no card. Blocks are here whenever you outgrow it.
                 </p>
               ) : (

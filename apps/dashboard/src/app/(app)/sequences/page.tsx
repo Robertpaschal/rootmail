@@ -55,8 +55,8 @@ export default async function SequencesPage() {
       ) : rows && rows.length === 0 ? (
         <EmptyState
           icon={<Workflow className="size-6" />}
-          title="No sequences yet"
-          description="Create one to drip a welcome series, onboarding, or re-engagement flow."
+          title="A sequence sends itself over days"
+          description="Set the steps once; it greets every new subscriber on schedule and stops the moment they write back. Nobody gets step three after they have already replied."
         />
       ) : (
         <Card>

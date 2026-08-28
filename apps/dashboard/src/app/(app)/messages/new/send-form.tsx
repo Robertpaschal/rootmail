@@ -295,7 +295,7 @@ export function SendForm({
               <div className="flex flex-wrap items-center gap-2 px-5 py-3">
                 <span className="w-16 shrink-0 text-sm text-muted-foreground">Start from</span>
                 <button type="button" onClick={() => setStartFrom("")}
-                  className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", !template ? "border-primary bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground")}>
+                  className={cn("rounded-full border px-3 py-1 text-xs font-medium transition-colors", !template ? "border-ink bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground")}>
                   Blank
                 </button>
                 {templates.length > 0 ? (
@@ -402,7 +402,7 @@ export function SendForm({
               </Button>
             </div>
 
-            {attachError ? <p className="border-t px-5 py-2 text-xs text-amber-600">{attachError} <span className="text-muted-foreground">Files up to 15MB — for a big video, share a link instead.</span></p> : null}
+            {attachError ? <p className="border-t px-5 py-2 text-xs text-acted">{attachError} <span className="text-muted-foreground">Files up to 15MB — for a big video, share a link instead.</span></p> : null}
           </div>
         </CardContent>
       </Card>

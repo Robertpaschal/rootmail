@@ -2,11 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   AlertTriangle,
-  CheckCircle2,
-  ChevronRight,
   Eye,
   FlaskConical,
   Inbox,
@@ -19,6 +16,8 @@ import {
   RotateCw,
   UserX,
 } from "lucide-react";
+import { ScrubbableLine, type ScrubEvent, type Station } from "@rootmail/design";
+import { stationsFor } from "@/components/app/message-flow";
 import { type MessageSnapshot, refreshMessage, retryMessage, simulateEvent } from "../actions";
 import type { SimulatableEvent } from "@/lib/rootmail";
 import type { AuditEntry, Message } from "@/lib/types";
@@ -31,15 +30,32 @@ import { cn } from "@/lib/utils";
 // sandbox/test send — the lifecycle simulator. No provider IDs or jargon here;
 // those live under "Developer details" on the page.
 
-type Tone = "progress" | "success" | "error" | "warn" | "muted";
+/**
+ * `inferred` is a tone in its own right, and it exists because `opened` and
+ * `clicked` were sharing `success` with `delivered` — drawing a guess in the
+ * same colour and weight as a provider confirmation. That is the industry's
+ * founding lie (`docs/design/00-PHILOSOPHY.md` §1) and it was shipping here, on
+ * the one page whose entire job is to say what actually happened.
+ */
+type Tone = "progress" | "success" | "inferred" | "error" | "warn" | "muted";
 
 const STATUS_META: Record<string, { label: string; tone: Tone; blurb: string }> = {
   queued: { label: "Queued", tone: "progress", blurb: "Your email is in line to send." },
   sending: { label: "Sending", tone: "progress", blurb: "Handing your email to the mail servers…" },
   sent: { label: "Sent", tone: "progress", blurb: "Accepted by the mail provider — we'll show delivery here once it confirms." },
   delivered: { label: "Delivered", tone: "success", blurb: "It landed in the recipient's inbox." },
-  opened: { label: "Opened", tone: "success", blurb: "The recipient opened your email." },
-  clicked: { label: "Clicked", tone: "success", blurb: "The recipient clicked a link in your email." },
+  opened: {
+    label: "Opened",
+    tone: "inferred",
+    blurb:
+      "A tracking pixel in this email loaded — which usually means someone opened it. Mail clients pre-load images, so we cannot be certain, and we do not count it as confirmed.",
+  },
+  clicked: {
+    label: "Clicked",
+    tone: "inferred",
+    blurb:
+      "A link in this email was requested. Some security scanners follow links before a person sees them, so this is strong evidence rather than proof.",
+  },
   bounced: { label: "Bounced", tone: "error", blurb: "The address couldn't receive it." },
   complained: { label: "Marked as spam", tone: "warn", blurb: "The recipient reported this as spam." },
   failed: { label: "Couldn't send", tone: "error", blurb: "Something went wrong while sending." },
@@ -72,18 +88,26 @@ const INFLIGHT = new Set(["queued", "sending", "retried"]);
 // light up on their own.
 const STOP = new Set(["bounced", "complained", "failed", "suppressed", "unsubscribed"]);
 
+// Colour asserts STATE or it is ink (docs/design/00-PHILOSOPHY.md §5.2). There
+// is no "progress" colour, deliberately: in flight is a thing we have not
+// witnessed yet, and the system draws that as ink, not as a fourth signal.
 const TONE_TEXT: Record<Tone, string> = {
-  progress: "text-blue-600 dark:text-blue-400",
-  success: "text-emerald-600 dark:text-emerald-400",
-  error: "text-rose-600 dark:text-rose-400",
-  warn: "text-amber-600 dark:text-amber-400",
+  progress: "text-ink-muted",
+  success: "text-witnessed",
+  // Muted ink, never a signal colour: an inference does not get to look like an
+  // observation. It reads the same way the hollow station on the line does.
+  inferred: "text-ink-muted",
+  error: "text-stopped",
+  warn: "text-acted",
   muted: "text-muted-foreground",
 };
 const TONE_DOT: Record<Tone, string> = {
-  progress: "bg-blue-500 text-white",
-  success: "bg-emerald-500 text-white",
-  error: "bg-rose-500 text-white",
-  warn: "bg-amber-500 text-white",
+  progress: "bg-ink text-background",
+  success: "bg-witnessed text-white",
+  // Hollow, matching the hollow node — outline, not fill.
+  inferred: "border border-ink/40 bg-transparent text-ink-muted",
+  error: "bg-stopped text-white",
+  warn: "bg-acted text-white",
   muted: "bg-muted-foreground/60 text-white",
 };
 
@@ -109,47 +133,70 @@ function timeOf(trail: AuditEntry[], event: string): string | undefined {
   return trail.find((e) => e.event === event)?.timestamp;
 }
 
-interface Stage {
-  key: string;
-  label: string;
-  icon: typeof Inbox;
-  state: "done" | "active" | "todo" | "error" | "warn";
-  at?: string;
+/**
+ * What each station KNOWS, index-aligned with `stationsFrom`.
+ *
+ * The method is not decoration — it is the sourcing line (§5.3). "Delivered"
+ * and "Opened" are not the same kind of fact, and printing where each one came
+ * from is the difference between a record and a dashboard.
+ */
+function eventsFrom(message: Message, stations: Station[], trail: AuditEntry[]): ScrubEvent[] {
+  // §5.4 wants the EXACT time here — the row above already carries the relative
+  // one — but exact is not the same as raw. A bare ISO string with milliseconds
+  // is a log line, not a record somebody reads.
+  const exact = (iso?: string) => {
+    if (!iso) return undefined;
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return iso;
+    return d.toLocaleString(undefined, {
+      day: "numeric", month: "short", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+  };
+  const t = (ev: string) => exact(timeOf(trail, ev));
+  const method: Record<string, string> = {
+    Queued: "accepted by the API",
+    Sent: "handed to the provider",
+    Delivered: "confirmed by the provider",
+    Opened: "tracking pixel · undercounts blocked images",
+    Clicked: "link redirect",
+  };
+  return stations.map((st) => {
+    if (st.state === "stopped") {
+      return {
+        at: t(message.status),
+        method: "provider feedback",
+        detail: message.error ?? undefined,
+      };
+    }
+    return { at: t(st.label.toLowerCase()) ?? undefined, method: method[st.label] };
+  });
 }
 
-function stagesFor(message: Message, trail: AuditEntry[]): Stage[] {
-  const s = message.status;
+/**
+ * The message's stations, with the real timestamps out of the audit trail.
+ *
+ * The row in `/messages` and this page MUST draw the same line, so the station
+ * shapes come from one place (`stationsFor`) and this only supplies the times
+ * and the in-flight flag that a list row has no way to know.
+ */
+function stationsFrom(message: Message, trail: AuditEntry[]): Station[] {
   const t = (ev: string) => timeOf(trail, ev);
-  const Q: Stage = { key: "queued", label: "Queued", icon: Inbox, state: "done", at: t("queued") ?? message.created_at };
-  const Sent: Stage = { key: "sent", label: "Sent", icon: Send, state: "done", at: t("sent") };
-  const Del: Stage = { key: "delivered", label: "Delivered", icon: MailCheck, state: "done", at: t("delivered") };
-
-  // Terminal / error variants replace the happy path end.
-  if (s === "suppressed") return [Q, { key: "suppressed", label: "Not sent", icon: ShieldOff, state: "warn", at: t("suppressed") }];
-  if (s === "failed") return [Q, { key: "failed", label: "Couldn't send", icon: AlertTriangle, state: "error", at: t("failed") }];
-  if (s === "bounced") return [Q, Sent, { key: "bounced", label: "Bounced", icon: AlertTriangle, state: "error", at: t("bounced") }];
-  if (s === "complained") return [Q, Sent, Del, { key: "complained", label: "Marked as spam", icon: AlertTriangle, state: "warn", at: t("complained") }];
-
-  // Happy path: Queued → Sent → Delivered → Opened → Clicked. Opened/clicked
-  // live in the audit trail (engagement, not a message status), so read them
-  // from there. A click implies an open even when the open pixel was blocked.
-  const openedAt = t("opened");
-  const clickedAt = t("clicked");
-  let reached = { queued: 1, sending: 1, sent: 2, delivered: 3, retried: 1 }[s] ?? 1;
-  if (clickedAt) reached = 5;
-  else if (openedAt) reached = 4;
-  const inflight = INFLIGHT.has(s);
-  const happy: Omit<Stage, "state">[] = [
-    { key: "queued", label: "Queued", icon: Inbox, at: t("queued") ?? message.created_at },
-    { key: "sent", label: "Sent", icon: Send, at: t("sent") },
-    { key: "delivered", label: "Delivered", icon: CheckCircle2, at: t("delivered") },
-    { key: "opened", label: "Opened", icon: Eye, at: openedAt },
-    { key: "clicked", label: "Clicked", icon: MousePointerClick, at: clickedAt },
-  ];
-  return happy.map((st, i) => ({
-    ...st,
-    state: i < reached ? "done" : inflight && i === reached ? "active" : "todo",
-  }));
+  const stations = stationsFor(message, {
+    sentAt: t("sent") ?? null,
+    deliveredAt: t("delivered") ?? null,
+  });
+  const at: Record<string, string | undefined> = {
+    Queued: t("queued") ?? message.created_at,
+    Sent: t("sent"),
+    Delivered: t("delivered"),
+    Opened: t("opened"),
+    Clicked: t("clicked"),
+  };
+  return stations.map((st) => {
+    const stamp = st.state === "stopped" ? t(message.status) : at[st.label];
+    return { ...st, at: stamp ? relTime(stamp) : st.at };
+  });
 }
 
 /**
@@ -185,7 +232,7 @@ function RetryButton({ id, onUpdate }: { id: string; onUpdate: (s: MessageSnapsh
       {error ? (
         // Verbatim: the API's refusal names the actual reason (already accepted,
         // now suppressed, quota), and a generic "couldn't retry" would hide it.
-        <p className="text-sm text-rose-600 dark:text-rose-400" role="alert">
+        <p className="text-sm text-stopped" role="alert">
           {error}
         </p>
       ) : null}
@@ -274,7 +321,7 @@ export function LiveStatus({
   // trail) outranks the stored status, which caps at "delivered".
   const displayStatus = timeOf(trail, "clicked") ? "clicked" : timeOf(trail, "opened") ? "opened" : message.status;
   const meta = STATUS_META[displayStatus] ?? STATUS_META.queued;
-  const stages = stagesFor(message, trail);
+  const stations = stationsFrom(message, trail);
   const live = INFLIGHT.has(message.status);
   // A sandbox send is simulated — UNLESS it went to a reserved test recipient,
   // which takes the real provider path even from the sandbox. Those get a real
@@ -285,17 +332,19 @@ export function LiveStatus({
   const HeadIcon = EVENT_ICON[displayStatus] ?? Inbox;
 
   // The FULL trail, newest last — including the machine steps (queued, sending,
-  // retried) that the headline tracker abstracts away. Folded up by default:
-  // the tracker above already tells the story, and this is what you open when
-  // the story isn't enough.
+  // retried) that the line abstracts away. Always rendered: the line is an
+  // enhancement over readable content, not a replacement for it.
   const timeline = trail;
 
   return (
     <Card>
       <CardContent className="space-y-5 p-6">
         {simulated ? (
-          <div className="flex items-start gap-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5 px-3.5 py-2.5 text-sm">
-            <FlaskConical className="mt-0.5 size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+          // A sandbox send is not an intervention and not a failure, so it gets
+          // no signal colour — a dashed rule, which is what "we did not do this
+          // for real" looks like everywhere else in this system.
+          <div className="flex items-start gap-2.5 rounded-lg border border-dashed bg-muted/40 px-3.5 py-2.5 text-sm">
+            <FlaskConical className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
             <p className="text-muted-foreground">
               <span className="font-medium text-foreground">Sandbox send.</span> This was rendered and recorded but never handed to a provider — it reached no one. Use it to try the delivery lifecycle.
             </p>
@@ -310,7 +359,7 @@ export function LiveStatus({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className={cn("text-lg font-semibold", TONE_TEXT[meta.tone])}>{meta.label}</h2>
-              {live ? <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-600 dark:text-blue-400"><span className="size-1.5 animate-pulse rounded-full bg-blue-500" /> live</span> : null}
+              {live ? <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[11px] font-medium text-muted-foreground" data-fact><span className="size-1.5 animate-throb rounded-full bg-ink-muted motion-reduce:animate-none" /> watching</span> : null}
             </div>
             <p className="text-sm text-muted-foreground">{meta.blurb}</p>
             {errorish && message.error ? <p className="mt-1 text-sm text-muted-foreground">Reason: <span className="text-foreground">{message.error}</span></p> : null}
@@ -327,8 +376,22 @@ export function LiveStatus({
           </div>
         </div>
 
-        {/* Stage tracker */}
-        <Tracker stages={stages} />
+        {/* The line. Five stations, and the rendering law is the honesty
+            policy: `Opened` is a tracking pixel firing, so it is drawn hollow —
+            never in the same weight as a provider's delivery confirmation. A
+            bounce severs the line where it stopped rather than deleting it. */}
+        {/* §5.4 — the line IS the trail, and reading it is dragging along it.
+            Hover or arrow-key between stations; the record below is always
+            rendered, so nothing here depends on a frame ever animating. */}
+        <div className="overflow-x-auto pb-1">
+          <ScrubbableLine
+            stations={stations}
+            events={eventsFrom(message, stations, trail)}
+            scale="page"
+          >
+            {timeline.length > 0 ? <ActivityTrail entries={timeline} /> : null}
+          </ScrubbableLine>
+        </div>
 
         {message.status === "sent" ? (
           <p className="text-xs text-muted-foreground">
@@ -360,9 +423,6 @@ export function LiveStatus({
           </Link>
         ) : null}
 
-        {/* The full trail, on demand. */}
-        {timeline.length > 0 ? <ActivityTrail entries={timeline} /> : null}
-
         {simulated ? <SimulatePanel id={id} onUpdate={apply} status={message.status} /> : null}
       </CardContent>
     </Card>
@@ -372,109 +432,84 @@ export function LiveStatus({
 /**
  * Every step this email actually went through — the machine ones included.
  *
- * The tracker above answers "where is it?"; this answers "what happened, and
- * who did it?", which is only ever asked when something looks wrong. So it's
- * folded away by default and carries the detail the tracker deliberately drops:
- * the provider that handled it, the reason a bounce gave, the URL that was
- * clicked, and whether an event came from the provider or was simulated.
+ * The line above answers "where is it?"; this answers "what happened, and who
+ * did it?", with the detail the line deliberately drops: the provider that
+ * handled it, the reason a bounce gave, the URL that was clicked, and whether
+ * an event came from the provider or was simulated.
+ *
+ * It used to be folded behind a disclosure. It is not any more, and that is a
+ * rule rather than a preference (docs/design/00-PHILOSOPHY.md §5.4): the line
+ * is an ENHANCEMENT over content that is already readable, never the mechanism
+ * by which the record becomes readable. A record you have to open is a record
+ * somebody can say they never saw.
  */
 function ActivityTrail({ entries }: { entries: AuditEntry[] }) {
-  const [open, setOpen] = useState(false);
-
   return (
     <div className="border-t pt-4">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground/70 transition-colors hover:text-foreground"
-      >
-        <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.15 }} className="flex">
-          <ChevronRight className="size-3.5" />
-        </motion.span>
+      <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground/70">
         Activity
-        <span className="font-normal normal-case tracking-normal">· {entries.length} step{entries.length === 1 ? "" : "s"}</span>
-      </button>
+        <span className="font-mono font-normal normal-case tracking-normal" data-fact>
+          · {entries.length} step{entries.length === 1 ? "" : "s"}
+        </span>
+      </p>
 
-      <AnimatePresence initial={false}>
-        {open ? (
-          <motion.ol
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            className="overflow-hidden"
-          >
-            <div className="mt-3 space-y-0">
-              {entries.map((e, i) => {
-                const m = STATUS_META[e.event];
-                const Icon = EVENT_ICON[e.event] ?? Inbox;
-                const reason =
-                  typeof e.metadata?.reason === "string"
-                    ? e.metadata.reason
-                    : typeof e.metadata?.url === "string"
-                      ? e.metadata.url
-                      : typeof e.metadata?.error === "string"
-                        ? e.metadata.error
-                        : undefined;
-                // Where the step came from, in the user's words.
-                const source = e.metadata?.simulated === true
-                  ? "simulated"
-                  : e.provider
-                    ? `via ${e.provider}`
-                    : e.actor && e.actor !== "system"
-                      ? e.actor
-                      : null;
-                return (
-                  <li key={`${e.event}-${i}`} className="relative flex gap-3 pb-3 last:pb-0">
-                    {/* The connecting spine — a trail, not a list. */}
-                    {i < entries.length - 1 ? (
-                      <span className="absolute left-[7px] top-5 h-full w-px bg-border" aria-hidden />
-                    ) : null}
-                    <span className={cn("relative z-10 mt-0.5 flex size-4 shrink-0 items-center justify-center", m ? TONE_TEXT[m.tone] : "text-muted-foreground")}>
-                      <Icon className="size-4" />
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-baseline gap-2">
-                        <span className="text-sm font-medium">{m?.label ?? e.event}</span>
-                        {source ? <span className="text-[11px] text-muted-foreground">{source}</span> : null}
-                        <span className="ml-auto shrink-0 text-xs text-muted-foreground" title={absTime(e.timestamp)}>
-                          {relTime(e.timestamp)}
-                        </span>
-                      </div>
-                      {reason ? <p className="mt-0.5 break-all text-xs text-muted-foreground">{reason}</p> : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </div>
-          </motion.ol>
-        ) : null}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-function Tracker({ stages }: { stages: Stage[] }) {
-  return (
-    <div className="flex items-start">
-      {stages.map((st, i) => {
-        const tone: Tone = st.state === "done" || st.state === "active" ? (["delivered", "opened", "clicked"].includes(st.key) ? "success" : "progress") : st.state === "error" ? "error" : st.state === "warn" ? "warn" : "muted";
-        const filled = st.state === "done" || st.state === "active" || st.state === "error" || st.state === "warn";
-        return (
-          <div key={st.key} className="flex flex-1 flex-col items-center text-center">
-            <div className="flex w-full items-center">
-              <span className={cn("h-0.5 flex-1", i === 0 ? "opacity-0" : st.state === "todo" ? "bg-border" : "bg-primary/40")} />
-              <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors", filled ? cn(TONE_DOT[tone], "border-transparent") : "border-border bg-card text-muted-foreground")}>
-                {st.state === "active" ? <Loader2 className="size-4 animate-spin" /> : <st.icon className="size-4" />}
+      <ol className="mt-3 space-y-0">
+        {entries.map((e, i) => {
+          const m = STATUS_META[e.event];
+          const Icon = EVENT_ICON[e.event] ?? Inbox;
+          const reason =
+            typeof e.metadata?.reason === "string"
+              ? e.metadata.reason
+              : typeof e.metadata?.url === "string"
+                ? e.metadata.url
+                : typeof e.metadata?.error === "string"
+                  ? e.metadata.error
+                  : undefined;
+          // Where the step came from, in the user's words.
+          const source =
+            e.metadata?.simulated === true
+              ? "simulated"
+              : e.provider
+                ? `via ${e.provider}`
+                : e.actor && e.actor !== "system"
+                  ? e.actor
+                  : null;
+          return (
+            <li key={`${e.event}-${i}`} className="relative flex gap-3 pb-3 last:pb-0">
+              {/* The connecting spine — a trail, not a list. */}
+              {i < entries.length - 1 ? (
+                <span className="absolute left-[7px] top-5 h-full w-px bg-border" aria-hidden />
+              ) : null}
+              <span
+                className={cn(
+                  "relative z-10 mt-0.5 flex size-4 shrink-0 items-center justify-center",
+                  m ? TONE_TEXT[m.tone] : "text-muted-foreground",
+                )}
+              >
+                <Icon className="size-4" />
               </span>
-              <span className={cn("h-0.5 flex-1", i === stages.length - 1 ? "opacity-0" : stages[i + 1].state === "todo" ? "bg-border" : "bg-primary/40")} />
-            </div>
-            <span className={cn("mt-1.5 text-xs font-medium", st.state === "todo" ? "text-muted-foreground" : TONE_TEXT[tone])}>{st.label}</span>
-            {st.at ? <span className="text-[11px] text-muted-foreground">{relTime(st.at)}</span> : null}
-          </div>
-        );
-      })}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm font-medium">{m?.label ?? e.event}</span>
+                  {source ? <span className="text-[11px] text-muted-foreground">{source}</span> : null}
+                  <span
+                    className="ml-auto shrink-0 font-mono text-xs text-muted-foreground"
+                    data-fact
+                    title={absTime(e.timestamp)}
+                  >
+                    {relTime(e.timestamp)}
+                  </span>
+                </div>
+                {reason ? (
+                  <p className="mt-0.5 break-all font-mono text-xs text-muted-foreground" data-fact>
+                    {reason}
+                  </p>
+                ) : null}
+              </div>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }

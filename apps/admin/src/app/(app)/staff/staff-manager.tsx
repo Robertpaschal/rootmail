@@ -20,20 +20,19 @@ import type { StaffRole, StaffUser } from "@/lib/types";
 
 const ROLES: StaffRole[] = ["superadmin", "billing", "support", "readonly"];
 
-// Role reads at a glance: authority = violet, money = green, care = blue, view = slate.
-const ROLE_BADGE: Record<StaffRole, string> = {
-  superadmin: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-  billing: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  support: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
-  readonly: "bg-muted text-muted-foreground",
-};
-
+/**
+ * A role is not a state.
+ *
+ * This used to paint four roles four saturated colours — violet for authority,
+ * green for money, blue for care — which is the exact spend §9.7 forbids: by
+ * the time something on the same screen genuinely WAS green (a message we saw
+ * delivered) the colour had already been spent on a job title. Roles are told
+ * apart by their label. `superadmin` keeps a heavier outline, because it is
+ * the one that can revoke everyone else and a staff member scanning the table
+ * should find it without reading four rows.
+ */
 function RoleBadge({ role }: { role: StaffRole }) {
-  return (
-    <span className={cn("rounded-full px-2 py-0.5 text-[11px] font-medium", ROLE_BADGE[role])}>
-      {role}
-    </span>
-  );
+  return <Badge variant={role === "superadmin" ? "outline" : "muted"}>{role}</Badge>;
 }
 
 function initials(s: StaffUser): string {
@@ -97,8 +96,8 @@ export function StaffManager({
         <div
           className={
             notice.kind === "secret"
-              ? "rounded-lg border border-amber-500/40 bg-amber-50 p-3 font-mono text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
-              : "rounded-lg border border-red-500/40 bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300"
+              ? "rounded-lg border border-acted/40 bg-acted-tint p-3 font-mono text-sm text-acted"
+              : "rounded-lg border border-stopped/40 bg-stopped-tint p-3 text-sm text-stopped"
           }
         >
           {notice.text}
@@ -215,7 +214,7 @@ export function StaffManager({
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={s.active ? "success" : "muted"}>{s.active ? "active" : "deactivated"}</Badge>
+                      <Badge variant={s.active ? "witnessed" : "stopped"}>{s.active ? "active" : "deactivated"}</Badge>
                     </TableCell>
                     {canManage ? (
                       <TableCell className="space-x-2 text-right">

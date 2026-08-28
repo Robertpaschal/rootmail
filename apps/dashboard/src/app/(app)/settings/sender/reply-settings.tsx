@@ -80,7 +80,7 @@ export function ReplySettings({ initial }: { initial: Mode }) {
             <Loader2 className="size-3.5 animate-spin" /> Saving…
           </span>
         ) : saved ? (
-          <span className="flex items-center gap-1.5 text-emerald-600 dark:text-emerald-400">
+          <span className="flex items-center gap-1.5 text-witnessed">
             <Check className="size-3.5" /> Saved
           </span>
         ) : (

@@ -56,13 +56,13 @@ const KIND: Record<ThreadMessageKind, { label: string; Icon: typeof Megaphone }>
 };
 
 const STATUS_TONE: Record<string, string> = {
-  delivered: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-  sent: "bg-blue-500/15 text-blue-600 dark:text-blue-400",
+  delivered: "bg-witnessed/15 text-witnessed",
+  sent: "bg-ink/15 text-muted-foreground",
   queued: "bg-muted text-muted-foreground",
-  suppressed: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  bounced: "bg-red-500/15 text-red-600 dark:text-red-400",
-  complained: "bg-red-500/15 text-red-600 dark:text-red-400",
-  failed: "bg-red-500/15 text-red-600 dark:text-red-400",
+  suppressed: "bg-acted/15 text-acted",
+  bounced: "bg-stopped/15 text-stopped",
+  complained: "bg-stopped/15 text-stopped",
+  failed: "bg-stopped/15 text-stopped",
 };
 
 function initials(name: string | null, email: string): string {
@@ -170,7 +170,7 @@ function EmailCard({
       {/* Email header — who, what, when, and how it's doing out there. */}
       <button type="button" onClick={onToggle} className="block w-full px-4 py-2.5 text-left transition-colors hover:bg-accent/40">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
-          <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium", outbound ? "bg-primary/10 text-primary" : "bg-primary/15 text-primary")}>
+          <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium", outbound ? "border border-rule text-ink-muted" : "border border-ink text-foreground")}>
             <meta.Icon className="size-3" /> {meta.label}
           </span>
           <span className="min-w-0 flex-1 truncate font-medium">{m.subject ?? "(no subject)"}</span>
@@ -195,12 +195,12 @@ function EmailCard({
               </span>
             ) : null}
             {m.opened_at ? (
-              <span className="rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-600 dark:text-violet-400">
+              <span className="rounded-full bg-ink/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 opened {relativeTime(m.opened_at)}
               </span>
             ) : null}
             {m.clicked_at ? (
-              <span className="rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+              <span className="rounded-full bg-ink/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                 clicked {relativeTime(m.clicked_at)}
               </span>
             ) : null}
@@ -223,7 +223,7 @@ function EmailCard({
           {m.body_html ? (
             <EmailBodyFrame html={m.body_html} maxHeight={520} />
           ) : (
-            <div className="whitespace-pre-wrap bg-white px-5 py-4 text-sm leading-relaxed text-neutral-900 dark:bg-card dark:text-foreground">
+            <div className="whitespace-pre-wrap bg-white px-5 py-4 text-sm leading-relaxed text-foreground dark:bg-card">
               {m.body_text ?? "(empty)"}
             </div>
           )}
@@ -478,9 +478,9 @@ export function InboxView({
 
   if (threads.length === 0) {
     return (
-      <div className="grid min-h-[50vh] place-items-center rounded-xl border border-dashed">
+      <div className="grid min-h-[50vh] place-items-center rounded-lg border border-dashed">
         <div className="max-w-md space-y-3 p-8 text-center">
-          <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+          <span className="mx-auto grid size-12 place-items-center rounded border border-rule text-ink-muted">
             <Inbox className="size-6" />
           </span>
           <h2 className="text-lg font-semibold">No conversations yet</h2>
@@ -498,7 +498,7 @@ export function InboxView({
   }
 
   return (
-    <div className="flex h-[calc(100vh-8.5rem)] overflow-hidden rounded-xl border bg-card">
+    <div className="flex h-[calc(100vh-8.5rem)] overflow-hidden rounded-lg border bg-card">
       {/* Collapsed: a strip of faces. Switching person stays one click away even
           when the conversation has the width. */}
       <AnimatePresence initial={false}>
@@ -539,12 +539,12 @@ export function InboxView({
                       "relative grid size-9 place-items-center rounded-full text-xs font-semibold transition-colors",
                       c.email === selectedEmail
                         ? "bg-primary text-primary-foreground"
-                        : "bg-primary/10 text-primary hover:bg-primary/20",
+                        : "border border-rule text-ink-muted hover:bg-secondary",
                     )}
                   >
                     {initials(c.name, c.email)}
                     {c.needsReply ? (
-                      <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-card bg-amber-500" />
+                      <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-card bg-acted" />
                     ) : null}
                   </motion.button>
                 ))}
@@ -565,7 +565,7 @@ export function InboxView({
           // overflow-hidden both clips the fixed-width content inside and zeroes
           // this flex item's automatic minimum size; min-w-0 says so explicitly,
           // so the rail still reaches 0 if that overflow ever changes.
-          "w-full shrink-0 flex-col md:w-[var(--rm-rail-w)] md:min-w-0 md:overflow-hidden md:transition-[width] md:duration-300 md:ease-out motion-reduce:transition-none",
+          "w-full shrink-0 flex-col md:w-[var(--rm-rail-w)] md:min-w-0 md:overflow-hidden md:transition-[width] md:duration-interaction md:ease-interaction motion-reduce:transition-none",
           showList ? "flex" : "hidden",
           "md:flex",
           railOpen && "border-r",
@@ -629,7 +629,7 @@ export function InboxView({
                     <motion.span
                       layoutId="inbox-filter-pill"
                       transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 36 }}
-                      className="absolute inset-0 rounded-full border border-primary bg-primary/10"
+                      className="absolute inset-0 rounded-full border border-ink bg-secondary"
                     />
                   ) : null}
                   <span className="relative">
@@ -686,7 +686,7 @@ export function InboxView({
                     className="absolute inset-y-0 left-0 w-0.5 bg-primary"
                   />
                 ) : null}
-                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-full border border-rule text-xs font-semibold text-ink-muted">
                   {initials(c.name, c.email)}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -695,7 +695,7 @@ export function InboxView({
                     <span className="shrink-0 text-[11px] text-muted-foreground">{relativeTime(c.lastAt)}</span>
                   </span>
                   <span className="mt-0.5 flex items-center gap-1.5">
-                    {c.needsReply ? <span className="size-1.5 shrink-0 rounded-full bg-amber-500" aria-label="Needs reply" /> : null}
+                    {c.needsReply ? <span className="size-1.5 shrink-0 rounded-full bg-acted" aria-label="Needs reply" /> : null}
                     <span className={cn("truncate text-xs", c.needsReply ? "text-foreground" : "text-muted-foreground")}>
                       {c.preview ?? "No messages yet"}
                     </span>
@@ -729,7 +729,7 @@ export function InboxView({
                 transition={{ duration: reduce ? 0 : 0.2 }}
                 className="flex min-w-0 flex-1 items-center gap-3"
               >
-                <span className="grid size-9 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                <span className="grid size-9 shrink-0 place-items-center rounded-full border border-rule text-xs font-semibold text-ink-muted">
                   {initials(contact.name, contact.email)}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -743,9 +743,9 @@ export function InboxView({
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.85 }}
                           transition={reduce ? { duration: 0 } : EASE_OPEN}
-                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-acted/15 px-2 py-0.5 text-[10px] font-medium text-acted"
                         >
-                          <span className="size-1.5 rounded-full bg-amber-500" /> waiting on you
+                          <span className="size-1.5 rounded-full bg-acted" /> waiting on you
                         </motion.span>
                       ) : null}
                     </AnimatePresence>
@@ -831,7 +831,7 @@ export function InboxView({
                       key={t.id}
                       id={`thread-${t.id}`}
                       className={cn(
-                        "scroll-mt-2 rounded-xl border",
+                        "scroll-mt-2 rounded-lg border",
                         expanded && "flex min-h-0 flex-1 flex-col overflow-hidden ring-1 ring-primary/30",
                       )}
                     >
@@ -851,7 +851,7 @@ export function InboxView({
                           // already scrolled away above it, so the subject looked
                           // detached from the box it belongs to. It's simply the
                           // top row of a box that doesn't move.
-                          expanded && "shrink-0 rounded-t-xl border-b bg-card",
+                          expanded && "shrink-0 rounded-t-lg border-b bg-card",
                         )}
                       >
                         <motion.span

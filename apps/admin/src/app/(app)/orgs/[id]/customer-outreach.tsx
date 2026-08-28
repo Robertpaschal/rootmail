@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, ArrowUpRight, Mail, ShieldCheck } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/app/status-badge";
 import type { CustomerOutreach } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -15,17 +17,15 @@ import { cn } from "@/lib/utils";
  * Also the most direct answer to "why has this customer gone quiet?" — a
  * complaint or a bounce on our own list is right here, and it explains a
  * customer who stopped hearing from us long before anyone thinks to ask.
+ *
+ * It used to keep its OWN status→colour map (emerald for delivered, red for
+ * bounced) beside the dashboard's. Two maps mean two laws, and this one had
+ * already drifted: it painted `delivered` and an inferred state the same green.
+ * The chips are `<StatusBadge>` now — the same component, and therefore the
+ * same rendering law, staff see in a customer's own console. The ground, rule
+ * and ink are tokens rather than `white/10`, which had no meaning and could not
+ * follow the ground.
  */
-
-const STATUS_TONE: Record<string, string> = {
-  sent: "bg-emerald-500/15 text-emerald-400",
-  delivered: "bg-emerald-500/15 text-emerald-400",
-  queued: "bg-white/10 text-white/60",
-  suppressed: "bg-amber-500/15 text-amber-400",
-  bounced: "bg-red-500/15 text-red-400",
-  complained: "bg-red-500/15 text-red-400",
-  failed: "bg-red-500/15 text-red-400",
-};
 
 /** Security mail is the one a suppression must never stop — say so where a
  *  staff member is looking at why mail did or didn't go. */
@@ -46,11 +46,11 @@ export function CustomerOutreachPanel({
   const blocking = suppressions.filter((s) => s.reason !== "unsubscribe");
 
   return (
-    <section className="rounded-xl border border-white/10 bg-white/[0.02]">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-3.5">
+    <section className="rounded-lg border bg-card shadow-e1">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3.5">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold">Our email to them</h3>
-          <p className="mt-0.5 text-xs text-white/50">
+          <h3 className="text-sm font-semibold tracking-heading">Our email to them</h3>
+          <p className="mt-0.5 text-xs text-ink-muted">
             Sent through rootmail, like any customer&apos;s. Compose and reply in the dashboard —
             this is the record.
           </p>
@@ -60,7 +60,7 @@ export function CustomerOutreachPanel({
             href={`${dashboardUrl}/contacts/${contact.id}`}
             target="_blank"
             rel="noreferrer"
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-white/15 px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-white/10"
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-brass/40 px-2.5 py-1.5 text-xs font-medium text-brass-text transition-colors duration-interaction ease-interaction hover:bg-brass/10"
           >
             Open their contact <ArrowUpRight className="size-3.5" />
           </Link>
@@ -68,15 +68,17 @@ export function CustomerOutreachPanel({
       </header>
 
       <div className="space-y-4 p-5">
-        {/* Why they may have stopped hearing from us. */}
+        {/* Why they may have stopped hearing from us. A suppression is
+            something WE did, which is what `acted` means — not a warning
+            about something that happened to us. */}
         {blocking.length > 0 ? (
-          <div className="flex items-start gap-2 rounded-lg border border-amber-500/25 bg-amber-500/10 p-3">
-            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-400" />
+          <div className="flex items-start gap-2 rounded-lg border border-acted/30 bg-acted-tint p-3">
+            <AlertTriangle className="mt-0.5 size-4 shrink-0 text-acted" />
             <div className="min-w-0 text-xs">
-              <p className="font-medium text-amber-300">
+              <p className="font-medium text-acted">
                 We are suppressing this address ({blocking.map((s) => s.reason).join(", ")}).
               </p>
-              <p className="mt-0.5 text-amber-200/70">
+              <p className="mt-0.5 text-ink-muted">
                 Account and marketing email stops. Security email — password resets, sign-in
                 warnings — still reaches them, by design.
               </p>
@@ -85,57 +87,50 @@ export function CustomerOutreachPanel({
         ) : null}
 
         {contact ? (
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-white/60">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-muted">
             <span>
-              In our audience as{" "}
-              <span className="font-medium text-white/85">{outreach.email}</span>
+              In our audience as <span className="font-medium text-ink">{outreach.email}</span>
             </span>
-            <span className={cn(contact.status !== "active" && "text-amber-400")}>
+            <span className={cn(contact.status !== "active" && "font-medium text-acted")}>
               {contact.status}
             </span>
             {contact.tags.slice(0, 4).map((t) => (
-              <span key={t} className="rounded-full bg-white/[0.06] px-2 py-0.5">
+              <Badge key={t} variant="muted">
                 {t}
-              </span>
+              </Badge>
             ))}
           </div>
         ) : (
-          <p className="rounded-lg border border-dashed border-white/15 px-3 py-4 text-center text-xs text-white/45">
+          <p className="rounded-lg border border-dashed px-3 py-4 text-center text-xs text-ink-muted">
             Not in our audience yet — they appear once the customer sync has run.
           </p>
         )}
 
         {messages.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-white/15 px-3 py-6 text-center text-xs text-white/45">
+          <p className="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-ink-muted">
             We haven&apos;t sent this customer anything yet.
           </p>
         ) : (
-          <ul className="divide-y divide-white/[0.06]">
+          <ul className="divide-y divide-rule">
             {messages.map((m) => (
               <li key={m.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2.5">
                 {m.kind === "security" ? (
-                  <ShieldCheck className="size-3.5 shrink-0 text-white/35" />
+                  <ShieldCheck className="size-3.5 shrink-0 text-ink-muted" />
                 ) : (
-                  <Mail className="size-3.5 shrink-0 text-white/25" />
+                  <Mail className="size-3.5 shrink-0 text-ink-muted/60" />
                 )}
                 <span className="min-w-0 flex-1 truncate text-xs">{m.subject}</span>
                 {m.kind ? (
-                  <span className="shrink-0 rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-white/55">
+                  <Badge variant="muted" className="shrink-0 text-[10px]">
                     {KIND_LABEL[m.kind] ?? m.kind}
-                  </span>
+                  </Badge>
                 ) : null}
-                <span
-                  className={cn(
-                    "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
-                    STATUS_TONE[m.status] ?? "bg-white/10 text-white/60",
-                  )}
-                  title={m.error ?? undefined}
-                >
-                  {m.status}
+                <span className="shrink-0" title={m.error ?? undefined}>
+                  <StatusBadge status={m.status} />
                 </span>
-                <span className="shrink-0 text-[10px] text-white/35">
+                <time className="shrink-0 font-mono text-[10px] text-ink-muted">
                   {new Date(m.created_at).toLocaleDateString()}
-                </span>
+                </time>
               </li>
             ))}
           </ul>

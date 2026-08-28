@@ -149,14 +149,14 @@ export function WorkspaceSwitcher({
         aria-expanded={open}
         className={cn(
           "inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent",
-          inSandbox && "border-amber-500/50 bg-amber-500/10",
+          inSandbox && "border-acted/50 bg-acted/10",
         )}
         title={inSandbox ? "You're in the sandbox" : "Switch workspace"}
       >
-        {inSandbox ? <FlaskConical className="size-3.5 shrink-0 text-amber-600 dark:text-amber-400" /> : null}
+        {inSandbox ? <FlaskConical className="size-3.5 shrink-0 text-acted" /> : null}
         <span className="truncate">{active.name}</span>
         {inSandbox ? (
-          <span className="rounded bg-amber-500/20 px-1 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+          <span className="rounded bg-acted/20 px-1 py-0.5 text-[10px] font-medium text-acted">
             sandbox
           </span>
         ) : null}
@@ -173,7 +173,7 @@ export function WorkspaceSwitcher({
               type="button"
               disabled={pending}
               onClick={() => onSwitch(firstLive.id)}
-              className="flex w-full items-center gap-2 border-b bg-amber-500/10 px-3 py-2.5 text-left text-sm font-medium text-amber-700 transition-colors hover:bg-amber-500/20 disabled:opacity-60 dark:text-amber-400"
+              className="flex w-full items-center gap-2 border-b bg-acted/10 px-3 py-2.5 text-left text-sm font-medium text-acted transition-colors hover:bg-acted/20 disabled:opacity-60"
             >
               <ArrowLeft className="size-4 shrink-0" />
               <span className="min-w-0">
@@ -246,7 +246,7 @@ export function WorkspaceSwitcher({
                       <span className="flex min-w-0 items-center gap-2">
                         <span className="truncate">{w.name}</span>
                         {w.environment === "test" ? (
-                          <span className="rounded bg-amber-500/15 px-1 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                          <span className="rounded bg-acted/15 px-1 py-0.5 text-[10px] font-medium text-acted">
                             sandbox
                           </span>
                         ) : null}

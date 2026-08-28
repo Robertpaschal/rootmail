@@ -126,7 +126,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                 }
               }}
               className={cn(
-                "flex min-h-72 flex-col overflow-hidden rounded-xl border border-t-2 bg-card transition-colors",
+                "flex min-h-72 flex-col overflow-hidden rounded-lg border border-t-2 bg-card transition-colors",
                 meta.column,
                 isOver && "border-primary bg-primary/5",
                 !open && "cursor-pointer hover:bg-accent/40",
@@ -178,7 +178,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                             <GripVertical className="mt-1 size-3.5 shrink-0 cursor-grab text-muted-foreground/50" />
                             <Link href={`/contacts/${c.id}`} className="min-w-0 flex-1">
                               <span className="flex items-start gap-2">
-                                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+                                <span className="grid size-6 shrink-0 place-items-center rounded-full border border-rule text-[10px] font-semibold text-ink-muted">
                                   {initials(c.name, c.email)}
                                 </span>
                                 <span className="min-w-0">

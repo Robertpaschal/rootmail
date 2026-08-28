@@ -161,7 +161,7 @@ export function ShellMain({ children }: { children: React.ReactNode }) {
           hidden → full width. A plain CSS transition, because it must only apply
           from md up and padding is exactly what CSS transitions are good at. */}
       <div
-        className="transition-[padding-left] duration-300 ease-out motion-reduce:transition-none md:pl-[var(--rm-sidebar-w)]"
+        className="transition-[padding-left] duration-interaction ease-interaction motion-reduce:transition-none md:pl-[var(--rm-sidebar-w)]"
         style={{ "--rm-sidebar-w": collapsed ? "0px" : "18rem" } as React.CSSProperties}
       >
         {children}
@@ -186,7 +186,7 @@ export function PeekBackdrop() {
           onMouseEnter={() => closePeek()}
           onClick={() => closePeek(true)}
           aria-hidden
-          className="fixed inset-0 z-30 hidden bg-background/40 backdrop-blur-[2px] md:block"
+          className="fixed inset-0 z-30 hidden bg-background/60 md:block"
         />
       ) : null}
     </AnimatePresence>

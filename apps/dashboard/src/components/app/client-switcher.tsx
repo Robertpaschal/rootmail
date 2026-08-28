@@ -9,10 +9,10 @@ import { actAsClient, exitClientScope } from "./client-scope-actions";
 
 // One dot tells the domain's story at a glance; the label spells it out on hover.
 const statusDot: Record<SubTenantStatus, { className: string; label: string }> = {
-  verified: { className: "bg-emerald-500", label: "Verified — sending live" },
-  pending_verification: { className: "bg-amber-500", label: "Waiting on DNS records" },
-  verifying: { className: "bg-amber-500", label: "Verifying DNS…" },
-  failed: { className: "bg-red-500", label: "DNS check failed" },
+  verified: { className: "bg-witnessed", label: "Verified — sending live" },
+  pending_verification: { className: "bg-acted", label: "Waiting on DNS records" },
+  verifying: { className: "bg-acted", label: "Verifying DNS…" },
+  failed: { className: "bg-stopped", label: "DNS check failed" },
   disabled: { className: "bg-muted-foreground/50", label: "Disabled" },
 };
 
@@ -80,8 +80,8 @@ export function ClientSwitcher({
         title={active ? `Viewing client ${active.name}` : stale ? "This client view no longer exists" : "View as a client"}
         className={cn(
           "inline-flex max-w-[13rem] items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
-          active && "border-primary/50 bg-primary/10 text-primary hover:bg-primary/15",
-          !active && stale && "border-amber-500/50 bg-amber-500/10 text-amber-700 hover:bg-amber-500/15 dark:text-amber-400",
+          active && "border-ink bg-secondary text-foreground hover:bg-primary/15",
+          !active && stale && "border-acted/50 bg-acted/10 text-acted hover:bg-acted/15",
           !active && !stale && "bg-background text-foreground hover:bg-accent",
         )}
       >

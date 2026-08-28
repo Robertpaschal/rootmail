@@ -20,9 +20,9 @@ import { cn } from "@/lib/utils";
 import { ManageSubTenant } from "./manage";
 
 const authVisual = {
-  pass: { badge: "success", icon: CheckCircle2, color: "text-emerald-600 dark:text-emerald-400" },
-  weak: { badge: "warning", icon: AlertTriangle, color: "text-amber-600 dark:text-amber-400" },
-  missing: { badge: "destructive", icon: XCircle, color: "text-red-600 dark:text-red-400" },
+  pass: { badge: "success", icon: CheckCircle2, color: "text-witnessed" },
+  weak: { badge: "warning", icon: AlertTriangle, color: "text-acted" },
+  missing: { badge: "destructive", icon: XCircle, color: "text-stopped" },
   blocked: { badge: "secondary", icon: Info, color: "text-muted-foreground" },
 } as const;
 
@@ -137,7 +137,7 @@ export default async function SubTenantDetailPage({
                   let a paused client look fine. DNS is verified either way; only
                   reputation decides whether mail actually goes out. */}
               {st.status === "verified" ? (
-                <div className="flex items-center gap-2 rounded-lg bg-emerald-50 px-3 py-2.5 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <div className="flex items-center gap-2 rounded-lg bg-witnessed-tint px-3 py-2.5 text-sm text-witnessed">
                   <CheckCircle2 className="size-4" /> Domain verified — sending from this domain is
                   live
                   {st.reputation.state === "throttled"
@@ -145,7 +145,7 @@ export default async function SubTenantDetailPage({
                     : "."}
                 </div>
               ) : st.reputation.state === "paused" ? (
-                <div className="flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2.5 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+                <div className="flex items-center gap-2 rounded-lg bg-stopped-tint px-3 py-2.5 text-sm text-stopped">
                   <PauseCircle className="size-4" /> DNS for this domain is published and valid —
                   sending is stopped for reputation, not for DNS. See Sending reputation above.
                 </div>
@@ -203,7 +203,7 @@ export default async function SubTenantDetailPage({
         <ManageSubTenant id={st.id} name={st.name} domain={st.sending_domain} />
 
         {/* Identifiers and dates — the deeper layer, on request. */}
-        <details className="group rounded-xl border bg-card">
+        <details className="group rounded-lg border bg-card">
           <summary className="flex cursor-pointer list-none items-center justify-between px-5 py-3.5 text-sm font-medium">
             Domain details
             <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />

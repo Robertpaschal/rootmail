@@ -34,7 +34,7 @@ export function FollowUp({ campaignId, sequences }: { campaignId: string; sequen
       <Card>
         <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary"><Workflow className="size-4" /></span>
+            <span className="grid size-9 place-items-center rounded border border-rule text-ink-muted"><Workflow className="size-4" /></span>
             <div>
               <p className="text-sm font-medium">Follow up automatically</p>
               <p className="text-xs text-muted-foreground">Build a sequence, then nurture the people who engaged with this campaign.</p>
@@ -66,7 +66,7 @@ export function FollowUp({ campaignId, sequences }: { campaignId: string; sequen
           <p className="text-sm font-semibold">Follow up with a sequence</p>
         </div>
         {result ? (
-          <p className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400">
+          <p className="flex items-center gap-2 text-sm text-witnessed">
             <CheckCircle2 className="size-4" />
             Enrolled {result.enrolled.toLocaleString()} {result.enrolled === 1 ? "person" : "people"} — the sequence takes it from here.
           </p>

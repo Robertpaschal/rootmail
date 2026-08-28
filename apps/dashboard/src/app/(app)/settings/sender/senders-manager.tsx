@@ -165,7 +165,7 @@ export function SendersManager({ senders }: { senders: SenderIdentity[] }) {
       </AnimatePresence>
       {state.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
       {state.ok ? (
-        <p className="text-sm text-emerald-600">
+        <p className="text-sm text-witnessed">
           Added — a confirmation email is on its way to that inbox.
         </p>
       ) : null}

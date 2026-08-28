@@ -114,7 +114,7 @@ export function MarketingBilling({
       <Card className="border-primary/30 bg-primary/5">
         <CardContent className="p-5">
           <div className="flex items-center gap-2">
-            <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+            <span className="grid size-8 place-items-center rounded border border-rule text-ink-muted">
               <Users className="size-4" />
             </span>
             <div>
@@ -149,13 +149,13 @@ export function MarketingBilling({
         <AnimatePresence mode="wait">
           {yr ? (
             <motion.p key="y" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-semibold text-emerald-600">
-              🎉 2 months free on every yearly plan
+              className="rounded-full bg-witnessed/15 px-3 py-1 text-xs font-semibold text-witnessed">
+              2 months free on every yearly plan
             </motion.p>
           ) : (
             <motion.button key="m" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setInterval("year")} className="text-xs text-muted-foreground hover:text-foreground">
-              Pay yearly for <span className="font-semibold text-emerald-600">2 months free</span>
+              Pay yearly for <span className="font-semibold text-witnessed">2 months free</span>
             </motion.button>
           )}
         </AnimatePresence>
@@ -168,7 +168,7 @@ export function MarketingBilling({
         <p className="mb-3 text-xs text-muted-foreground">
           Choosing doesn&apos;t charge anything yet — you&apos;ll review the full order (plan + any extras) before checkout.
         </p>
-        <div className="overflow-x-auto rounded-xl border">
+        <div className="overflow-x-auto rounded-lg border">
           <table className="w-full min-w-[720px] border-collapse text-sm">
             <thead className="sticky top-0 z-10 bg-background/95 backdrop-blur">
               <tr>
@@ -190,9 +190,9 @@ export function MarketingBilling({
                   {tiers.map((t) => {
                     const v = row.value(t);
                     return (
-                      <td key={t.id} className={cn("p-3 text-center", t.id === RECOMMENDED && "bg-emerald-500/[0.04]", t.id === chosenId && "bg-primary/[0.06]")}>
+                      <td key={t.id} className={cn("p-3 text-center", t.id === RECOMMENDED && "bg-witnessed/[0.04]", t.id === chosenId && "bg-primary/[0.06]")}>
                         {v === true ? (
-                          <Check className="mx-auto size-4 text-emerald-600" />
+                          <Check className="mx-auto size-4 text-witnessed" />
                         ) : v === false ? (
                           <span className="text-muted-foreground/40">—</span>
                         ) : (
@@ -307,7 +307,7 @@ function OrderBar({
           transition={{ duration: 0.22, ease: "easeOut" }}
           className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4 md:pl-[19rem] md:pr-6"
         >
-          <div className="pointer-events-auto w-full max-w-3xl overflow-hidden rounded-xl border bg-card shadow-lg">
+          <div className="pointer-events-auto w-full max-w-3xl overflow-hidden rounded-lg border bg-card shadow-lg">
             {/* Expanded: the full order, itemized — everything worth knowing before checkout. */}
             <AnimatePresence initial={false}>
               {expanded ? (
@@ -363,7 +363,7 @@ function OrderBar({
 
             {/* Collapsed row — always visible, stays uncramped at any order size. */}
             <div className="flex flex-wrap items-center gap-x-3 gap-y-2 p-4">
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+              <span className="grid size-9 shrink-0 place-items-center rounded border border-rule text-ink-muted">
                 <ShoppingCart className="size-4" />
               </span>
               {/* No truncation here — the summary and the "add extras" nudge WRAP
@@ -476,9 +476,9 @@ function MarketingHeader({
   };
 
   return (
-    <th className={cn("min-w-[150px] border-b p-3 text-center align-top", recommended && "bg-emerald-500/[0.06]", isChosen && "bg-primary/[0.06]")}>
+    <th className={cn("min-w-[150px] border-b p-3 text-center align-top", recommended && "bg-witnessed/[0.06]", isChosen && "bg-primary/[0.06]")}>
       {recommended ? (
-        <Badge className="mb-1 bg-emerald-500 hover:bg-emerald-500">Recommended</Badge>
+        <Badge className="mb-1 bg-witnessed hover:bg-witnessed">Recommended</Badge>
       ) : (
         <div className="mb-1 h-5" />
       )}
@@ -495,7 +495,7 @@ function MarketingHeader({
           </>
         )}
       </p>
-      <p className="mb-2 h-4 text-[10px] text-emerald-600">
+      <p className="mb-2 h-4 text-[10px] text-witnessed">
         {!isFree && interval === "month" ? `${money(monthly * 10)}/yr — 2 mo free` : !isFree ? "2 months free" : ""}
       </p>
       {/* CTA sits ABOVE the feature rows and sticks with the header. */}
@@ -535,7 +535,7 @@ function MarketingAddons({
     <Card>
       <CardContent className="p-5">
         <div className="flex items-center gap-2">
-          <span className="grid size-8 place-items-center rounded-lg bg-primary/10 text-primary">
+          <span className="grid size-8 place-items-center rounded border border-rule text-ink-muted">
             <Plus className="size-4" />
           </span>
           <div>
@@ -559,14 +559,14 @@ function MarketingAddons({
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm font-medium">
                     {a.name}
-                    {have > 0 ? <span className="rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">you have {isToggle ? "this" : have}</span> : null}
+                    {have > 0 ? <span className="rounded-full bg-witnessed/15 px-1.5 py-0.5 text-[10px] font-medium text-witnessed">you have {isToggle ? "this" : have}</span> : null}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{a.description}</p>
                   <p className="mt-1 text-xs"><span className="font-semibold">${a.unit_amount}</span><span className="text-muted-foreground">/mo{isToggle ? "" : ` per ${a.unit}`} · {a.unit_note}</span></p>
                 </div>
                 {isToggle ? (
                   have > 0 ? (
-                    <span className="inline-flex items-center gap-1 rounded-md bg-emerald-500/10 px-2.5 py-1.5 text-xs font-medium text-emerald-600">
+                    <span className="inline-flex items-center gap-1 rounded-md bg-witnessed/10 px-2.5 py-1.5 text-xs font-medium text-witnessed">
                       <Check className="size-3.5" /> Included
                     </span>
                   ) : (

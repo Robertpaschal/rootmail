@@ -28,7 +28,7 @@ export function BetaPreviewNote({
   title?: string;
 }) {
   return (
-    <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+    <div className="rounded-lg border border-primary/25 bg-primary/5 p-4">
       <div className="flex items-start gap-3">
         <FlaskConical className="mt-0.5 size-4 shrink-0 text-primary" />
         <div className="space-y-1">

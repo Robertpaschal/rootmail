@@ -62,7 +62,7 @@ function CopyBtn({ value, label }: { value: string; label: string }) {
         setTimeout(() => setCopied(false), 1500);
       }}
     >
-      {copied ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />} {label}
+      {copied ? <Check className="size-3.5 text-witnessed" /> : <Copy className="size-3.5" />} {label}
     </Button>
   );
 }
@@ -149,9 +149,9 @@ export function GrowAudience({
 
   const insight =
     net > 0
-      ? { text: `Growing — ${net} net new ${net === 1 ? "contact" : "contacts"} in the last 30 days.`, tone: "text-emerald-600" }
+      ? { text: `Growing — ${net} net new ${net === 1 ? "contact" : "contacts"} in the last 30 days.`, tone: "text-witnessed" }
       : net < 0
-        ? { text: `Down ${Math.abs(net)} this month — more people left than joined. Worth a look at your content or cadence.`, tone: "text-red-500" }
+        ? { text: `Down ${Math.abs(net)} this month — more people left than joined. Worth a look at your content or cadence.`, tone: "text-stopped" }
         : sub > 0
           ? { text: "Steady — joins and unsubscribes balanced out this month.", tone: "text-muted-foreground" }
           : { text: "No signups yet — share your page below to get the first ones.", tone: "text-muted-foreground" };
@@ -179,20 +179,20 @@ export function GrowAudience({
               <Stat
                 label="Net (30d)"
                 value={net > 0 ? `+${net}` : `${net}`}
-                tone={net > 0 ? "text-emerald-600" : net < 0 ? "text-red-500" : undefined}
+                tone={net > 0 ? "text-witnessed" : net < 0 ? "text-stopped" : undefined}
                 icon={net > 0 ? <ArrowUpRight className="size-3" /> : net < 0 ? <ArrowDownRight className="size-3" /> : <Minus className="size-3" />}
               />
-              <Stat label="Joined" value={`${sub}`} tone="text-emerald-600" />
-              <Stat label="Unsubscribed" value={`${unsub}`} tone="text-red-500" />
-              <Stat label="Waiting" value={`${growth.waitlisted}`} tone={growth.waitlisted ? "text-amber-600" : undefined} />
+              <Stat label="Joined" value={`${sub}`} tone="text-witnessed" />
+              <Stat label="Unsubscribed" value={`${unsub}`} tone="text-stopped" />
+              <Stat label="Waiting" value={`${growth.waitlisted}`} tone={growth.waitlisted ? "text-acted" : undefined} />
             </div>
 
             {/* Diverging chart: joins up, leaves down, from a shared zero line */}
             <div className="rounded-lg border p-3">
               <div className="mb-2 flex items-center justify-between text-[11px] text-muted-foreground">
                 <span className="flex items-center gap-3">
-                  <span className="flex items-center gap-1"><span className="size-2 rounded-sm bg-emerald-500/80" /> Joined</span>
-                  <span className="flex items-center gap-1"><span className="size-2 rounded-sm bg-red-400/70" /> Unsubscribed</span>
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-sm bg-witnessed/80" /> Joined</span>
+                  <span className="flex items-center gap-1"><span className="size-2 rounded-sm bg-stopped/70" /> Unsubscribed</span>
                 </span>
                 <span>Last 30 days</span>
               </div>
@@ -201,10 +201,10 @@ export function GrowAudience({
                   {growth.days.map((d) => (
                     <div key={d.day} className="flex flex-1 flex-col" title={`${d.day}: +${d.subscribed} joined / −${d.unsubscribed} left`}>
                       <div className="flex flex-1 flex-col justify-end pb-px">
-                        <div className="rounded-t-sm bg-emerald-500/80" style={{ height: `${(d.subscribed / max) * 100}%`, minHeight: d.subscribed ? 2 : 0 }} />
+                        <div className="rounded-t-sm bg-witnessed/80" style={{ height: `${(d.subscribed / max) * 100}%`, minHeight: d.subscribed ? 2 : 0 }} />
                       </div>
                       <div className="flex flex-1 flex-col justify-start pt-px">
-                        <div className="rounded-b-sm bg-red-400/70" style={{ height: `${(d.unsubscribed / max) * 100}%`, minHeight: d.unsubscribed ? 2 : 0 }} />
+                        <div className="rounded-b-sm bg-stopped/70" style={{ height: `${(d.unsubscribed / max) * 100}%`, minHeight: d.unsubscribed ? 2 : 0 }} />
                       </div>
                     </div>
                   ))}
@@ -222,8 +222,8 @@ export function GrowAudience({
 
           {/* Waitlist: never lost, honestly surfaced */}
           {growth.waitlisted > 0 ? (
-            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-amber-400/60 bg-amber-50/60 p-3 text-sm dark:bg-amber-500/10">
-              <UserPlus className="size-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div className="flex flex-wrap items-center gap-3 rounded-lg border border-acted/60 bg-acted-tint p-3 text-sm">
+              <UserPlus className="size-4 shrink-0 text-acted" />
               <span className="min-w-0 flex-1">
                 <span className="font-medium">
                   {growth.waitlisted} {growth.waitlisted === 1 ? "person is" : "people are"} waiting to join
@@ -231,7 +231,7 @@ export function GrowAudience({
                 — they signed up while your audiences were at their contact limit. They're saved, and added automatically
                 the moment room opens up.
               </span>
-              <Link href="/billing/marketing" className="inline-flex shrink-0 items-center gap-1 rounded-md bg-amber-500 px-3 py-1.5 text-sm font-medium text-white hover:bg-amber-600">
+              <Link href="/billing/marketing" className="inline-flex shrink-0 items-center gap-1 rounded-md bg-acted px-3 py-1.5 text-sm font-medium text-white hover:bg-acted">
                 Make room now
               </Link>
             </div>
@@ -331,7 +331,7 @@ export function GrowAudience({
               <Button size="sm" onClick={saveSettings} disabled={pending}>
                 {pending ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />} Save settings
               </Button>
-              {saved ? <span className="text-sm text-emerald-600">Saved</span> : null}
+              {saved ? <span className="text-sm text-witnessed">Saved</span> : null}
               {error ? <span className="text-sm text-destructive">{error}</span> : null}
             </div>
           </div>

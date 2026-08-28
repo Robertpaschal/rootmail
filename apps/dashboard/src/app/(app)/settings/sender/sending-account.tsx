@@ -101,7 +101,7 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
               Disconnect
             </Button>
             {disconnectError ? (
-              <p className="w-full text-sm text-rose-600 dark:text-rose-400">{disconnectError}</p>
+              <p className="w-full text-sm text-stopped">{disconnectError}</p>
             ) : null}
           </div>
         ) : null}
@@ -174,12 +174,12 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
           </div>
 
           {state.error ? (
-            <p className="text-sm text-rose-600 dark:text-rose-400" role="alert">
+            <p className="text-sm text-stopped" role="alert">
               {state.error}
             </p>
           ) : null}
           {state.ok ? (
-            <p className="flex items-center gap-1.5 text-sm text-emerald-700 dark:text-emerald-400">
+            <p className="flex items-center gap-1.5 text-sm text-witnessed">
               <CheckCircle2 className="size-4" /> {state.ok}
             </p>
           ) : null}

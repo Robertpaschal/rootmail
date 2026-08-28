@@ -62,10 +62,10 @@ export const STARTERS: Starter[] = [
     title: "Welcome",
     wing: "transactional",
     blurb: "Greet a new signup and point them at their first step.",
-    subject: "Welcome to {{product}}, {{name}} 🎉",
+    subject: "Welcome to {{product}}, {{name}}",
     doc: doc(
       header("Your Company"),
-      h(1, "Welcome, {{name}} 👋"),
+      h(1, "Welcome, {{name}}"),
       p("Thanks for joining {{product}} — we're so glad you're here. Let's get you set up in a couple of minutes."),
       btn("Get started", "{{action_url}}"),
       p("Questions? Just reply to this email — a real person will read it."),
@@ -139,7 +139,7 @@ export const STARTERS: Starter[] = [
       h(2, "One more thing"),
       p("Close with a lighter note, a community shout-out, or what's coming next."),
       footer({
-        text: "Thanks for reading 💌",
+        text: "Thanks for reading",
         social: [
           { platform: "x", url: "{{x_url}}" },
           { platform: "instagram", url: "{{instagram_url}}" },
@@ -153,7 +153,7 @@ export const STARTERS: Starter[] = [
     title: "Announcement",
     wing: "marketing",
     blurb: "Launch a feature or news with a lead visual and one CTA.",
-    subject: "Introducing {{feature}} ✨",
+    subject: "Introducing {{feature}}",
     doc: doc(
       header("Your Company"),
       h(1, "Introducing {{feature}}"),
@@ -170,7 +170,7 @@ export const STARTERS: Starter[] = [
     title: "Promotion",
     wing: "marketing",
     blurb: "Drive a limited-time offer with urgency and a bold CTA.",
-    subject: "{{discount}} off everything — code {{promo_code}} 🎉",
+    subject: "{{discount}} off everything — code {{promo_code}}",
     doc: doc(
       header("Your Company"),
       h(1, "{{discount}} off — this week only"),

@@ -72,7 +72,7 @@ export default async function MessagePage({ params }: { params: Promise<{ id: st
           <Row label="Content hash">
             {m.content_hash ? (
               <span className="inline-flex items-center gap-1.5 font-mono text-xs">
-                <ShieldCheck className="size-3.5 text-emerald-600" />
+                <ShieldCheck className="size-3.5 text-witnessed" />
                 {m.content_hash}
               </span>
             ) : (

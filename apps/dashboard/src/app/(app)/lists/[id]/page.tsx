@@ -122,7 +122,7 @@ export default async function ListDetailPage({
                 <p className="text-2xl font-bold tabular-nums">{totalMembers.toLocaleString()}</p>
                 <p className="text-sm text-muted-foreground">
                   {totalMembers === 1 ? "contact" : "contacts"} in this audience
-                  {list.signup_enabled ? <span className="ml-1 text-emerald-600">· growing</span> : null}
+                  {list.signup_enabled ? <span className="ml-1 text-witnessed">· growing</span> : null}
                 </p>
               </div>
               {!empty ? <RevealPanel triggerLabel="Add contact" title="Add a contact" description="New emails become contacts automatically.">{addForm}</RevealPanel> : null}
@@ -153,7 +153,7 @@ export default async function ListDetailPage({
                         href={active ? listUrl({ stage: undefined, page: undefined }) : listUrl({ stage: s, page: undefined })}
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs transition-colors",
-                          active ? "border-primary bg-primary/10 font-medium text-foreground" : "text-muted-foreground hover:border-primary/40 hover:text-foreground",
+                          active ? "border-ink bg-secondary font-medium text-foreground" : "text-muted-foreground hover:border-primary/40 hover:text-foreground",
                         )}
                       >
                         <span className={cn("size-1.5 rounded-full", STAGE_META[s].dot)} /> {STAGE_META[s].label}
@@ -182,8 +182,8 @@ export default async function ListDetailPage({
       {empty ? (
         /* From empty to scale: the three ways to fill an audience */
         <Reveal className="space-y-6" delay={0.05}>
-          <div className="rounded-xl border border-dashed p-8 text-center">
-            <span className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
+          <div className="rounded-lg border border-dashed p-8 text-center">
+            <span className="mx-auto grid size-12 place-items-center rounded border border-rule text-ink-muted">
               <Users className="size-6" />
             </span>
             <h2 className="mt-3 text-lg font-semibold">This audience is empty</h2>
@@ -254,7 +254,7 @@ export default async function ListDetailPage({
                       <TableRow key={c.id}>
                         <TableCell>
                           <Link href={`/contacts/${c.id}`} className="flex items-center gap-2.5 hover:underline">
-                            <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+                            <span className="grid size-7 shrink-0 place-items-center rounded-full border border-rule text-[10px] font-semibold text-ink-muted">
                               {initials(c.name, c.email)}
                             </span>
                             <span className="min-w-0">

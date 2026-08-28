@@ -43,6 +43,18 @@ export function suggestStage(
   return null;
 }
 
+/**
+ * A lifecycle stage is a NOUN, and nouns get ink (docs/design/00-PHILOSOPHY.md
+ * §5.2). These used to be slate / violet / emerald / amber / red — which meant
+ * a "Champion" badge was drawn in the colour that means *we intervened* and an
+ * "At risk" contact in the colour that means *this sender was stopped*, so the
+ * day one of those fired for real it read as one more coloured chip.
+ *
+ * The distribution bar still has to separate five values, so it uses an ink
+ * RAMP rather than five hues: darkest is furthest along the positive path, and
+ * "At risk" — the side lane — is the lightest. The badge carries no colour at
+ * all; its own label already says which stage it is.
+ */
 export const STAGE_META: Record<
   ContactStage,
   { label: string; hint: string; dot: string; badge: string; column: string }
@@ -50,36 +62,36 @@ export const STAGE_META: Record<
   subscriber: {
     label: "Subscriber",
     hint: "Just arrived — they signed up or you added them.",
-    dot: "bg-slate-400",
-    badge: "bg-slate-500/15 text-slate-600 dark:text-slate-300",
-    column: "border-t-slate-400",
+    dot: "bg-ink/35",
+    badge: "bg-muted text-foreground",
+    column: "border-t-ink/35",
   },
   engaged: {
     label: "Engaged",
     hint: "Opening and clicking — they're paying attention.",
-    dot: "bg-violet-500",
-    badge: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
-    column: "border-t-violet-500",
+    dot: "bg-ink/55",
+    badge: "bg-muted text-foreground",
+    column: "border-t-ink/55",
   },
   customer: {
     label: "Customer",
     hint: "They've bought or signed up for your product.",
-    dot: "bg-emerald-500",
-    badge: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
-    column: "border-t-emerald-500",
+    dot: "bg-ink/75",
+    badge: "bg-muted text-foreground",
+    column: "border-t-ink/75",
   },
   champion: {
     label: "Champion",
     hint: "Your best people — repeat buyers, loud fans.",
-    dot: "bg-amber-500",
-    badge: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-    column: "border-t-amber-500",
+    dot: "bg-ink",
+    badge: "bg-muted text-foreground",
+    column: "border-t-ink",
   },
   at_risk: {
     label: "At risk",
     hint: "Gone quiet — worth a win-back before they slip away.",
-    dot: "bg-red-500",
-    badge: "bg-red-500/15 text-red-600 dark:text-red-400",
-    column: "border-t-red-400",
+    dot: "bg-ink/15",
+    badge: "border border-dashed border-rule bg-transparent text-muted-foreground",
+    column: "border-t-ink/15",
   },
 };

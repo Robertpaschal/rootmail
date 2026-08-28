@@ -55,15 +55,15 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Emails this period" value={formatNumber(org.usage_this_period)} icon={Mail} tone="violet" />
-        <StatCard label="Total messages" value={formatNumber(org.total_messages)} icon={Inbox} tone="blue" />
-        <StatCard label="Workspaces" value={formatNumber(org.workspaces.length)} icon={Square} tone="slate" />
-        <StatCard label="Sub-tenants" value={formatNumber(org.sub_tenants)} icon={Network} tone="green" />
+        <StatCard label="emails sent" value={formatNumber(org.usage_this_period)} window="this billing period" method="usage counter" icon={Mail} />
+        <StatCard label="messages" value={formatNumber(org.total_messages)} window="all time" method="messages table" icon={Inbox} />
+        <StatCard label="workspaces" value={formatNumber(org.workspaces.length)} window="all time" method="orgs table" icon={Square} />
+        <StatCard label="client domains" value={formatNumber(org.sub_tenants)} window="all time" method="sub_tenants table" icon={Network} />
       </div>
 
       {/* Per-wing billing topology — what they're on and which sub bills each piece. */}
       {org.billing ? (
-        <div className="rounded-xl border bg-card p-4">
+        <div className="rounded-lg border bg-card p-4">
           <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Wing billing · {org.billing.interval}ly
           </p>

@@ -95,13 +95,13 @@ export default async function SequenceDetailPage({ params }: { params: Promise<{
         </p>
         {analytics && analytics.total > 0 ? (
           <p className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
-            <span className="text-emerald-600 dark:text-emerald-400">
+            <span className="text-witnessed">
               Delivery {analytics.rates.delivery}%
             </span>
-            <span className="text-violet-600 dark:text-violet-400">Open {analytics.rates.open}%</span>
-            <span className="text-blue-600 dark:text-blue-400">Click {analytics.rates.click}%</span>
+            <span className="text-muted-foreground">Open {analytics.rates.open}%</span>
+            <span className="text-muted-foreground">Click {analytics.rates.click}%</span>
             {analytics.rates.bounce > 0 ? (
-              <span className="text-rose-600 dark:text-rose-400">
+              <span className="text-stopped">
                 Bounce {analytics.rates.bounce}%
               </span>
             ) : null}

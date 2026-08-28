@@ -57,8 +57,8 @@ export function ContentTabs({
             <li>
               <EmptyState
                 icon={FileText}
-                title="No posts yet"
-                description="Start writing and it lands on the marketing blog the moment you publish."
+                title="Writing here publishes to the marketing blog"
+                description="Drafts stay private in this console until you publish; publishing revalidates the public page."
                 action={
                   <Link href="/content/posts/new" className="text-sm font-medium text-primary hover:underline">
                     Write the first post →
@@ -91,8 +91,8 @@ export function ContentTabs({
             <li>
               <EmptyState
                 icon={ListChecks}
-                title="No changelog entries yet"
-                description="Log what shipped — entries appear on the public changelog when published."
+                title="Entries here become the public changelog"
+                description="One dated list of change lines per release, drafted privately and published when you are ready."
                 action={
                   <Link href="/content/changelog/new" className="text-sm font-medium text-primary hover:underline">
                     Write the first entry →

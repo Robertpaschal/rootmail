@@ -304,7 +304,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
             <div ref={scrollRef} className="h-full min-w-0 flex-1 space-y-3 overflow-y-auto pr-1 scroll-smooth">
               {!hasConversation ? (
                 <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-                  <div className="grid size-12 place-items-center rounded-xl bg-primary/10 text-primary">
+                  <div className="grid size-12 place-items-center rounded border border-rule text-ink-muted">
                     <Sparkles className="size-6" />
                   </div>
                   <p className="max-w-md text-sm text-muted-foreground">
@@ -349,7 +349,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                     id={`turn-${t.id}`}
                     className={cn("flex items-start gap-2 scroll-mt-2", t.role === "user" ? "flex-row-reverse" : "flex-row")}
                   >
-                    <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
+                    <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-rule text-ink-muted">
                       {t.role === "user" ? <User className="size-3.5" /> : <Sparkles className="size-3.5" />}
                     </span>
                     <div
@@ -367,7 +367,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                         <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
                           <Sparkles className="size-3 shrink-0 opacity-70" />
                           {t.actions.map((a, j) => (
-                            <span key={j} className={cn("inline-flex items-center gap-1.5", a.status >= 400 && "text-amber-600 dark:text-amber-500")}>
+                            <span key={j} className={cn("inline-flex items-center gap-1.5", a.status >= 400 && "text-acted")}>
                               {j > 0 ? <span className="opacity-40">·</span> : null}
                               {friendlyAction(a.tool)}
                               {a.status >= 400 ? " (couldn't complete)" : ""}
@@ -404,7 +404,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
             className="border-t pt-3"
           >
             {credits ? <CreditNudge credits={credits} className="mb-2" /> : null}
-            <div className="flex items-end gap-2 rounded-xl border bg-background p-1.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
+            <div className="flex items-end gap-2 rounded-lg border bg-background p-1.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
               <Textarea
                 ref={ref}
                 rows={1}

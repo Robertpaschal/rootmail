@@ -21,6 +21,7 @@ import {
   Network,
   Send,
   Settings,
+  Radar,
   Sparkles,
   UserCog,
   Users,
@@ -61,6 +62,11 @@ function buildGroups(opts: { sandbox: boolean; workspaceName: string | null }): 
     {
       items: [
         { href: "/", label: "Overview", icon: LayoutDashboard, exact: true },
+        // The one destination in here that is not an object type. Thirteen of
+        // the fifteen others are a noun you can list; this is what the system
+        // NOTICED and what it DID — throttles, pauses, DNS drift, the
+        // reputation sweep. All of it already happens; none of it had a door.
+        { href: "/activity", label: "What changed", icon: Radar },
         { href: "/assistant", label: "Assistant", icon: Sparkles },
       ],
     },

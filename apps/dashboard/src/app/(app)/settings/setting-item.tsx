@@ -38,7 +38,7 @@ export function SettingsSection({
     <section>
       <h2 className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{title}</h2>
       {hint ? <p className="mb-2 text-xs text-muted-foreground">{hint}</p> : null}
-      <div className="divide-y overflow-hidden rounded-xl border bg-card">{children}</div>
+      <div className="divide-y overflow-hidden rounded-lg border bg-card">{children}</div>
     </section>
   );
 }
@@ -135,8 +135,8 @@ export function StateBadge({ tone, children }: { tone: "ok" | "warn" | "muted"; 
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
-        tone === "ok" && "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400",
-        tone === "warn" && "bg-amber-500/15 text-amber-700 dark:text-amber-400",
+        tone === "ok" && "bg-witnessed/15 text-witnessed",
+        tone === "warn" && "bg-acted/15 text-acted",
         tone === "muted" && "bg-muted text-muted-foreground",
       )}
     >

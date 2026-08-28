@@ -105,7 +105,7 @@ export default async function ProfileSettingsPage() {
       </SettingsSection>
 
       {me?.impersonating ? (
-        <p className="rounded-lg border border-amber-500/40 bg-amber-500/[0.06] px-4 py-3 text-sm text-amber-700 dark:text-amber-400">
+        <p className="rounded-lg border border-acted/40 bg-acted/[0.06] px-4 py-3 text-sm text-acted">
           A rootmail staff member is currently signed in as you for support.
         </p>
       ) : null}

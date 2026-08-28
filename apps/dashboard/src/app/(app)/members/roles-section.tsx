@@ -60,8 +60,8 @@ export async function RolesSection() {
       <Reveal className="space-y-6">
         <EmptyState
           icon={<ShieldCheck className="size-6" />}
-          title="No custom roles yet"
-          description="Built-in owner, admin, and member cover most teams. Add a custom role when you need finer control — say, a “Marketer” who can manage content but not billing."
+          title="Decide exactly what each person can reach"
+          description="Owner, admin and member cover most teams. A custom role is for the case they don&apos;t — a marketer who can write campaigns and send them but never open billing, or an analyst who can read every number and change none of them."
         />
         <InlineReveal triggerLabel="Create your first role" defaultOpen>
           {form}

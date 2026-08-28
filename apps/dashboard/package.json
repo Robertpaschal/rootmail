@@ -12,6 +12,7 @@
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.17",
     "@rootmail/core": "workspace:*",
+    "@rootmail/design": "workspace:*",
     "@rootmail/docs": "workspace:*",
     "@stripe/react-stripe-js": "^6.6.0",
     "@stripe/stripe-js": "^9.8.0",

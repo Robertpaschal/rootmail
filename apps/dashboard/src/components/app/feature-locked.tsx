@@ -141,7 +141,7 @@ export function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?
       <div className="grid gap-0 md:grid-cols-5">
         {/* The value — what this section achieves for them. */}
         <div className="p-8 md:col-span-3">
-          <div className="mb-4 grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
+          <div className="mb-4 grid size-10 place-items-center rounded border border-rule text-ink-muted">
             <Lock className="size-5" />
           </div>
           <h3 className="text-lg font-semibold leading-snug">
@@ -152,7 +152,7 @@ export function FeatureLocked({ info, blurb }: { info: FeatureLockedInfo; blurb?
             <ul className="mt-4 space-y-2">
               {pitch.capabilities.map((c) => (
                 <li key={c} className="flex items-start gap-2 text-sm">
-                  <Check className="mt-0.5 size-4 shrink-0 text-emerald-600" />
+                  <Check className="mt-0.5 size-4 shrink-0 text-witnessed" />
                   <span>{c}</span>
                 </li>
               ))}

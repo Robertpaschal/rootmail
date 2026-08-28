@@ -1,41 +1,86 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { motion } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 
 /**
- * Entrance reveal for a page block — fade + small rise, staggered via `delay`.
- * Server components wrap sections in it to get a cascade without going client
- * themselves. SSR always renders the hidden initial (server and client agree —
- * no hydration mismatch); if the tab is HIDDEN at mount, an effect unhides
- * immediately (rAF doesn't tick there, so the animation would otherwise hold
- * the block invisible until focus). Rests at transform:none.
+ * Entrance reveal — rebuilt to obey the site's own motion rule.
+ *
+ * This is the marketing site's implementation, ported here: the dashboard's
+ * copy had the same defect and kept it after marketing was fixed.
+ *
+ * The old version shipped `initial={{ opacity: 0 }}` on every wrapper, which
+ * means every section of the server-rendered page arrived invisible and stayed
+ * that way until a `requestAnimationFrame` loop ran. rAF does not tick in a
+ * hidden tab, in the browser preview pane, on a throttled device, or when the
+ * animation chunk fails to load, and the single mount-time escape hatch covered
+ * only the first of those. Content that is invisible until an animation runs is
+ * content that sometimes does not exist — `00-PHILOSOPHY.md §6` refuses it and
+ * `tailwind.config.ts` already said so in a comment.
+ *
+ * Two changes fix it permanently:
+ *
+ * 1. **Nothing fades.** The only animated property is `transform`. At rest the
+ *    element is 10px lower than its final position and FULLY OPAQUE, so a
+ *    transition that never runs costs ten pixels, not the paragraph.
+ * 2. **It is a CSS transition, not a JS animation loop** — the mechanic
+ *    `carousel.tsx` already documents: a CSS transition still ARRIVES at its
+ *    end state when frames cannot be animated. The only JS is an
+ *    IntersectionObserver toggling one class, and if that never runs the
+ *    element stays ten pixels low.
+ *
+ * Timing comes from the two-tier system: 700ms on `--ease-narrative`. There is
+ * nothing at 300ms in this codebase on purpose.
  */
 export function Reveal({
   children,
   delay = 0,
   className,
+  inView = false,
 }: {
   children: React.ReactNode;
   delay?: number;
   className?: string;
+  /** Trigger on scroll-into-view (once) instead of on mount. */
+  inView?: boolean;
+  /** Accepted and ignored — kept so call sites that passed it still compile. */
+  y?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+
   useEffect(() => {
-    if (document.visibilityState === "hidden" && ref.current) {
-      ref.current.style.opacity = "1";
-      ref.current.style.transform = "none";
+    const el = ref.current;
+    if (!el) return;
+    if (!inView || typeof IntersectionObserver === "undefined") {
+      setShown(true);
+      return;
     }
-  }, []);
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "-40px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [inView]);
+
   return (
-    <motion.div
+    <div
       ref={ref}
-      className={className}
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, ease: "easeOut", delay }}
+      className={[
+        className,
+        "transition-transform duration-narrative ease-narrative motion-reduce:transition-none",
+        shown ? "translate-y-0" : "translate-y-2.5",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={delay ? { transitionDelay: `${Math.round(delay * 1000)}ms` } : undefined}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

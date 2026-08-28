@@ -25,7 +25,7 @@ export function DkimRotation({ st }: { st: SubTenant }) {
   const rotating = st.dkim.rotating;
 
   return (
-    <section className="rounded-xl border bg-card p-5">
+    <section className="rounded-lg border bg-card p-5">
       <div className="flex items-start gap-3">
         <KeyRound className="mt-0.5 size-5 shrink-0 text-muted-foreground" />
         <div className="min-w-0 flex-1">
@@ -47,7 +47,7 @@ export function DkimRotation({ st }: { st: SubTenant }) {
           </dl>
 
           {rotating ? (
-            <div className="mt-4 rounded-lg border border-amber-300 bg-amber-50/70 p-4 dark:border-amber-900/60 dark:bg-amber-950/20">
+            <div className="mt-4 rounded-lg border border-acted bg-acted-tint p-4">
               <p className="text-sm font-medium">A new key is waiting on one DNS record</p>
               <p className="mt-1 text-sm text-muted-foreground">
                 Add the record for{" "}
@@ -107,7 +107,7 @@ export function DkimRotation({ st }: { st: SubTenant }) {
           ) : null}
 
           {error ? (
-            <p className="mt-3 text-sm text-rose-600 dark:text-rose-400" role="alert">
+            <p className="mt-3 text-sm text-stopped" role="alert">
               {error}
             </p>
           ) : null}

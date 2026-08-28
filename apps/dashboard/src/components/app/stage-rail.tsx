@@ -84,8 +84,11 @@ export function StageRail({
       {stages[current]?.hint ? (
         <motion.p
           key={stages[current].id}
-          initial={{ opacity: 0, y: -3 }}
-          animate={{ opacity: 1, y: 0 }}
+          // Transform only. This hint is always in the DOM, so fading it in
+          // means it is absent wherever frames are frozen (hidden tab, preview
+          // pane) — see docs/design/00-PHILOSOPHY.md §6.
+          initial={{ y: -3 }}
+          animate={{ y: 0 }}
           className="mt-2 text-sm text-muted-foreground"
         >
           {stages[current].hint}
@@ -109,8 +112,11 @@ export function StageScene({
   return (
     <motion.div
       key={keyId}
-      initial={{ opacity: 0, x: 24 * direction }}
-      animate={{ opacity: 1, x: 0 }}
+      // The scene slides; it does not fade. An `exit` may still fade, because
+      // an element on its way out has already been read — but the ENTRANCE must
+      // leave the content legible even if it never animates.
+      initial={{ x: 24 * direction }}
+      animate={{ x: 0 }}
       exit={{ opacity: 0, x: -24 * direction }}
       transition={{ duration: 0.22, ease: "easeOut" }}
     >

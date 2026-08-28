@@ -3,7 +3,6 @@
 import { usePathname } from "next/navigation";
 import { logout } from "@/app/actions";
 import { SubmitButton } from "@/components/app/submit-button";
-import { ThemeToggle } from "@/components/app/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import type { StaffUser } from "@/lib/types";
 
@@ -49,7 +48,6 @@ export function Topbar({ staff }: { staff: StaffUser }) {
             {staff.role}
           </Badge>
         </div>
-        <ThemeToggle />
         <form action={logout}>
           <SubmitButton variant="outline" size="sm" pendingLabel="Signing out…">
             Sign out

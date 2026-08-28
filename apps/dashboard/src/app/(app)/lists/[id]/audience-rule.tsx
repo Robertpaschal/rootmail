@@ -165,7 +165,7 @@ export function AudienceRule({
               {memberCount > 0 ? (
                 <>
                   {" "}
-                  <span className="text-amber-600 dark:text-amber-500">
+                  <span className="text-acted">
                     The {memberCount.toLocaleString()}{" "}
                     {memberCount === 1 ? "person" : "people"} in it now would be replaced by
                     whoever matches — you’ll see the new count before saving.
@@ -300,7 +300,7 @@ export function AudienceRule({
             ) : preview === null ? (
               <span className="text-muted-foreground">Check who this reaches before you save it.</span>
             ) : preview === 0 ? (
-              <span className="font-medium text-amber-600 dark:text-amber-500">
+              <span className="font-medium text-acted">
                 This reaches nobody right now — a campaign to it would send nothing.
               </span>
             ) : (

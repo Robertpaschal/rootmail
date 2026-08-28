@@ -85,7 +85,7 @@ img{max-width:100%;height:auto}a{color:${dark ? "#8ab4ff" : "#2563eb"}}</style><
                 onClick={() => setPickerOpen((v) => !v)}
                 className="inline-flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-accent"
               >
-                <span className="grid size-5 shrink-0 place-items-center rounded-full bg-primary/10 text-[9px] font-semibold text-primary">
+                <span className="grid size-5 shrink-0 place-items-center rounded-full border border-rule text-[9px] font-semibold text-ink-muted">
                   {(person.name ?? person.email)[0]?.toUpperCase()}
                 </span>
                 <span className="max-w-[16rem] truncate">Previewing as {person.name ?? person.email}</span>
@@ -185,18 +185,18 @@ img{max-width:100%;height:auto}a{color:${dark ? "#8ab4ff" : "#2563eb"}}</style><
       </div>
 
       {missing.length > 0 ? (
-        <p className="flex flex-wrap items-center gap-1.5 rounded-lg border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs text-amber-700 dark:text-amber-400">
+        <p className="flex flex-wrap items-center gap-1.5 rounded-lg border border-acted/40 bg-acted/5 px-3 py-2 text-xs text-acted">
           <AlertTriangle className="size-3.5 shrink-0" />
           Still a placeholder at send time:
           {missing.map((v) => (
-            <code key={v} className="rounded bg-amber-500/15 px-1 py-0.5 font-mono">{`{{${v}}}`}</code>
+            <code key={v} className="rounded bg-acted/15 px-1 py-0.5 font-mono">{`{{${v}}}`}</code>
           ))}
           <span className="opacity-80">— pass it when you send, or replace it with real words.</span>
         </p>
       ) : null}
 
       {/* The mail-client frame. */}
-      <div className="flex justify-center rounded-xl border bg-muted/40 p-4 sm:p-6">
+      <div className="flex justify-center rounded-lg border bg-muted/40 p-4 sm:p-6">
         <motion.div
           layout
           transition={{ type: "spring", stiffness: 260, damping: 30 }}

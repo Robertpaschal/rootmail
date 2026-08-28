@@ -52,8 +52,8 @@ export default async function MarketingBillingPage({
       />
 
       {params.checkout === "success" ? (
-        <div className="mb-6 flex items-center gap-2 rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
-          <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
+        <div className="mb-6 flex items-center gap-2 rounded-lg border border-witnessed/40 bg-witnessed/10 p-3 text-sm">
+          <CheckCircle2 className="size-4 shrink-0 text-witnessed" />
           Payment complete — your marketing plan updates the moment Stripe confirms it.
         </div>
       ) : params.checkout === "cancel" ? (

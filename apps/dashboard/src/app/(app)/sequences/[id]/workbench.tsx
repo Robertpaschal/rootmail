@@ -216,7 +216,7 @@ export function SequenceWorkbench({
                                   "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-medium tabular-nums transition-colors",
                                   isSelected
                                     ? "border-primary bg-primary text-primary-foreground"
-                                    : "border-primary/30 bg-primary/10 text-primary hover:bg-primary/20",
+                                    : "border-ink bg-secondary text-foreground hover:bg-primary/20",
                                 )}
                               >
                                 {here} waiting here
@@ -265,7 +265,7 @@ export function SequenceWorkbench({
                     outcomes.failed > 0
                       ? "bg-destructive/15 text-destructive"
                       : outcomes.completed > 0
-                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        ? "bg-witnessed/15 text-witnessed"
                         : "bg-muted text-muted-foreground",
                     selected === "done" && "bg-primary text-primary-foreground",
                   )}
@@ -295,7 +295,7 @@ export function SequenceWorkbench({
                     >
                       {outcomes.completed > 0 ? (
                         <span className="tabular-nums text-muted-foreground">
-                          <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                          <span className="font-medium text-witnessed">
                             {outcomes.completed}
                           </span>{" "}
                           finished the whole journey

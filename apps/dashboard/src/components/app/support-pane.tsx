@@ -203,7 +203,7 @@ export function SupportPane({
                 t.id === active?.id && "bg-secondary/40",
               )}
             >
-              <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+              <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-witnessed/15 text-witnessed">
                 <Headset className="size-3" />
               </span>
               <span className="min-w-0 flex-1">
@@ -217,7 +217,7 @@ export function SupportPane({
                     className={cn(
                       "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
                       t.status === "open"
-                        ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                        ? "bg-witnessed/15 text-witnessed"
                         : "bg-secondary text-muted-foreground",
                     )}
                   >
@@ -252,7 +252,7 @@ export function SupportPane({
                 className={cn(
                   "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
                   active.status === "open"
-                    ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                    ? "bg-witnessed/15 text-witnessed"
                     : "bg-secondary text-muted-foreground",
                 )}
               >
@@ -265,7 +265,7 @@ export function SupportPane({
               return (
                 <div key={m.id} className={cn("flex gap-2", mine ? "justify-end" : "justify-start")}>
                   {!mine ? (
-                    <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                    <span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-full bg-witnessed/15 text-witnessed">
                       <Headset className="size-3" />
                     </span>
                   ) : null}
@@ -295,7 +295,7 @@ export function SupportPane({
           </>
         ) : (
           <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-            <span className="grid size-11 place-items-center rounded-xl bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+            <span className="grid size-11 place-items-center rounded-lg bg-witnessed/15 text-witnessed">
               <Headset className="size-5" />
             </span>
             <p className="max-w-xs text-sm text-muted-foreground">
@@ -330,7 +330,7 @@ export function SupportPane({
             e.preventDefault();
             send();
           }}
-          className="flex items-end gap-2 rounded-xl border bg-background p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
+          className="flex items-end gap-2 rounded-lg border bg-background p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
         >
           <Textarea
             rows={1}

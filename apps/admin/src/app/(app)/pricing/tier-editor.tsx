@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { AdminTier } from "@/lib/types";
 import { type PlanState, updateTier } from "./actions";
+import { ActionNote } from "@/components/app/action-note";
 
 const num = (n: number) => n.toLocaleString();
 const cap = (n: number | null) => (n == null ? "—" : n === -1 ? "∞" : num(n));
@@ -42,7 +43,7 @@ export function TierEditor({ tiers }: { tiers: AdminTier[] }) {
         if (rows.length === 0) return null;
         const meta = WING_META[w];
         return (
-          <div key={w} className="rounded-xl border">
+          <div key={w} className="rounded-lg border">
             <div className="flex items-start gap-2.5 border-b bg-secondary/30 px-4 py-3">
               <meta.icon className="mt-0.5 size-4 shrink-0 text-muted-foreground" />
               <div>
@@ -114,7 +115,7 @@ function TierRow({ tier }: { tier: AdminTier }) {
       <span className="ml-auto flex items-center gap-2">
         {!tier.active ? <Badge variant="muted">inactive</Badge> : null}
         {tier.stripePriceMonthId ? (
-          <Badge variant="secondary">stripe ✓</Badge>
+          <Badge variant="witnessed">stripe price set</Badge>
         ) : tier.priceMonthly || isBlocks || isMkPaid ? (
           <Badge variant="muted">no stripe price</Badge>
         ) : null}
@@ -202,11 +203,11 @@ function TierForm({ tier, onClose }: { tier: AdminTier; onClose: () => void }) {
         <Field label="Workspaces (-1 = ∞)" name="workspace_limit" defaultValue={tier.workspaceLimit} />
       </div>
 
-      {state.error ? <p className="text-xs text-red-500">{state.error}</p> : null}
+      {state.error ? <p className="text-xs text-destructive">{state.error}</p> : null}
       {state.ok ? (
-        <p className="text-xs text-emerald-500">
+        <ActionNote className="text-xs">
           Saved{state.sync === "synced" ? " — Stripe price re-minted" : state.sync === "failed" ? " — Stripe sync FAILED (check logs)" : ""}.
-        </p>
+        </ActionNote>
       ) : null}
       <div className="flex items-center gap-2">
         <SubmitButton size="sm">Save tier</SubmitButton>

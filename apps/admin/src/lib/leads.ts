@@ -9,7 +9,7 @@ export const LEAD_STATUS_LABEL: Record<LeadStatus, string> = {
   lost: "Lost",
 };
 
-type BadgeVariant = "default" | "secondary" | "warning" | "success" | "muted";
+type BadgeVariant = "default" | "secondary" | "outline" | "witnessed" | "muted";
 
 export function leadStatusVariant(s: LeadStatus): BadgeVariant {
   switch (s) {
@@ -19,9 +19,9 @@ export function leadStatusVariant(s: LeadStatus): BadgeVariant {
     case "qualified":
       return "secondary";
     case "proposal":
-      return "warning";
+      return "outline";
     case "won":
-      return "success";
+      return "witnessed";
     case "lost":
       return "muted";
   }

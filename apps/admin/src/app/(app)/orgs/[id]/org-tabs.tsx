@@ -169,7 +169,7 @@ function OverviewTab({ org }: { org: OrgDetail }) {
                 <TableRow key={w.id}>
                   <TableCell className="font-medium">{w.name}</TableCell>
                   <TableCell>
-                    <Badge variant={w.environment === "live" ? "success" : "muted"}>
+                    <Badge variant={w.environment === "live" ? "outline" : "muted"}>
                       {w.environment}
                     </Badge>
                   </TableCell>
@@ -303,7 +303,7 @@ function BillingTab({
                 <div className="text-muted-foreground">Subscription</div>
                 <div className="mt-0.5">
                   {billing.subscription ? (
-                    <Badge variant={billing.subscription.status === "active" ? "success" : "warning"}>
+                    <Badge variant={billing.subscription.status === "active" ? "witnessed" : "muted"}>
                       {billing.subscription.status}
                     </Badge>
                   ) : (
@@ -355,7 +355,7 @@ function BillingTab({
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={v.status === "paid" ? "success" : "muted"}>
+                          <Badge variant={v.status === "paid" ? "witnessed" : "muted"}>
                             {v.status ?? "—"}
                           </Badge>
                         </TableCell>
@@ -432,7 +432,7 @@ function SuppressionsTab({ orgId, suppressions }: { orgId: string; suppressions:
                 <TableRow key={s.id}>
                   <TableCell className="font-medium">{s.email}</TableCell>
                   <TableCell>
-                    <Badge variant={s.reason === "bounce" || s.reason === "complaint" ? "destructive" : "muted"}>
+                    <Badge variant={s.reason === "bounce" || s.reason === "complaint" ? "stopped" : "acted"}>
                       {s.reason}
                     </Badge>
                   </TableCell>

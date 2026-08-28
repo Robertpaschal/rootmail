@@ -18,7 +18,7 @@ export function MfaCard({ enabled }: { enabled: boolean }) {
   if (activateState?.recoveryCodes) {
     return (
       <div className="space-y-4">
-        <p className="flex items-center gap-2 text-sm font-medium text-emerald-600">
+        <p className="flex items-center gap-2 text-sm font-medium text-witnessed">
           <ShieldCheck className="size-4" /> Two-factor authentication is on.
         </p>
         <div>

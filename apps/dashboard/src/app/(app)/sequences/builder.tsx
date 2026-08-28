@@ -280,7 +280,7 @@ export function SequenceBuilder({
                               className="rounded-lg border bg-muted/20 p-3"
                             >
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-[11px] font-semibold text-primary">
+                                <span className="grid size-6 shrink-0 place-items-center rounded-full border border-rule text-[11px] font-semibold text-ink-muted">
                                   {i + 1}
                                 </span>
 
@@ -465,7 +465,7 @@ export function SequenceBuilder({
                   </Button>
                   <div className="flex items-center gap-3">
                     {state?.saved ? (
-                      <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+                      <span className="flex items-center gap-1.5 text-sm text-witnessed">
                         <Check className="size-4" /> Saved
                       </span>
                     ) : null}

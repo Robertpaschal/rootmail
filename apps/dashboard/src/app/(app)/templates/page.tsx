@@ -58,8 +58,8 @@ export default async function TemplatesPage() {
       ) : rows.length === 0 ? (
         <EmptyState
           icon={<FileText className="size-6" />}
-          title="No templates yet"
-          description="Create a reusable email once, then use it in sends, campaigns, and sequences."
+          title="Design an email once, send it a million times"
+          description="A template is the design plus the blanks. Sends, campaigns and sequences all fill in the same one, so a wording change lands everywhere the next time it goes out — and every message keeps the version number it was rendered from."
           action={
             <Link href="/templates/new" className={cn(buttonVariants({ size: "sm" }))}>
               <Plus className="size-4" /> New template

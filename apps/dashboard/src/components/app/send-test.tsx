@@ -67,7 +67,7 @@ export function SendTest({
       </button>
 
       {sent ? (
-        <span className="ml-2 inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400">
+        <span className="ml-2 inline-flex items-center gap-1 text-xs text-witnessed">
           <Check className="size-3.5" /> Sent to {sent}
         </span>
       ) : null}
@@ -80,7 +80,7 @@ export function SendTest({
             exit={{ opacity: 0, y: openUp ? 4 : -4 }}
             transition={{ duration: 0.12 }}
             className={cn(
-              "absolute right-0 z-30 w-80 overflow-hidden rounded-xl border bg-popover shadow-lg",
+              "absolute right-0 z-30 w-80 overflow-hidden rounded-lg border bg-popover shadow-lg",
               openUp ? "bottom-full mb-2" : "mt-2",
             )}
           >
@@ -91,7 +91,7 @@ export function SendTest({
                 onClick={() => send(myEmail)}
                 className="flex w-full items-start gap-2.5 border-b p-3 text-left transition-colors hover:bg-accent/50 disabled:opacity-60"
               >
-                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded border border-rule text-ink-muted">
                   {busy === myEmail ? <Loader2 className="size-3.5 animate-spin" /> : <Mail className="size-3.5" />}
                 </span>
                 <span className="min-w-0">
@@ -124,10 +124,10 @@ export function SendTest({
                         className={cn(
                           "block size-2 rounded-full",
                           r.outcome === "bounced" || r.outcome === "complained"
-                            ? "bg-red-500"
+                            ? "bg-stopped"
                             : r.outcome === "suppressed"
-                              ? "bg-amber-500"
-                              : "bg-emerald-500",
+                              ? "bg-acted"
+                              : "bg-witnessed",
                         )}
                       />
                     )}

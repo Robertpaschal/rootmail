@@ -43,9 +43,12 @@ const RECIP_META: Record<string, { label: string; tone: RecipTone }> = {
   suppressed: { label: "Not sent", tone: "muted" },
 };
 const TONE_BADGE: Record<RecipTone, "success" | "secondary" | "warning" | "destructive" | "muted" | "outline"> = {
-  click: "success",
-  open: "success",
-  delivered: "secondary",
+  // Opens and clicks are INFERRED. They used to be "success" while `delivered`
+  // was only "secondary", so a guess rendered louder than the thing a provider
+  // actually confirmed — the ranking was upside down.
+  click: "outline",
+  open: "outline",
+  delivered: "success",
   sent: "outline",
   bad: "destructive",
   muted: "muted",
@@ -132,9 +135,9 @@ export function CampaignLive({ initial }: { initial: LiveData }) {
           </CardContent>
         </Card>
       ) : campaign.status === "scheduled" ? (
-        <Card className="border-l-4 border-l-amber-500">
+        <Card className="border-l-4 border-l-acted">
           <CardContent className="flex items-center gap-2 p-5 text-sm">
-            <CalendarClock className="size-4 text-amber-500" />
+            <CalendarClock className="size-4 text-acted" />
             <span className="font-medium">Scheduled</span>
             {campaign.scheduled_at ? (
               <span className="text-muted-foreground">for <LocalTime iso={campaign.scheduled_at} /></span>
@@ -159,7 +162,7 @@ export function CampaignLive({ initial }: { initial: LiveData }) {
           <div className="flex items-center justify-between border-t pt-3 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
               {live ? (
-                <><span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-75" /><span className="relative inline-flex size-2 rounded-full bg-emerald-500" /></span> Live — updates on its own</>
+                <><span className="relative flex size-2"><span className="absolute inline-flex size-full animate-ping rounded-full bg-witnessed opacity-75" /><span className="relative inline-flex size-2 rounded-full bg-witnessed" /></span> Live — updates on its own</>
               ) : (
                 "Opens and clicks are reported by mailbox providers over time."
               )}
@@ -199,16 +202,16 @@ export function CampaignLive({ initial }: { initial: LiveData }) {
                     {/* What they did — the engagement story for this person. */}
                     <span className="flex items-center gap-3 text-xs text-muted-foreground">
                       {r.clicked_at ? (
-                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400" title={r.clicked_url ?? undefined}>
+                        <span className="flex items-center gap-1 text-witnessed" title={r.clicked_url ?? undefined}>
                           <MousePointerClick className="size-3.5" />
                           {r.clicked_url ? shortUrl(r.clicked_url) : "clicked"} · {relativeTime(r.clicked_at)}
                         </span>
                       ) : r.opened_at ? (
-                        <span className="flex items-center gap-1 text-violet-600 dark:text-violet-400">
+                        <span className="flex items-center gap-1 text-muted-foreground">
                           <Eye className="size-3.5" /> opened · {relativeTime(r.opened_at)}
                         </span>
                       ) : meta.tone === "bad" ? (
-                        <span className="flex items-center gap-1 text-red-600 dark:text-red-400"><AlertTriangle className="size-3.5" /> {meta.label.toLowerCase()}</span>
+                        <span className="flex items-center gap-1 text-stopped"><AlertTriangle className="size-3.5" /> {meta.label.toLowerCase()}</span>
                       ) : meta.tone === "muted" ? (
                         <span className="flex items-center gap-1"><ShieldOff className="size-3.5" /> {meta.label.toLowerCase()}</span>
                       ) : (

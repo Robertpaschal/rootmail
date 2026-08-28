@@ -36,7 +36,7 @@ export function ReplyDomainForm({
     <div className="rounded-lg border p-4">
       <p className="flex items-center gap-2 text-sm font-medium">
         <Globe className="size-4 text-muted-foreground" /> Reply domain
-        <Badge variant={status === "active" ? "success" : "warning"}>{status}</Badge>
+        <Badge variant={status === "active" ? "witnessed" : "muted"}>{status}</Badge>
         <span className="font-mono text-xs text-muted-foreground">{domain}</span>
       </p>
 

@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { SubmitButton } from "@/components/app/submit-button";
 import type { SupportTicketStatus } from "@/lib/types";
 import { replyTicket, type ReplyState, setTicketStatus } from "./actions";
+import { ActionNote } from "@/components/app/action-note";
 
 export function ReplyBox({ id, status }: { id: string; status: SupportTicketStatus }) {
   const [state, action] = useActionState<ReplyState, FormData>(replyTicket, {});
@@ -21,7 +22,9 @@ export function ReplyBox({ id, status }: { id: string; status: SupportTicketStat
         <div className="flex items-center gap-3">
           <SubmitButton pendingLabel="Sending…">Send reply</SubmitButton>
           {state.error ? <span className="text-sm text-destructive">{state.error}</span> : null}
-          {state.ok ? <span className="text-sm text-emerald-600">Sent · emailed the customer</span> : null}
+          {state.ok ? (
+            <ActionNote tone="witnessed">Sent · emailed the customer</ActionNote>
+          ) : null}
         </div>
       </form>
       <form action={setTicketStatus} className="flex justify-end border-t pt-3">

@@ -50,8 +50,8 @@ export interface SettingGroup {
 }
 
 const TONE: Record<Tone, string> = {
-  ok: "text-emerald-600 dark:text-emerald-400",
-  warn: "text-amber-600 dark:text-amber-400",
+  ok: "text-witnessed",
+  warn: "text-acted",
   muted: "text-muted-foreground",
 };
 
@@ -78,7 +78,7 @@ function Row({ r, reduce }: { r: SettingRow; reduce: boolean | null }) {
               </span>
             ) : null}
             {r.attention ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold text-amber-700 dark:text-amber-400">
+              <span className="inline-flex items-center gap-1 rounded-full bg-acted/15 px-2 py-0.5 text-[10px] font-semibold text-acted">
                 <AlertTriangle className="size-3" /> {r.attention}
               </span>
             ) : null}
@@ -150,10 +150,10 @@ export function SettingsIndex({ groups }: { groups: SettingGroup[] }) {
             exit={{ opacity: 0 }}
             transition={{ duration: reduce ? 0 : 0.2 }}
           >
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-400">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-acted">
               Worth finishing
             </h2>
-            <div className="overflow-hidden rounded-xl border border-amber-500/40 bg-amber-500/[0.04]">
+            <div className="overflow-hidden rounded-lg border border-acted/40 bg-acted/[0.04]">
               {attention.map((r) => (
                 <Row key={`att-${r.id}`} r={r} reduce={reduce} />
               ))}
@@ -163,7 +163,7 @@ export function SettingsIndex({ groups }: { groups: SettingGroup[] }) {
       </AnimatePresence>
 
       {total === 0 ? (
-        <p className="rounded-xl border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">
           Nothing matches “{query}”. Settings for your team, plan and API keys live in their own
           sections — they&apos;re listed here too, so try a broader word.
         </p>
@@ -175,7 +175,7 @@ export function SettingsIndex({ groups }: { groups: SettingGroup[] }) {
             {g.label}
           </h2>
           {g.hint ? <p className="mb-2 -mt-1 text-xs text-muted-foreground">{g.hint}</p> : null}
-          <div className="overflow-hidden rounded-xl border bg-card">
+          <div className="overflow-hidden rounded-lg border bg-card">
             {g.rows.map((r) => (
               <Row key={r.id} r={r} reduce={reduce} />
             ))}

@@ -23,6 +23,9 @@ importers:
 
   apps/admin:
     dependencies:
+      '@rootmail/design':
+        specifier: workspace:*
+        version: link:../../packages/design
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -160,6 +163,9 @@ importers:
       '@rootmail/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@rootmail/design':
+        specifier: workspace:*
+        version: link:../../packages/design
       '@rootmail/docs':
         specifier: workspace:*
         version: link:../../packages/docs
@@ -266,6 +272,9 @@ importers:
 
   apps/developers:
     dependencies:
+      '@rootmail/design':
+        specifier: workspace:*
+        version: link:../../packages/design
       '@rootmail/docs':
         specifier: workspace:*
         version: link:../../packages/docs
@@ -321,6 +330,9 @@ importers:
 
   apps/marketing:
     dependencies:
+      '@rootmail/design':
+        specifier: workspace:*
+        version: link:../../packages/design
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -476,6 +488,27 @@ importers:
       tsx:
         specifier: ^4.19.2
         version: 4.22.4
+      typescript:
+        specifier: ^5.7.3
+        version: 5.9.3
+
+  packages/design:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.10.5
+        version: 22.19.21
+      '@types/react':
+        specifier: ^19.0.0
+        version: 19.2.17
+      react:
+        specifier: ^19.0.0
+        version: 19.2.7
+      tailwindcss:
+        specifier: ^3.4.17
+        version: 3.4.19(tsx@4.22.4)
+      tailwindcss-animate:
+        specifier: ^1.0.7
+        version: 1.0.7(tailwindcss@3.4.19(tsx@4.22.4))
       typescript:
         specifier: ^5.7.3
         version: 5.9.3

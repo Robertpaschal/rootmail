@@ -360,8 +360,8 @@ export function AssistantLauncher() {
           className={cn(
             "grid size-7 shrink-0 place-items-center rounded-lg",
             pane === "assistant"
-              ? "bg-primary/10 text-primary"
-              : "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+              ? "border border-ink text-foreground"
+              : "border border-rule text-ink-muted",
           )}
         >
           {pane === "assistant" ? <Sparkles className="size-4" /> : <Headset className="size-4" />}
@@ -574,7 +574,7 @@ export function AssistantLauncher() {
       <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
         {messages.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-            <span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
+            <span className="grid size-11 place-items-center rounded border border-rule text-ink-muted">
               <Sparkles className="size-5" />
             </span>
             <p className="max-w-xs text-sm text-muted-foreground">
@@ -597,7 +597,7 @@ export function AssistantLauncher() {
                   <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
                     <Sparkles className="size-3 shrink-0 opacity-70" />
                     {t.actions.map((a, j) => (
-                      <span key={j} className={cn("inline-flex items-center gap-1.5", a.status >= 400 && "text-amber-600 dark:text-amber-500")}>
+                      <span key={j} className={cn("inline-flex items-center gap-1.5", a.status >= 400 && "text-acted")}>
                         {j > 0 ? <span className="opacity-40">·</span> : null}
                         {friendlyAction(a.tool)}
                         {a.status >= 400 ? " (couldn't complete)" : ""}
@@ -616,7 +616,7 @@ export function AssistantLauncher() {
         {credits ? <CreditNudge credits={credits} className="mb-2" /> : null}
         <form
           onSubmit={(e) => { e.preventDefault(); submit(input); }}
-          className="flex items-end gap-2 rounded-xl border bg-background p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
+          className="flex items-end gap-2 rounded-lg border bg-background p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
         >
           <Textarea
             ref={inputRef}
@@ -735,8 +735,8 @@ export function AssistantLauncher() {
             {/* The team wrote back — findable without opening anything. */}
             {unread ? (
               <span className="absolute -right-0.5 -top-0.5 grid size-3.5 place-items-center">
-                <span className="absolute size-3.5 animate-ping rounded-full bg-emerald-400/70" />
-                <span className="size-2.5 rounded-full bg-emerald-400 ring-2 ring-primary" />
+                <span className="absolute size-3.5 animate-ping rounded-full bg-witnessed/70" />
+                <span className="size-2.5 rounded-full bg-witnessed ring-2 ring-primary" />
               </span>
             ) : null}
           </motion.button>
@@ -752,7 +752,7 @@ export function AssistantLauncher() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setOpen(false)}
-              className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[1px]"
+              className="fixed inset-0 z-40 bg-background/60"
             />
             <motion.aside
               initial={{ x: "100%" }}
@@ -790,7 +790,7 @@ export function AssistantLauncher() {
               // a 34rem height. 27rem gives the content room to sit properly
               // and brings the box nearer the docked drawer's proportions
               // without it stopping being a floating box.
-              className="pointer-events-auto fixed bottom-5 right-5 z-50 flex h-[min(34rem,78vh)] w-[27rem] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-2xl border bg-card shadow-2xl"
+              className="pointer-events-auto fixed bottom-5 right-5 z-50 flex h-[min(34rem,78vh)] w-[27rem] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-lg border bg-card shadow-2xl"
               role="dialog"
               aria-label="Assistant"
             >

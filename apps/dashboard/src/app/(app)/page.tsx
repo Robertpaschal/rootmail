@@ -3,12 +3,9 @@ import Link from "next/link";
 import {
   ArrowRight,
   BarChart3,
-  CheckCircle2,
   CreditCard,
   FileText,
-  Mail,
   Megaphone,
-  MousePointerClick,
   Send,
   Sparkles,
   TriangleAlert,
@@ -16,6 +13,8 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { Fact, Metric } from "@rootmail/design";
+import { ChangeFeed } from "@/components/app/change-feed";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { Greeting } from "@/components/app/greeting";
 import { Reveal } from "@/components/app/motion";
@@ -26,6 +25,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
+import { loadChanges, quietSentence } from "@/lib/changes";
 import { api } from "@/lib/rootmail";
 import { cn } from "@/lib/utils";
 
@@ -33,20 +33,31 @@ import { cn } from "@/lib/utils";
 // newer page must never white-screen against a field an older API hasn't
 // started sending yet.
 const fmt = (n: number | undefined | null) => (n ?? 0).toLocaleString();
+
+/** A funnel figure. The two-arm union is what makes it impossible to render an
+ *  inference without the caveat naming its bias — `Metric` requires one. */
+type FunnelStat =
+  | { value: string; label: string; window: string; method: string; threshold?: string; inferred?: false; caveat?: undefined }
+  | { value: string; label: string; window: string; method: string; threshold?: string; inferred: true; caveat: string };
 const pct = (n: number) => `${Math.round(n)}%`;
 
+/**
+ * Five hardcoded palettes (emerald / lime / amber / orange / red), none of them
+ * with a dark counterpart that worked, became three: this system has exactly
+ * three signal colours and they mean *witnessed*, *we intervened* and
+ * *stopped*. A grade is not a fourth thing; it is a compression of the same
+ * numbers, so it borrows their colours or it gets ink.
+ */
 function gradeTone(grade: string | null): string {
   switch (grade) {
     case "A":
-      return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400";
     case "B":
-      return "bg-lime-100 text-lime-700 dark:bg-lime-500/15 dark:text-lime-400";
+      return "bg-witnessed-tint text-witnessed";
     case "C":
-      return "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-400";
     case "D":
-      return "bg-orange-100 text-orange-700 dark:bg-orange-500/15 dark:text-orange-400";
+      return "bg-acted-tint text-acted";
     case "F":
-      return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400";
+      return "bg-stopped-tint text-stopped";
     default:
       return "bg-secondary text-muted-foreground";
   }
@@ -70,6 +81,11 @@ export default async function OverviewPage() {
     api.listTemplates(),
     api.listCampaigns(),
   ]);
+  // What the system NOTICED and what it DID. Fetched with everything else and
+  // rendered FIRST: §8 of the design philosophy says the day-30 default view is
+  // not a grid of metrics, it is what changed and what we did about it. The
+  // numbers keep their place, one section down.
+  const { changes } = await loadChanges(5);
   const ok = <T,>(r: PromiseSettledResult<T>) => (r.status === "fulfilled" ? r.value : null);
 
   const me = ok(meR);
@@ -96,12 +112,41 @@ export default async function OverviewPage() {
 
   // The 30-day journey of ALL your email, as a connected flow — each stage carries
   // its count AND the rate from the stage before, ending in a sender-health chip.
-  const funnel = analytics
+  // Four figures at four identical weights was the industry's founding lie
+  // shipped on our own overview: "delivered" is a provider confirmation and
+  // "opened" is a tracking pixel firing, and roughly a third of those are a
+  // mail client prefetching an image. `Metric` takes a required window and
+  // method, and an `inferred` number REQUIRES a caveat naming the bias — so
+  // this array cannot be written dishonestly without editing the design
+  // package. See docs/design/00-PHILOSOPHY.md §5.3.
+  const funnel: FunnelStat[] | null = analytics
     ? [
-        { label: "Sent", value: fmt(analytics.funnel.sent), hint: "last 30 days", icon: Send },
-        { label: "Delivered", value: fmt(analytics.funnel.delivered), hint: `${pct(analytics.rates.delivery)} of sent`, icon: CheckCircle2 },
-        { label: "Opened", value: fmt(analytics.funnel.opened), hint: `${pct(analytics.rates.open)} open rate`, icon: Mail },
-        { label: "Clicked", value: fmt(analytics.funnel.clicked), hint: `${pct(analytics.rates.click)} click rate`, icon: MousePointerClick },
+        { value: fmt(analytics.funnel.sent), label: "sent", window: "30d", method: "api+worker" },
+        {
+          value: fmt(analytics.funnel.delivered),
+          label: "delivered",
+          window: "30d",
+          method: "provider confirmation",
+          threshold: `${pct(analytics.rates.delivery)} of sent`,
+        },
+        {
+          value: fmt(analytics.funnel.opened),
+          label: "opened",
+          window: "30d",
+          method: "tracking pixel",
+          inferred: true,
+          caveat: "undercounts blocked images, overcounts prefetch",
+          threshold: `${pct(analytics.rates.open)} of delivered`,
+        },
+        {
+          value: fmt(analytics.funnel.clicked),
+          label: "clicked",
+          window: "30d",
+          method: "link redirect",
+          inferred: true,
+          caveat: "a scanner following a link counts as a person",
+          threshold: `${pct(analytics.rates.click)} of delivered`,
+        },
       ]
     : null;
   const bounceRate = analytics?.rates.bounce ?? 0;
@@ -150,8 +195,20 @@ export default async function OverviewPage() {
           <h1 className="text-2xl font-semibold tracking-tight">
             <Greeting name={firstName} />
           </h1>
+          {/* "This period" is not a window, and the card below it said 30
+              days while the billing meters below THAT were a calendar month —
+              three periods and one undefined word. A number without a window is
+              not a number. */}
           <p className="text-sm text-muted-foreground">
-            Here&apos;s how {workspace?.name ?? "your workspace"} is doing this period.
+            <Fact>{fmt(analytics?.funnel.sent ?? messages.length)}</Fact> messages left{" "}
+            {workspace?.name ?? "your workspace"} in the last <Fact>30 days</Fact>.{" "}
+            {problems > 0 ? (
+              <>
+                <Fact className="text-stopped">{fmt(problems)}</Fact> of them need you.
+              </>
+            ) : (
+              <>None of them stopped.</>
+            )}
           </p>
         </div>
         <Link href="/assistant" className={cn(buttonVariants({ variant: "outline", size: "sm" }))}>
@@ -162,6 +219,19 @@ export default async function OverviewPage() {
       <Suspense fallback={null}>
         <OnboardingChecklist />
       </Suspense>
+
+      {/* THE PRODUCT SPEAKING FIRST. Everything below this is a read-out; this
+          is the only section that tells the operator something they did not
+          already know to ask for. It leads for that reason. */}
+      <section>
+        <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="text-lg font-medium tracking-heading">What changed</h2>
+          <Link href="/activity" className="inline-flex items-center gap-1 text-sm hover:underline">
+            Everything we did <ArrowRight className="size-3.5" />
+          </Link>
+        </div>
+        <ChangeFeed changes={changes} quiet={quietSentence(messages.length > 0)} />
+      </section>
 
       {/* Shared sending health — reputation + the whole funnel belong to the
           workspace, not a wing, so they lead. */}
@@ -187,16 +257,23 @@ export default async function OverviewPage() {
                 >
                   {deliver.grade ?? "—"}
                 </span>
-                <div>
-                  <p className="text-2xl font-bold tracking-tight">
-                    {deliver.score}
-                    <span className="text-sm font-normal text-muted-foreground">/100</span>
-                  </p>
-                  <p className="text-xs capitalize text-muted-foreground">{deliver.status.replace("_", " ")}</p>
-                </div>
+                <Metric
+                  value={`${deliver.score}/100`}
+                  label={deliver.status.replace("_", " ")}
+                  window={`${deliver.window_days}d`}
+                  method="bounce + complaint + suppression mix"
+                  threshold={deliver.confidence === "high" ? undefined : `confidence: ${deliver.confidence}`}
+                />
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Send a few emails to earn a reputation score.</p>
+              // "A few" is the wrong number and there is a right one. The
+              // scorer damps below 20 judged sends and refuses to score at all
+              // with none (packages/core/src/deliverability.ts) — so that is
+              // the figure, not a rounder one that reads better.
+              <p className="text-sm text-muted-foreground">
+                Not enough sending to score yet — we need about <Fact>20</Fact> judged
+                messages in the window before a score means anything.
+              </p>
             )}
             {deliver?.recommendations?.length ? (
               <p className="mt-3 line-clamp-2 text-xs text-muted-foreground">{deliver.recommendations[0]}</p>
@@ -220,14 +297,26 @@ export default async function OverviewPage() {
                 {funnel.map((s, i) => (
                   <Fragment key={s.label}>
                     {i > 0 ? <ArrowRight className="size-4 shrink-0 text-muted-foreground/40" /> : null}
-                    <Link href="/analytics?scope=all" className="group min-w-[104px] flex-1">
-                      <span className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                        <s.icon className="size-4" /> {s.label}
-                      </span>
-                      <span className="mt-1 block text-2xl font-bold tracking-tight transition-colors group-hover:text-primary">
-                        {s.value}
-                      </span>
-                      <span className="block text-xs text-muted-foreground">{s.hint}</span>
+                    <Link href="/analytics?scope=all" className="min-w-[150px] flex-1">
+                      {s.inferred ? (
+                        <Metric
+                          value={s.value}
+                          label={s.label}
+                          window={s.window}
+                          method={s.method}
+                          threshold={s.threshold}
+                          inferred
+                          caveat={s.caveat}
+                        />
+                      ) : (
+                        <Metric
+                          value={s.value}
+                          label={s.label}
+                          window={s.window}
+                          method={s.method}
+                          threshold={s.threshold}
+                        />
+                      )}
                     </Link>
                   </Fragment>
                 ))}
@@ -236,9 +325,9 @@ export default async function OverviewPage() {
                   className={cn(
                     "ml-auto inline-flex items-center gap-1.5 self-start rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
                     bounceRate > 5
-                      ? "border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-400"
+                      ? "border-stopped/40 bg-stopped-tint text-stopped"
                       : bounceRate > 2
-                        ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        ? "border-acted/40 bg-acted-tint text-acted"
                         : "text-muted-foreground hover:text-foreground",
                   )}
                   title="Bounces + spam complaints as a share of everything sent"
@@ -258,9 +347,12 @@ export default async function OverviewPage() {
       {/* The two wings, each self-contained: its own metric, its own compose action,
           its own handoff. Neither borrows the other's buttons. */}
       <Reveal delay={0.08} className="grid gap-4 lg:grid-cols-2">
+        {/* No accent colour. The wings used to be violet and amber, and amber
+            now means "we intervened" — spending the alarm colour on a noun
+            means the day it fires nobody looks up. State outranks navigation
+            (docs/design/00-PHILOSOPHY.md §9.7); the wings are told apart by
+            their name, their icon and their metric. */}
         <WingCard
-          accent="text-violet-600 dark:text-violet-400"
-          accentBg="bg-violet-500/10"
           icon={Zap}
           name="Transactional"
           blurb="Receipts, resets and alerts your app sends one person at a time."
@@ -286,8 +378,8 @@ export default async function OverviewPage() {
           }
           headlineEmpty="Usage appears here once you start sending."
           stats={[
-            { label: "Delivery rate", value: txStats ? pct(txDelivery) : "—" },
-            { label: "Sent · 30d", value: fmt(txSent30) },
+            { label: "delivery rate · 30d · provider confirmation", value: txStats ? pct(txDelivery) : "—" },
+            { label: "sent · 30d · api+worker", value: fmt(txSent30) },
           ]}
           recent={
             lastMessage ? (
@@ -307,8 +399,6 @@ export default async function OverviewPage() {
         />
 
         <WingCard
-          accent="text-amber-600 dark:text-amber-400"
-          accentBg="bg-amber-500/10"
           icon={Megaphone}
           name="Marketing"
           blurb="Campaigns, newsletters and promos you send to an audience."
@@ -334,9 +424,11 @@ export default async function OverviewPage() {
           }
           headlineEmpty="Grow an audience to start marketing."
           stats={[
-            { label: "Open rate", value: mkStats ? pct(mkOpen) : "—" },
+            // An open rate is a tracking pixel firing. It says so, at the same
+            // size as the number, forever.
+            { label: "open rate · 30d · tracking pixel · inferred", value: mkStats ? pct(mkOpen) : "—", inferred: true },
             {
-              label: "Contacts",
+              label: "contacts · now · your audience",
               value: usage
                 ? `${fmt(usage.contacts_used)}${usage.contacts_limit === -1 ? "" : ` / ${fmt(usage.contacts_limit)}`}`
                 : fmt(0),
@@ -360,23 +452,20 @@ export default async function OverviewPage() {
         />
       </Reveal>
 
-      {/* Quick actions — cross-wing shortcuts (the wings own the compose actions). */}
-      <Reveal delay={0.12}>
-        <p className="mb-2 text-sm font-medium text-muted-foreground">Quick actions</p>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {quickActions.map((a) => (
-            <Link
-              key={a.href}
-              href={a.href}
-              className="group flex items-center gap-3 rounded-lg border bg-card p-4 transition-colors hover:border-primary/40"
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-foreground transition-colors group-hover:bg-primary group-hover:text-primary-foreground">
-                <a.icon className="size-4" />
-              </span>
-              <span className="text-sm font-medium">{a.label}</span>
-            </Link>
-          ))}
-        </div>
+      {/* Cross-wing shortcuts. Four equal bordered tiles with a tinted icon
+          chip each is what a dashboard grows when nobody decided what the page
+          is for — and it was the fourth grid of boxes on one screen. Same four
+          destinations, one ruled row, no chips. */}
+      <Reveal delay={0.12} className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-4">
+        {quickActions.map((a) => (
+          <Link
+            key={a.href}
+            href={a.href}
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <a.icon className="size-4" /> {a.label}
+          </Link>
+        ))}
       </Reveal>
 
       {/* Recent activity + the workspace (the product you're in) with its billing. */}
@@ -390,7 +479,10 @@ export default async function OverviewPage() {
           </CardHeader>
           <CardContent className="p-0">
             {recent.length === 0 ? (
-              <p className="px-6 pb-6 text-sm text-muted-foreground">No messages yet — send your first one.</p>
+              <p className="px-6 pb-6 text-sm text-muted-foreground">
+                The first message you send appears here within seconds, with the line showing how
+                far it got.
+              </p>
             ) : (
               <Table>
                 <TableHeader>
@@ -474,7 +566,7 @@ export default async function OverviewPage() {
                 label="Delivery problems"
                 value={problems}
                 href="/messages?status=bounced"
-                tone={problems > 0 ? "text-amber-600 dark:text-amber-400" : undefined}
+                tone={problems > 0 ? "text-stopped" : undefined}
               />
             </div>
           </CardContent>
@@ -484,11 +576,9 @@ export default async function OverviewPage() {
   );
 }
 
-type WingStat = { label: string; value: string };
+type WingStat = { label: string; value: string; inferred?: boolean };
 
 function WingCard({
-  accent,
-  accentBg,
   icon: Icon,
   name,
   blurb,
@@ -501,8 +591,6 @@ function WingCard({
   analyticsHref,
   openHref,
 }: {
-  accent: string;
-  accentBg: string;
   icon: typeof Zap;
   name: string;
   blurb: string;
@@ -520,7 +608,7 @@ function WingCard({
     <Card className="flex flex-col">
       <CardContent className="flex flex-1 flex-col gap-4 p-5">
         <div className="flex items-start gap-3">
-          <span className={cn("mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg", accentBg, accent)}>
+          <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-md border text-foreground">
             <Icon className="size-4" />
           </span>
           <div className="min-w-0">
@@ -541,7 +629,7 @@ function WingCard({
               <div
                 className={cn(
                   "h-full rounded-full",
-                  headline.over ? "bg-red-500" : headline.pct > 80 ? "bg-amber-500" : "bg-primary",
+                  headline.over ? "bg-stopped" : headline.pct > 80 ? "bg-acted" : "bg-ink",
                 )}
                 style={{ width: `${headline.pct}%` }}
               />
@@ -550,7 +638,7 @@ function WingCard({
               <div className="mt-2.5">
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>{secondary.label}</span>
-                  <span className={cn(secondary.over && "font-medium text-red-600 dark:text-red-400")}>
+                  <span className={cn(secondary.over && "font-medium text-stopped")}>
                     {secondary.text}
                   </span>
                 </div>
@@ -558,7 +646,7 @@ function WingCard({
                   <div
                     className={cn(
                       "h-full rounded-full",
-                      secondary.over ? "bg-red-500" : secondary.pct > 80 ? "bg-amber-500" : "bg-primary/60",
+                      secondary.over ? "bg-stopped" : secondary.pct > 80 ? "bg-acted" : "bg-ink/60",
                     )}
                     style={{ width: `${secondary.pct}%` }}
                   />
@@ -572,9 +660,16 @@ function WingCard({
 
         <div className="grid grid-cols-2 gap-3">
           {stats.map((s) => (
-            <div key={s.label} className="rounded-lg border bg-secondary/30 p-3">
-              <div className="text-xl font-semibold tabular-nums">{s.value}</div>
-              <div className="text-xs text-muted-foreground">{s.label}</div>
+            <div key={s.label} className="rounded-md border bg-secondary/30 p-3">
+              <div
+                className={cn("text-xl font-semibold tabular-nums", s.inferred && "text-ink-muted")}
+                data-fact
+              >
+                {s.value}
+              </div>
+              <div className="font-mono text-[11px] leading-snug text-muted-foreground">
+                {s.label}
+              </div>
             </div>
           ))}
         </div>

@@ -1,6 +1,8 @@
 import Link from "next/link";
-import { CheckCircle2, Eye, Megaphone, MousePointerClick, Send, TriangleAlert, Zap } from "lucide-react";
+import { Megaphone, Send, Zap } from "lucide-react";
+import { Metric } from "@rootmail/design";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
+import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
 import { TrendChart } from "@/components/app/trend-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,19 +85,48 @@ export default async function AnalyticsPage({
     );
   }
 
-  const bounceTone =
-    a.rates.bounce > 5
-      ? "bg-red-500/10 text-red-600 dark:text-red-400"
-      : a.rates.bounce > 2
-        ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
-        : undefined;
-  const funnel = [
-    { label: "Sent", value: a.funnel.sent, hint: "left for the provider", icon: Send },
-    { label: "Delivered", value: a.funnel.delivered, hint: `${a.rates.delivery}% of sent`, icon: CheckCircle2 },
-    { label: "Opened", value: a.funnel.opened, hint: `${a.rates.open}% open rate`, icon: Eye },
-    { label: "Clicked", value: a.funnel.clicked, hint: `${a.rates.click}% click rate`, icon: MousePointerClick },
-    { label: "Bounced / spam", value: `${a.rates.bounce}%`, hint: "of sent — keep under 2%", icon: TriangleAlert, tone: bounceTone },
-  ] as { label: string; value: number | string; hint: string; icon: typeof Send; tone?: string }[];
+  // THE SOURCING LINE, applied. Every figure below carries the window it covers
+  // and the method that produced it, and the two that are INFERRED say so and
+  // render hollow: an open is a tracking pixel firing and a click is a redirect
+  // being followed, and roughly a third of each is a machine. Drawing them in
+  // the same weight as a provider confirmation is the lie this product exists
+  // to refuse (docs/design/00-PHILOSOPHY.md §1, §5.3).
+  const w = `${a.window_days}d`;
+  const funnel: React.ComponentProps<typeof Metric>[] = [
+    { value: a.funnel.sent.toLocaleString(), label: "sent", window: w, method: "api+worker" },
+    {
+      value: a.funnel.delivered.toLocaleString(),
+      label: "delivered",
+      window: w,
+      method: "provider feedback",
+      threshold: `${a.rates.delivery}% of sent`,
+    },
+    {
+      value: a.funnel.opened.toLocaleString(),
+      label: "opened",
+      window: w,
+      method: "tracking pixel",
+      threshold: `${a.rates.open}% of delivered`,
+      inferred: true,
+      caveat: "undercounts blocked images",
+    },
+    {
+      value: a.funnel.clicked.toLocaleString(),
+      label: "clicked",
+      window: w,
+      method: "link redirect",
+      threshold: `${a.rates.click}% of delivered`,
+      inferred: true,
+      caveat: "counts scanner prefetches",
+    },
+    {
+      value: `${a.rates.bounce}%`,
+      label: "bounced or marked spam",
+      window: w,
+      method: "provider feedback",
+      threshold: "keep under 2%",
+    },
+  ];
   const noData = a.funnel.sent === 0;
 
   return (
@@ -103,35 +134,17 @@ export default async function AnalyticsPage({
       <PageHeader title={meta.title} description={meta.desc} actions={<ScopeToggle active={scope} />} />
 
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-          {funnel.map((f) => {
-            const Icon = f.icon;
-            return (
-              <Card key={f.label}>
-                <CardContent className="flex items-center gap-3 p-4">
-                  <div className={cn("grid size-10 shrink-0 place-items-center rounded-lg", f.tone ?? "bg-primary/10 text-primary")}>
-                    <Icon className="size-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="text-2xl font-semibold tabular-nums">
-                      {typeof f.value === "number" ? f.value.toLocaleString() : f.value}
-                    </div>
-                    <div className="text-sm font-medium">{f.label}</div>
-                    <div className="truncate text-xs text-muted-foreground">{f.hint}</div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+        <div className="grid grid-cols-2 gap-x-6 gap-y-8 border-y border-rule py-6 lg:grid-cols-5">
+          {funnel.map((f) => (
+            <Metric key={f.label} {...f} />
+          ))}
         </div>
 
         {noData ? (
-          <Card>
-            <CardContent className="p-8 text-center text-sm text-muted-foreground">
-              No {scope === "all" ? "" : `${scope} `}sends in the last {a.window_days} days yet — engagement shows up
-              here once mail starts flowing.
-            </CardContent>
-          </Card>
+          <EmptyState
+            title="Engagement is what happened after the send"
+            description={`Nothing has left ${scope === "all" ? "this workspace" : `the ${scope} wing`} in the last ${a.window_days} days. Send one real message and this fills in as the provider reports back — delivery within seconds, opens and clicks as they happen.`}
+          />
         ) : (
           <>
             <Card>
@@ -145,9 +158,9 @@ export default async function AnalyticsPage({
                   dates={a.series.map((d) => d.date)}
                   series={[
                     { label: "Sent", className: "text-muted-foreground/70", values: a.series.map((d) => d.sent) },
-                    { label: "Delivered", className: "text-emerald-500", values: a.series.map((d) => d.delivered ?? 0) },
-                    { label: "Opened", className: "text-sky-500", values: a.series.map((d) => d.opened ?? 0) },
-                    { label: "Clicked", className: "text-violet-500", values: a.series.map((d) => d.clicked ?? 0) },
+                    { label: "Delivered", className: "text-witnessed", values: a.series.map((d) => d.delivered ?? 0) },
+                    { label: "Opened", className: "text-muted-foreground", values: a.series.map((d) => d.opened ?? 0) },
+                    { label: "Clicked", className: "text-muted-foreground", values: a.series.map((d) => d.clicked ?? 0) },
                   ]}
                 />
               </CardContent>

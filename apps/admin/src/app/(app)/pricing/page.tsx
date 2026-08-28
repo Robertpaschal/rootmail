@@ -40,7 +40,7 @@ export default async function PricingPage() {
             <span className="flex items-center gap-2">
               <span className="text-muted-foreground">Billing:</span>
               {billing.mode === "stripe" ? (
-                <Badge variant={billing.live ? "success" : "secondary"}>
+                <Badge variant={billing.live ? "witnessed" : "muted"}>
                   Stripe · {billing.live ? "LIVE" : "test"}
                 </Badge>
               ) : (
@@ -51,7 +51,7 @@ export default async function PricingPage() {
               Embedded checkout: {billing.publishable_set ? "ready" : "no publishable key"}
             </span>
             <span className="text-muted-foreground">
-              Metered overage (send blocks): {billing.overage_metered ? "✓ live" : "— not synced"}
+              Metered overage (send blocks): {billing.overage_metered ? "live" : "not synced"}
             </span>
             <Link href="/promotions" className="ml-auto font-medium hover:underline">
               Promotions &amp; coupons →

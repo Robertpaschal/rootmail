@@ -20,7 +20,7 @@ export default function Error({
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 text-center">
-      <div className="grid size-12 place-items-center rounded-full bg-red-100 text-red-600">
+      <div className="grid size-12 place-items-center rounded-full bg-stopped-tint text-stopped">
         <TriangleAlert className="size-6" />
       </div>
       <div>

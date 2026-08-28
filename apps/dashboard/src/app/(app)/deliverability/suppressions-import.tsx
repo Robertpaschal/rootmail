@@ -101,7 +101,7 @@ export function SuppressionsImport({ defaultOpen = false }: { defaultOpen?: bool
                 </Button>
               </div>
               {result ? (
-                <div className="rounded-lg border border-emerald-600/30 bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <div className="rounded-lg border border-witnessed/30 bg-witnessed-tint p-3 text-sm text-witnessed">
                   Imported <strong>{result.imported}</strong> suppressions.
                   {result.duplicates ? ` ${result.duplicates} already suppressed.` : ""}
                   {result.invalid ? ` ${result.invalid} row(s) skipped (invalid email).` : ""}

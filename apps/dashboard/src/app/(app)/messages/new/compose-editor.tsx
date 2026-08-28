@@ -164,7 +164,7 @@ interface SlashItem { key: string; label: string; run: (e: Editor) => void }
 
 function ComposeSlash({ editor, onAiPick }: { editor: Editor; onAiPick: () => void }) {
   const items: SlashItem[] = [
-    { key: "ai", label: "✨ Ask AI to write this", run: () => onAiPick() },
+    { key: "ai", label: "Ask AI to write this", run: () => onAiPick() },
     { key: "h2", label: "Heading", run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
     { key: "bullet", label: "Bulleted list", run: (e) => e.chain().focus().toggleBulletList().run() },
     { key: "ordered", label: "Numbered list", run: (e) => e.chain().focus().toggleOrderedList().run() },

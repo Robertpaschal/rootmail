@@ -44,16 +44,16 @@ export function ApiKeysManager({ keys, currentKey, clients }: Props) {
       <AnimatePresence>
         {state?.secret ? (
           <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
-            <div className="rounded-xl border border-amber-400/50 bg-amber-50 p-4 dark:bg-amber-950/30">
-              <div className="flex items-center gap-2 text-sm font-medium text-amber-900 dark:text-amber-300">
+            <div className="rounded-lg border border-acted/50 bg-acted-tint p-4">
+              <div className="flex items-center gap-2 text-sm font-medium text-acted">
                 <ShieldAlert className="size-4" /> Copy your key now — you won&apos;t be able to see it again.
               </div>
-              {state.name ? <p className="mt-1 text-xs text-amber-800 dark:text-amber-400/80">For &ldquo;{state.name}&rdquo;</p> : null}
+              {state.name ? <p className="mt-1 text-xs text-acted">For &ldquo;{state.name}&rdquo;</p> : null}
               <div className="mt-3 flex items-center gap-2">
                 <code className="flex-1 overflow-x-auto rounded-md border bg-background px-3 py-2 font-mono text-sm">{state.secret}</code>
                 <CopyButton value={state.secret} />
               </div>
-              <p className="mt-2 text-xs text-amber-800 dark:text-amber-400/80">
+              <p className="mt-2 text-xs text-acted">
                 Pass it as a Bearer token. See <Link href="/docs/authentication" className="font-medium underline">Authentication</Link> in the docs.
               </p>
             </div>
@@ -132,8 +132,8 @@ export function ApiKeysManager({ keys, currentKey, clients }: Props) {
             <div className="p-6">
               <EmptyState
                 icon={<KeyRound className="size-6" />}
-                title="No API keys yet"
-                description="You don't need one to send from the dashboard — keys are for integrating the REST API, the @rootmail/node SDK, or the CLI. Create one when you're ready to wire rootmail into your product."
+                title="Your product can send the same mail you send from here"
+                description="You don&apos;t need a key to send from the dashboard — this account&apos;s session already is one. A key is how the REST API, the @rootmail/node SDK or the CLI sends as you, scoped to one workspace, and we store only its hash. Create one when you&apos;re ready to wire rootmail into your product."
                 action={<Button size="sm" onClick={() => setCreating(true)}><Plus className="size-4" /> Create your first key</Button>}
               />
             </div>
@@ -185,7 +185,7 @@ export function ApiKeysManager({ keys, currentKey, clients }: Props) {
       <Card>
         <CardContent className="flex flex-col items-start justify-between gap-3 p-5 sm:flex-row sm:items-center">
           <div className="flex items-start gap-3">
-            <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"><BookOpen className="size-5" /></span>
+            <span className="grid size-10 shrink-0 place-items-center rounded border border-rule text-ink-muted"><BookOpen className="size-5" /></span>
             <div>
               <p className="text-sm font-medium">How to send with your key</p>
               <p className="text-xs text-muted-foreground">Quickstart, the REST reference, SDK, and CLI — with copy-paste examples.</p>

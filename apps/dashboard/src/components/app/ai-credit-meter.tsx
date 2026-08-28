@@ -34,10 +34,10 @@ export function CreditMeter({ credits, className }: { credits: Credits; classNam
   const out = isOutOfCredits(credits);
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground", className)}>
-      <Zap className={cn("size-3 shrink-0", out ? "text-destructive" : low ? "text-amber-500" : "text-primary")} />
+      <Zap className={cn("size-3 shrink-0", out ? "text-destructive" : low ? "text-acted" : "text-primary")} />
       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
         <span
-          className={cn("block h-full rounded-full", out ? "bg-destructive" : low ? "bg-amber-500" : "bg-primary")}
+          className={cn("block h-full rounded-full", out ? "bg-destructive" : low ? "bg-acted" : "bg-primary")}
           style={{ width: `${pct}%` }}
         />
       </span>
@@ -59,7 +59,7 @@ export function CreditNudge({ credits, className }: { credits: Credits; classNam
     <div
       className={cn(
         "flex flex-wrap items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm",
-        out ? "border-destructive/40 bg-destructive/10" : "border-amber-500/40 bg-amber-500/10",
+        out ? "border-destructive/40 bg-destructive/10" : "border-acted/40 bg-acted/10",
         className,
       )}
     >

@@ -59,7 +59,7 @@ export default async function SenderSettingsPage() {
         title="Where your mail sends from"
         hint="rootmail can deliver your mail, or you can keep the provider you already use and let rootmail be the layer on top."
       >
-        <div className="divide-y rounded-xl border bg-card">
+        <div className="divide-y rounded-lg border bg-card">
           <SendingAccount current={sendingProvider} />
         </div>
       </SettingsSection>

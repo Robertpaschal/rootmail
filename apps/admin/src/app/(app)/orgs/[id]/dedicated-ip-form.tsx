@@ -40,7 +40,7 @@ export function DedicatedIpForm({
       <div className="flex items-center justify-between">
         <p className="flex items-center gap-2 text-sm font-medium">
           <Server className="size-4 text-muted-foreground" /> Dedicated IP
-          <Badge variant={status === "active" ? "success" : "warning"}>
+          <Badge variant={status === "active" ? "witnessed" : "muted"}>
             {status === "active" ? "active" : "requested"}
           </Badge>
         </p>

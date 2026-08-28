@@ -163,7 +163,7 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
           {view.expiredCount > 0 ? (
             <div className="border-t bg-muted/40 px-3 py-2.5">
               <p className="flex items-start gap-2 text-xs text-muted-foreground">
-                <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-acted" />
                 <span>
                   {view.expiredCount === 1
                     ? "One other account was signed out — its session expired."

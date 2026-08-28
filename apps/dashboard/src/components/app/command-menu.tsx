@@ -139,7 +139,7 @@ export function CommandMenu() {
       onOpenChange={setOpen}
       label="Command menu"
       overlayClassName="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-      contentClassName="fixed left-1/2 top-[15%] z-50 w-[92%] max-w-lg -translate-x-1/2 overflow-hidden rounded-xl border bg-popover text-popover-foreground shadow-2xl"
+      contentClassName="fixed left-1/2 top-[15%] z-50 w-[92%] max-w-lg -translate-x-1/2 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-2xl"
     >
       <Command.Input
         placeholder="Search pages and actions…"

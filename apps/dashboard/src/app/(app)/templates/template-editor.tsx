@@ -49,7 +49,7 @@ import { placeholderPerson, suggestedVariables, usedVariables, type PreviewPerso
 import type { Template, TemplateType, TestRecipient } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const NEW_HTML = `<h1>Hello {{name}} 👋</h1>
+const NEW_HTML = `<h1>Hello {{name}}</h1>
 <p>Welcome to {{product}} — we're glad you're here.</p>
 <p><a href="{{action_url}}">Get started</a></p>`;
 
@@ -261,7 +261,7 @@ export function TemplateEditor({
           <StageScene keyId="design" direction={dir}>
             <div className="space-y-4">
               {/* One slim bar: what it's called, what it says, what it is. */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-xl border bg-card px-4 py-3">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border bg-card px-4 py-3">
                 <input
                   value={name}
                   onChange={(e) => onName(e.target.value)}
@@ -364,7 +364,7 @@ export function TemplateEditor({
                       <StudioPanel editor={editor} theme={theme} setTheme={setTheme} selected={selected} tab={studioTab} setTab={setStudioTab} onAiSubject={setSubject} />
                     </motion.div>
                   ) : (
-                    <motion.div layout className="hidden lg:flex lg:flex-col lg:items-center lg:gap-1 lg:rounded-xl lg:border lg:bg-card lg:p-1.5">
+                    <motion.div layout className="hidden lg:flex lg:flex-col lg:items-center lg:gap-1 lg:rounded-lg lg:border lg:bg-card lg:p-1.5">
                       <button
                         type="button"
                         onClick={() => toggleRail(true)}
@@ -444,7 +444,7 @@ export function TemplateEditor({
               />
 
               {/* Everything we filled in for you, stated plainly. */}
-              <div className="rounded-xl border bg-card p-4">
+              <div className="rounded-lg border bg-card p-4">
                 <p className="text-sm font-semibold">Ready to save</p>
                 <dl className="mt-2 grid gap-x-8 gap-y-1.5 text-sm sm:grid-cols-2">
                   <div className="flex justify-between gap-4">
@@ -499,7 +499,7 @@ export function TemplateEditor({
                 </Button>
                 <div className="flex items-center gap-3">
                   {state?.saved ? (
-                    <span className="flex items-center gap-1.5 text-sm text-emerald-600">
+                    <span className="flex items-center gap-1.5 text-sm text-witnessed">
                       <Check className="size-4" /> Saved
                     </span>
                   ) : null}

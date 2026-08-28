@@ -61,7 +61,7 @@ function Step({
       className="space-y-3"
     >
       <div className="flex items-center gap-2.5">
-        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-primary/10 text-xs font-bold text-primary">{n}</span>
+        <span className="grid size-6 shrink-0 place-items-center rounded-full border border-rule text-xs font-bold text-ink-muted">{n}</span>
         <h2 className="text-sm font-semibold">{title}</h2>
         {hint ? <span className="hidden text-xs text-muted-foreground sm:inline">— {hint}</span> : null}
       </div>
@@ -155,7 +155,7 @@ export function CampaignComposer({
                   animate={{ scaleX: done || now ? 1 : 0 }}
                   transition={{ type: "spring", stiffness: 260, damping: 32 }}
                   style={{ originX: 0 }}
-                  className={cn("block h-full rounded-full", done ? "bg-emerald-500" : "bg-primary")}
+                  className={cn("block h-full rounded-full", done ? "bg-witnessed" : "bg-primary")}
                 />
               </span>
               <span
@@ -165,7 +165,7 @@ export function CampaignComposer({
                   reachable && !now && "group-hover:text-foreground",
                 )}
               >
-                {done ? <Check className="size-3 text-emerald-600 dark:text-emerald-400" /> : null}
+                {done ? <Check className="size-3 text-witnessed" /> : null}
                 {label}
               </span>
             </button>
@@ -189,8 +189,8 @@ export function CampaignComposer({
 
       <Step n={2} title="Who gets it?" hint="pick an audience" delay={0.05}>
         {lists.length === 0 ? (
-          <div className="rounded-xl border border-dashed px-6 py-10 text-center">
-            <span className="mx-auto grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
+          <div className="rounded-lg border border-dashed px-6 py-10 text-center">
+            <span className="mx-auto grid size-11 place-items-center rounded border border-rule text-ink-muted">
               <Users className="size-5" />
             </span>
             <p className="mt-3 text-sm font-medium">You&apos;ll need an audience first</p>
@@ -226,7 +226,7 @@ export function CampaignComposer({
                       <span className="block truncate text-sm font-medium">{l.name}</span>
                       {/* An empty audience is a campaign that reaches nobody — say
                           it on the card, not three screens later at the send. */}
-                      <span className={cn("text-xs", l.contacts === 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>
+                      <span className={cn("text-xs", l.contacts === 0 ? "text-acted" : "text-muted-foreground")}>
                         {l.contacts === 0
                           ? "empty — nobody would receive this"
                           : `${l.contacts.toLocaleString()} contact${l.contacts === 1 ? "" : "s"}`}
@@ -288,7 +288,7 @@ export function CampaignComposer({
           <Card>
             <CardContent className="flex flex-col items-start gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <span className="grid size-9 place-items-center rounded-lg bg-primary/10 text-primary"><FileText className="size-4" /></span>
+                <span className="grid size-9 place-items-center rounded border border-rule text-ink-muted"><FileText className="size-4" /></span>
                 <div>
                   <p className="text-sm font-medium">No templates yet</p>
                   <p className="text-xs text-muted-foreground">Design the email once in the studio, then send it to any audience.</p>
@@ -429,7 +429,7 @@ export function CampaignComposer({
       {/* Scene 3 — what you've built, restated, then the one button that saves
           it. The old form put this under a 4-section scroll with no recap. */}
       <div className={cn("space-y-5", scene !== 2 && "hidden")}>
-        <div className="rounded-xl border bg-card">
+        <div className="rounded-lg border bg-card">
           <p className="border-b px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             What you&apos;ve set up
           </p>

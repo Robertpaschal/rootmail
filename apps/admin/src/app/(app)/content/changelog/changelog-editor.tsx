@@ -8,13 +8,18 @@ import { useFormStatus } from "react-dom";
 import { cn } from "@/lib/utils";
 import type { AdminChangelogEntry, ChangeItem, ChangeKind, CmsStatus } from "@/lib/types";
 import { deleteChangelogEntry, saveChangelogEntry, type CmsState } from "../actions";
+import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "../status-badge";
+import { ActionNote } from "@/components/app/action-note";
 
 const KINDS: ChangeKind[] = ["New", "Improved", "Fixed"];
-const KIND_BADGE: Record<ChangeKind, string> = {
-  New: "bg-green-500/15 text-green-600",
-  Improved: "bg-blue-500/15 text-blue-600",
-  Fixed: "bg-amber-500/15 text-amber-600",
+/** A change KIND is not a message state, so it takes no signal colour — the
+ *  three are told apart by label and by ink weight, matching the public
+ *  changelog card this block previews. */
+const KIND_VARIANT: Record<ChangeKind, "outline" | "default" | "muted"> = {
+  New: "outline",
+  Improved: "default",
+  Fixed: "muted",
 };
 
 /**
@@ -63,7 +68,7 @@ export function ChangelogEditor({ entry }: { entry: AdminChangelogEntry | null }
         <StatusBadge status={status} />
         {state.error ? <span className="text-sm text-destructive">{state.error}</span> : null}
         {state.ok && !state.error ? (
-          <span className="text-sm text-emerald-600">{status === "published" ? "Published" : "Saved"}</span>
+          <ActionNote>{status === "published" ? "Published" : "Saved"}</ActionNote>
         ) : null}
 
         <div className="ml-auto flex items-center gap-2">
@@ -173,14 +178,9 @@ export function ChangelogEditor({ entry }: { entry: AdminChangelogEntry | null }
             ) : (
               visible.map((c, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm">
-                  <span
-                    className={cn(
-                      "mt-0.5 shrink-0 rounded px-1.5 py-0.5 text-[11px] font-medium",
-                      KIND_BADGE[c.kind],
-                    )}
-                  >
+                  <Badge variant={KIND_VARIANT[c.kind]} className="mt-0.5 shrink-0">
                     {c.kind}
-                  </span>
+                  </Badge>
                   <span className="text-muted-foreground">{c.text}</span>
                 </li>
               ))

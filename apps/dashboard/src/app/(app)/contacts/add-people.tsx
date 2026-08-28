@@ -93,7 +93,7 @@ export function AddPeoplePanel({
             onClick={() => onMode(m.id)}
             className={cn(
               "inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-sm font-medium transition-colors",
-              mode === m.id ? "border-primary bg-primary/10 text-foreground" : "text-muted-foreground hover:bg-secondary",
+              mode === m.id ? "border-ink bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary",
             )}
           >
             <m.icon className="size-4" /> {m.label}
@@ -275,7 +275,7 @@ function ImportPeople({ lists }: { lists: { id: string; name: string }[] }) {
       </div>
 
       {result ? (
-        <div className="rounded-lg border border-emerald-600/30 bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+        <div className="rounded-lg border border-witnessed/30 bg-witnessed-tint p-3 text-sm text-witnessed">
           Imported <strong>{result.imported}</strong> {result.imported === 1 ? "person" : "people"}.
           {result.existing ? ` ${result.existing} already existed.` : ""}
           {result.added_to_list ? ` ${result.added_to_list} added to the audience.` : ""}

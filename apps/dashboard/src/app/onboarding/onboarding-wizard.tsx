@@ -12,10 +12,12 @@ import {
   Loader2,
   Newspaper,
   Rocket,
+  Send,
   ShieldCheck,
   ShoppingBag,
   Sparkles,
 } from "lucide-react";
+import { Line, type Station } from "@rootmail/design";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -129,13 +131,23 @@ export function OnboardingWizard({
       window.scrollTo({ top: 0 });
     });
 
-  const steps = ["Your business", "What you do", "How you send", "Pick your plan"];
+  // ORDER IS THE ARGUMENT. This wizard used to end on "Pick your plan", which
+  // handed a brand-new account straight to /billing/transactional — a
+  // monetisation gate placed *before* a single delivered message. Three screens
+  // of configuration and a checkout, with no evidence that any of it works.
+  //
+  // `docs/design/00-PHILOSOPHY.md` §8 sets hour one: send one real email and
+  // watch the line complete. So the terminal step is now the send, and the plan
+  // pitch is still here, still pre-filling per-wing pricing — but reached by
+  // choice, from a person who has already seen the product do its job.
+  const steps = ["Your business", "What you do", "How you send", "Send your first email"];
 
   return (
     <div>
-      {/* Progress */}
+      {/* Progress. The fifth segment exists only while the optional plan step is
+          open — otherwise the last label would name a scene nobody is looking at. */}
       <div className="mx-auto mb-10 flex max-w-2xl items-center gap-2">
-        {steps.map((label, i) => (
+        {(step === 4 ? [...steps, "Size your plan"] : steps).map((label, i) => (
           <div key={label} className="flex flex-1 flex-col gap-1.5">
             <div className={cn("h-1 rounded-full", i <= step ? "bg-primary" : "bg-secondary")} />
             <span className={cn("text-[11px]", i === step ? "font-medium text-foreground" : "text-muted-foreground")}>
@@ -148,7 +160,7 @@ export function OnboardingWizard({
       {step === 0 ? (
         <section className="mx-auto max-w-2xl">
           <h1 className="text-2xl font-semibold tracking-tight">
-            {userName ? `Welcome, ${userName.split(" ")[0]} 👋` : "Welcome 👋"}
+            {userName ? `Welcome, ${userName.split(" ")[0]}` : "Welcome"}
           </h1>
           <p className="mt-2 text-muted-foreground">
             First, the business behind your email. We ask because anti-spam law (CAN-SPAM and
@@ -236,7 +248,7 @@ export function OnboardingWizard({
                   type="button"
                   onClick={() => toggleType(t.id)}
                   className={cn(
-                    "flex items-start gap-3 rounded-xl border p-4 text-left transition-colors",
+                    "flex items-start gap-3 rounded-lg border p-4 text-left transition-colors",
                     active ? "border-primary bg-primary/5" : "hover:border-muted-foreground/40",
                   )}
                 >
@@ -296,7 +308,7 @@ export function OnboardingWizard({
                   type="button"
                   onClick={() => setProvider(p.id)}
                   className={cn(
-                    "rounded-xl border p-4 text-left font-medium transition-colors",
+                    "rounded-lg border p-4 text-left font-medium transition-colors",
                     active ? "border-primary bg-primary/5" : "hover:border-muted-foreground/40",
                   )}
                 >
@@ -322,13 +334,126 @@ export function OnboardingWizard({
         </section>
       ) : null}
 
-      {step === 3 ? <VolumePitch types={types} router={router} /> : null}
+      {step === 3 ? <FirstSend router={router} onSizePlan={() => setStep(4)} /> : null}
+
+      {step === 4 ? <VolumePitch types={types} router={router} onBack={() => setStep(3)} /> : null}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Step 4 — size the account: three volume questions -> a per-wing recommendation.
+// Step 4 — the evidence. One real email, on the real path, watched end to end.
+//
+// Nothing on this screen is a simulation. The stations below are drawn in the
+// state they are actually in right now — every one of them `unknown`, because
+// nothing has been sent yet — and the same component draws them again on the
+// message page as they fill in. Drawing a hopeful pre-filled line here would be
+// the exact flattering lie the rest of the system refuses.
+//
+// It is also the first and best moment to teach the rendering law: solid means
+// we witnessed it, hollow means we inferred it. Somebody who learns that here
+// reads every screen in the product correctly afterwards.
+
+const FIRST_SEND_STATIONS: Station[] = [
+  { label: "Queued", state: "unknown" },
+  { label: "Sent", state: "unknown" },
+  { label: "Delivered", state: "unknown" },
+  { label: "Opened", state: "unknown" },
+  { label: "Clicked", state: "unknown" },
+];
+
+function FirstSend({
+  router,
+  onSizePlan,
+}: {
+  router: ReturnType<typeof useRouter>;
+  onSizePlan: () => void;
+}) {
+  return (
+    <section className="mx-auto max-w-2xl">
+      <div className="text-center">
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Now send one, and watch it land.
+        </h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Send an email to your own address. It goes out on the real path — the real provider,
+          the real record — and you will watch this line fill in as each step is confirmed.
+          It takes about two minutes, and it is the only thing that proves the rest of the
+          setup was worth doing.
+        </p>
+      </div>
+
+      <div className="mt-8 rounded border-[0.5px] border-rule bg-card p-6">
+        <div className="flex justify-center">
+          <Line stations={FIRST_SEND_STATIONS} scale="page" label="Your first message has not been sent yet" />
+        </div>
+        <dl className="mt-6 grid gap-3 border-t border-rule pt-4 text-xs sm:grid-cols-2">
+          <div className="flex items-start gap-2.5">
+            <span
+              aria-hidden
+              className="mt-1 size-2 shrink-0 rounded-full bg-witnessed"
+            />
+            <div>
+              <dt className="font-medium">A filled station is one we witnessed</dt>
+              <dd className="text-muted-foreground">
+                A provider confirmed it, or we did it ourselves.
+              </dd>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <span
+              aria-hidden
+              className="mt-1 size-2 shrink-0 rounded-full border-2 border-foreground bg-background"
+            />
+            <div>
+              <dt className="font-medium">A hollow one is inferred</dt>
+              <dd className="text-muted-foreground">
+                An open is a tracking pixel firing, and mail clients pre-load images. We draw
+                the difference rather than hide it.
+              </dd>
+            </div>
+          </div>
+        </dl>
+      </div>
+
+      <div className="mt-8 flex flex-col items-center gap-3">
+        <Button
+          type="button"
+          size="lg"
+          className="w-full sm:w-auto"
+          onClick={() => router.push("/messages/new")}
+        >
+          <Send className="size-4" /> Send my first email
+        </Button>
+        {/* `min-h-11` because these are real tap targets, not footnotes — a 20px
+            link is under every touch-target minimum, and these are the two exits
+            somebody on a phone is most likely to want. */}
+        <div className="flex flex-wrap items-center justify-center gap-x-2 text-sm">
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center rounded px-3 font-medium text-muted-foreground underline transition-colors duration-interaction ease-interaction hover:text-foreground"
+            onClick={onSizePlan}
+          >
+            Size my plan first
+          </button>
+          <button
+            type="button"
+            className="inline-flex min-h-11 items-center rounded px-3 font-medium text-muted-foreground underline transition-colors duration-interaction ease-interaction hover:text-foreground"
+            onClick={() => router.push("/")}
+          >
+            Take me to the dashboard
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Free covers 3,000 sends and 500 contacts a month. Nothing to pay to send this one.
+        </p>
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Step 5 — size the account: three volume questions -> a per-wing recommendation.
 // Pricing is per wing (transactional = send blocks, marketing = contacts), so the
 // pitch asks for the numbers that actually size each wing and hands off to the
 // pricing page with them pre-filled.
@@ -339,9 +464,11 @@ const FREE_TX_SENDS = 3_000;
 function VolumePitch({
   types,
   router,
+  onBack,
 }: {
   types: string[];
   router: ReturnType<typeof useRouter>;
+  onBack: () => void;
 }) {
   const marketingFirst = types.some((t) => ["newsletter", "ecommerce", "community"].includes(t));
   const [emails, setEmails] = useState("");
@@ -377,7 +504,7 @@ function VolumePitch({
   return (
     <section className="mx-auto max-w-2xl">
       <div className="text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">Last step — size it to how you send</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Size it to how you send</h1>
         <p className="mt-2 text-sm text-muted-foreground">
           rootmail prices each side of email on its own axis, so scaling is never punished:
           transactional email by <span className="font-medium text-foreground">send volume</span> (blocks
@@ -433,7 +560,7 @@ function VolumePitch({
         </div>
       </div>
 
-      <div className="mt-6 rounded-xl border border-primary/30 bg-primary/5 p-4 text-sm">
+      <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
         <p className="flex items-center gap-1.5 font-medium">
           <Rocket className="size-4 text-primary" /> Based on your answers
         </p>
@@ -453,8 +580,11 @@ function VolumePitch({
           className="text-sm font-medium text-muted-foreground underline hover:text-foreground"
           onClick={() => router.push("/")}
         >
-          Skip — start Free on everything
+          Start Free on everything
         </button>
+        <Button type="button" variant="ghost" size="sm" onClick={onBack}>
+          <ArrowLeft className="size-4" /> Back to sending your first email
+        </Button>
       </div>
     </section>
   );

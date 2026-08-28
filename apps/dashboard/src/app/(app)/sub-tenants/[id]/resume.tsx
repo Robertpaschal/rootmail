@@ -60,7 +60,7 @@ export function ResumeClient({ id, name, domain }: { id: string; name: string; d
           <PlayCircle className="size-4" /> Resume sending
         </Button>
       ) : (
-        <div className="animate-in fade-in-0 slide-in-from-top-1 rounded-lg border border-amber-300 bg-amber-50 p-4 duration-200 dark:border-amber-900/60 dark:bg-amber-950/30">
+        <div className="animate-in fade-in-0 slide-in-from-top-1 rounded-lg border border-acted bg-acted-tint p-4 duration-interaction">
           <p className="text-sm font-medium">Resume sending for {name}?</p>
           <ul className="mt-2 space-y-1.5 text-xs text-muted-foreground">
             <li>

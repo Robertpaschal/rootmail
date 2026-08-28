@@ -47,8 +47,8 @@ export default async function PromotionsPage() {
           {promos.length === 0 ? (
             <EmptyState
               icon={BadgePercent}
-              title="No promotions yet"
-              description="Create a coupon above and it shows up here — with live redemption counts and an off-switch."
+              title="Coupon codes customers redeem at checkout"
+              description="Create one above; it appears here with a live redemption count and an off-switch that takes effect on the next checkout."
             />
           ) : (
             <Table>
@@ -77,7 +77,7 @@ export default async function PromotionsPage() {
                       {p.max_redemptions ? ` / ${p.max_redemptions}` : ""}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={p.active ? "success" : "muted"}>
+                      <Badge variant={p.active ? "witnessed" : "muted"}>
                         {p.active ? "active" : "inactive"}
                       </Badge>
                     </TableCell>

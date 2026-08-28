@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { AdminAddon } from "@/lib/types";
 import { clearAddonSale, type PlanState, setAddonSale, updateAddon } from "./actions";
+import { ActionNote } from "@/components/app/action-note";
 
 function saleIsActive(a: AdminAddon): boolean {
   if (!a.sale_percent_off || a.sale_percent_off <= 0) return false;
@@ -50,8 +51,8 @@ function AddonSummary({ addon, onEdit }: { addon: AdminAddon; onEdit: () => void
           <span className="text-xs text-muted-foreground">Price</span>{" "}
           {onSale ? (
             <>
-              <span className="text-muted-foreground line-through">${addon.unit_amount}</span>{" "}
-              <span className="font-medium text-emerald-600">${discounted}/mo</span>
+              <span className="text-ink-muted line-through tabular-nums">${addon.unit_amount}</span>{" "}
+              <span className="font-semibold tabular-nums">${discounted}/mo</span>
             </>
           ) : (
             <span className="font-medium tabular-nums">${addon.unit_amount}/mo</span>
@@ -64,7 +65,7 @@ function AddonSummary({ addon, onEdit }: { addon: AdminAddon; onEdit: () => void
           <span className="text-xs text-muted-foreground">Grant/unit</span>{" "}
           <span className="font-medium tabular-nums">{addon.grant}</span>
         </div>
-        {onSale ? <Badge variant="success">{addon.sale_percent_off}% off</Badge> : null}
+        {onSale ? <Badge variant="outline">{addon.sale_percent_off}% off</Badge> : null}
       </div>
       <Button variant="outline" size="sm" onClick={onEdit} className="gap-1.5">
         <Pencil className="size-3.5" /> Edit
@@ -123,13 +124,11 @@ function AddonForm({ addon, onClose }: { addon: AdminAddon; onClose: () => void 
           </SubmitButton>
           {state.error ? <span className="text-sm text-destructive">{state.error}</span> : null}
           {state.ok ? (
-            <span className={`text-sm ${state.sync === "failed" ? "text-amber-600" : "text-emerald-600"}`}>
-              {state.sync === "synced"
-                ? "Saved · Stripe synced"
-                : state.sync === "failed"
-                  ? "Saved · sync failed"
-                  : "Saved"}
-            </span>
+            state.sync === "failed" ? (
+              <span className="text-sm text-destructive">Saved · Stripe sync failed</span>
+            ) : (
+              <ActionNote>{state.sync === "synced" ? "Saved · Stripe synced" : "Saved"}</ActionNote>
+            )
           ) : null}
         </div>
       </form>
@@ -151,10 +150,10 @@ function AddonSaleControls({ addon }: { addon: AdminAddon }) {
       <div className="flex items-center gap-2">
         <span className="text-xs font-medium text-muted-foreground">Sale</span>
         {onSale ? (
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+          <Badge variant="outline">
             {addon.sale_percent_off}% off → ${discounted}/mo
             {addon.sale_ends_at ? ` · ends ${new Date(addon.sale_ends_at).toLocaleDateString()}` : ""}
-          </span>
+          </Badge>
         ) : (
           <span className="text-xs text-muted-foreground">none</span>
         )}
@@ -193,9 +192,11 @@ function AddonSaleControls({ addon }: { addon: AdminAddon }) {
         </SubmitButton>
         {state.error ? <span className="text-sm text-destructive">{state.error}</span> : null}
         {state.ok ? (
-          <span className={`text-sm ${state.sync === "failed" ? "text-amber-600" : "text-emerald-600"}`}>
-            {state.sync === "synced" ? "Sale live · synced" : state.sync === "failed" ? "Saved · sync failed" : "Sale live"}
-          </span>
+          state.sync === "failed" ? (
+            <span className="text-sm text-destructive">Saved · Stripe sync failed</span>
+          ) : (
+            <ActionNote>{state.sync === "synced" ? "Sale live · synced" : "Sale live"}</ActionNote>
+          )
         ) : null}
       </form>
       {onSale ? (
