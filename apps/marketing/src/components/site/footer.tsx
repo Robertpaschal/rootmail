@@ -102,14 +102,8 @@ export function Footer() {
         </div>
 
         <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row">
-          {/* A real postal address, published rather than filed.
-              Our own Terms require customers to carry one on commercial mail,
-              and an email platform that asks for something it does not show is
-              exactly the mismatch an abuse desk or a mailbox provider notices
-              first. It is also the address our own mail carries. */}
           <div className="text-sm text-muted-foreground">
             <p>© {new Date().getFullYear()} rootmail. All rights reserved.</p>
-            <p className="mt-1">1b Ogechukwu Street, Awka, Anambra State, Nigeria</p>
             <p className="mt-1">
               Report abuse:{" "}
               <a
