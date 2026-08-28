@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { motion } from "framer-motion";
 import { Megaphone, Minus, Plus, Users, Zap } from "lucide-react";
 import type { PublicPricing, PublicTier } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
@@ -22,25 +21,21 @@ export function BlocksCalculator({ tx }: { tx: PublicPricing["wings"]["transacti
   const overage = tx.tiers.find((t) => t.id === "tx_blocks")?.overage_per_1000 ?? 0;
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="flex h-full flex-col rounded-lg border border-rule bg-card shadow-e1 p-6">
       <div className="flex items-center gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+        <span className="grid size-10 shrink-0 place-items-center rounded bg-secondary text-foreground">
           <Zap className="size-5" />
         </span>
         <div>
           <h3 className="text-lg font-semibold">Transactional</h3>
-          <p className="text-sm text-muted-foreground">Receipts, resets, alerts — priced by send volume alone.</p>
+          <p className="text-sm text-muted-foreground">Receipts, resets, alerts — priced by send volume.</p>
         </div>
       </div>
 
-      <div className="mt-5 rounded-xl border bg-secondary/40 p-4">
+      <div className="mt-5 rounded-lg border border-rule bg-secondary/40 p-4">
         <p className="text-sm">
-          <span className="text-2xl font-bold tracking-tight">{num(tx.free_sends)}</span>{" "}
+          <span className="text-2xl font-medium tracking-tight">{num(tx.free_sends)}</span>{" "}
           <span className="text-muted-foreground">sends every month, free — no card.</span>
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Then buy blocks of {num(tx.block_size)} sends. Rates drop as you grow; past your blocks it&apos;s
-          just ${overage}/1,000 — sending never stops.
         </p>
       </div>
 
@@ -50,7 +45,7 @@ export function BlocksCalculator({ tx }: { tx: PublicPricing["wings"]["transacti
           <button
             type="button"
             onClick={() => setBlocks(Math.max(1, clamped - 1))}
-            className="grid size-9 place-items-center rounded-md border transition-colors hover:border-primary/50"
+            className="grid size-11 place-items-center rounded border transition-colors duration-interaction ease-interaction hover:bg-secondary"
             aria-label="Fewer blocks"
           >
             <Minus className="size-4" />
@@ -61,13 +56,13 @@ export function BlocksCalculator({ tx }: { tx: PublicPricing["wings"]["transacti
             max={tx.max_blocks}
             value={blocks}
             onChange={(e) => setBlocks(Number(e.target.value))}
-            className="h-9 w-24 rounded-md border bg-background text-center text-base font-semibold"
+            className="h-11 w-24 rounded border bg-background text-center text-base font-semibold"
             aria-label="Number of send blocks"
           />
           <button
             type="button"
             onClick={() => setBlocks(Math.min(tx.max_blocks, clamped + 1))}
-            className="grid size-9 place-items-center rounded-md border transition-colors hover:border-primary/50"
+            className="grid size-11 place-items-center rounded border transition-colors duration-interaction ease-interaction hover:bg-secondary"
             aria-label="More blocks"
           >
             <Plus className="size-4" />
@@ -76,17 +71,19 @@ export function BlocksCalculator({ tx }: { tx: PublicPricing["wings"]["transacti
             block{clamped === 1 ? "" : "s"} · {num(sends)} emails/mo
           </span>
         </div>
-        <p className="mt-3 text-3xl font-bold tracking-tight">
+        <p className="mt-3 text-3xl font-semibold tracking-tight">
           {/* Remounts per value — a subtle tick as the price recalculates. */}
-          <motion.span key={monthly} initial={{ opacity: 0.35, y: 3 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.18 }} className="inline-block">
-            {money(monthly)}
-          </motion.span>
+          <span className="inline-block">{money(monthly)}</span>
           <span className="text-base font-normal text-muted-foreground">/mo</span>
           <span className="ml-2 align-middle text-xs font-medium text-muted-foreground">
             at ${rate}/block · {money(monthly * 10)}/yr (2 months free)
           </span>
         </p>
       </div>
+
+      <p className="display-s mt-4">
+        Past your blocks it&apos;s ${overage}/1,000. Sending never stops.
+      </p>
 
       <div className="mt-4 overflow-hidden rounded-lg border">
         <table className="w-full text-xs">
@@ -116,14 +113,15 @@ export function BlocksCalculator({ tx }: { tx: PublicPricing["wings"]["transacti
         </table>
       </div>
 
-      <ul className="mt-5 flex-1 space-y-2 text-sm text-muted-foreground">
-        <li>· The send API, templates &amp; a free test sandbox</li>
-        <li>· Deliverability score, suppression &amp; webhooks</li>
-        <li>· Client sending domains &amp; a dedicated IP when you need them</li>
-        <li>· Full append-only audit trail</li>
+      <ul className="ruled mt-5 flex-1 border-t border-rule font-mono text-[11px] text-ink-muted">
+        {["send API · templates · sandbox", "score · suppression · webhooks", "client domains · included", "append-only audit trail"].map((f) => (
+          <li key={f} className="py-2" data-fact>
+            {f}
+          </li>
+        ))}
       </ul>
 
-      <CtaButton label="Start free — 3,000 sends/mo" className="mt-6 w-full" />
+      <CtaButton label="Start free" className="mt-6 w-full" />
     </div>
   );
 }
@@ -142,25 +140,21 @@ export function ContactPricer({ mk }: { mk: PublicPricing["wings"]["marketing"] 
   const freeEligible = clamped <= mk.free_contacts;
 
   return (
-    <div className="flex h-full flex-col rounded-2xl border bg-card p-6 shadow-sm">
+    <div className="flex h-full flex-col rounded-lg border border-rule bg-card shadow-e1 p-6">
       <div className="flex items-center gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary">
+        <span className="grid size-10 shrink-0 place-items-center rounded bg-secondary text-foreground">
           <Megaphone className="size-5" />
         </span>
         <div>
           <h3 className="text-lg font-semibold">Marketing</h3>
-          <p className="text-sm text-muted-foreground">Campaigns, sequences &amp; replies — priced by audience size.</p>
+          <p className="text-sm text-muted-foreground">Campaigns, sequences, replies — priced by audience size.</p>
         </div>
       </div>
 
-      <div className="mt-5 rounded-xl border bg-secondary/40 p-4">
+      <div className="mt-5 rounded-lg border border-rule bg-secondary/40 p-4">
         <p className="text-sm">
-          <span className="text-2xl font-bold tracking-tight">Free</span>{" "}
+          <span className="text-2xl font-medium tracking-tight">Free</span>{" "}
           <span className="text-muted-foreground">up to {num(mk.free_contacts)} contacts — no card.</span>
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Your audience size sets the price; the plan turns it into monthly volume, a daily cap, and
-          how many audiences you can run.
         </p>
       </div>
 
@@ -175,7 +169,7 @@ export function ContactPricer({ mk }: { mk: PublicPricing["wings"]["marketing"] 
               type="button"
               onClick={() => setContacts(s)}
               className={cn(
-                "rounded-full border px-2.5 py-1 text-xs font-medium transition-colors",
+                "inline-flex min-h-11 items-center rounded border px-3 text-xs font-medium transition-colors duration-interaction ease-interaction",
                 clamped === s ? "border-primary bg-primary text-primary-foreground" : "hover:border-primary/50",
               )}
             >
@@ -188,7 +182,7 @@ export function ContactPricer({ mk }: { mk: PublicPricing["wings"]["marketing"] 
             max={mk.max_contacts}
             value={contacts}
             onChange={(e) => setContacts(Number(e.target.value))}
-            className="h-7 w-24 rounded-md border bg-background px-2 text-xs font-semibold"
+            className="h-11 w-24 rounded border bg-background px-2 text-xs font-semibold"
             aria-label="Custom contact count"
           />
         </div>
@@ -196,9 +190,8 @@ export function ContactPricer({ mk }: { mk: PublicPricing["wings"]["marketing"] 
 
       <div className="mt-4 space-y-2">
         {freeEligible ? (
-          <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3 text-sm">
-            <span className="font-semibold text-emerald-600">Free covers you</span>
-            <span className="text-muted-foreground"> — {num(clamped)} contacts fit the free tier.</span>
+          <div className="rounded border border-witnessed/40 bg-witnessed/10 p-3 text-sm">
+            <span className="font-semibold text-witnessed">Free covers you</span>
           </div>
         ) : null}
         {paidTiers.map((t) => {
@@ -215,29 +208,24 @@ export function ContactPricer({ mk }: { mk: PublicPricing["wings"]["marketing"] 
                   {t.included_audiences === -1 ? "unlimited" : t.included_audiences} audience{t.included_audiences === 1 ? "" : "s"}
                 </p>
               </div>
-              <motion.p
-                key={p}
-                initial={{ opacity: 0.35, y: 3 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.18 }}
-                className="shrink-0 text-right text-lg font-bold tabular-nums"
-              >
+              <p className="shrink-0 text-right text-lg font-semibold tabular-nums" data-fact>
                 {money(p)}
                 <span className="block text-[10px] font-normal text-muted-foreground">/mo · {money(p * 10)}/yr</span>
-              </motion.p>
+              </p>
             </div>
           );
         })}
       </div>
 
-      <ul className="mt-5 flex-1 space-y-2 text-sm text-muted-foreground">
-        <li>· Campaigns, sequences &amp; a shared replies inbox</li>
-        <li>· Full funnel analytics: sent → delivered → opened → clicked</li>
-        <li>· Compliance handled — footers &amp; one-click unsubscribe</li>
-        <li>· Never touches your transactional volume</li>
+      <ul className="ruled mt-5 flex-1 border-t border-rule font-mono text-[11px] text-ink-muted">
+        {["campaigns · sequences · inbox", "sent → delivered → opened", "footers · one-click unsubscribe", "separate from transactional"].map((f) => (
+          <li key={f} className="py-2" data-fact>
+            {f}
+          </li>
+        ))}
       </ul>
 
-      <CtaButton label={`Start free — up to ${num(mk.free_contacts)} contacts`} className="mt-6 w-full" />
+      <CtaButton label="Start free" className="mt-6 w-full" />
     </div>
   );
 }

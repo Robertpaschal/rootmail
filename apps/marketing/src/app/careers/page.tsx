@@ -3,7 +3,6 @@ import Link from "next/link";
 import { ArrowRight, Compass, Hammer, Heart, Telescope } from "lucide-react";
 import { Navbar } from "@/components/site/navbar";
 import { Footer } from "@/components/site/footer";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -42,13 +41,11 @@ export default function CareersPage() {
     <>
       <Navbar />
       <main>
+        {/* The decorative glow that used to sit here is gone with the rest of
+            them: colour asserts state in this system, and a blurred tint behind
+            a hiring page asserts nothing. */}
         <section className="relative overflow-hidden border-b border-border/60">
-          <div
-            className="absolute left-1/2 top-[-20%] -z-10 h-[380px] w-[680px] max-w-[90vw] -translate-x-1/2 rounded-full bg-primary/15 blur-[130px]"
-            aria-hidden="true"
-          />
-          <div className="container max-w-3xl py-20 text-center md:py-28">
-            <Badge className="mb-4">Careers</Badge>
+          <div className="container max-w-3xl py-14 text-center md:py-24">
             <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
               Help us rebuild email from the ground up.
             </h1>

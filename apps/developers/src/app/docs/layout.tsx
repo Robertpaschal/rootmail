@@ -1,8 +1,10 @@
-import { DevNavbar } from "@/components/site/dev-shell";
+import { DevFooter, DevNavbar } from "@/components/site/dev-shell";
 import { DocsSidebar } from "@/components/site/docs-sidebar";
 
 // The docs shell: navbar on top, a sticky sidebar on the left, content on the
-// right. The page supplies its own on-page table of contents.
+// right, and the site footer beneath the whole container rather than inside the
+// article column — /docs/* used to be the one surface with no way out at the
+// bottom of a long page. The page supplies its own on-page table of contents.
 export default function DocsLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -13,6 +15,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
         </aside>
         <main className="min-w-0 flex-1">{children}</main>
       </div>
+      <DevFooter />
     </>
   );
 }

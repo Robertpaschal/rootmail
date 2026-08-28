@@ -1,126 +1,131 @@
 import Link from "next/link";
-import { ArrowRight, Inbox, Megaphone, PenLine, Send, Sparkles, Terminal } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { LiveLine, type LiveRow, type Station } from "@rootmail/design";
 import { buttonVariants } from "@/components/ui/button";
-import { Parallax, ReactiveCard, Reveal } from "./motion";
 import { cn } from "@/lib/utils";
 import { CtaButton } from "./cta-button";
 
-// TWO readers, both first-class, in that order — and the order matters.
-//
-// Most people arriving here just want their own email handled: receipts, a
-// newsletter, the replies that come back. That is the whole product for them and
-// the headline has to say so, or they leave before the rest lands.
-//
-// The second reader sends on behalf of THEIR customers, and needs to know within
-// one sentence that each client stays separate. Both sentences are in the
-// headline for that reason: the first is the product, the second is what makes
-// it safe at the moment you are sending for other people.
-//
-// An earlier pass led with the platform story alone and lost the first reader
-// entirely — "send for your customers" reads as an agency pitch to a bakery.
-// Leading with the layer does not mean speaking only to the layer.
-const proofs = [
-  { icon: Send, text: "Receipts & resets your site sends itself" },
-  { icon: Megaphone, text: "Campaigns & newsletters to your audience" },
-  { icon: Inbox, text: "Replies land back in one shared inbox" },
-  { icon: PenLine, text: "One studio to design every email" },
-  { icon: Sparkles, text: "An assistant that does the busywork" },
+/**
+ * THE HERO IS THE MECHANISM RUNNING, NOT A SENTENCE ABOUT IT.
+ *
+ * `docs/design/04-EXPERIENCE.md` §5.1. The figure that used to sit here was
+ * right and dead: the correct drawing of one real message, redrawn identically
+ * on five sections of the page, telling nobody anything the paragraph beside it
+ * had not already said. It now RUNS — once, on a `setTimeout` machine, and then
+ * it stops. A page that loops forever is performing at you; a page that
+ * completes once and stops has just shown you something.
+ *
+ * What the artifact has to carry on its own, with the headline and the buttons
+ * covered up: *it tracks what happens to emails, and it admits when it doesn't
+ * know.* That is why the `Clicked` station has no timestamp and the ledger's
+ * last row says so in words. The honest gap is the first thing a stranger sees.
+ *
+ * The rendering law is enforced in `packages/design/src/line.tsx`, not here — a
+ * caller cannot promote an inferred station, which is the point of putting it
+ * there. `Opened` is hollow forever, in a demo exactly as in production.
+ *
+ * Three things left this file and are named so nobody puts them back:
+ *  - the 47-word lead → 26 words;
+ *  - the three-line prose sourcing block, which duplicated the line's own
+ *    labels — the ledger rows carry it now;
+ */
+
+const sample = {
+  id: "msg_01J9Q7F2XKB4M0RVTC8H",
+  to: "ana@sunsetvillas.com",
+  subject: "Your booking is confirmed",
+};
+
+// Clicked has no timestamp, so it is `unknown` and draws dashed. That is the
+// honest gap sitting in the hero on purpose: the reader's first impression of
+// this product includes something we are declining to claim.
+const stations: Station[] = [
+  { label: "Queued", state: "witnessed", at: "09:14:02" },
+  { label: "Sent", state: "witnessed", at: "09:14:03" },
+  { label: "Delivered", state: "witnessed", at: "09:14:07" },
+  { label: "Opened", state: "inferred", at: "09:41:55" },
+  { label: "Clicked", state: "unknown", at: "—" },
 ];
+
+const rows: LiveRow[] = [
+  { at: "09:14:02", event: "queued", note: "accepted by the API" },
+  { at: "09:14:03", event: "sent", note: "handed to the provider" },
+  { at: "09:14:07", event: "delivered", note: "provider confirmed" },
+  {
+    at: "09:41:55",
+    event: "opened",
+    note: "tracking pixel",
+    // Promoted out of the FAQ, where this argument sat at position 8 behind a
+    // chevron. It is the product's entire differentiating claim and it costs
+    // one click.
+    explain:
+      "A pixel loaded at 09:41:55. Roughly a third of these are a mail client prefetching an image, so we draw it hollow. Always.",
+  },
+  { at: "—", event: "clicked", note: "no event · we do not know" },
+];
+
+/** Queued at t+0, then Sent, Delivered, Opened, and a settle beat on Clicked. */
+const timeline = [0, 400, 1100, 2400, 3400];
 
 export function Hero() {
   return (
-    <section className="relative overflow-hidden">
-      <div
-        className="absolute inset-0 -z-10 bg-grid [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_55%,transparent_100%)]"
-        aria-hidden="true"
-      />
-      {/* Decorative glows drift at different rates as you scroll — the parallax
-          depth — and now breathe on their own so the page has a pulse before
-          you've touched it. Slow (18s) and out of phase, because the point is
-          that you notice it without watching it. */}
-      <Parallax range={90} className="absolute left-1/2 top-[-10%] -z-10 -translate-x-1/2">
-        <div
-          className="h-[420px] w-[720px] max-w-[90vw] animate-aurora rounded-full bg-primary/20 blur-[130px] motion-reduce:animate-none"
-          aria-hidden="true"
-        />
-      </Parallax>
-      <Parallax range={-70} className="absolute right-[8%] top-[30%] -z-10">
-        <div
-          className="h-[260px] w-[260px] animate-aurora rounded-full bg-violet-500/10 blur-[100px] [animation-delay:-9s] motion-reduce:animate-none"
-          aria-hidden="true"
-        />
-      </Parallax>
-
-      <div className="container flex flex-col items-center gap-10 py-20 text-center md:py-28">
-        <Reveal className="flex max-w-3xl flex-col items-center gap-6">
-          <Link href="#platform">
-            <Badge variant="muted" className="py-1 pl-2.5 pr-2.5">
-              Your email, and every client's — kept apart
-              <ArrowRight className="size-3" />
-            </Badge>
-          </Link>
-
-          <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl md:text-6xl">
-            All your email in one place.{" "}
-            <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
-              Every client&apos;s, kept apart.
-            </span>
+    <section className="border-b border-rule">
+      <div className="container grid gap-12 py-14 md:py-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] lg:items-center lg:gap-16">
+        <div className="max-w-xl">
+          <h1 className="display-xl text-balance">
+            Every email you send, and a record of what happened to it.
           </h1>
 
-          <p className="max-w-2xl text-balance text-lg text-muted-foreground">
-            The receipts your site sends, the newsletters your audience opens and the replies they
-            send back — designed, delivered and understood together. And if you send on behalf of
-            your own customers, each of them gets their own sending domain, suppression list and
-            reputation score, so one bad list never costs the others. Keep the email provider you
-            already use, or let us deliver it. If you can write an email, you can run rootmail.
+          <p className="lead mt-6 max-w-lg text-ink-muted">
+            Receipts, campaigns and the replies that come back — one system, one contact list, one
+            reputation.
           </p>
 
-          <div className="flex flex-col items-center gap-3 sm:flex-row">
-            <CtaButton
-              label="Start free — no card"
-              size="lg"
-              arrow
-              className="transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
-            />
-            <Link
-              href="/pricing"
-              className={cn(
-                buttonVariants({ variant: "outline", size: "lg" }),
-                "transition-transform hover:-translate-y-0.5 active:scale-[0.98]",
-              )}
-            >
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <CtaButton label="Start free" size="lg" arrow />
+            <Link href="/pricing" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
               See pricing
             </Link>
           </div>
 
-          <p className="text-sm text-muted-foreground">
-            Free for 3,000 sends & 500 contacts a month · set up in minutes ·{" "}
-            <Link
-              href="https://developers.rootmail.io"
-              className="inline-flex items-center gap-1 font-medium text-primary hover:underline"
-            >
-              <Terminal className="size-3.5" /> building a product?
-            </Link>
+          <p className="mt-6 text-sm text-ink-muted">
+            <span className="font-mono text-[13px]" data-fact>
+              3,000 sends · 500 contacts · free monthly
+            </span>
           </p>
-        </Reveal>
+        </div>
 
-        {/* What you can DO — plain outcomes where the code sample used to be. */}
-        <Reveal delay={0.12} className="w-full max-w-3xl">
-          <div className="grid gap-3 rounded-2xl border bg-card/60 p-4 backdrop-blur sm:grid-cols-2 lg:grid-cols-5 lg:gap-2 lg:p-3">
-            {proofs.map((p) => (
-              <ReactiveCard
-                key={p.text}
-                className="flex items-center gap-2.5 rounded-xl p-2 text-left transition-colors hover:bg-secondary/60 lg:flex-col lg:items-center lg:gap-2 lg:p-3 lg:text-center"
-              >
-                <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-                  <p.icon className="size-4" />
-                </span>
-                <span className="text-xs font-medium leading-snug text-muted-foreground">{p.text}</span>
-              </ReactiveCard>
-            ))}
+        {/* The artifact. Drawn in the DOM so it stays honest as the product
+            changes and weighs nothing on a phone. */}
+        <figure className="rounded-lg border border-rule bg-card shadow-e1">
+          <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule px-4 py-3">
+            <span className="font-mono text-[11px] text-ink-muted" data-fact>
+              {sample.id}
+            </span>
+            <span className="font-mono text-[11px] text-ink-muted" data-fact>
+              {sample.to}
+            </span>
+          </figcaption>
+
+          <p className="px-4 pb-4 pt-3 text-sm font-medium">{sample.subject}</p>
+
+          {/* Two scales rather than one scaled SVG: the station spacing is in
+              real pixels so the mono timestamps stay legible, and 504px of hero
+              line does not fit a 375px phone. */}
+          <div className="border-t border-rule px-4 py-6">
+            <LiveLine
+              stations={stations}
+              rows={rows}
+              timeline={timeline}
+              scale="page"
+              wideScale="hero"
+              label="What happened to this message"
+            />
+            {/* Resend ships five ledger events sharing one timestamp to the
+                second, dressed as a live feed. For a product whose thesis is
+                that we draw the difference between what we witnessed and what
+                we guessed, labelling our own demonstration IS the argument. */}
           </div>
-        </Reveal>
+        </figure>
       </div>
     </section>
   );

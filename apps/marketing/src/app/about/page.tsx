@@ -23,7 +23,7 @@ const audiences = [
   },
   {
     icon: MailCheck,
-    title: "For developers who want it to just work",
+    title: "For developers who would rather not become email operators",
     body: "A clean REST API, a typed Node SDK, and a CLI expose the exact same product. Idempotent sends, webhooks, sub-tenancy, and audit trails — the primitives you'd otherwise assemble from three vendors.",
   },
 ];

@@ -1,58 +1,39 @@
+/* Ground, ink and type come from the shared design package so the four apps
+   cannot drift apart again — they already had. Values and reasoning:
+   packages/design/tokens.css and docs/design/00-PHILOSOPHY.md. */
+@import "@rootmail/design/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-      Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
-      "Courier New", monospace;
-
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 243 75% 59%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 243 75% 96%;
-    --accent-foreground: 243 70% 32%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 243 75% 59%;
-    --radius: 0.65rem;
+  /* Headlines carry the display face. One rule per app rather than a utility on
+     every heading — the same propagation trick the token remap uses. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf);
+    font-weight: 600;
+    letter-spacing: var(--track-display);
+    line-height: 1.03;
   }
-
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 5.5%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 243 75% 66%;
-    --primary-foreground: 240 10% 4%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 18%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 243 75% 66%;
+  h3 {
+    letter-spacing: var(--track-heading);
   }
 }
+
+@layer components {
+  /* Figures. The display face at size, with lining tabular digits so columns
+     align and nothing jitters between renders. */
+  .display-num {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf-num);
+    font-variant-numeric: tabular-nums lining;
+    letter-spacing: -0.02em;
+  }
+}
+
 
 @layer base {
   * {
@@ -61,12 +42,118 @@
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 5rem;
+    /* cv01 is Inter's straight-sided `1`; ss03 the round quotes and commas.
+       Measured off Linear (docs/design/01-REFERENCES.md §A.6): two declarations
+       that stop a Google-Fonts grotesque from reading as the default one. The
+       site is dense with figures — thresholds, rates, counts — and the default
+       `1` with its bottom serif sits badly beside a mono column. */
+    font-feature-settings: "cv01", "ss03";
   }
   body {
     @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+  }
+}
+
+@layer components {
+  /* ---- Display type -------------------------------------------------
+     Weight 510, leading at or below 1.0, tracking as a ratio of the size.
+     Sub-1.0 display leading is the most reliable single tell separating an
+     authored page from a generic one (measured across all five references;
+     the one that reads corporate is the only one above it). Presence comes
+     from SIZE and TIGHTNESS, never from weight — a witness giving an account
+     does not raise its voice, so nothing here is 700. */
+  .display-xl {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf);
+    font-size: clamp(2.25rem, 5.6vw, 4.25rem);
+    line-height: 0.95;
+    letter-spacing: var(--track-display);
+    font-weight: 600;
+  }
+  .display-l {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf);
+    font-size: clamp(1.875rem, 3.6vw, 3rem);
+    line-height: 1;
+    letter-spacing: var(--track-display);
+    font-weight: 600;
+  }
+  .display-m {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf);
+    font-size: clamp(1.5rem, 2.4vw, 2rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+  .display-s {
+    font-size: 1.125rem;
+    line-height: 1.15;
+    letter-spacing: -0.017em;
+    font-weight: 600;
+  }
+
+  /* The lead paragraph under a display heading. 17px/1.5 — the references sit
+     at 15–18px and the one at 13px is the one nobody is meant to read. */
+  .lead {
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    letter-spacing: -0.011em;
+  }
+
+  /* ---- The inverted band --------------------------------------------
+     "Dark" is a compositional device here, not a user preference: two of the
+     references have no dark mode at all and invert SECTIONS instead. One band
+     on the page carries the ink ground, and in dark mode it flips the other
+     way so the band is always the opposite of its page.
+
+     It re-points the ground tokens rather than hardcoding colours, so the
+     line's knockout ring — which must use the ground token and never white —
+     keeps working inside it. */
+  .ground-ink {
+    --background: 30 18% 10%;
+    --foreground: 40 20% 97%;
+    --ink: 40 20% 97%;
+    --ink-muted: 36 10% 64%;
+    --rule: 30 8% 22%;
+    --line-dim: 30 8% 34%;
+    --paper-raised: 30 14% 14%;
+    --card: 30 14% 14%;
+    --card-foreground: var(--ink);
+    --muted: 30 12% 16%;
+    --muted-foreground: var(--ink-muted);
+    --secondary: 30 12% 16%;
+    --secondary-foreground: var(--ink);
+    --border: var(--rule);
+    --input: var(--rule);
+    --ring: var(--ink);
+    --primary: var(--ink);
+    --primary-foreground: 30 18% 10%;
+    /* Signals lift so they hold against the dark ground — same values the
+       dark theme uses. */
+    --witnessed: 152 50% 52%;
+    --acted: 35 88% 60%;
+    --stopped: 2 75% 62%;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  .dark .ground-ink {
+    --background: 40 20% 97%;
+    --foreground: 30 18% 11%;
+    --ink: 30 18% 11%;
+    --ink-muted: 30 8% 40%;
+    --rule: 36 12% 86%;
+    --line-dim: 36 10% 78%;
+    --paper-raised: 40 30% 99%;
+    --card: 40 30% 99%;
+    --muted: 40 14% 93%;
+    --secondary: 40 14% 93%;
+    --primary-foreground: 40 30% 99%;
+    --witnessed: 152 55% 34%;
+    --acted: 35 90% 45%;
+    --stopped: 2 70% 45%;
   }
 }
 
@@ -74,11 +161,291 @@
   .text-balance {
     text-wrap: balance;
   }
-  /* Faint dotted/grid backdrop used behind the hero. */
-  .bg-grid {
-    background-image:
-      linear-gradient(to right, hsl(var(--border) / 0.7) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--border) / 0.7) 1px, transparent 1px);
-    background-size: 56px 56px;
+
+  /* ---- State colour as TEXT ------------------------------------------
+     The three signals are tuned to be read as a 2px stroke or an 8px node,
+     which is a different job from being read as an 11px label. Measured on
+     this page: `--acted` at 35 90% 45% comes out at 2.83:1 on paper, and
+     `--witnessed` at 4.44:1 — both under AA for body text, and both fine as a
+     line.
+
+     So the text rendering gets its own cut of the same hue. Backgrounds,
+     borders and the line's own stroke are untouched; only `color` moves, and
+     only inside this page's body, so the shared tokens keep meaning what they
+     mean. Specificity `body .x` (0,1,1) beats the Tailwind utility (0,1,0),
+     which is the whole trick. */
+  body .text-witnessed {
+    color: hsl(152 58% 26%);
+  }
+  body .text-acted {
+    color: hsl(35 96% 27%);
+  }
+  body .text-stopped {
+    color: hsl(2 76% 39%);
+  }
+  body.dark .text-witnessed,
+  .dark body .text-witnessed {
+    color: hsl(152 52% 58%);
+  }
+  body.dark .text-acted,
+  .dark body .text-acted {
+    color: hsl(35 90% 64%);
+  }
+  body.dark .text-stopped,
+  .dark body .text-stopped {
+    color: hsl(2 82% 70%);
+  }
+  /* The inverted band is the opposite of its page, so it takes the opposite
+     cut — and wins over the theme rule by specificity, in both directions. */
+  body .ground-ink .text-witnessed {
+    color: hsl(152 52% 58%);
+  }
+  body .ground-ink .text-acted {
+    color: hsl(35 90% 64%);
+  }
+  body .ground-ink .text-stopped {
+    color: hsl(2 82% 70%);
+  }
+  .dark body .ground-ink .text-witnessed {
+    color: hsl(152 58% 26%);
+  }
+  .dark body .ground-ink .text-acted {
+    color: hsl(35 96% 27%);
+  }
+  .dark body .ground-ink .text-stopped {
+    color: hsl(2 76% 39%);
+  }
+  /* A ruled row. Records are flat: separation is a hairline and a ground
+     shift, never elevation. 62 bordered cards is what a page builds when it
+     has not decided which three things matter. */
+  .ruled > * + * {
+    border-top: 1px solid hsl(var(--rule));
+  }
+}
+
+/* ---- The one-message panel — `docs/design/04-EXPERIENCE.md` §5.3 ------
+   Two axes of tabs (layer: Send/Converse/Prove; door: point-and-click/code)
+   over ONE panel, six states, and the message id is identical in all six.
+
+   WHY THIS IS CSS AND NOT `useState`.
+   Law 1 is tested by killing the JavaScript and reading the page. A React tab
+   set fails that test twice over: five of the six panels are unreachable, and
+   the tabs become dead furniture that invites a click and does nothing. Radio
+   inputs plus sibling combinators are a real tab set with no script at all —
+   keyboard-operable, announced by a screen reader as a radio group, and
+   `display`-swapped rather than faded, so the inactive panels are out of the
+   accessibility tree and out of the word count instead of merely transparent.
+
+   The mechanism: every radio is a direct child of `.om`, in source order
+   layer-then-door, and `.om-caps` / `.om-body` follow them. `~` therefore
+   reaches from a checked layer radio, through a checked door radio, to the
+   panel that belongs to that pair. Each radio is followed IMMEDIATELY by its
+   own label, which is what lets one `input:checked + label` rule style all
+   five tabs. Reorder the children and this stops working; the order is load
+   bearing, so it is stated here rather than left to be discovered. */
+@layer components {
+  .om {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .om > .om-caps,
+  .om > .om-body {
+    flex-basis: 100%;
+  }
+  /* The door tabs sit at the far end of the same row as the layer tabs. */
+  .om > .om-door-first {
+    margin-left: auto;
+  }
+
+  .om [data-panel],
+  .om [data-cap] {
+    display: none;
+  }
+
+  #om-l-send:checked ~ .om-caps [data-cap="send"],
+  #om-l-conv:checked ~ .om-caps [data-cap="conv"],
+  #om-l-prove:checked ~ .om-caps [data-cap="prove"] {
+    display: block;
+  }
+
+  #om-l-send:checked ~ #om-d-ui:checked ~ .om-body [data-panel="send-ui"],
+  #om-l-send:checked ~ #om-d-api:checked ~ .om-body [data-panel="send-api"],
+  #om-l-conv:checked ~ #om-d-ui:checked ~ .om-body [data-panel="conv-ui"],
+  #om-l-conv:checked ~ #om-d-api:checked ~ .om-body [data-panel="conv-api"],
+  #om-l-prove:checked ~ #om-d-ui:checked ~ .om-body [data-panel="prove-ui"],
+  #om-l-prove:checked ~ #om-d-api:checked ~ .om-body [data-panel="prove-api"] {
+    display: block;
+  }
+
+  .om > input:checked + label {
+    background-color: hsl(var(--ink));
+    color: hsl(var(--background));
+    border-color: hsl(var(--ink));
+  }
+  .om > input:focus-visible + label {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer base {
+  /* The ground the slabs sit on: a touch deeper than the card they carry, so
+     the gutter between sections reads as space rather than as a gap. */
+  body {
+    background-color: hsl(var(--paper-lift));
+  }
+}
+
+@layer components {
+  /* ─── SLABS ────────────────────────────────────────────────────────────
+     Sections used to be full-bleed slices divided by a hairline, which is why
+     the page read as one flat scroll. Each is now a rounded panel sitting ON
+     the page ground, so the page reads as stacked layers — the curve belongs
+     to the section itself, not only to the boxes inside it. */
+  .slab {
+    position: relative;
+    z-index: 1;
+    border-radius: var(--radius-slab);
+    background: hsl(var(--card));
+    box-shadow: var(--elev-2);
+    border: 1px solid hsl(var(--rule) / 0.7);
+    /* `clip` rather than `hidden`: it contains the ambient glow, which is bled
+       past the edge on purpose, WITHOUT creating a scroll container that would
+       break `position: sticky` for anything inside. */
+    overflow: clip;
+  }
+
+  /* Consecutive slabs overlap slightly and each new one sits above the last,
+     so the seam reads as one sheet tucked under another rather than a rule. */
+  .slab + .slab {
+    margin-top: calc(var(--radius-slab) * -0.75);
+  }
+
+  /* The inverted band keeps its own ground but joins the stack. */
+  .slab-ink {
+    background: hsl(var(--ink));
+    color: hsl(var(--paper));
+    border-color: hsl(var(--ink));
+  }
+
+  /* ─── AMBIENT LIGHT ────────────────────────────────────────────────────
+     A brass wash bled from the top edge. Decoration, so it is `aria-hidden`
+     by construction (a pseudo-element) and sits behind everything. It never
+     carries information, which is why it is allowed to move. */
+  .lit {
+    position: relative;
+    isolation: isolate;
+  }
+  .lit::before {
+    content: "";
+    position: absolute;
+    inset: -18% -8% auto -8%;
+    height: 62%;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(
+      58% 62% at 50% 0%,
+      hsl(var(--brass) / 0.16),
+      transparent 72%
+    );
+  }
+  .lit-edge::after {
+    /* A hairline of light along the top edge — the "lit from above" read that
+       an inset highlight gives a card, at section scale. */
+    content: "";
+    position: absolute;
+    inset: 0 12% auto 12%;
+    height: 1px;
+    z-index: 1;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, hsl(var(--brass) / 0.45), transparent);
+  }
+}
+
+/* ─── SCROLL-DRIVEN DEPTH ──────────────────────────────────────────────────
+   Sections settle into place as they enter, and decorative layers drift at a
+   different rate, which is what produces parallax.
+
+   THREE REASONS THIS IS SAFE UNDER THE MOTION LAW:
+   1. `animation-timeline: view()` is driven by SCROLL POSITION, not by a clock
+      or a rAF loop. The pane freezing `requestAnimationFrame` and `setTimeout`
+      cannot strand it mid-animation.
+   2. Only `transform` is animated. Nothing fades in. A section that never
+      animates is a few pixels low and completely readable — never invisible.
+   3. It is behind `@supports`, so a browser without scroll-driven animations
+      simply renders the resting state, which is the finished state.
+   ────────────────────────────────────────────────────────────────────────── */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .settle {
+      animation: slab-settle linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+    .drift {
+      animation: layer-drift linear both;
+      animation-timeline: view();
+      animation-range: cover;
+    }
+  }
+}
+
+@keyframes slab-settle {
+  from {
+    transform: translateY(26px) scale(0.988);
+  }
+  to {
+    transform: none;
+  }
+}
+
+@keyframes layer-drift {
+  from {
+    transform: translateY(-7%);
+  }
+  to {
+    transform: translateY(7%);
+  }
+}
+
+@layer components {
+  /* ─── THE ACCORDION ────────────────────────────────────────────────────
+     Exclusivity comes from `<details name="faq">` — native, no JS, nothing to
+     desynchronise. This is only the easing.
+
+     `::details-content` + `interpolate-size` is what lets a disclosure animate
+     to its INTRINSIC height; the old trick was a max-height guess that either
+     clipped a long answer or coasted for hundreds of milliseconds after a short
+     one. Both are progressive: without support the panel simply snaps open,
+     which is the behaviour we had.
+
+     Timing is `--t-interaction`. A disclosure is a direct answer to a click, so
+     it belongs in the interaction tier, not the narrative one. */
+  .faq-item::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size var(--t-interaction) var(--ease-interaction),
+      content-visibility var(--t-interaction) allow-discrete;
+  }
+
+  .faq-item[open]::details-content {
+    block-size: auto;
+  }
+}
+
+@supports (interpolate-size: allow-keywords) {
+  :root {
+    /* Opt in to animating to/from `auto`. Scoped to the root because that is
+       where the spec requires it; it changes nothing that is not transitioned. */
+    interpolate-size: allow-keywords;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .faq-item::details-content {
+    transition: none;
   }
 }

@@ -5,7 +5,13 @@ const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElemen
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn("rounded-xl border bg-card text-card-foreground shadow-sm", className)}
+      className={cn(
+        // Depth is a token: `e1` is an inset top highlight plus a soft drop on
+        // light, and on a dark ground it leads with the highlight and a far
+        // brass glow, because a drop shadow is invisible there.
+        "rounded-lg border bg-card text-card-foreground shadow-e1",
+        className,
+      )}
       {...props}
     />
   ),

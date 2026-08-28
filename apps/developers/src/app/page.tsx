@@ -1,235 +1,257 @@
 import Link from "next/link";
-import {
-  BarChart3,
-  BookOpen,
-  Check,
-  FileCheck2,
-  FileText,
-  Gauge,
-  Inbox,
-  Megaphone,
-  Network,
-  RefreshCcw,
-  Send,
-  ShieldCheck,
-  Sparkles,
-  Terminal,
-  Users,
-  Webhook,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { CallResponse } from "@/components/site/call-response";
+import { CopyLine } from "@/components/site/copy-line";
+import { CtaButton } from "@/components/site/cta-button";
+import { DevFooter, DevNavbar } from "@/components/site/dev-shell";
+import { Idempotency } from "@/components/site/idempotency";
+import { Ledger } from "@/components/site/ledger";
+import { Proof } from "@/components/site/proof";
+import { SubTenancy } from "@/components/site/sub-tenancy";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CtaButton } from "@/components/site/cta-button";
-import { CodeBlock } from "@/components/site/code-block";
-import { CodeShowcase } from "@/components/site/code-showcase";
-import { DevFooter, DevNavbar } from "@/components/site/dev-shell";
-import { Reveal } from "@/components/site/motion";
 
-const heroSnippet = `import { RootMail } from "@rootmail/node";
+/**
+ * THE DEVELOPER SITE — `docs/design/04-EXPERIENCE.md` §8.
+ *
+ * What was here first: a `blur-[130px]` aurora behind an indigo→violet gradient
+ * headline, five `<Badge>` eyebrows over five centred `text-3xl font-bold`
+ * headings, four `whyPoints` cards with `bg-primary/10` icon chips, twelve more
+ * `surface` cards with icon chips, six check-bullet `guarantees`, a
+ * `rounded-2xl` pricing slab — and, in `code-showcase.tsx`, an audit-trail
+ * sample that printed
+ *
+ *     10:01:30  opened
+ *
+ * at the identical weight as `delivered`. That last one is why this rebuild was
+ * urgent rather than cosmetic: an open is a tracking pixel firing, roughly a
+ * third of them are a mail client prefetching an image, and we were shipping the
+ * category's founding lie on the one page whose entire job is to differentiate
+ * us from it. `code-showcase.tsx` is deleted; D2 renders the same events under
+ * the rendering law, with `opened` hollow.
+ *
+ * THE PRINCIPLE THE ORDER FOLLOWS (§8.2). A bakery owner is convinced by
+ * watching a mechanism; a developer is convinced by running it and reading the
+ * response. So every section here returns something, and the grid — the twelve
+ * routes — is quarantined at position 6 of 7, after the argument is made,
+ * because a grid asserts breadth and breadth is not the pitch.
+ *
+ *  D1  the call and the response      what is this?          run it
+ *  D2  the ledger                     what do I receive?     filter it
+ *  D3  idempotency                    can I trust a retry?   fire it twice
+ *  D4  sub-tenancy                    is this for me?        switch identity
+ *  D5  proof                          can I prove it?        break it
+ *  D6  parity                         what's the surface?    read the routes
+ *  D7  close                          what do I do now?      copy one line
+ *
+ * SEVEN QUESTIONS, SEVEN SHAPES — and the second half of the rebuild.
+ *
+ * Killing the badges and the centred headings fixed the WORST repetition and
+ * left a subtler one: seven full-bleed bands, one padding, one hairline
+ * between each, and every one of them opening with a left-aligned heading over
+ * a full-width artifact. A reader scrolling that page learns the rhythm by
+ * section three and stops reading the headings. So no two adjacent sections
+ * share a composition now, and the variation is structural rather than
+ * decorative — a different SHAPE per question, not a different colour:
+ *
+ *  D1  on the bare page ground, type-led, artifact beneath
+ *  D2  inverted slab, heading in a sticky 5fr rail beside a 7fr artifact
+ *  D3  a narrow slab — visibly less wide than its neighbours — with the
+ *      heading and its reading instruction on one baseline row
+ *  D4  a stepped slab: two numbered stations, `01` then `02`
+ *  D5  one `display-l` line, no lead, artifact beneath, footnote under that
+ *  D6  no display heading at all — a mono head row over a ruled table
+ *  D7  back on the bare ground, bookending D1
+ *
+ * D1 and D7 are the two that ask most (run a live send; copy an install line)
+ * and they are the two that sit on the page ground rather than on a slab, so
+ * the asks are also the moments the page stops looking like a document.
+ */
 
-const mail = new RootMail({ apiKey: process.env.ROOTMAIL_API_KEY! });
-
-// The last email code you write for this product.
-await mail.send({
-  to: user.email,
-  template: "welcome",            // designed & edited in the dashboard
-  variables: { name: user.name },
-  idempotencyKey: \`welcome-\${user.id}\`,
-});`;
-
-// Persona (a): stop hand-rolling email inside every backend you build.
-const whyPoints = [
-  {
-    icon: RefreshCcw,
-    title: "Change email without redeploying",
-    body: "Templates, sequences, sender domains, suppression rules — all live in rootmail, editable by you or the people you build for. Your product's code stays untouched when the email needs change.",
-  },
-  {
-    icon: ShieldCheck,
-    title: "The boring parts, guaranteed",
-    body: "Idempotent sends, automatic suppression and bounce handling, DKIM/SPF/DMARC, signed webhooks, and an append-only audit trail. You inherit a decade of email lessons in one integration.",
-  },
-  {
-    icon: Users,
-    title: "Hand the keys to non-developers",
-    body: "Everything you wire up is drivable from a no-code dashboard. Build for a client, hand them the dashboard, keep the API — both of you work on the same data.",
-  },
-  {
-    icon: Network,
-    title: "Grows into platform territory",
-    body: "Sending on behalf of YOUR customers? Client domains give each their own verified identity and their own reputation score — no re-platforming the day you become a platform.",
-  },
-];
-
-// Entry-point agnosticism, stated as an API surface: the dashboard is one client.
+/**
+ * D6 — the twelve surfaces, as routes.
+ *
+ * Every path below was read out of `apps/api/src/routes/` rather than
+ * remembered, because on this page the route IS the fact and a wrong one is
+ * worse than no table. Two that a plausible guess gets wrong: webhook endpoints
+ * live at `/v1/webhook-endpoints`, not `/v1/webhooks` (that path is the inbound
+ * provider callback), and proof hangs off a message rather than a top-level
+ * `/v1/proof/:id`. A lucide icon beside any of these would be decoration
+ * asserting nothing, so there are none.
+ */
 const surface = [
-  { icon: Send, name: "Send", note: "idempotent, templated, sandboxed" },
-  { icon: FileText, name: "Templates & blocks", note: "the studio's output, versioned" },
-  { icon: Users, name: "Contacts & audiences", note: "import, segment, suppress" },
-  { icon: Megaphone, name: "Campaigns", note: "send, schedule, funnel stats" },
-  { icon: RefreshCcw, name: "Sequences", note: "multi-step, stop-on-reply" },
-  { icon: Inbox, name: "Replies", note: "threaded inbound, webhook-routed" },
-  { icon: Webhook, name: "Webhooks", note: "signed, idempotent, replayable" },
-  { icon: Gauge, name: "Deliverability", note: "score, fixes, DNS records" },
-  { icon: BarChart3, name: "Analytics", note: "per campaign, sequence, tenant" },
-  { icon: Network, name: "Client domains", note: "per-customer DKIM + verify" },
-  { icon: FileCheck2, name: "Proof exports", note: "Ed25519-signed, independently verifiable" },
-  { icon: Sparkles, name: "Assistant", note: "build, operate & diagnose via API" },
-];
-
-const guarantees = [
-  "snake_case JSON over HTTPS — Bearer auth, no surprises",
-  "Idempotency keys on every send — retries never double-send",
-  "Free sandbox keys, plus test recipients that force a real bounce or complaint",
-  "Signed webhooks with delivery logs you can replay",
-  "Append-only audit trail on every message",
-  "One-command migration: SendGrid, Postmark, Mailgun exports",
+  { name: "Send", verb: "POST", path: "/v1/messages", note: "idempotent, templated, sandboxed", doc: "messages" },
+  { name: "Client domains", verb: "POST", path: "/v1/sub-tenants", note: "per-customer DKIM + verify", doc: "client-domains" },
+  { name: "Audit trail", verb: "GET", path: "/v1/messages/:id/audit", note: "append-only, every event", doc: "messages" },
+  { name: "Proof exports", verb: "GET", path: "/v1/messages/:id/proof", note: "Ed25519-signed", doc: "compliance" },
+  { name: "Webhooks", verb: "POST", path: "/v1/webhook-endpoints", note: "signed, replayable", doc: "webhooks" },
+  { name: "Templates", verb: "POST", path: "/v1/templates", note: "the studio's output", doc: "templates" },
+  { name: "Contacts", verb: "POST", path: "/v1/contacts", note: "import, segment, suppress", doc: "contacts" },
+  { name: "Audiences", verb: "POST", path: "/v1/lists", note: "tags and segments", doc: "lists" },
+  { name: "Campaigns", verb: "POST", path: "/v1/campaigns/:id/send", note: "scheduled, A/B by tag", doc: "campaigns" },
+  { name: "Sequences", verb: "POST", path: "/v1/sequences/:id/enroll", note: "multi-step, stop-on-reply", doc: "sequences" },
+  { name: "Replies", verb: "GET", path: "/v1/threads", note: "threaded inbound", doc: "threads" },
+  { name: "Deliverability", verb: "GET", path: "/v1/deliverability", note: "score, rates, fixes", doc: "sending-provider" },
 ];
 
 export default function DevelopersHome() {
   return (
     <>
       <DevNavbar />
-      <main>
-        {/* HERO — the developer promise, code first. */}
-        <section className="relative overflow-hidden">
-          <div
-            className="absolute left-1/2 top-[-10%] -z-10 h-[420px] w-[720px] max-w-[90vw] -translate-x-1/2 rounded-full bg-primary/20 blur-[130px]"
-            aria-hidden="true"
-          />
-          <div className="container grid items-center gap-10 py-20 md:py-28 lg:grid-cols-2">
-            <Reveal className="flex flex-col gap-6">
-              <Badge variant="muted" className="w-fit py-1">
-                <Terminal className="size-3" /> rootmail for developers
-              </Badge>
-              <h1 className="text-balance text-4xl font-bold tracking-tight sm:text-5xl">
-                Stop rebuilding email{" "}
-                <span className="bg-gradient-to-r from-primary to-violet-500 bg-clip-text text-transparent">
-                  inside every product.
-                </span>
-              </h1>
-              <p className="max-w-xl text-balance text-lg text-muted-foreground">
-                You&apos;ve written the in-house email service before — for your product, or a
-                client&apos;s. Outsource that layer once: rootmail carries sending, templates,
-                audiences, deliverability, and proof, so email keeps up with the market without
-                you redeploying anything.
-              </p>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <CtaButton label="Get an API key" size="lg" arrow />
-                <Link
-                  href="/docs"
-                  className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
-                >
-                  <BookOpen className="size-4" /> Read the docs
-                </Link>
+      {/* The gutter is what makes the curve on each slab legible — a
+          full-bleed rounded section has nothing to be rounded against. */}
+      <main className="space-y-4 px-3 pb-4 sm:px-5">
+        {/* ── D1 · on the bare ground ─────────────────────────────────────
+            No slab. The hero and the close are the page's two asks, and they
+            are the two places the page is not a document. */}
+        <section className="container py-14 md:py-20">
+          <div className="max-w-xl">
+            <h1 className="display-xl text-balance">One call to send. One honest word back.</h1>
+            <p className="lead mt-6 text-ink-muted">
+              Bearer auth, snake_case JSON, a typed Node SDK. Press Send it and read what the real
+              sandbox returns.
+            </p>
+            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+              <CtaButton label="Get an API key" size="lg" arrow />
+              <Link href="/docs" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
+                Read the docs
+              </Link>
+            </div>
+          </div>
+          <div className="mt-12">
+            <CallResponse />
+          </div>
+        </section>
+
+        {/* ── D2 · inverted slab, heading in a sticky rail ────────────────
+            The one section whose artifact is tall enough that a heading at the
+            top would be off-screen by the time you were reading the rows it
+            describes — so it rides along beside them. */}
+        <section id="ledger" className="slab ground-ink lit-edge settle overflow-hidden">
+          <div className="container py-14 md:py-24">
+            {/* `grid-cols-[minmax(0,1fr)]`, not a bare `grid`. A grid item's
+                default `min-width: auto` refuses to shrink below its content,
+                so at 375px the ledger's widest row sized the single implicit
+                column and the whole section — heading included — was clipped by
+                the slab's `overflow-hidden`. Tailwind's `grid-cols-N` already
+                expands to `minmax(0,1fr)`; a bare `grid` does not, which is why
+                only the two hand-written track lists on this page had it. */}
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-10 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:gap-14">
+              <div className="lg:sticky lg:top-24 lg:self-start">
+                <h2 className="display-m text-balance">
+                  We record what we did, not only what happened.
+                </h2>
+                <p className="lead mt-4 text-ink-muted">
+                  One append-only trail. Your customers&apos; throttles and DNS drift arrive on the
+                  same webhook as your deliveries.
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Typed Node SDK · CLI · REST — and everything stays editable from the dashboard by
-                anyone you hand it to.
-              </p>
-            </Reveal>
-            <Reveal delay={0.12}>
-              <CodeBlock code={heroSnippet} filename="the-last-email-code.ts" className="text-left" />
-            </Reveal>
+              <Ledger />
+            </div>
           </div>
         </section>
 
-        {/* WHY — the outsource-your-email-layer narrative. */}
-        <section id="why" className="border-t border-border/60 bg-secondary/30 py-20 md:py-28">
-          <div className="container">
-            <Reveal inView className="mx-auto mb-12 max-w-2xl text-center">
-              <Badge className="mb-4">Why outsource it</Badge>
-              <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-                Email is a product of its own. Don&apos;t maintain two.
-              </h2>
-              <p className="mt-4 text-lg text-muted-foreground">
-                Every backend grows an accidental email service — templates in code, delivery
-                mysteries, compliance TODOs. rootmail is that service, finished.
+        {/* ── D3 · a narrow slab ──────────────────────────────────────────
+            Width is a structural variable and this is the only section that
+            uses it: the claim is small and exact, so the section is too. */}
+        <section id="idempotency" className="slab settle">
+          <div className="container max-w-4xl py-14 md:py-20">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2">
+              <h2 className="display-m text-balance">The same key twice sends once.</h2>
+              <p className="font-mono text-[11px] text-ink-muted" data-fact>
+                watch the id, the status and the header
               </p>
-            </Reveal>
-            <Reveal inView delay={0.08} className="grid gap-4 sm:grid-cols-2">
-              {whyPoints.map((w) => (
-                <div key={w.title} className="rounded-2xl border bg-card p-6">
-                  <span className="mb-3 grid size-10 place-items-center rounded-lg bg-primary/10 text-primary">
-                    <w.icon className="size-5" />
-                  </span>
-                  <h3 className="font-semibold">{w.title}</h3>
-                  <p className="mt-1.5 text-sm text-muted-foreground">{w.body}</p>
-                </div>
-              ))}
-            </Reveal>
+            </div>
+            <div className="mt-8">
+              <Idempotency />
+            </div>
           </div>
         </section>
 
-        {/* THE API — the moved showcase. */}
-        <div id="api">
-          <CodeShowcase />
-        </div>
-
-        {/* SURFACE — entry-point agnostic, stated concretely. */}
-        <section id="surface" className="border-t border-border/60 py-20 md:py-28">
-          <div className="container">
-            <Reveal inView className="mx-auto mb-12 max-w-2xl text-center">
-              <Badge className="mb-4">Parity, not a subset</Badge>
-              <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-                Everything the dashboard does, the API does.
+        {/* ── D4 · stepped ────────────────────────────────────────────────
+            Onboarding a customer's domain is a two-station journey and the
+            artifact already has two columns, so the columns get their station
+            numbers. */}
+        <section id="client-domains" className="slab settle">
+          <div className="container py-14 md:py-24">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-14">
+              <h2 className="display-m text-balance">
+                Onboard a customer&apos;s domain, get the DNS table back.
               </h2>
-              <p className="mt-4 text-lg text-muted-foreground">
-                The web dashboard, the SDK, the CLI, and raw REST are four doors into one product —
-                whatever gets built no-code is yours to drive in code, and vice versa.
+              <p className="text-sm text-ink-muted">
+                Switch identity below and the From address, the DKIM selector and the reputation
+                switch with it.
               </p>
-            </Reveal>
-            <Reveal inView delay={0.08} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            </div>
+            <div className="mt-10">
+              <SubTenancy />
+            </div>
+          </div>
+        </section>
+
+        {/* ── D5 · one line, no lead ──────────────────────────────────────
+            The only `display-l` on the page below the hero. It is the section
+            that fails on purpose, and it earns the size. */}
+        <section id="proof" className="slab settle">
+          <div className="container py-14 md:py-24">
+            <h2 className="display-l max-w-2xl text-balance">Sign it, verify it, then break it.</h2>
+            <div className="mt-10">
+              <Proof />
+            </div>
+            {/* Sans, not mono. §10.1 narrowed mono to ids, timestamps and
+                sourcing lines; this is a sentence, and the only recorded value
+                in it is the route. */}
+            <p className="mt-8 max-w-2xl border-t border-rule pt-4 text-sm text-ink-muted">
+              <code className="font-mono text-[12.5px] text-foreground" data-fact>
+                POST /v1/proof/verify
+              </code>{" "}
+              takes a bundle and a signature, needs no key, and answers someone who does not trust
+              us.
+            </p>
+          </div>
+        </section>
+
+        {/* ── D6 · mono head, ruled table ─────────────────────────────────
+            No display heading. Six sections have made the argument; this one
+            is a reference, and a reference opens like a reference. */}
+        <section id="parity" className="slab settle">
+          <div className="container py-14 md:py-20">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-1 border-b border-rule pb-3">
+              <p className="display-s">Everything the dashboard does, the API does.</p>
+              <p className="font-mono text-[11px] text-ink-muted" data-fact>
+                12 of them · every one documented
+              </p>
+            </div>
+            <div className="ruled">
               {surface.map((s) => (
-                <div key={s.name} className="flex items-center gap-3 rounded-xl border bg-card p-4">
-                  <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-secondary text-muted-foreground">
-                    <s.icon className="size-4" />
+                <Link
+                  key={s.path}
+                  href={`/docs/${s.doc}`}
+                  className="grid grid-cols-1 gap-x-6 gap-y-1 rounded-md px-2 py-3.5 transition-colors duration-interaction ease-interaction hover:bg-muted md:grid-cols-[minmax(0,3fr)_minmax(0,5fr)_minmax(0,4fr)] md:items-baseline"
+                >
+                  <span className="text-[0.9375rem] font-medium">{s.name}</span>
+                  <span className="font-mono text-[12px] text-ink-muted" data-fact>
+                    <span className="inline-block w-10">{s.verb}</span>
+                    {s.path}
                   </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold">{s.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">{s.note}</p>
-                  </div>
-                </div>
+                  <span className="text-[0.8125rem] text-ink-muted">{s.note}</span>
+                </Link>
               ))}
-            </Reveal>
+            </div>
           </div>
         </section>
 
-        {/* GUARANTEES + CTA */}
-        <section className="border-t border-border/60 bg-secondary/30 py-20 md:py-28">
-          <div className="container grid items-center gap-10 lg:grid-cols-2">
-            <Reveal inView>
-              <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-              The guarantees you&apos;d have to build yourself
-              </h2>
-              <ul className="mt-6 space-y-3">
-                {guarantees.map((g) => (
-                  <li key={g} className="flex items-start gap-3 text-sm">
-                    <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-primary/10 text-primary">
-                      <Check className="size-3.5" />
-                    </span>
-                    {g}
-                  </li>
-                ))}
-              </ul>
-            </Reveal>
-            <Reveal inView delay={0.1} className="rounded-2xl border bg-card p-8 text-center">
-              <h3 className="text-xl font-bold">3,000 sends a month, free. No card.</h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                Then blocks of 25,000 sends priced to drop as you grow — and sandbox sends never
-                count. Live prices are on the main site; add-ons ride the same bill.
-              </p>
-              <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
-                <CtaButton label="Get an API key" size="lg" arrow />
-                <Link
-                  href="https://rootmail.io/pricing"
-                  className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
-                >
-                  See live pricing
-                </Link>
-              </div>
-            </Reveal>
+        {/* ── D7 · back on the bare ground ────────────────────────────────*/}
+        <section id="start" className="container flex flex-col items-start gap-6 py-16 md:py-24">
+          <h2 className="display-l max-w-xl text-balance">Start with one line.</h2>
+          <CopyLine command="npm i @rootmail/node" />
+          <p className="font-mono text-[13px] text-ink-muted" data-fact>
+            3,000 sends a month, free. Sandbox sends never count.
+          </p>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <CtaButton label="Get an API key" size="lg" arrow />
+            <Link href="/docs" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
+              Read the docs
+            </Link>
           </div>
         </section>
       </main>

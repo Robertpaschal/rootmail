@@ -1,23 +1,18 @@
 import Link from "next/link";
-import { Check, Receipt } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { getPublicPricing } from "@/lib/pricing";
-import { ReactiveCard, Reveal } from "./motion";
+import { Reveal } from "./motion";
 import { CtaButton } from "./cta-button";
 import { BlocksCalculator, ContactPricer } from "./pricing-calculators";
 
 // The floor every account shares — so the two wings are about what THEY do,
 // not table stakes.
 const baseline = [
-  "A visual studio to design every email — no code",
-  "The AI assistant — builds, sends & explains",
-  "Every reply comes back to your inbox",
-  "Delivery health score & full engagement stats",
-  "Unsubscribes & bounces respected automatically",
-  "A complete, tamper-proof history of every email",
-  "1-click move-in from Mailchimp-style exports",
-  "A free practice mode — test sends never cost anything",
-  "Full developer access included — API, SDKs and docs",
+  "visual studio · no code",
+  "AI assistant",
+  "replies · shared inbox",
+  "score · suppression · webhooks",
+  "signed proof",
+  "API · SDKs · docs",
 ];
 
 /**
@@ -27,24 +22,33 @@ const baseline = [
  * bought on its own, and buying one never touches a wing's bill.
  * Numbers come live from the public catalog (sales included), so this page and
  * the in-app purchase flow can never disagree.
+ *
+ * WHY THE ADD-ONS ARE STILL A GRID while the features section became a table:
+ * the test from `01-REFERENCES.md §A.9` is *could a reader act on one row on its
+ * own?* An add-on is a thing you buy by itself, so it is a catalogue item and a
+ * grid is the honest shape for it. A feature row is evidence for a claim made
+ * elsewhere, so it is prose. Same page, two shapes, one rule.
+ *
+ * `heading` lets `/pricing` pass its own `<h1>` — the dedicated pricing page
+ * used to render zero h1 elements because this component was written to live
+ * inside a page that already had one.
  */
-export async function Pricing() {
+export async function Pricing({
+  heading = "h2",
+  addons: showAddons = true,
+}: { heading?: "h1" | "h2"; addons?: boolean } = {}) {
   const pricing = await getPublicPricing();
   const { addons } = pricing;
+  const Heading = heading;
 
   return (
-    <section id="pricing" className="border-t border-border/60 bg-secondary/30 py-20 md:py-28">
-      <div className="container">
-        <div className="mx-auto mb-14 max-w-2xl text-center">
-          <Badge className="mb-4">Pricing</Badge>
-          <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
+    <section id="pricing" className="slab settle lit lit-edge">
+      <div className="container py-14 md:py-24">
+        <Reveal inView className="max-w-3xl">
+          <Heading className="display-m text-balance">
             Two products. Each priced by what it actually uses.
-          </h2>
-          <p className="mt-4 text-balance text-lg text-muted-foreground">
-            Transactional email is priced by send volume. Marketing email is priced by audience size.
-            Each is fully usable on its own — be free on one side and scale the other.
-          </p>
-        </div>
+          </Heading>
+        </Reveal>
 
         {/* What you can actually send TODAY, said before the calculator rather
             than after it. The tiers below describe where pricing lands as we
@@ -54,98 +58,97 @@ export async function Pricing() {
             keeping. The number comes from the API, which reads the same env the
             cap is enforced from, so the page cannot drift from the gate. */}
         {pricing.beta?.active ? (
-          <div className="mx-auto mb-10 max-w-2xl rounded-xl border border-amber-300 bg-amber-50/70 p-4 text-center dark:border-amber-900/60 dark:bg-amber-950/20">
+          <div className="mt-8 max-w-3xl border-l-2 border-acted pl-4">
             <p className="text-sm font-medium">
-              rootmail is in closed beta — everyone is capped at{" "}
-              {pricing.beta.daily_send_cap} sends a day right now
-            </p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              The plans below are what pricing will look like as we open up, not what you can send
-              today. The cap applies to every account regardless of plan, and it lifts as we grow
-              into it.
+              rootmail is in closed beta — every account is capped at{" "}
+              <span className="font-mono" data-fact>
+                {pricing.beta.daily_send_cap}
+              </span>{" "}
+              sends a day right now
             </p>
           </div>
         ) : null}
 
         {/* The two wings, sized honestly with the product's own math. */}
-        <Reveal inView delay={0.05} className="mx-auto grid max-w-5xl items-stretch gap-6 lg:grid-cols-2">
+        <Reveal inView delay={0.05} className="mt-10 grid items-stretch gap-6 lg:grid-cols-2">
           <BlocksCalculator tx={pricing.wings.transactional} />
           <ContactPricer mk={pricing.wings.marketing} />
         </Reveal>
 
-        {/* Add-ons — per one, buyable with a plan or entirely on their own. */}
-        <Reveal inView delay={0.12} className="mx-auto mt-10 max-w-5xl">
-          <div className="mb-5 text-center">
-            <h3 className="text-xl font-bold tracking-tight">Add-ons — priced per one, no plan required</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Take one whether or not you’re on a paid plan. Pick them at checkout (one bill) or buy them
-              on their own — and buying more never re-bills what you already have.
-            </p>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {/* Add-ons — per one, buyable with a plan or entirely on their own.
+            They are a catalogue (a reader can act on one row), so they stay a
+            GRID — on `/pricing`, which is a catalogue. Inside the homepage's
+            150-word section they are 260 words of description competing with
+            the argument, so the homepage links to them instead. */}
+        {showAddons ? (
+        <Reveal inView delay={0.12} className="mt-14">
+          <h3 className="display-s">Add-ons — priced per one, no plan required</h3>
+          <p className="mt-2 max-w-2xl text-sm text-ink-muted">
+            Take one whether or not you&apos;re on a paid plan. Pick them at checkout (one bill) or
+            buy them on their own — and buying more never re-bills what you already have.
+          </p>
+          <div className="mt-6 grid gap-px border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-3">
             {addons.map((a) => {
               const onSale = a.sale_price != null;
               return (
-                <ReactiveCard key={a.id} className="flex h-full flex-col rounded-xl border bg-card p-4 transition-shadow hover:border-primary/40 hover:shadow-md">
+                <div key={a.id} className="flex h-full flex-col bg-background p-4">
                   <div className="flex items-start justify-between gap-2">
-                    <p className="text-sm font-semibold">{a.name}</p>
+                    <p className="text-sm font-medium">{a.name}</p>
                     {onSale ? (
-                      <Badge className="border-transparent bg-rose-600 text-white">{a.sale_percent_off}% off</Badge>
+                      <span className="shrink-0 font-mono text-[10px] text-acted" data-fact>
+                        {a.sale_percent_off}% off
+                      </span>
                     ) : null}
                   </div>
-                  <p className="mt-1 flex-1 text-xs text-muted-foreground">{a.description}</p>
-                  <p className="mt-3 text-sm">
+                  <p className="mt-1 flex-1 text-xs leading-relaxed text-ink-muted">
+                    {a.description}
+                  </p>
+                  <p className="mt-3 font-mono text-sm" data-fact>
                     {onSale ? (
                       <>
-                        <span className="font-bold">${a.sale_price}</span>
-                        <span className="ml-1 text-muted-foreground line-through">${a.unit_amount}</span>
+                        <span className="font-semibold">${a.sale_price}</span>
+                        <span className="ml-1 text-ink-muted line-through">${a.unit_amount}</span>
                       </>
                     ) : (
-                      <span className="font-bold">${a.unit_amount}</span>
+                      <span className="font-semibold">${a.unit_amount}</span>
                     )}
-                    <span className="text-xs text-muted-foreground">/mo per {a.unit}</span>
+                    <span className="text-[11px] text-ink-muted">/mo per {a.unit}</span>
                   </p>
-                </ReactiveCard>
+                </div>
               );
             })}
           </div>
         </Reveal>
+        ) : null}
 
         {/* The billing promises, in one strip. */}
-        <Reveal inView delay={0.16} className="mx-auto mt-10 flex max-w-5xl flex-col items-start justify-between gap-4 rounded-2xl border border-dashed bg-card p-6 sm:flex-row sm:items-center">
-          <div className="flex items-start gap-3">
-            <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary">
-              <Receipt className="size-5" />
-            </span>
-            <div>
-              <p className="font-semibold">One bill. Never billed twice. Yearly = 2 months free.</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Add-ons picked with a plan appear inside the same checkout. Changing plans carries
-                everything you own over and credits your unused time automatically. Go past your
-                transactional volume and sending never stops — overage is billed per 1,000, and the
-                free tiers simply pause at their cap.
-              </p>
-            </div>
+        <Reveal
+          inView
+          delay={0.16}
+          className="mt-14 flex flex-col items-start justify-between gap-6 border-y border-rule py-7 sm:flex-row sm:items-center"
+        >
+          <div className="max-w-2xl">
+            <p className="display-s">One bill. Never billed twice. Yearly is two months free.</p>
           </div>
           <CtaButton label="Start free" variant="outline" className="shrink-0 whitespace-nowrap" />
         </Reveal>
 
-        <Reveal inView delay={0.2} className="mx-auto mt-10 max-w-5xl rounded-2xl border bg-card p-6">
-          <p className="text-sm font-semibold">Every account includes</p>
-          <ul className="mt-4 grid gap-2.5 sm:grid-cols-2 md:grid-cols-3">
+        <Reveal inView delay={0.2} className="mt-10">
+          <p className="display-s">Every account includes</p>
+          <ul className="mt-4 grid gap-x-10 font-mono text-[11px] text-ink-muted sm:grid-cols-2 lg:grid-cols-3">
             {baseline.map((f) => (
-              <li key={f} className="flex items-start gap-2.5 text-sm">
-                <Check className="mt-0.5 size-4 shrink-0 text-primary" />
-                <span className="text-muted-foreground">{f}</span>
+              <li key={f} className="border-t border-rule py-2.5" data-fact>
+                {f}
               </li>
             ))}
           </ul>
-          <p className="mt-4 text-xs text-muted-foreground">
-            Need committed volume, invoicing, or bespoke terms?{" "}
-            <Link href="/contact?topic=enterprise" className="font-medium text-primary hover:underline">
-              Talk to us
+          <p className="mt-6 text-sm text-ink-muted">
+            <Link
+              href="/pricing"
+              className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-4"
+            >
+              {showAddons ? "Talk to us about committed volume" : "Add-ons, and the edges of the bill"}
             </Link>
-            {" "}— custom plans ride the same platform.
           </p>
         </Reveal>
       </div>

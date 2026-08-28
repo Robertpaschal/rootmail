@@ -5,14 +5,22 @@ import { usePathname } from "next/navigation";
 import { DOCS } from "@rootmail/docs";
 import { cn } from "@/lib/utils";
 
-/** The docs left rail: sections → pages, active page highlighted. */
+/**
+ * The docs left rail: sections → pages, active page highlighted.
+ *
+ * The section labels are mono because a section label here is a fixed name in
+ * a navigation tree, and mono is what the rest of the site uses for a recorded
+ * value. The active page is a GROUND shift, never brass: brass means "you can
+ * act on this", and every row in this list is equally pressable — colouring the
+ * one you are already on would say the opposite of what it means.
+ */
 export function DocsSidebar() {
   const pathname = usePathname();
   return (
     <nav className="space-y-6">
       {DOCS.map((section) => (
         <div key={section.label}>
-          <p className="mb-1.5 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <p className="mb-1.5 px-2 font-mono text-[11px] uppercase tracking-wider text-ink-muted">
             {section.label}
           </p>
           <ul className="space-y-0.5">
@@ -24,10 +32,10 @@ export function DocsSidebar() {
                   <Link
                     href={href}
                     className={cn(
-                      "block rounded-md px-2 py-1.5 text-sm transition-colors",
+                      "block rounded-md px-2 py-1.5 text-sm transition-colors duration-interaction ease-interaction",
                       active
-                        ? "bg-secondary font-medium text-foreground"
-                        : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+                        ? "bg-muted font-medium text-foreground"
+                        : "text-ink-muted hover:bg-muted/60 hover:text-foreground",
                     )}
                   >
                     {page.title}

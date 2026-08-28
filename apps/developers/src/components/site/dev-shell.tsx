@@ -1,6 +1,5 @@
 import { cookies } from "next/headers";
 import Link from "next/link";
-import { ArrowUpRight, LayoutDashboard } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { dashboardUrl, loginUrl, signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
@@ -9,12 +8,33 @@ import { ThemeToggle } from "./theme-toggle";
 
 const MAIN_SITE = "https://rootmail.io";
 
-// The developer surface owns its own docs; pricing + changelog live on the MAIN
-// site (one source of truth). Home-section anchors use "/#id" so they also work
-// from /docs.
+/**
+ * The developer site's chrome, ported onto the design system.
+ *
+ * Three things changed beyond tokens. The nav pointed at `#why` and `#api`,
+ * two anchors that no longer exist — the sections they named were the four
+ * icon-chip cards and the tabbed code showcase, both deleted. The footer's
+ * "not a developer? the main site speaks human" line is gone: it is a joke at
+ * the reader's expense on a site whose own philosophy says the two front doors
+ * are one product.
+ *
+ * AND THERE IS NO LINE LEGEND HERE, DELIBERATELY. One lived in this file for a
+ * while — the four line states, drawn once per site, so the hollow `opened`
+ * node in D2 had something to be read against. The owner removed it, and the
+ * reasoning is worth keeping where the next person will look for it: a legend
+ * you have to scroll to the footer and consult is a design that failed to
+ * explain itself, and a reader who needs it has already misread the ledger. The
+ * explanation lives at the point of confusion instead — the line under the
+ * ledger that says what the hollow node means. Do not put it back.
+ *
+ * Chrome links stay monochrome (`hover:text-foreground`), matching the
+ * marketing navbar. §10.2 makes brass the colour of "you can act on this", and
+ * the two buttons on the right are where that lands; brass on fourteen nav and
+ * footer links would spend the whole accent on furniture.
+ */
 const links = [
-  { href: "/#why", label: "Why rootmail" },
-  { href: "/#api", label: "The API" },
+  { href: "/#ledger", label: "The ledger" },
+  { href: "/#parity", label: "Routes" },
   { href: "/docs", label: "Docs" },
   { href: `${MAIN_SITE}/pricing`, label: "Pricing" },
   { href: `${MAIN_SITE}/changelog`, label: "Changelog" },
@@ -25,11 +45,11 @@ export async function DevNavbar() {
   // returning devs get a straight shot to their console instead of a Sign-in wall.
   const signedIn = (await cookies()).get("rm_signed_in")?.value === "1";
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur">
+    <header className="sticky top-0 z-40 border-b border-rule bg-background/85 backdrop-blur">
       <div className="container flex h-16 items-center justify-between gap-4">
         <Link href="/" aria-label="rootmail developers" className="flex items-center gap-2">
           <Logo />
-          <span className="hidden rounded-md bg-secondary px-1.5 py-0.5 font-mono text-xs text-muted-foreground sm:inline">
+          <span className="hidden font-mono text-[11px] text-ink-muted sm:inline" data-fact>
             developers
           </span>
         </Link>
@@ -38,7 +58,7 @@ export async function DevNavbar() {
             <Link
               key={l.href}
               href={l.href}
-              className="rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+              className="inline-flex min-h-11 items-center rounded px-3 text-sm font-medium text-ink-muted transition-colors duration-interaction ease-interaction hover:text-foreground"
             >
               {l.label}
             </Link>
@@ -47,8 +67,8 @@ export async function DevNavbar() {
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
           {signedIn ? (
-            <Link href={dashboardUrl} className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
-              <LayoutDashboard className="size-4" /> Go to dashboard
+            <Link href={dashboardUrl} className={cn(buttonVariants({ size: "sm" }))}>
+              Dashboard
             </Link>
           ) : (
             <>
@@ -68,19 +88,33 @@ export async function DevNavbar() {
 
 export function DevFooter() {
   return (
-    <footer className="border-t border-border/60 py-10">
-      <div className="container flex flex-col items-center justify-between gap-4 text-sm text-muted-foreground sm:flex-row">
-        <p>
-          © {new Date().getFullYear()} rootmail ·{" "}
-          <Link href={MAIN_SITE} className="hover:text-foreground">
-            not a developer? the main site speaks human <ArrowUpRight className="inline size-3.5" />
-          </Link>
-        </p>
-        <div className="flex items-center gap-4">
-          <Link href={`${MAIN_SITE}/legal/privacy`} className="hover:text-foreground">Privacy</Link>
-          <Link href={`${MAIN_SITE}/legal/terms`} className="hover:text-foreground">Terms</Link>
-          <Link href={`${MAIN_SITE}/legal/security`} className="hover:text-foreground">Security</Link>
-          <Link href={`${MAIN_SITE}/contact`} className="hover:text-foreground">Contact</Link>
+    <footer className="border-t border-rule">
+      {/* One row. The wrapper used to carry `mt-8 border-t pt-6` inside an
+          already-bordered footer with nothing above it, which drew a second
+          hairline and a 56px gap under the first — a rule separating a thing
+          from nothing. */}
+      <div className="container py-8">
+        <div className="flex flex-col justify-between gap-4 text-sm text-ink-muted sm:flex-row">
+          <p>
+            © {new Date().getFullYear()} rootmail ·{" "}
+            <Link href={MAIN_SITE} className="hover:text-foreground">
+              rootmail.io
+            </Link>
+          </p>
+          <div className="flex flex-wrap items-center gap-4">
+            <Link href={`${MAIN_SITE}/legal/privacy`} className="hover:text-foreground">
+              Privacy
+            </Link>
+            <Link href={`${MAIN_SITE}/legal/terms`} className="hover:text-foreground">
+              Terms
+            </Link>
+            <Link href={`${MAIN_SITE}/legal/security`} className="hover:text-foreground">
+              Security
+            </Link>
+            <Link href={`${MAIN_SITE}/contact`} className="hover:text-foreground">
+              Contact
+            </Link>
+          </div>
         </div>
       </div>
     </footer>

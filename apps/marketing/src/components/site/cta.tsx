@@ -1,48 +1,51 @@
 import Link from "next/link";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { CtaButton } from "./cta-button";
 
+/**
+ * The close — `docs/design/04-EXPERIENCE.md` §5.9 and §7.4, handoff 9.
+ *
+ * Eight sections have shown the visitor a record of somebody else's message.
+ * The close is the only one that asks them for something of their own, so it is
+ * the only ask on the page that is not "make an account": it points at
+ * `/check`, which looks up what public DNS actually publishes about a domain
+ * they name and draws the answer under the same rendering law as everything
+ * above it — solid where it verified, dotted where it could not.
+ *
+ * That is why the primary button is not "Start free". A stranger who has just
+ * watched us decline to claim an open does not want a signup form; they want to
+ * see the drawing pointed at themselves. The account link stays, second.
+ *
+ * WHAT LEFT THIS FILE, so nobody puts it back:
+ *  - the 34-word "Make an account, send one message to yourself…" paragraph;
+ *  - the four-station `<Line>` above the heading — the ninth line on the page
+ *    and the only one carrying no data. The checker draws real ones.
+ *
+ * It is `py-32` where every other section is `py-24`: the one argued exception
+ * in §7.2, so the close reads as arrival rather than as a tenth station.
+ */
 export function Cta() {
   return (
-    <section id="cta" className="py-20 md:py-28">
-      <div className="container">
-        <div className="relative overflow-hidden rounded-3xl bg-zinc-950 px-6 py-16 text-center md:px-16 md:py-20">
-          <div
-            className="absolute left-1/2 top-0 -z-0 h-[300px] w-[600px] max-w-full -translate-x-1/2 rounded-full bg-primary/30 blur-[120px]"
-            aria-hidden="true"
-          />
-          <div className="relative mx-auto flex max-w-2xl flex-col items-center gap-6">
-            <h2 className="text-balance text-3xl font-bold tracking-tight text-white sm:text-4xl">
-              Send your first email in minutes
-            </h2>
-            <p className="text-balance text-lg text-zinc-300">
-              Create an account, design your first email in the studio, and send it — all in one
-              sitting. Nothing to install, no credit card to start.
-            </p>
-            <div className="flex flex-col items-center gap-3 sm:flex-row">
-              <CtaButton
-                label="Create your account"
-                size="lg"
-                arrow
-                className="transition-transform hover:-translate-y-0.5 active:scale-[0.98]"
-              />
-              <Link
-                href="/pricing"
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-md border border-white/20 px-6 text-base font-medium text-white transition-all hover:-translate-y-0.5 hover:bg-white/10 active:scale-[0.98]"
-              >
-                See pricing
-              </Link>
-            </div>
-            <p className="mt-2 text-sm text-zinc-400">
-              Building a product?{" "}
-              <Link
-                href="https://developers.rootmail.io"
-                className="font-medium text-zinc-200 underline-offset-4 hover:underline"
-              >
-                our developer site
-              </Link>{" "}
-              has the technical pitch and docs.
-            </p>
-          </div>
+    <section id="cta" className="slab settle slab-ink lit-edge">
+      <div className="container flex max-w-2xl flex-col items-start gap-6 py-20 md:py-32">
+        <h2 className="display-l text-balance">
+          What does the internet actually say about your email?
+        </h2>
+        <p className="lead text-ink-muted">
+          Name a domain. We draw what public DNS publishes about it — solid where we verified it,
+          dotted where we could not.
+        </p>
+
+        <p className="font-mono text-[11px] text-ink-muted" data-fact>
+          no account · nothing sent · nothing stored
+        </p>
+
+        <div className="flex flex-col gap-3 sm:flex-row">
+          <Link href="/check" className={cn(buttonVariants({ size: "lg" }))}>
+            Check your domain
+          </Link>
+          <CtaButton label="Create an account" variant="outline" size="lg" />
         </div>
       </div>
     </section>

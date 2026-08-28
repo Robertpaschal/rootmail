@@ -62,7 +62,7 @@ export function BetaNotice() {
           nav flush at the top, with no constant to remember to remove. */}
       <style>{":root{--beta-notice-h:37px}"}</style>
       <div className="container flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2 text-center text-sm">
-        <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+        <span className="rounded bg-secondary px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
           {full ? "Beta full" : "Closed beta"}
         </span>
 
@@ -84,7 +84,7 @@ export function BetaNotice() {
 
         <Link
           href="/beta"
-          className="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
+          className="inline-flex min-h-11 items-center gap-1 font-medium text-foreground underline underline-offset-4"
         >
           {full ? "Get on the list" : "Ask for an invite"}
           <ArrowRight className="size-3.5" />

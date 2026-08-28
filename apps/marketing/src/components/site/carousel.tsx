@@ -99,7 +99,7 @@ export function Carousel({
     >
       {/* Named tabs, not anonymous dots. A dot gives you no reason to click it;
           "Replies" does — and it doubles as the section's table of contents. */}
-      <div className="mb-6 flex flex-wrap items-center justify-center gap-1.5" role="tablist" aria-label={label}>
+      <div className="mb-6 flex flex-wrap items-center gap-1" role="tablist" aria-label={label}>
         {slides.map((s, i) => (
           <button
             key={s.id}
@@ -109,7 +109,10 @@ export function Carousel({
             aria-controls={`slide-${s.id}`}
             onClick={() => go(i)}
             className={cn(
-              "relative overflow-hidden rounded-full px-3.5 py-1.5 text-xs font-medium transition-colors sm:text-sm",
+              // 44px tall: these five tabs are the primary control of the only
+              // section that shows the real product, and at 28px they were the
+              // hardest thing on the page to hit with a thumb.
+              "relative inline-flex min-h-11 items-center overflow-hidden rounded px-3.5 text-xs font-medium transition-colors duration-interaction ease-interaction sm:text-sm",
               i === index
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-secondary hover:text-foreground",
@@ -130,9 +133,9 @@ export function Carousel({
         ))}
       </div>
 
-      <div className="relative overflow-hidden rounded-2xl">
+      <div className="relative overflow-hidden rounded">
         <div
-          className="flex transition-transform duration-500 ease-[cubic-bezier(0.21,0.65,0.36,1)]"
+          className="flex transition-transform duration-narrative ease-narrative"
           style={{ transform: `translateX(-${index * 100}%)` }}
         >
           {slides.map((s, i) => (
@@ -174,7 +177,7 @@ function CarouselArrow({ dir, onClick }: { dir: "prev" | "next"; onClick: () => 
       type="button"
       onClick={onClick}
       aria-label={dir === "prev" ? "Previous" : "Next"}
-      className="grid size-8 place-items-center rounded-full border bg-card text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+      className="grid size-11 place-items-center rounded border bg-card text-muted-foreground transition-colors duration-interaction ease-interaction hover:bg-secondary hover:text-foreground"
     >
       <Icon className="size-4" />
     </button>

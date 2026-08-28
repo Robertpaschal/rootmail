@@ -1,56 +1,48 @@
+/* Ground, ink and type come from the shared design package so the four apps
+   cannot drift apart again — they already had. Values and reasoning:
+   packages/design/tokens.css and docs/design/00-PHILOSOPHY.md.
+
+   THE DEVELOPER SITE IS THE SAME SYSTEM AS THE MARKETING SITE.
+   It never got the redesign the homepage got (docs/design/04-EXPERIENCE.md
+   §8.1), so for a while rootmail shipped two public sites that disagreed with
+   each other about ink, radius, weight and — worse — about whether an inferred
+   event may be drawn like a witnessed one. The type and ground rules below are
+   the marketing site's, ported rather than re-derived, because "the same rules,
+   written twice" is how two sites drift apart in the first place.
+
+   The SLAB block at the foot of this file is the one deliberate divergence, and
+   it says there why: same vocabulary, different rhythm, because this page is
+   read in order and that one is browsed. */
+@import "@rootmail/design/tokens.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-      Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-    --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono",
-      "Courier New", monospace;
-
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 243 75% 59%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 243 75% 96%;
-    --accent-foreground: 243 70% 32%;
-    --destructive: 0 72% 51%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 243 75% 59%;
-    --radius: 0.65rem;
+  /* Headlines carry the display face. One rule per app rather than a utility on
+     every heading — the same propagation trick the token remap uses. */
+  h1,
+  h2 {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf);
+    font-weight: 600;
+    letter-spacing: var(--track-display);
+    line-height: 1.03;
   }
+  h3 {
+    letter-spacing: var(--track-heading);
+  }
+}
 
-  .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 5.5%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 243 75% 66%;
-    --primary-foreground: 240 10% 4%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 18%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 243 75% 66%;
+@layer components {
+  /* Figures. The display face at size, with lining tabular digits so columns
+     align and nothing jitters between renders. */
+  .display-num {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf-num);
+    font-variant-numeric: tabular-nums lining;
+    letter-spacing: -0.02em;
   }
 }
 
@@ -61,12 +53,110 @@
   html {
     scroll-behavior: smooth;
     scroll-padding-top: 5rem;
+    /* cv01 is the straight-sided `1`; ss03 the round quotes and commas. This
+       site is denser with figures than the marketing one — status codes,
+       latencies, hashes, selectors — and the default `1` with its bottom serif
+       sits badly beside a JetBrains Mono column. */
+    font-feature-settings: "cv01", "ss03";
   }
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply text-foreground;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
+    /* THE GROUND THE SLABS SIT ON — a touch deeper than the card they carry,
+       so the gutter between sections reads as space rather than as a gap. */
+    background-color: hsl(var(--paper-lift));
+  }
+}
+
+@layer components {
+  /* ---- Display type -------------------------------------------------
+     Weight 510, leading at or below 1.0, tracking as a ratio of the size.
+     Presence comes from SIZE and TIGHTNESS, never from weight — a witness
+     giving an account does not raise its voice, so nothing here is 700. */
+  .display-xl {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf);
+    font-size: clamp(2.25rem, 5.6vw, 4.25rem);
+    line-height: 0.95;
+    letter-spacing: var(--track-display);
+    font-weight: 600;
+  }
+  .display-l {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf);
+    font-size: clamp(1.875rem, 3.6vw, 3rem);
+    line-height: 1;
+    letter-spacing: var(--track-display);
+    font-weight: 600;
+  }
+  .display-m {
+    font-family: var(--font-display);
+    font-variation-settings: var(--display-vf);
+    font-size: clamp(1.5rem, 2.4vw, 2rem);
+    line-height: 1.05;
+    letter-spacing: -0.02em;
+    font-weight: 600;
+  }
+  .display-s {
+    font-size: 1.125rem;
+    line-height: 1.15;
+    letter-spacing: -0.017em;
+    font-weight: 600;
+  }
+
+  .lead {
+    font-size: 1.0625rem;
+    line-height: 1.5;
+    letter-spacing: -0.011em;
+  }
+
+  /* ---- The inverted band --------------------------------------------
+     "Dark" is a compositional device, not a user preference: one band on the
+     page carries the opposite ground to its page, in both themes. It
+     re-points the ground TOKENS rather than hardcoding colours, so the line's
+     knockout ring — which must use the ground token and never white — keeps
+     working inside it. */
+  .ground-ink {
+    --background: 30 18% 10%;
+    --foreground: 40 20% 97%;
+    --ink: 40 20% 97%;
+    --ink-muted: 36 10% 64%;
+    --rule: 30 8% 22%;
+    --line-dim: 30 8% 34%;
+    --paper-raised: 30 14% 14%;
+    --card: 30 14% 14%;
+    --card-foreground: var(--ink);
+    --muted: 30 12% 16%;
+    --muted-foreground: var(--ink-muted);
+    --secondary: 30 12% 16%;
+    --secondary-foreground: var(--ink);
+    --border: var(--rule);
+    --input: var(--rule);
+    --ring: var(--ink);
+    --primary: var(--ink);
+    --primary-foreground: 30 18% 10%;
+    --witnessed: 152 50% 52%;
+    --acted: 35 88% 60%;
+    --stopped: 2 75% 62%;
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+  .dark .ground-ink {
+    --background: 40 20% 97%;
+    --foreground: 30 18% 11%;
+    --ink: 30 18% 11%;
+    --ink-muted: 30 8% 40%;
+    --rule: 36 12% 86%;
+    --line-dim: 36 10% 78%;
+    --paper-raised: 40 30% 99%;
+    --card: 40 30% 99%;
+    --muted: 40 14% 93%;
+    --secondary: 40 14% 93%;
+    --primary-foreground: 40 30% 99%;
+    --witnessed: 152 55% 34%;
+    --acted: 35 90% 45%;
+    --stopped: 2 70% 45%;
   }
 }
 
@@ -74,11 +164,135 @@
   .text-balance {
     text-wrap: balance;
   }
-  /* Faint dotted/grid backdrop used behind the hero. */
-  .bg-grid {
-    background-image:
-      linear-gradient(to right, hsl(var(--border) / 0.7) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--border) / 0.7) 1px, transparent 1px);
-    background-size: 56px 56px;
+
+  /* ---- State colour as TEXT ------------------------------------------
+     The three signals are tuned to be read as a 2px stroke or an 8px node,
+     which is a different job from being read as an 11px label — `--acted`
+     comes out at 2.83:1 on paper and `--witnessed` at 4.44:1, both under AA
+     for body text and both fine as a line. So text gets its own cut of the
+     same hue; strokes, borders and fills are untouched. Specificity
+     `body .x` (0,1,1) beats the Tailwind utility (0,1,0), which is the trick. */
+  body .text-witnessed {
+    color: hsl(152 58% 26%);
+  }
+  body .text-acted {
+    color: hsl(35 96% 27%);
+  }
+  body .text-stopped {
+    color: hsl(2 76% 39%);
+  }
+  body.dark .text-witnessed,
+  .dark body .text-witnessed {
+    color: hsl(152 52% 58%);
+  }
+  body.dark .text-acted,
+  .dark body .text-acted {
+    color: hsl(35 90% 64%);
+  }
+  body.dark .text-stopped,
+  .dark body .text-stopped {
+    color: hsl(2 82% 70%);
+  }
+  body .ground-ink .text-witnessed {
+    color: hsl(152 52% 58%);
+  }
+  body .ground-ink .text-acted {
+    color: hsl(35 90% 64%);
+  }
+  body .ground-ink .text-stopped {
+    color: hsl(2 82% 70%);
+  }
+  .dark body .ground-ink .text-witnessed {
+    color: hsl(152 58% 26%);
+  }
+  .dark body .ground-ink .text-acted {
+    color: hsl(35 96% 27%);
+  }
+  .dark body .ground-ink .text-stopped {
+    color: hsl(2 76% 39%);
+  }
+
+  /* A ruled row. Records are flat: separation is a hairline and a ground
+     shift, never elevation. */
+  .ruled > * + * {
+    border-top: 1px solid hsl(var(--rule));
+  }
+}
+
+/* ─── SLABS ───────────────────────────────────────────────────────────────
+   The developer site's sections were seven full-bleed bands separated by a
+   hairline, all at one padding, each opening with a left-aligned heading over
+   a full-width artifact. That is the shape the marketing site retired, and
+   with the two sites next to each other it was the clearest remaining
+   disagreement between them — one page reading as stacked sheets, the other
+   as a single flat scroll.
+
+   Each section is a rounded panel sitting ON the page ground now, so the curve
+   in `--radius` belongs to the SECTION and not only to the boxes inside it.
+   `--radius-slab` and `--elev-2` are the shared tokens; nothing is redefined
+   locally.
+
+   IT IS DELIBERATELY NOT MARKETING'S SLAB. There, consecutive slabs overlap by
+   three quarters of their radius so the page reads as sheets tucked under one
+   another; that is a browsing rhythm. This page is READ IN ORDER — each
+   section poses a question and returns an answer to it — so the slabs are
+   separated by a real gutter instead, and the seam is a gap rather than a
+   tuck. Same system, different rhythm, which is what "the two sites agree"
+   has to mean if it is to mean anything beyond identical CSS.
+
+   `.slab.ground-ink` needs no special case: `.ground-ink` re-points `--card`
+   and `--rule` ON THE ELEMENT, and the rules below read those variables from
+   the element they apply to, so the inverted band curves and lifts like every
+   other slab. */
+@layer components {
+  .slab {
+    position: relative;
+    border-radius: var(--radius-slab);
+    background: hsl(var(--card));
+    border: 1px solid hsl(var(--rule) / 0.7);
+    box-shadow: var(--elev-2);
+  }
+
+  /* A hairline of light along the top edge — the "lit from above" read that an
+     inset highlight gives a card, at section scale. Decoration, so it is a
+     pseudo-element and therefore out of the accessibility tree by
+     construction, and it never carries information. */
+  .lit-edge::after {
+    content: "";
+    position: absolute;
+    inset: 0 12% auto 12%;
+    height: 1px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, hsl(var(--brass) / 0.45), transparent);
+  }
+}
+
+/* ─── SCROLL-DRIVEN DEPTH ─────────────────────────────────────────────────
+   Sections settle the last few pixels into place as they enter.
+
+   THREE REASONS THIS PASSES THE MOTION LAW:
+   1. `animation-timeline: view()` is driven by SCROLL POSITION, not by a clock
+      or a rAF loop. The preview pane freezing `requestAnimationFrame` and
+      `setTimeout` cannot strand it mid-animation.
+   2. Only `transform` is animated. Nothing fades. A section that never
+      animates is 22px low and completely readable — never invisible.
+   3. It is behind `@supports`, so a browser without scroll-driven animations
+      renders the resting state, which is the finished state. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .settle {
+      animation: slab-settle linear both;
+      animation-timeline: view();
+      animation-range: entry 0% entry 55%;
+    }
+  }
+}
+
+@keyframes slab-settle {
+  from {
+    transform: translateY(22px) scale(0.99);
+  }
+  to {
+    transform: none;
   }
 }

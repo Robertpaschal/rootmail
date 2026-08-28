@@ -79,12 +79,12 @@ export function Footer() {
           {columns.map((col) => (
             <div key={col.title}>
               <h4 className="text-sm font-semibold">{col.title}</h4>
-              <ul className="mt-4 space-y-2.5">
+              <ul className="mt-1">
                 {col.links.map((l) => (
                   <li key={l.label}>
                     <Link
                       href={l.href}
-                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                      className="inline-flex min-h-11 items-center text-sm text-muted-foreground transition-colors duration-interaction ease-interaction hover:text-foreground"
                     >
                       {l.label}
                     </Link>
@@ -95,7 +95,13 @@ export function Footer() {
           ))}
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row">
+        {/* The rendering law, stated once per site, where a legend belongs.
+            It used to sit above the fold in the hero, where four entries of
+            chrome competed with the artifact they were explaining. */}
+        <div className="mt-12 border-t border-border/60 pt-6">
+        </div>
+
+        <div className="mt-6 flex flex-col items-center justify-between gap-4 border-t border-border/60 pt-6 sm:flex-row">
           {/* A real postal address, published rather than filed.
               Our own Terms require customers to carry one on commercial mail,
               and an email platform that asks for something it does not show is
@@ -108,7 +114,7 @@ export function Footer() {
               Report abuse:{" "}
               <a
                 href="mailto:abuse@rootmail.io"
-                className="font-medium text-foreground transition-colors hover:underline"
+                className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-4"
               >
                 abuse@rootmail.io
               </a>
@@ -116,7 +122,7 @@ export function Footer() {
           </div>
           <p className="text-sm text-muted-foreground">
             Need a hand?{" "}
-            <Link href="/contact" className="font-medium text-foreground transition-colors hover:underline">
+            <Link href="/contact" className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-4">
               Get in touch
             </Link>
             .

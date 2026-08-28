@@ -7,14 +7,11 @@ import {
   CornerUpLeft,
   Image as ImageIcon,
   MousePointer2,
-  Send,
   Sparkles,
   Type,
   Users,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Carousel, type Slide } from "./carousel";
-import { Reveal } from "./motion";
 import { cn } from "@/lib/utils";
 
 /**
@@ -41,12 +38,12 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 function Screen({ path, children }: { path: string; children: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-2xl border bg-card shadow-xl">
+    <div className="overflow-hidden rounded-lg border border-rule bg-card shadow-e1">
       <div className="flex items-center gap-2 border-b bg-secondary/40 px-3 py-2.5">
         <span className="flex gap-1.5" aria-hidden="true">
-          <span className="size-2.5 rounded-full bg-rose-400/70" />
-          <span className="size-2.5 rounded-full bg-amber-400/70" />
-          <span className="size-2.5 rounded-full bg-emerald-400/70" />
+          <span className="size-2 rounded-full bg-foreground/20" />
+          <span className="size-2 rounded-full bg-foreground/20" />
+          <span className="size-2 rounded-full bg-foreground/20" />
         </span>
         <span className="mx-auto rounded-md bg-background/70 px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
           {path}
@@ -65,7 +62,7 @@ function Pane({ icon: Icon, title, children, className }: {
   className?: string;
 }) {
   return (
-    <div className={cn("rounded-xl border bg-background/60 p-3", className)}>
+    <div className={cn("rounded-lg border border-rule bg-background/60 p-3", className)}>
       <p className="mb-2.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Icon className="size-3.5" />
         {title}
@@ -97,7 +94,7 @@ function StudioScene({ active }: { active: boolean }) {
   return (
     <Screen path="app.rootmail.io/templates/order-shipped">
       <div className="grid gap-4 sm:grid-cols-[1fr_150px]">
-        <div className="relative rounded-xl border bg-background p-4">
+        <div className="relative rounded-lg border border-rule bg-background p-4">
           <Sweep active={active} />
           <div className="mx-auto max-w-sm space-y-2.5">
             {blocks.map((b) => (
@@ -179,7 +176,7 @@ function AudienceScene({ active }: { active: boolean }) {
           <span className="font-semibold tabular-nums text-foreground">3</span> of 4 match
         </span>
       </div>
-      <div className="relative divide-y overflow-hidden rounded-xl border">
+      <div className="relative divide-y overflow-hidden rounded-lg border border-rule">
         <Sweep active={active} />
         {people.map((p) => {
           const match = p.tags.includes("customer");
@@ -205,7 +202,7 @@ function AudienceScene({ active }: { active: boolean }) {
                   </span>
                 ))}
               </span>
-              {match ? <Check className="size-4 shrink-0 text-emerald-500" /> : null}
+              {match ? <Check className="size-4 shrink-0 text-witnessed" /> : null}
             </div>
           );
         })}
@@ -222,25 +219,36 @@ function AudienceScene({ active }: { active: boolean }) {
 // 3 — Delivery
 // ---------------------------------------------------------------------------
 function DeliveryScene({ active }: { active: boolean }) {
+  // The rendering law reaches the funnel too. "Delivered" is a provider
+  // confirmation and fills solid; "Opened" and "Clicked" are a tracking pixel
+  // firing, so they are drawn HOLLOW — an outlined bar, at the same length but
+  // never the same weight. Rendering an inference at the weight of an
+  // observation is the industry's founding lie, and the best-designed site in
+  // this category ships it (docs/design/01-REFERENCES.md §4).
   const bars = [
-    { label: "Sent", pct: 100, cls: "bg-blue-400", n: "1,240" },
-    { label: "Delivered", pct: 98, cls: "bg-emerald-500", n: "1,215" },
-    { label: "Opened", pct: 46, cls: "bg-violet-500", n: "573" },
-    { label: "Clicked", pct: 14, cls: "bg-blue-600", n: "174" },
+    { label: "Sent", pct: 100, cls: "bg-foreground/70", n: "1,240", inferred: false },
+    { label: "Delivered", pct: 98, cls: "bg-witnessed", n: "1,215", inferred: false },
+    { label: "Opened", pct: 46, cls: "border border-foreground/60", n: "573", inferred: true },
+    { label: "Clicked", pct: 14, cls: "border border-foreground/60", n: "174", inferred: true },
   ];
   return (
     <Screen path="app.rootmail.io/campaigns/spring-restock">
       <div className="grid gap-4 sm:grid-cols-[1fr_170px]">
-        <div className="relative rounded-xl border bg-background/60 p-4">
+        <div className="relative rounded-lg border border-rule bg-background/60 p-4">
           <Sweep active={active} />
           <div className="space-y-3">
             {bars.map((b) => (
               <div key={b.label}>
                 <div className="mb-1 flex items-baseline justify-between text-xs">
-                  <span className="font-medium">{b.label}</span>
+                  <span className={cn("font-medium", b.inferred && "text-muted-foreground")}>
+                    {b.label}
+                    {b.inferred ? (
+                      <>{" "}<span className="font-mono text-[10px]">inferred</span></>
+                    ) : null}
+                  </span>
                   <span className="tabular-nums text-muted-foreground">{b.n}</span>
                 </div>
-                <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                <div className="h-2 overflow-hidden rounded-full bg-secondary/60">
                   {/* Width is a real style, not an animation target — the chart
                       is correct the instant it paints. */}
                   <div className={cn("h-full rounded-full", b.cls)} style={{ width: `${b.pct}%` }} />
@@ -252,18 +260,20 @@ function DeliveryScene({ active }: { active: boolean }) {
         <div className="space-y-3">
           <Pane icon={BarChart3} title="Reputation">
             <div className="flex items-end gap-1.5">
-              <span className="text-3xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
+              <span className="text-3xl font-bold tabular-nums text-witnessed">
                 94
               </span>
               <span className="pb-1 text-xs text-muted-foreground">/ 100</span>
             </div>
-            <p className="mt-1 text-[11px] text-muted-foreground">Healthy — keep it up.</p>
+            <p className="mt-1 font-mono text-[10px] leading-snug text-muted-foreground">
+              7d · real outcomes · warn at 0.1% complaints
+            </p>
           </Pane>
           <Pane icon={Check} title="Your domain">
             <div className="space-y-1.5 text-[11px]">
               {["SPF", "DKIM", "DMARC"].map((r) => (
                 <p key={r} className="flex items-center gap-1.5">
-                  <Check className="size-3 text-emerald-500" /> {r} verified
+                  <Check className="size-3 text-witnessed" /> {r} verified
                 </p>
               ))}
             </div>
@@ -313,7 +323,7 @@ function RepliesScene({ active }: { active: boolean }) {
             )}
           >
             <CornerUpLeft
-              className="absolute -left-2 -top-2 size-4 rounded-full bg-emerald-500 p-0.5 text-white"
+              className="absolute -left-2 -top-2 size-4 rounded-full bg-witnessed p-0.5 text-white"
               aria-hidden="true"
             />
             Can I change the delivery address?
@@ -364,7 +374,7 @@ function AssistantScene({ active }: { active: boolean }) {
               "A question for you — 5 days later",
             ].map((s) => (
               <li key={s} className="flex items-center gap-2 text-xs">
-                <Check className="size-3.5 shrink-0 text-emerald-500" />
+                <Check className="size-3.5 shrink-0 text-witnessed" />
                 {s}
               </li>
             ))}
@@ -395,32 +405,25 @@ const slides: Slide[] = [
   { id: "assistant", label: "Assistant", content: (a) => <AssistantScene active={a} /> },
 ];
 
-export function ProductShow() {
+/**
+ * The tour, with its section chrome removed.
+ *
+ * It used to be its own section — eyebrow badge, centered 30px heading, muted
+ * lead paragraph, exactly like the nine sections around it. It is now the
+ * evidence UNDER the "how does it work" heading in `the-line.tsx`, which is
+ * where a running artifact belongs: not as a section that says "look inside",
+ * but as the thing you are already looking at.
+ */
+export function ProductTour() {
   return (
-    <section id="tour" className="border-t border-border/60 bg-secondary/20 py-20 md:py-28">
-      <div className="container">
-        <Reveal inView className="mx-auto mb-10 max-w-2xl text-center">
-          <Badge className="mb-4">
-            <Send className="size-3" /> A look inside
-          </Badge>
-          <h2 className="text-balance text-3xl font-bold tracking-tight sm:text-4xl">
-            This is what a Tuesday looks like
-          </h2>
-          <p className="mt-4 text-balance text-lg text-muted-foreground">
-            Design an email, pick who gets it, watch it land, answer what comes back. Five screens,
-            one product — it plays on its own, or click through at your pace.
-          </p>
-        </Reveal>
-
-        <div className="mx-auto max-w-4xl">
-          <Carousel slides={slides} label="A tour of rootmail" interval={7000} />
-        </div>
-
-        <p className="mt-6 text-center text-xs text-muted-foreground">
-          <Users className="mr-1 inline size-3" />
-          Illustrative sample data — no real contacts here.
-        </p>
+    <div id="tour">
+      <div className="mx-auto max-w-4xl">
+        <Carousel slides={slides} label="A tour of rootmail" interval={7000} />
       </div>
-    </section>
+      <p className="mx-auto mt-5 max-w-4xl font-mono text-[11px] text-muted-foreground" data-fact>
+        <Users className="mr-1.5 inline size-3 align-[-1px]" />
+        illustrative sample data · drawn in the page, not screenshotted · no real contacts
+      </p>
+    </div>
   );
 }

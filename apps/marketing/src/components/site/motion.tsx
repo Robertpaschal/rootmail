@@ -1,96 +1,83 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { motion, useReducedMotion, useScroll, useTransform } from "framer-motion";
+import { useEffect, useRef, useState } from "react";
 
 /**
- * Entrance reveal. Two modes:
- * • default — plays on mount (above-the-fold heroes);
- * • `inView` — plays when scrolled into view, once (the "appears as you scroll"
- *   feel for everything below the fold).
- * SSR always renders the hidden initial (server and client agree — no hydration
- * mismatch). If the tab is HIDDEN at mount, an effect unhides immediately: rAF
- * doesn't tick in hidden tabs, so the animation would otherwise hold content
- * invisible until focus. Rests at transform:none (sticky/fixed descendants safe).
+ * Entrance reveal — rebuilt to obey the site's own motion rule.
+ *
+ * The old version shipped `initial={{ opacity: 0 }}` on 41 wrappers, which
+ * means every section of the server-rendered page arrived invisible and stayed
+ * that way until a `requestAnimationFrame` loop ran. rAF does not tick in a
+ * hidden tab, in the browser preview pane, on a throttled device, or when the
+ * animation chunk fails to load, and the single mount-time escape hatch covered
+ * only the first of those. Content that is invisible until an animation runs is
+ * content that sometimes does not exist — `00-PHILOSOPHY.md §6` refuses it and
+ * `tailwind.config.ts` already said so in a comment.
+ *
+ * Two changes fix it permanently:
+ *
+ * 1. **Nothing fades.** The only animated property is `transform`. At rest the
+ *    element is 10px lower than its final position and FULLY OPAQUE, so a
+ *    transition that never runs costs ten pixels, not the paragraph.
+ * 2. **It is a CSS transition, not a JS animation loop** — the mechanic
+ *    `carousel.tsx` already documents: a CSS transition still ARRIVES at its
+ *    end state when frames cannot be animated. The only JS is an
+ *    IntersectionObserver toggling one class, and if that never runs the
+ *    element stays ten pixels low.
+ *
+ * Timing comes from the two-tier system: 700ms on `--ease-narrative`. There is
+ * nothing at 300ms in this codebase on purpose.
  */
 export function Reveal({
   children,
   delay = 0,
   className,
   inView = false,
-  y = 12,
 }: {
   children: React.ReactNode;
   delay?: number;
   className?: string;
   /** Trigger on scroll-into-view (once) instead of on mount. */
   inView?: boolean;
+  /** Accepted and ignored — kept so call sites that passed it still compile. */
   y?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const [shown, setShown] = useState(false);
+
   useEffect(() => {
-    if (document.visibilityState === "hidden" && ref.current) {
-      ref.current.style.opacity = "1";
-      ref.current.style.transform = "none";
+    const el = ref.current;
+    if (!el) return;
+    if (!inView || typeof IntersectionObserver === "undefined") {
+      setShown(true);
+      return;
     }
-  }, []);
-  const target = { opacity: 1, y: 0 };
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setShown(true);
+          io.disconnect();
+        }
+      },
+      { rootMargin: "-40px" },
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [inView]);
+
   return (
-    <motion.div
+    <div
       ref={ref}
-      className={className}
-      initial={{ opacity: 0, y }}
-      {...(inView
-        ? { whileInView: target, viewport: { once: true, margin: "-80px" } }
-        : { animate: target })}
-      transition={{ duration: 0.45, ease: [0.21, 0.65, 0.36, 1], delay }}
+      className={[
+        className,
+        "transition-transform duration-narrative ease-narrative motion-reduce:transition-none",
+        shown ? "translate-y-0" : "translate-y-2.5",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={delay ? { transitionDelay: `${Math.round(delay * 1000)}ms` } : undefined}
     >
       {children}
-    </motion.div>
-  );
-}
-
-/**
- * Scroll parallax for decorative layers (hero glows, section backdrops): the
- * wrapped element drifts `range` px over its scroll journey. Decor-only — it
- * respects prefers-reduced-motion and never wraps interactive content.
- */
-export function Parallax({
-  children,
-  range = 60,
-  className,
-}: {
-  children: React.ReactNode;
-  range?: number;
-  className?: string;
-}) {
-  const ref = useRef<HTMLDivElement>(null);
-  const reduce = useReducedMotion();
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "end start"] });
-  const yUp = useTransform(scrollYProgress, [0, 1], [range / 2, -range / 2]);
-  return (
-    <motion.div ref={ref} className={className} style={reduce ? undefined : { y: yUp }}>
-      {children}
-    </motion.div>
-  );
-}
-
-/** Reactive card wrapper — lifts toward the cursor on hover, settles on tap.
- * Pure transform (no layout shift); pointer-only via whileHover/whileTap. */
-export function ReactiveCard({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string;
-}) {
-  return (
-    <motion.div
-      className={className}
-      whileHover={{ y: -6, transition: { duration: 0.18 } }}
-      whileTap={{ scale: 0.985 }}
-    >
-      {children}
-    </motion.div>
+    </div>
   );
 }
