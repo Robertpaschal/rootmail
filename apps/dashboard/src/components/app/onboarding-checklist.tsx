@@ -31,8 +31,9 @@ export async function OnboardingChecklist() {
   let templates = 0;
   let messages = 0;
   let replyDecided = false;
+  let org: { postal_address?: string | null; reply_mode?: string } | null = null;
   try {
-    const [me, snd, l, t, m, org, threads] = await Promise.all([
+    const [me, snd, l, t, m, organization, threads] = await Promise.all([
       api.me(),
       api.listSenders(),
       api.listLists(),
@@ -50,6 +51,7 @@ export async function OnboardingChecklist() {
     messages = m.data.filter((x) => ["sent", "delivered", "bounced", "complained"].includes(x.status)).length;
     // "Done" once they've either chosen to handle replies in their own mailbox or
     // actually have a conversation flowing into the inbox.
+    org = organization;
     replyDecided = org?.reply_mode === "own_mailbox" || threads.data.length > 0;
   } catch {
     return null;

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { operatorReason } from "./provider-copy.ts";
+import { operatorReason } from "./provider-copy";
 
 describe("operatorReason", () => {
   it("hides SES identity-verification copy, including region", () => {
