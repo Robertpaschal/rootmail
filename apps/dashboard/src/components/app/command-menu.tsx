@@ -150,8 +150,8 @@ export function CommandMenu() {
         <Command.Empty className="px-3 py-6 text-center text-sm text-muted-foreground">
           No results.
         </Command.Empty>
-        {renderGroup("Actions", actions, "action")}
         {renderGroup("Go to", SHARED, "go")}
+        {renderGroup("Actions", actions, "action")}
         {renderGroup("Email", EMAIL, "go")}
         {renderGroup("Insights", INSIGHTS, "go")}
         {renderGroup("Developers", DEVELOPERS, "go")}
