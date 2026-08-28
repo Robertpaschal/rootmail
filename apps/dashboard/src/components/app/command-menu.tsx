@@ -17,8 +17,8 @@ interface Item {
 }
 
 const SHARED: Item[] = [
-  { label: "Overview", href: "/overview", kw: "setup checklist dashboard furniture" },
   { label: "Assistant", href: "/assistant", kw: "ai help chat copilot diagnose" },
+  { label: "Overview", href: "/overview", kw: "setup checklist dashboard furniture" },
 ];
 
 // Mirrors the sidebar's IA: one product fabric, grouped by what things are FOR.

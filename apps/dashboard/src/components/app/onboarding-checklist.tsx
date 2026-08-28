@@ -76,7 +76,9 @@ export async function OnboardingChecklist() {
    *
    * The MECHANICS are untouched: completion is still computed from live data,
    * `crucial` still marks what genuinely blocks, the minute estimates are still
-   * honest, and it still hides itself when finished.
+   * honest, and it still hides itself when finished. Hrefs point at the place
+   * that actually does that job (Mail compose, sender settings, onboarding or
+   * the settings hub) — they do not dump every leftover step at /settings/sender.
    */
   const steps: Step[] = [
     {
@@ -109,7 +111,7 @@ export async function OnboardingChecklist() {
       done: onboarded && Boolean(org?.postal_address?.trim()),
       label: "Complete your business profile",
       desc: "Your details + postal address — required by anti-spam law on any marketing mail, and used to personalize rootmail.",
-      href: onboarded ? "/settings/sender" : "/onboarding",
+      href: onboarded ? "/settings" : "/onboarding",
       minutes: 2,
     },
     {
@@ -137,7 +139,7 @@ export async function OnboardingChecklist() {
       done: replyDecided,
       label: "Set up your Replies inbox",
       desc: "When people reply, it lands here as a conversation with them — one space per contact. Pick whether replies come here or straight to your own mailbox.",
-      href: "/settings/sender",
+      href: "/inbox",
       minutes: 1,
     },
   ];
