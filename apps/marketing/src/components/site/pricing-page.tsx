@@ -126,9 +126,16 @@ export function PricingMeters({ pricing }: { pricing: PublicPricing }) {
           </div>
         ) : null}
 
-        <Reveal inView delay={0.05} className="mt-10 grid items-stretch gap-6 lg:grid-cols-2">
-          <BlocksCalculator tx={pricing.wings.transactional} />
-          <ContactPricer mk={pricing.wings.marketing} />
+        {/* Same tray as the homepage — the meters are `bg-card` and a `.slab`
+            is painted `hsl(var(--card))`, so without something to be lifted out
+            of they measure 1.00 contrast against their own section. */}
+        <Reveal inView delay={0.05} className="mt-10">
+          <div className="rounded-2xl bg-well p-3 shadow-well sm:p-4">
+            <div className="grid items-stretch gap-3 sm:gap-4 lg:grid-cols-2">
+              <BlocksCalculator tx={pricing.wings.transactional} />
+              <ContactPricer mk={pricing.wings.marketing} />
+            </div>
+          </div>
         </Reveal>
       </div>
     </section>

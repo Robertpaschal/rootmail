@@ -31,10 +31,22 @@ import { CtaButton } from "./cta-button";
  * company name once, not a stream of letters, and never lose it because we
  * chose to crop the glyphs.
  */
-/** The few things a reader still needs from a sign-off: how to reach a human,
- *  and the documents they are entitled to. Everything else is in the top nav. */
+/**
+ * How to reach a human, what the company is, and the documents a reader is
+ * entitled to.
+ *
+ * `Blog`, `Changelog` and `About` arrived here on 2026-08-31 when the top nav
+ * was cut to `Pricing` and `Developers` (see `navbar.tsx` for the reasoning).
+ * They are things a reader looks for AFTER the argument, not before it, which
+ * is exactly what a sign-off is for. This is still a sign-off and not the
+ * four-column, 21-link corporate sitemap it replaced — the test is that every
+ * entry is either a person, an identity, or a legal document.
+ */
 const LINKS = [
   { href: "/contact", label: "Talk to us" },
+  { href: "/about", label: "About" },
+  { href: "/blog", label: "Blog" },
+  { href: "/changelog", label: "Changelog" },
   { href: "/legal/privacy", label: "Privacy" },
   { href: "/legal/terms", label: "Terms" },
   { href: "/legal/security", label: "Security" },

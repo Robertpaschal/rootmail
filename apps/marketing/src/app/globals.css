@@ -114,6 +114,12 @@
      keeps working inside it. */
   .ground-ink {
     --background: 30 18% 10%;
+    /* The recessed plane has to be re-pointed with everything else or
+       `bg-well` inside an inverted band is a LIGHT panel on a near-black
+       ground — the exact class of bug `docs/design/` records for admin, where
+       tokens the override did not restate silently kept their light values.
+       Deeper than both the band's ground (10%) and the slab it paints (14%). */
+    --well: 30 20% 7%;
     --foreground: 40 20% 97%;
     --ink: 40 20% 97%;
     --ink-muted: 36 10% 64%;
@@ -141,6 +147,7 @@
   }
   .dark .ground-ink {
     --background: 40 20% 97%;
+    --well: 34 24% 90%;
     --foreground: 30 18% 11%;
     --ink: 30 18% 11%;
     --ink-muted: 30 8% 40%;
@@ -323,12 +330,18 @@
     margin-top: calc(var(--radius-slab) * -0.75);
   }
 
-  /* The inverted band keeps its own ground but joins the stack. */
-  .slab-ink {
-    background: hsl(var(--ink));
-    color: hsl(var(--paper));
-    border-color: hsl(var(--ink));
-  }
+  /* `.slab-ink` WAS HERE AND IS GONE — 2026-08-31. It painted the band by
+     hardcoding `background: hsl(var(--ink))` and `color: hsl(var(--paper))`
+     WITHOUT re-pointing any of the other ground tokens, which is the admin
+     bug in miniature: every token it did not restate kept its page value while
+     sitting on the opposite ground. Measured on the built page, `text-ink-muted`
+     inside it rendered rgb(114,102,90) on rgb(37,27,19) — **3.02:1, an AA
+     failure on the lead paragraph of the section that names the enemy.**
+
+     `.ground-ink` above already does the job properly, and four of the six
+     inverted sections were already using it. `break.tsx` and `cta.tsx` now use
+     it too, so there is one way to invert a band and it takes all the tokens
+     with it. Do not reintroduce a shortcut for this. */
 
   /* ─── AMBIENT LIGHT ────────────────────────────────────────────────────
      A brass wash bled from the top edge. Decoration, so it is `aria-hidden`
@@ -410,6 +423,29 @@
   }
 }
 
+/* A row that arrives from a few pixels low as it enters. Same three safety
+   properties as `.settle`: scroll-driven (not a clock), transform-only, behind
+   `@supports`. An element that never animates is 14px low and fully readable,
+   which is the only bar this has to clear. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .rise {
+      animation: rise linear both;
+      animation-timeline: view();
+      animation-range: entry 5% entry 70%;
+    }
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: none;
+  }
+}
+
 @layer components {
   /* ─── THE ACCORDION ────────────────────────────────────────────────────
      Exclusivity comes from `<details name="faq">` — native, no JS, nothing to
@@ -421,18 +457,67 @@
      one. Both are progressive: without support the panel simply snaps open,
      which is the behaviour we had.
 
-     Timing is `--t-interaction`. A disclosure is a direct answer to a click, so
-     it belongs in the interaction tier, not the narrative one. */
+     ── WHY THIS IS THE NARRATIVE TIER NOW (2026-08-31) ────────────────────
+     It was `--t-interaction`, on the reasoning that a disclosure is a direct
+     answer to a click. Measured on the built page, that is 100ms of block-size
+     on a ~150px panel: fast enough that the panel does not read as opening at
+     all, it reads as appearing — which is what the owner meant by *"the opening
+     and closing… should feel smooth. Right now, it doesn't."*
+
+     100ms is right for a property that TRACKS a pointer. This one narrates a
+     paragraph arriving, so it takes `--t-narrative` on `--ease-narrative`,
+     which is heavily front-loaded — the panel is ~85% open by 245ms and spends
+     the rest settling. The two-tier rule holds; the tier was simply wrong.
+     `duration-300` is still not an answer to anything.
+
+     The answer itself also MOVES: it starts 8px high and slides down to rest.
+     Transform only, never opacity — with the transition dead it is a paragraph
+     eight pixels out of place, never a paragraph that is not there. */
   .faq-item::details-content {
     block-size: 0;
     overflow: hidden;
     transition:
-      block-size var(--t-interaction) var(--ease-interaction),
-      content-visibility var(--t-interaction) allow-discrete;
+      block-size var(--t-narrative) var(--ease-narrative),
+      content-visibility var(--t-narrative) allow-discrete;
   }
 
   .faq-item[open]::details-content {
     block-size: auto;
+  }
+
+  .faq-answer {
+    transform: translateY(-8px);
+    transition: transform var(--t-narrative) var(--ease-narrative);
+  }
+  .faq-item[open] .faq-answer {
+    transform: none;
+  }
+
+  /* Open and closed are two PLANES, not two heights. A closed row sits flat on
+     the pressed tray; the open one is lifted out of it, on the raised ground
+     with elevation under it. That is what makes "which one am I reading"
+     legible from across the room, and it is the same tray-and-lift vocabulary
+     the hero deck, the pricing meters and the defaults list use. */
+  .faq-item {
+    border-radius: calc(var(--radius) + 0.25rem);
+    transition:
+      background-color var(--t-interaction) var(--ease-interaction),
+      box-shadow var(--t-interaction) var(--ease-interaction);
+  }
+  .faq-item:hover {
+    background-color: hsl(var(--card) / 0.6);
+  }
+  .faq-item[open] {
+    background-color: hsl(var(--card));
+    box-shadow: var(--elev-1);
+  }
+  /* `.ruled` puts a hairline between every pair of rows, which is right for
+     two flat rows and wrong where one of them has just become a raised card —
+     the rule then draws across the card's own edge. Both sides of an open row
+     drop theirs; specificity (0,2,0) beats `.ruled > * + *` at (0,1,0). */
+  .faq-item[open],
+  .faq-item[open] + .faq-item {
+    border-top-color: transparent;
   }
 }
 
@@ -445,7 +530,173 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .faq-item::details-content {
+  .faq-item::details-content,
+  .faq-answer {
     transition: none;
+  }
+}
+
+/* ─── THE HERO DECK ────────────────────────────────────────────────────────
+   Four records in a pressed tray, one open. See `hero-deck.tsx` for why this
+   is radio inputs and a sibling combinator rather than `useState`: the deck
+   has to be a complete, keyboard-operable tab set with the JavaScript bundle
+   deleted, and the only mechanism that is structurally incapable of failing
+   that test is one that never had any script in it.
+
+   THE ORDER OF CHILDREN IS LOAD BEARING. Every rule below reaches from
+   `#rec-N:checked`, a direct child of `.deck`, forward through `~ .deck-rows`.
+   Move a radio after the rows and the deck stops opening. This is the same
+   mechanic — and the same warning — as `.om` above.
+   ────────────────────────────────────────────────────────────────────────── */
+@layer components {
+  .deck {
+    position: relative;
+  }
+
+  /* Visually hidden, never `display: none` — a hidden radio is not focusable
+     and the whole point of this construction is that Tab and the arrow keys
+     reach all four records. */
+  .deck > .deck-radio {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .deck-rows {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+  }
+
+  .deck-row,
+  .deck-head {
+    border-radius: calc(var(--radius) + 0.25rem);
+  }
+
+  .deck-row {
+    transition:
+      background-color var(--t-interaction) var(--ease-interaction),
+      box-shadow var(--t-interaction) var(--ease-interaction);
+  }
+
+  .deck-head {
+    transition: background-color var(--t-interaction) var(--ease-interaction);
+  }
+  .deck-head:hover {
+    background-color: hsl(var(--card) / 0.55);
+  }
+
+  .deck-body {
+    display: none;
+  }
+
+  /* The open record is lifted OUT of the tray. `--background` is re-pointed
+     with it, because the line's knockout ring is drawn in the ground token and
+     a ring in the page's ground on a raised card is a visible halo around
+     every node — which is what the hero has been doing on `bg-well` all along. */
+  .deck > #rec-0:checked ~ .deck-rows [data-row="0"],
+  .deck > #rec-1:checked ~ .deck-rows [data-row="1"],
+  .deck > #rec-2:checked ~ .deck-rows [data-row="2"],
+  .deck > #rec-3:checked ~ .deck-rows [data-row="3"] {
+    --background: var(--card);
+    background-color: hsl(var(--card));
+    box-shadow: var(--elev-2);
+  }
+
+  .deck > #rec-0:checked ~ .deck-rows [data-rec="0"],
+  .deck > #rec-1:checked ~ .deck-rows [data-rec="1"],
+  .deck > #rec-2:checked ~ .deck-rows [data-rec="2"],
+  .deck > #rec-3:checked ~ .deck-rows [data-rec="3"] {
+    display: block;
+  }
+
+  .deck > #rec-0:checked ~ .deck-rows [data-head="0"] .deck-subject,
+  .deck > #rec-1:checked ~ .deck-rows [data-head="1"] .deck-subject,
+  .deck > #rec-2:checked ~ .deck-rows [data-head="2"] .deck-subject,
+  .deck > #rec-3:checked ~ .deck-rows [data-head="3"] .deck-subject {
+    color: hsl(var(--ink));
+  }
+
+  .deck > #rec-0:checked ~ .deck-rows [data-head="0"]:hover,
+  .deck > #rec-1:checked ~ .deck-rows [data-head="1"]:hover,
+  .deck > #rec-2:checked ~ .deck-rows [data-head="2"]:hover,
+  .deck > #rec-3:checked ~ .deck-rows [data-head="3"]:hover {
+    background-color: transparent;
+  }
+
+  /* The head glyph is the closed row's whole reason to be readable. On the OPEN
+     row the same line is drawn eighty pixels below it at four times the size,
+     with its labels and timestamps — so the glyph is a duplicate, and a
+     duplicate drawing of the one asset this page is arguing with is worse than
+     no drawing. It goes; the row keeps its kind and its subject. */
+  .deck > #rec-0:checked ~ .deck-rows [data-head="0"] .deck-glyph,
+  .deck > #rec-1:checked ~ .deck-rows [data-head="1"] .deck-glyph,
+  .deck > #rec-2:checked ~ .deck-rows [data-head="2"] .deck-glyph,
+  .deck > #rec-3:checked ~ .deck-rows [data-head="3"] .deck-glyph {
+    display: none;
+  }
+
+  .deck > #rec-0:focus-visible ~ .deck-rows [data-head="0"],
+  .deck > #rec-1:focus-visible ~ .deck-rows [data-head="1"],
+  .deck > #rec-2:focus-visible ~ .deck-rows [data-head="2"],
+  .deck > #rec-3:focus-visible ~ .deck-rows [data-head="3"] {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .deck-row,
+  .deck-head {
+    transition: none;
+  }
+}
+
+/* ─── THE PINNED HERO ──────────────────────────────────────────────────────
+   `docs/design/05-ENGAGEMENT.md` §1.3: a scene held by `position: sticky`
+   inside a parent 2–4× the viewport, where the parent's surplus height IS the
+   scroll budget. Ours spends ~130vh advancing the deck through four real
+   records instead of on prose.
+
+   IT IS OFF IN THREE CASES, and each one is a way the pin would make the page
+   WORSE rather than an implementation limit:
+
+   1. **Below 1024px** the deck sits under the copy rather than beside it, so
+      the scene is taller than any phone and a pin would strand its bottom half
+      off-screen with no way to reach it.
+   2. **Below 780px of viewport height** — a short laptop window, a zoomed
+      page, a browser with three toolbars — for exactly the same reason.
+   3. **Under `prefers-reduced-motion`**, where the hero is an ordinary section
+      and the deck an ordinary tab set. Every record is still one click away,
+      so the reduced route reaches all the same information; it simply does not
+      move underneath anybody who asked it not to.
+
+   In all three the page is a normal document. Nothing is hidden by the pin and
+   nothing depends on it. */
+.hero-rig {
+  position: relative;
+}
+
+@media (min-width: 1024px) and (min-height: 780px) and (prefers-reduced-motion: no-preference) {
+  .hero-rig {
+    /* 280vh gives ~1,720px of surplus, ~430px per record. Measured at 230vh
+       each record got 318px, which one flick of a trackpad clears — the scene
+       has to be slower than the reader's thumb or it reads as a glitch rather
+       than a walk. Still a fifth of the page, against the 39% the reference in
+       `05-ENGAGEMENT.md` §1.3 spends on its one pinned scene. */
+    min-height: 280vh;
+  }
+  .hero-pin {
+    position: sticky;
+    top: calc(var(--beta-notice-h, 0px) + 4rem);
+    min-height: calc(100vh - var(--beta-notice-h, 0px) - 4rem);
+    display: flex;
+    align-items: center;
   }
 }

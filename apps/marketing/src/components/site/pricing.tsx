@@ -72,10 +72,21 @@ export async function Pricing({
           </div>
         ) : null}
 
-        {/* The two wings, sized honestly with the product's own math. */}
-        <Reveal inView delay={0.05} className="mt-10 grid items-stretch gap-6 lg:grid-cols-2">
-          <BlocksCalculator tx={pricing.wings.transactional} />
-          <ContactPricer mk={pricing.wings.marketing} />
+        {/* The two wings, sized honestly with the product's own math.
+            THE TRAY IS NOT DECORATION. Both meters are `bg-card`, and a `.slab`
+            is also painted `hsl(var(--card))` — measured on the built page they
+            came back rgb(254,253,251) on rgb(254,253,251), a contrast ratio of
+            1.00 against the thing they sat on, in both themes. That is the
+            whole of "it still feels flat": there was one plane pretending to be
+            three. The pressed tray gives the cards something to be lifted out
+            of, which is what `--well` exists for. */}
+        <Reveal inView delay={0.05} className="mt-10">
+          <div className="rounded-2xl bg-well p-3 shadow-well sm:p-4">
+            <div className="grid items-stretch gap-3 sm:gap-4 lg:grid-cols-2">
+              <BlocksCalculator tx={pricing.wings.transactional} />
+              <ContactPricer mk={pricing.wings.marketing} />
+            </div>
+          </div>
         </Reveal>
 
         {/* Add-ons — per one, buyable with a plan or entirely on their own.

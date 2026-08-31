@@ -9,17 +9,27 @@ import { buttonVariants } from "@/components/ui/button";
 import { dashboardUrl, loginUrl, readSignedInHint, signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
+/**
+ * TWO LINKS, AND THE ACTION. Owner's decision, 2026-08-31, relayed with the
+ * principle behind it: *"whenever you want somebody to click on something, it
+ * should be really, really obvious. You need the person to click on this thing,
+ * and therefore you minimize other distractions from that particular area."*
+ *
+ * There were eight, and six of them were competing with `Start sending` for the
+ * same pixels. `Platform` and `Features` were anchors INTO the page the reader
+ * is already on — a nav entry that scrolls you is not a destination, and the
+ * ids still work for anyone who has the link. `Changelog`, `Blog`, `About` and
+ * `Contact` are not what a first-time visitor is deciding on; they moved to the
+ * footer, which is where a reader who has read the argument looks. Nothing was
+ * deleted: every page is still linked from the sign-off in `footer.tsx`.
+ *
+ * What is left is the one question a stranger has that this page cannot answer
+ * (`Pricing`), the one audience with its own site (`Developers`), and the door.
+ */
 const links = [
-  { href: "/#platform", label: "Platform" },
-  { href: "/#features", label: "Features" },
+  { href: "/pricing", label: "Pricing" },
   // Developers get their own site — the full pitch, code-first.
   { href: "https://developers.rootmail.io", label: "Developers" },
-  { href: "/pricing", label: "Pricing" },
-  // The freshness signal — the product ships weekly, so say so from the top nav.
-  { href: "/changelog", label: "Changelog" },
-  { href: "/blog", label: "Blog" },
-  { href: "/about", label: "About" },
-  { href: "/contact", label: "Contact" },
 ];
 
 export function Navbar() {

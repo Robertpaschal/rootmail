@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Check, Copy } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 /**
  * D7's install line. One command, one copy button.
@@ -13,11 +14,16 @@ import { Check, Copy } from "lucide-react";
  * The button is the only interactive element and it fails quietly: when the
  * clipboard is unavailable the command is still on screen, selectable, in mono.
  */
-export function CopyLine({ command }: { command: string }) {
+export function CopyLine({ command, className }: { command: string; className?: string }) {
   const [copied, setCopied] = useState(false);
 
   return (
-    <div className="flex w-full max-w-md items-center gap-3 rounded-lg border border-rule bg-card px-3 py-2.5 shadow-e1">
+    <div
+      className={cn(
+        "flex w-full max-w-md items-center gap-3 rounded-lg border border-rule bg-card px-3 py-2.5 shadow-e1",
+        className,
+      )}
+    >
       <code className="min-w-0 flex-1 truncate font-mono text-[13px]" data-fact>
         {command}
       </code>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ArrowRight, ChevronRight } from "lucide-react";
 import { CallResponse } from "@/components/site/call-response";
 import { CopyLine } from "@/components/site/copy-line";
 import { CtaButton } from "@/components/site/cta-button";
@@ -78,6 +79,19 @@ import { cn } from "@/lib/utils";
  * `/v1/proof/:id`. A lucide icon beside any of these would be decoration
  * asserting nothing, so there are none.
  */
+/**
+ * D7's figures, kept as data rather than typed into a sentence.
+ *
+ * They are the shipping values — `FREE_TX_SENDS` (3,000) and `FREE_TX_DAILY`
+ * (500) in `packages/core/src/constants.ts`. They are restated here rather than
+ * imported because this app is deliberately standalone with no backend
+ * dependency (the same boundary `apps/marketing` keeps), so the note above is
+ * the pointer: **if the free allowance changes, it changes there first and this
+ * file follows.**
+ */
+const FREE_SENDS_A_MONTH = "3,000";
+const FREE_SENDS_A_DAY = "500";
+
 const surface = [
   { name: "Send", verb: "POST", path: "/v1/messages", note: "idempotent, templated, sandboxed", doc: "messages" },
   { name: "Client domains", verb: "POST", path: "/v1/sub-tenants", note: "per-customer DKIM + verify", doc: "client-domains" },
@@ -212,11 +226,65 @@ export default function DevelopersHome() {
 
         {/* ── D6 · mono head, ruled table ─────────────────────────────────
             No display heading. Six sections have made the argument; this one
-            is a reference, and a reference opens like a reference. */}
+            is a reference, and a reference opens like a reference.
+
+            FOUR THINGS A CLOSE LOOK AT THE ROWS TURNED UP, AND WHAT EACH FIX IS.
+
+            1. THE SECTION HAD NO HEADING ELEMENT. The head was a `<p>` carrying
+               `display-s`, so the one section of this page that is a reference —
+               the section a developer arrives at from a search result — was
+               missing from the document outline entirely. It is an `<h2>` now.
+               `font-sans` keeps it looking exactly as it did: the base layer
+               puts the display face on every `h2`, and the whole point of this
+               head is that it is NOT a display heading.
+
+            2. THE ROUTE WAS THE DIMMEST TEXT IN ITS OWN ROW. §8.4 says "for a
+               developer the route IS the fact", and it shipped at 12px in
+               `text-ink-muted` — 6.43:1, the smallest and faintest thing on the
+               line — while the section title beside it ran at 14.38:1. The path
+               takes full ink at 12.5px now and the VERB keeps the muted cut, so
+               the row has an order to read it in: what it is, where it is, what
+               it does. Colour is untouched: this is a lightness step, not a hue.
+
+            3. TWELVE LINKS WITH NOTHING SAYING SO. Every row navigates into
+               `packages/docs` and the only evidence was a `hover:bg-muted` —
+               which does not exist on a touch device, where half the readers
+               are. A persistent chevron sits after each name (where the eye
+               starts, and legible at 375px where a right-rail arrow would have
+               had to be hidden); it goes brass and steps 2px right on hover or
+               keyboard focus, which is §10.2's "brass = you can act on this"
+               used on the thing that actually is one. Rows also had no
+               `focus-visible` treatment at all.
+
+            4. A 322px RIVER THROUGH THE MIDDLE OF EVERY ROW. `3fr 5fr 4fr` gave
+               the path a 453px track to hold ~155px of text, so the note landed
+               at x=838 with a third of the row empty between them. The path
+               column is a fixed `15rem` — fixed rather than `auto` because each
+               row is its OWN grid, so an `auto` track would size per row and the
+               twelve paths would no longer align — and the note follows it
+               directly. The space that is left now falls at the END of the row,
+               where it reads as a short line rather than as two islands.
+
+            AND WHAT THIS SECTION IS NOT: a pinned scene. `05-ENGAGEMENT.md`
+            §5.1's sticky rig (a `position: sticky` child in a parent 2–4× the
+            viewport, advancing through states as you scroll the surplus) is the
+            right mechanic for a NARRATIVE — one message moving through its
+            stations. It is the wrong one here, for two reasons that are not
+            taste. §8.4 already settled the shape with `01-REFERENCES.md §A.9`'s
+            catalogue test — *could a reader act on one row alone?* Yes, each row
+            is a route they can call — and a pin destroys the two things that
+            make a catalogue useful: you cannot scan twelve routes at once and
+            you cannot find-in-page for `sub-tenants`. Second, a pin costs ~2,800
+            px of scroll, and paying it would mean writing twelve request/
+            response pairs; the ones we could not read straight out of
+            `apps/api/src/routes/` we would be inventing, which is the one thing
+            this page may never do. Three thousand pixels to say less than a
+            52px row is not engagement. The scroll here does something cheaper
+            and truer: the slab settles, and every row is a link that says so. */}
         <section id="parity" className="slab settle">
           <div className="container py-14 md:py-20">
             <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-1 border-b border-rule pb-3">
-              <p className="display-s">Everything the dashboard does, the API does.</p>
+              <h2 className="display-s font-sans">Everything the dashboard does, the API does.</h2>
               <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
                 12 of them · every one documented
               </p>
@@ -226,33 +294,108 @@ export default function DevelopersHome() {
                 <Link
                   key={s.path}
                   href={`/docs/${s.doc}`}
-                  className="grid grid-cols-1 gap-x-6 gap-y-1 rounded-md px-2 py-3.5 transition-colors duration-interaction ease-interaction hover:bg-muted md:grid-cols-[minmax(0,3fr)_minmax(0,5fr)_minmax(0,4fr)] md:items-baseline"
+                  className="group grid grid-cols-1 gap-x-6 gap-y-1 rounded-md px-2 py-3.5 transition-colors duration-interaction ease-interaction hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring md:grid-cols-[minmax(0,3fr)_15rem_minmax(0,6fr)] md:items-baseline"
                 >
-                  <span className="text-[0.9375rem] font-medium">{s.name}</span>
-                  <span className="font-mono text-[12px] text-ink-muted" data-fact>
-                    <span className="inline-block w-10">{s.verb}</span>
+                  <span className="flex items-center gap-1.5 text-[0.9375rem] font-medium">
+                    {s.name}
+                    <ChevronRight
+                      aria-hidden="true"
+                      className="size-3.5 shrink-0 text-ink-muted transition-[transform,color] duration-interaction ease-interaction group-hover:translate-x-0.5 group-hover:text-brass-text group-focus-visible:translate-x-0.5 group-focus-visible:text-brass-text motion-reduce:transition-none motion-reduce:group-hover:transform-none"
+                    />
+                  </span>
+                  <span className="font-mono text-[12.5px] text-foreground" data-fact>
+                    <span className="inline-block w-10 text-ink-muted">{s.verb}</span>
                     {s.path}
                   </span>
                   <span className="text-[0.8125rem] text-ink-muted">{s.note}</span>
                 </Link>
               ))}
             </div>
+            {/* The aggregate action for this band. Twelve rows go to twelve
+                pages; a reader who wants the other sixteen had no way to ask
+                for them from here. Brass, because it is the one thing in the
+                section that is not already a row. */}
+            <div className="mt-8 flex justify-center">
+              <Link
+                href="/docs"
+                className="inline-flex min-h-11 items-center gap-1.5 text-sm font-medium text-brass-text underline-offset-4 transition-colors duration-interaction ease-interaction hover:underline"
+              >
+                Read the full reference
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </Link>
+            </div>
           </div>
         </section>
 
-        {/* ── D7 · back on the bare ground ────────────────────────────────*/}
-        <section id="start" className="container flex flex-col items-start gap-6 py-16 md:py-24">
-          <h2 className="display-l max-w-xl text-balance">Start with one line.</h2>
-          <CopyLine command="npm i @rootmail/node" />
-          <p className="font-mono text-[13px] text-ink-muted" data-fact>
-            3,000 sends a month, free. Sandbox sends never count.
+        {/* ── D7 · back on the bare ground, and the number is the headline ─
+            THE STAT WAS THE WEAKEST THING IN THE STRONGEST POSITION.
+
+            It shipped as `3,000 sends a month, free. Sandbox sends never count.`
+            set in JetBrains Mono at 13px in `text-ink-muted` — 6.98:1 — wedged
+            between the install line and the buttons, left-aligned, the fourth of
+            four things in the band and visually the last of them. Two rules were
+            being broken at once. §10.1 withdrew "mono marks every recorded
+            value" precisely because it "put the most important numbers on every
+            page into the least legible face on the page", and it is a SENTENCE,
+            which mono is no longer for at all.
+
+            So the number IS the heading now: `3,000` in the display face with
+            lining tabular figures at up to 9rem, and the sentence that used to
+            carry it demoted to its label. Presence comes from SIZE and
+            TIGHTNESS (§10 opening) — not from a new colour, and not from brass,
+            which stays on the single button below so that the loudest thing in
+            the band and the thing we want pressed are not competing.
+
+            CENTRED, AND ALONE IN ITS BAND. The section was `items-start` with
+            four stacked elements; it is centred with three, and the secondary
+            route out ("Read the docs") is a text link rather than a second
+            large outlined button, so exactly one control here reads as a button.
+
+            THE NUMBERS ARE THE REAL ONES, not marketing copy: `FREE_TX_SENDS`
+            and `FREE_TX_DAILY` in `packages/core/src/constants.ts` are 3,000 and
+            500, and the daily figure matters — it is a real burst guard, and
+            omitting it was the kind of quiet overclaim this site exists to
+            refuse. "Sandbox sends never count" is checked too:
+            `apps/api/src/routes/messages.ts:326` only consumes the quota when
+            `mode === "live"`.
+
+            The figure rises the last 14px as it enters the viewport, on
+            `animation-timeline: view()` behind `@supports` — scroll position,
+            not a clock, transform only, and 22px-low-but-complete is its worst
+            case. See `.figure-rise` in `globals.css`. */}
+        <section
+          id="start"
+          className="container flex flex-col items-center py-20 text-center md:py-28"
+        >
+          <h2 className="flex flex-col items-center">
+            <span className="display-num figure-rise block text-[clamp(4.5rem,14vw,9rem)] leading-[0.85] tracking-[-0.03em]">
+              {FREE_SENDS_A_MONTH}
+            </span>
+            <span className="display-m mt-3 font-sans font-medium">sends a month, free</span>
+          </h2>
+          <p className="mt-4 max-w-[48ch] text-balance text-[15px] text-ink-muted">
+            {FREE_SENDS_A_DAY} a day, no card.{" "}
+            <Link
+              href="/docs/sandbox"
+              className="whitespace-nowrap text-brass-text underline-offset-4 transition-colors duration-interaction ease-interaction hover:underline"
+            >
+              Sandbox sends
+            </Link>{" "}
+            never count.
           </p>
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <CtaButton label="Get an API key" size="lg" arrow />
-            <Link href="/docs" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
-              Read the docs
-            </Link>
-          </div>
+
+          {/* `text-left` because the band is centred and a command is not a
+              sentence — it is a string you are about to retype, and a centred
+              one reads as decoration. The BOX is centred; its contents are not. */}
+          <CopyLine command="npm i @rootmail/node" className="mt-10 text-left" />
+
+          <CtaButton label="Get an API key" size="lg" arrow className="mt-6" />
+          <Link
+            href="/docs"
+            className="mt-4 inline-flex min-h-11 items-center text-sm text-ink-muted underline-offset-4 transition-colors duration-interaction ease-interaction hover:text-foreground hover:underline"
+          >
+            Read the docs
+          </Link>
         </section>
       </main>
       <DevFooter />

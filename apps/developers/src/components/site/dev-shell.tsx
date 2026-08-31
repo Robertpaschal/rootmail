@@ -32,12 +32,25 @@ const MAIN_SITE = "https://rootmail.io";
  * the two buttons on the right are where that lands; brass on fourteen nav and
  * footer links would spend the whole accent on furniture.
  */
+/**
+ * TWO LINKS, BECAUSE A FIRST-TIME DEVELOPER IS DECIDING TWO THINGS.
+ *
+ * This was five: `The ledger`, `Routes`, `Docs`, `Pricing`, `Changelog`. Two of
+ * them (`The ledger`, `Routes`) were in-page anchors — a table of contents for a
+ * page that is 5,300px long and already reads in order, so they competed with
+ * the two buttons on the right for a click that had nothing to do with either.
+ * `Changelog` is a returning-reader's link and it moved to the footer, which is
+ * where a returning reader looks.
+ *
+ * What survives is what somebody who has never been here is actually choosing
+ * between: read it (`Docs`) or price it (`Pricing`) — and then the one thing we
+ * want pressed. The anchors still exist and still resolve; the sections did not
+ * move and nothing was deleted from the page. This is the same restraint the
+ * marketing nav is being cut to (Pricing · Developers · Sign in · CTA).
+ */
 const links = [
-  { href: "/#ledger", label: "The ledger" },
-  { href: "/#parity", label: "Routes" },
   { href: "/docs", label: "Docs" },
   { href: `${MAIN_SITE}/pricing`, label: "Pricing" },
-  { href: `${MAIN_SITE}/changelog`, label: "Changelog" },
 ];
 
 export async function DevNavbar() {
@@ -53,7 +66,10 @@ export async function DevNavbar() {
             developers
           </span>
         </Link>
-        <nav className="hidden items-center gap-1 lg:flex">
+        {/* `sm:flex`, not `lg:flex`. Two links fit next to the mark and the
+            buttons at 640px; the old five did not, which is why they used to
+            vanish entirely on every phone and tablet. */}
+        <nav className="hidden items-center gap-1 sm:flex">
           {links.map((l) => (
             <Link
               key={l.href}
@@ -86,36 +102,87 @@ export async function DevNavbar() {
   );
 }
 
+/**
+ * The few things a reader still needs from a sign-off. The main site is first
+ * because this is a subdomain and it used to be buried in the © line; the
+ * changelog moved down out of the nav; the rest are the documents a reader is
+ * entitled to. Five, deliberately — the same shape as the marketing footer.
+ */
+const FOOTER_LINKS = [
+  { href: MAIN_SITE, label: "rootmail.io" },
+  { href: `${MAIN_SITE}/changelog`, label: "Changelog" },
+  { href: `${MAIN_SITE}/legal/privacy`, label: "Privacy" },
+  { href: `${MAIN_SITE}/legal/terms`, label: "Terms" },
+  { href: `${MAIN_SITE}/legal/security`, label: "Security" },
+];
+
+/**
+ * THE FOOTER IS THE WORDMARK, CROPPED — the same treatment
+ * `apps/marketing/src/components/site/footer.tsx` was just rebuilt to, adapted.
+ *
+ * What it replaces here: one 13px row — `© 2026 rootmail · rootmail.io` on the
+ * left, four legal links on the right, 85px tall — which is a legal notice
+ * rather than an ending. The page's last 400px were the close and then nothing.
+ *
+ * THE MARK. `rootmail` at display scale, cropped by the bottom of the document
+ * (`-mb-[0.22em]` inside `overflow-hidden`), drawn as an OUTLINE — a
+ * `-webkit-text-stroke` on transparent text — so it reads as line art pressed
+ * into the paper rather than a faded logo. A stroke keeps its weight on both
+ * grounds where a low-opacity fill washes out. `aria-hidden` with an `sr-only`
+ * twin above it, because a logotype is a picture of a word: a screen reader
+ * should hear the name once, not a stream of letters.
+ *
+ * ONE DELIBERATE DIVERGENCE FROM MARKETING: no CTA band inside the footer.
+ * Marketing repeats its CTA pair here because the section above it is not a
+ * call to action. On this page D7 IS the call to action and it sits directly
+ * above this border — repeating it 120px later would not be "the way out,
+ * repeated", it would be the same button twice on one screen, which is exactly
+ * the distraction the close is being cleared of. The CTA still recurs at the
+ * end of the page; it just recurs in the section that owns it.
+ */
 export function DevFooter() {
   return (
-    <footer className="border-t border-rule">
-      {/* One row. The wrapper used to carry `mt-8 border-t pt-6` inside an
-          already-bordered footer with nothing above it, which drew a second
-          hairline and a 56px gap under the first — a rule separating a thing
-          from nothing. */}
-      <div className="container py-8">
-        <div className="flex flex-col justify-between gap-4 text-sm text-ink-muted sm:flex-row">
-          <p>
-            © {new Date().getFullYear()} rootmail ·{" "}
-            <Link href={MAIN_SITE} className="hover:text-foreground">
-              rootmail.io
-            </Link>
+    <footer className="relative overflow-hidden border-t border-rule bg-paper">
+      <div className="container relative z-10 flex flex-col gap-6 py-12 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <p className="text-[13px] text-ink-muted">
+            One call to send. Everything after it, on your webhook.
           </p>
-          <div className="flex flex-wrap items-center gap-4">
-            <Link href={`${MAIN_SITE}/legal/privacy`} className="hover:text-foreground">
-              Privacy
-            </Link>
-            <Link href={`${MAIN_SITE}/legal/terms`} className="hover:text-foreground">
-              Terms
-            </Link>
-            <Link href={`${MAIN_SITE}/legal/security`} className="hover:text-foreground">
-              Security
-            </Link>
-            <Link href={`${MAIN_SITE}/contact`} className="hover:text-foreground">
-              Contact
-            </Link>
-          </div>
+          <p className="font-mono text-[12px] text-ink-muted" data-fact>
+            closed beta · {new Date().getFullYear()}
+          </p>
         </div>
+
+        <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-5 gap-y-2">
+          {FOOTER_LINKS.map((l) => (
+            <Link
+              key={l.href}
+              href={l.href}
+              className="inline-flex min-h-11 items-center text-[13px] text-ink-muted underline-offset-4 transition-colors duration-interaction ease-interaction hover:text-foreground hover:underline"
+            >
+              {l.label}
+            </Link>
+          ))}
+          <a
+            href="mailto:hello@rootmail.io"
+            className="inline-flex min-h-11 items-center text-[13px] text-brass-text underline-offset-4 transition-colors duration-interaction ease-interaction hover:underline"
+          >
+            hello@rootmail.io
+          </a>
+        </nav>
+      </div>
+
+      <span className="sr-only">rootmail</span>
+      <div
+        aria-hidden="true"
+        className="pointer-events-none relative -mb-[0.22em] select-none px-4 text-center"
+      >
+        <span
+          className="block font-display text-[clamp(4rem,19vw,17rem)] font-semibold leading-[0.8] tracking-[-0.04em] text-transparent"
+          style={{ WebkitTextStroke: "1.5px hsl(var(--ink) / 0.22)" }}
+        >
+          rootmail
+        </span>
       </div>
     </footer>
   );

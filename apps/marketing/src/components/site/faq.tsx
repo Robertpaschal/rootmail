@@ -14,9 +14,30 @@ import { Plus } from "lucide-react";
  *    can promise. The question now asks what we DO, which is a question we can
  *    answer completely.
  *
- * A `<details>` list is the correct control here and it stays. What goes is the
- * card it sat in and the eyebrow badge above it: hairlines separate the rows,
- * and the summary rows are 56px tall so a thumb can hit one.
+ * A `<details name="faq">` list is the correct control here and it stays.
+ *
+ * ── WHY IT DIDN'T FEEL SMOOTH, MEASURED (2026-08-31) ────────────────────────
+ * The owner: *"questions and answers, the opening and closing… should feel
+ * smooth. Right now, it doesn't… it feels flat."* Both halves were true and
+ * both were mechanical:
+ *
+ * 1. **The timing was one tier out.** Read off the built page, the transition
+ *    was `block-size 0.1s` — `--t-interaction`, chosen on the reasoning that a
+ *    disclosure answers a click. 100ms across ~150px of panel does not read as
+ *    opening; it reads as appearing. It is `--t-narrative` on `--ease-narrative`
+ *    now, which front-loads hard: ~85% open by 245ms, then it settles. The
+ *    answer also slides down 8px as it arrives — transform only, never opacity,
+ *    so with the transition dead it is a paragraph eight pixels out of place
+ *    rather than a paragraph that is not there.
+ * 2. **Open and closed were the same surface.** A ruled row growing taller is
+ *    not a state change you can see from across the room. The list is a pressed
+ *    tray now and the open row is lifted OUT of it, on the raised ground with
+ *    elevation under it — the same tray-and-lift vocabulary as the hero deck,
+ *    the pricing meters and the defaults list, so the page reads as one system.
+ *
+ * The easing lives in `globals.css` on `.faq-item` / `::details-content`, not
+ * here, because it needs a pseudo-element. Both halves are progressive: with no
+ * `::details-content` support the panel snaps open, which is what it did before.
  */
 const faqs = [
   {
@@ -59,23 +80,24 @@ export function Faq() {
       <div className="container grid gap-10 py-14 md:py-24 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-20">
         <h2 className="display-m lg:sticky lg:top-28 lg:self-start">Questions, answered</h2>
 
-        <div className="ruled border-y border-rule">
-          {faqs.map((f) => (
-            /* `name` makes this an EXCLUSIVE accordion natively — opening one
-               closes the others, with no JavaScript and no state to get out of
-               sync. A browser without it degrades to independent toggles, which
-               is the old behaviour rather than a broken one. The smooth
-               open/close lives in globals.css on `::details-content`. */
-            <details key={f.q} name="faq" className="group faq-item">
-              <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-6 py-4 text-[0.9375rem] font-medium [&::-webkit-details-marker]:hidden">
-                {f.q}
-                <Plus className="size-4 shrink-0 text-ink-muted transition-transform duration-interaction ease-interaction group-open:rotate-45" />
-              </summary>
-              <p className="max-w-2xl pb-6 text-[0.9375rem] leading-relaxed text-ink-muted">
-                {f.a}
-              </p>
-            </details>
-          ))}
+        <div className="rounded-2xl bg-well p-2 shadow-well sm:p-3">
+          <div className="ruled">
+            {faqs.map((f) => (
+              /* `name` makes this an EXCLUSIVE accordion natively — opening one
+                 closes the others, with no JavaScript and no state to get out of
+                 sync. A browser without it degrades to independent toggles,
+                 which is the old behaviour rather than a broken one. */
+              <details key={f.q} name="faq" className="group faq-item px-4">
+                <summary className="flex min-h-14 cursor-pointer list-none items-center justify-between gap-6 py-4 text-[0.9375rem] font-medium [&::-webkit-details-marker]:hidden">
+                  {f.q}
+                  <Plus className="size-4 shrink-0 text-ink-muted transition-transform duration-interaction ease-interaction group-open:rotate-45" />
+                </summary>
+                <p className="faq-answer max-w-2xl pb-6 text-[0.9375rem] leading-relaxed text-ink-muted">
+                  {f.a}
+                </p>
+              </details>
+            ))}
+          </div>
         </div>
       </div>
     </section>

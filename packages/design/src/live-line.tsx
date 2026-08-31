@@ -48,6 +48,13 @@ export type LiveRow = {
    * a click rather than in the resting-state budget.
    */
   explain?: string;
+  /**
+   * The disclosure's own words. Defaults to "why hollow?", which is right for
+   * an inferred station and WRONG everywhere else — a severed bounce asked
+   * "why hollow?" about a bar, and a witnessed reply asked it about a filled
+   * node. The label has to be able to name what it is actually explaining.
+   */
+  explainLabel?: string;
 };
 
 export function LiveLine({
@@ -211,7 +218,7 @@ export function LiveLine({
                 onToggle={(e) => setOpenExplain(e.currentTarget.open ? i : null)}
               >
                 <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-[12.5px] text-ink-muted underline underline-offset-4 [&::-webkit-details-marker]:hidden">
-                  why hollow?
+                  {r.explainLabel ?? "why hollow?"}
                 </summary>
                 <p className="max-w-md pb-2 text-[13px] leading-relaxed text-ink-muted">
                   {r.explain}

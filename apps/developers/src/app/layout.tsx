@@ -73,7 +73,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="min-h-screen bg-background font-sans antialiased">
+      {/* No `bg-background` here. It is a Tailwind UTILITY, and the utilities layer
+          beats the `@layer base` rule in globals.css that sets the page ground to
+          `--paper-lift` — so the ground silently resolved to `--paper` and the
+          slabs sat on a 3-point step in the opposite direction from the design.
+          The comment in globals.css describing "the deeper ground the slabs sit
+          on" was documenting something that had never happened. Matches the fix
+          on the marketing site. */}
+      <body className="min-h-screen font-sans antialiased">
         <BetaNotice />
         {children}
       </body>

@@ -1,49 +1,63 @@
-"use client";
-
-import { useState } from "react";
 import { Line, type Station } from "@rootmail/design";
 
 /**
- * `<DefaultDiff>` — `docs/design/04-EXPERIENCE.md` §5.5.
+ * "What happens if you change nothing" — five defaults, both ways round.
  *
- * Five defaults this product chose against the industry's, on purpose. They used
- * to be five 45-word paragraphs: 225 words of us asserting that our choice was
- * better. A paragraph cannot show you a password reset arriving after somebody
- * unsubscribed from a newsletter. A drawing can, and the drawing is the same
- * primitive the rest of the page uses, which is what makes five small toys read
- * as one system rather than five widgets.
+ * ── WHAT CHANGED (2026-08-31), AND WHY ──────────────────────────────────────
+ * Each row used to carry a two-segment `default | here` switch, and flipping it
+ * swapped the drawing IN PLACE. The owner: *"the bottom, the default… doesn't
+ * feel well done. The design just seems like 'oh, we have a white unshaped
+ * cutting'… every single one of them has a default here. It doesn't feel well
+ * done."*
  *
- * **Flipping a row changes the DRAWING, not the prose.** The `where` line under
- * each row — the sourcing line `00-PHILOSOPHY.md §5.3` requires — does not move,
- * because it is true of our side either way.
+ * Measured on the built page, that verdict is literal. A row reported
+ * `background-color: rgba(0,0,0,0)` and `box-shadow: none` on a section ground
+ * of `rgb(254,253,251)` — **the row had no shape at all**, in either state, and
+ * the two states differed only in which SVG occupied the same undifferentiated
+ * white area. Worse for the argument: the comparison was never visible. A
+ * reader could see our default, or the industry's, but never the two together —
+ * which is the only thing the section is trying to say.
  *
- * HONESTY GUARD (the part that decides whether a row may ship). `the common
- * default` names nobody, and every row must be a STRUCTURAL fact about a
- * mechanism rather than a strawman about a company: what a single unscoped
- * suppression list does to a transactional message; what a *simulated* sandbox
- * is able to report about a message that never left; what a screenshot proves.
- * If a row cannot be stated that way, the row does not ship.
+ * ── THE SHAPE IT HAS NOW ────────────────────────────────────────────────────
+ * **Both at once, on two different planes.** The list sits in a pressed tray
+ * (`bg-well`); our answer is a card lifted OUT of the tray; the common default
+ * stays down in it. The contrast between two options is now a physical fact
+ * about the surfaces rather than a state a control has to be operated to reach,
+ * and there is no undifferentiated white area left anywhere in the section.
  *
- * THE THREE LAWS
- * 1. Resting state is all five at `here`, drawn complete, every `where` line
- *    present. `the common default` is entirely opt-in, so with no script — or a
- *    frozen frame — the section is complete and nothing on it disparages
- *    anybody. Nothing is revealed by motion because nothing moves.
- * 2. `prefers-reduced-motion` needs no branch: the switches have no transition
- *    at any setting, and the drawing simply differs.
- * 3. Row 3 is the rendering law turned on the category's founding lie: a
- *    sandbox reporting a solid `Delivered` for a message that never left. We
- *    draw it under the same law we draw our own.
+ * Three consequences worth stating, because each removes a class of bug:
+ *
+ * 1. **There is no client state, so this is a server component now.** No
+ *    `useState`, no switch, no `Show me all five`. What the reader can see does
+ *    not depend on a hydration boundary, a frozen frame, or a bundle arriving.
+ * 2. **Nothing was lost with the toggle.** Its only job was to reveal the
+ *    comparison; the comparison is permanent. A control whose entire purpose is
+ *    served better by the layout is not a capability being removed.
+ * 3. **The screenshot problem solved itself.** The old flip was opt-in because
+ *    one press turned the whole section dotted and severed, which is the most
+ *    screenshot-prone frame a page can have. Paired columns cannot produce that
+ *    frame: our side is in every crop of theirs.
+ *
+ * ── THE HONESTY GUARD (what decides whether a row may ship) ──────────────────
+ * `the common default` names nobody, and every row must be a STRUCTURAL fact
+ * about a mechanism rather than a strawman about a company: what a single
+ * unscoped suppression list does to a transactional message; what a *simulated*
+ * sandbox is able to report about a message that never left; what a screenshot
+ * proves. If a row cannot be stated that way, the row does not ship.
+ *
+ * Row 3 is the rendering law turned on the category's founding lie — a sandbox
+ * reporting a solid `Delivered` for a message that never left the building. We
+ * draw it under exactly the law we draw ourselves under.
  */
 
 type Row = {
   title: string;
-  /** The `where` line: sourcing, and true of our side regardless of the switch. */
+  /** The sourcing line `00-PHILOSOPHY.md` §5.3 requires, for OUR side. */
   where: string;
   here: Station[][];
   common: Station[][];
-  /** Only shown on the flipped side, where the drawing needs a word. */
-  commonNote?: string;
+  /** The word the other side's drawing needs. */
+  commonNote: string;
 };
 
 const rows: Row[] = [
@@ -140,86 +154,68 @@ const rows: Row[] = [
   },
 ];
 
-function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label="Show the common default instead of rootmail's"
-      onClick={onToggle}
-      className="inline-flex min-h-11 shrink-0 items-center gap-px rounded-lg border border-rule font-mono text-[12.5px]"
-    >
-      <span className={`px-2 py-1.5 ${on ? "bg-ink text-background" : "text-ink-muted"}`}>
-        default
-      </span>
-      <span className={`px-2 py-1.5 ${on ? "text-ink-muted" : "bg-ink text-background"}`}>
-        here
-      </span>
-    </button>
-  );
-}
-
 export function Promises() {
-  const [flipped, setFlipped] = useState<boolean[]>(() => rows.map(() => false));
-  const allFlipped = flipped.every(Boolean);
-
   return (
     <section className="slab settle lit">
-      <div className="container grid gap-10 py-14 md:py-24 lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-20">
+      <div className="container grid gap-10 py-14 md:py-24 lg:grid-cols-[minmax(0,4fr)_minmax(0,7fr)] lg:gap-16">
         <div>
           <div className="lg:sticky lg:top-28">
             <h2 className="display-l text-balance">What happens if you change nothing</h2>
-            <p className="lead mt-5 text-ink-muted">
-              Five defaults, set the way we would want them set for our own mail. Flip a row to see what most tools do instead.
+            <p className="lead mt-5 max-w-sm text-ink-muted">
+              Five defaults, set the way we would want them set for our own mail — beside the way
+              they are usually set.
             </p>
-            {/* One press turns the whole section dotted and severed. It is the
-                single most screenshot-prone frame on the page — which is why it
-                is opt-in and why the resting state is the opposite of it. */}
-            <button
-              type="button"
-              onClick={() => setFlipped(rows.map(() => !allFlipped))}
-              className="mt-5 inline-flex min-h-11 items-center text-[13px] font-medium underline underline-offset-4"
-            >
-              {allFlipped ? "Put them back" : "Show me all five"}
-            </button>
           </div>
         </div>
 
-        <div className="ruled border-t border-rule">
-          {rows.map((r, i) => {
-            const on = flipped[i];
-            const drawings = on ? r.common : r.here;
-            return (
-              <div key={r.title} className="py-7">
-                <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-                  <h3 className="display-s max-w-md text-balance">{r.title}</h3>
-                  <Switch
-                    on={on}
-                    onToggle={() =>
-                      setFlipped((f) => f.map((v, j) => (j === i ? !v : v)))
-                    }
-                  />
+        {/* The tray. Our five answers are lifted out of it; the common default
+            stays down in it. Depth is doing the comparing, so nothing has to be
+            switched, and the section is complete before any script runs. */}
+        <div className="rounded-2xl bg-well p-2 shadow-well sm:p-3">
+          <div className="ruled">
+            {rows.map((r) => (
+              <div key={r.title} className="px-1 py-4 sm:px-2">
+                <h3 className="display-s max-w-lg text-balance px-2">{r.title}</h3>
+
+                <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                  {/* OURS — on the raised ground, with elevation under it.
+                      `--background` moves with the plane so the line's
+                      knockout ring matches the card and not the page. */}
+                  <div
+                    className="rounded-xl bg-card p-4 shadow-e1"
+                    style={{ "--background": "var(--card)" } as React.CSSProperties}
+                  >
+                    <p className="text-[13px] font-medium">rootmail</p>
+                    <div className="mt-3 flex flex-col gap-3 overflow-x-auto pb-1">
+                      {r.here.map((d, j) => (
+                        <Line key={j} stations={d} scale="page" />
+                      ))}
+                    </div>
+                    <p className="mt-3 font-mono text-[12.5px] text-ink-muted" data-fact>
+                      {r.where}
+                    </p>
+                  </div>
+
+                  {/* THEIRS — left in the tray. No fill of its own, because the
+                      tray IS its ground; that is the whole visual argument. */}
+                  <div
+                    className="rounded-xl px-4 py-4"
+                    style={{ "--background": "var(--well)" } as React.CSSProperties}
+                  >
+                    <p className="text-[13px] text-ink-muted">the common default</p>
+                    <div className="mt-3 flex flex-col gap-3 overflow-x-auto pb-1">
+                      {r.common.map((d, j) => (
+                        <Line key={j} stations={d} scale="page" />
+                      ))}
+                    </div>
+                    <p className="mt-3 font-mono text-[12.5px] text-stopped" data-fact>
+                      {r.commonNote}
+                    </p>
+                  </div>
                 </div>
-
-                <div className="mt-5 flex flex-wrap items-start gap-x-10 gap-y-4 overflow-x-auto pb-1">
-                  {drawings.map((d, j) => (
-                    <Line key={j} stations={d} scale="page" />
-                  ))}
-                </div>
-
-                {on && r.commonNote ? (
-                  <p className="mt-2 font-mono text-[12.5px] text-stopped" data-fact>
-                    {r.commonNote}
-                  </p>
-                ) : null}
-
-                <p className="mt-3 font-mono text-[12.5px] text-ink-muted" data-fact>
-                  {r.where}
-                </p>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       </div>
     </section>

@@ -62,7 +62,11 @@ export function BetaNotice() {
           nav flush at the top, with no constant to remember to remove. */}
       <style>{":root{--beta-notice-h:37px}"}</style>
       <div className="container flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2 text-center text-sm">
-        <span className="rounded bg-secondary px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+        {/* `text-brass-text`, not `text-primary`. The brass FILL is 2.05:1 on
+            this ground at 12px/600 — measured — and `--brass-text` is the
+            darker cut that exists for exactly this: 4.80:1. The fill value is
+            for things you press, not for words you read. */}
+        <span className="rounded bg-secondary px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-brass-text">
           {full ? "Beta full" : "Closed beta"}
         </span>
 

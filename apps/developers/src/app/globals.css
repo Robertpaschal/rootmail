@@ -296,3 +296,28 @@
     transform: none;
   }
 }
+
+/* The close's figure. Same three reasons as `.settle` above — scroll position
+   rather than a clock, transform only, and the un-animated state IS the
+   finished state — but a longer travel and a later range, because this one is
+   the last thing on the page and it is the only thing in its band that is
+   allowed to move. Nothing fades: with `@supports` unmatched, JavaScript off or
+   every frame dead, the number renders at full size and full ink. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .figure-rise {
+      animation: figure-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 15% entry 80%;
+    }
+  }
+}
+
+@keyframes figure-rise {
+  from {
+    transform: translateY(14px) scale(0.955);
+  }
+  to {
+    transform: none;
+  }
+}

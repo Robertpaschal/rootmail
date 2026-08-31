@@ -27,7 +27,7 @@ import { CtaButton } from "./cta-button";
  */
 export function Cta() {
   return (
-    <section id="cta" className="slab settle slab-ink lit-edge">
+    <section id="cta" className="slab settle ground-ink lit-edge">
       <div className="container flex max-w-2xl flex-col items-start gap-6 py-20 md:py-32">
         <h2 className="display-l text-balance">
           What does the internet actually say about your email?

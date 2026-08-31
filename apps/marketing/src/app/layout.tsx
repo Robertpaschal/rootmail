@@ -82,7 +82,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           }}
         />
       </head>
-      <body className="min-h-screen bg-background font-sans antialiased">
+      {/* NO `bg-background` HERE, deliberately — it is what broke the slab
+          system without anybody noticing. `globals.css` sets the page ground to
+          `--paper-lift` in `@layer base`, and a Tailwind UTILITY on this
+          element beats a base-layer rule, so the ground silently resolved to
+          `--paper` instead. Measured before the fix: body rgb(249,246,241) —
+          `--paper` at 96% — under slabs painted `--paper-raised` at 99%. A
+          three-point step where the design calls for six, which is a
+          meaningful part of "there is no depth or layer to it". The base rule
+          also carries `text-foreground`, so nothing else is lost by dropping
+          the class. */}
+      <body className="min-h-screen font-sans antialiased">
         {/* Above everything, on every page: a visitor must never reach a Sign
             up button without knowing the door is locked.
 
