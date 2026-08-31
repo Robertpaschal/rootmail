@@ -57,6 +57,13 @@ export const rootmailPreset = {
           DEFAULT: "hsl(var(--brass))",
           text: "hsl(var(--brass-text))",
           ink: "hsl(var(--brass-ink))",
+          /* A brass SURFACE and its edge. Both are theme-aware in
+             `tokens.css` and they are NOT the same colour with an opacity on
+             it: light gets a pigment wash in the linen family, dark gets a
+             low-lightness one, because a pale tint on a near-black ground is
+             the contrast bug this system exists to prevent. */
+          tint: "hsl(var(--brass-tint))",
+          rule: "hsl(var(--brass-rule))",
         },
         paper: { DEFAULT: "hsl(var(--paper))", raised: "hsl(var(--paper-raised))" },
         rule: "hsl(var(--rule))",

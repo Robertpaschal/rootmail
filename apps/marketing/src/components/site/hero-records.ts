@@ -31,6 +31,17 @@ export type HeroRecord = {
   key: string;
   /** What kind of mail this is. Plain words — this is not a recorded value. */
   kind: string;
+  /**
+   * The VERDICT, and the only thing in this file that carries colour outside
+   * the line itself. It is what we OBSERVED about the message as a whole —
+   * a provider confirmed delivery, or the send ended — never a summary of the
+   * inferred stations. A receipt whose `Clicked` is unknown is still a
+   * delivered message, and a rail that said otherwise would be claiming an
+   * open we did not witness.
+   */
+  verdict: "witnessed" | "stopped";
+  /** The one line the index rail shows for this record. Plain words. */
+  note: string;
   id: string;
   to: string;
   subject: string;
@@ -44,6 +55,8 @@ export const HERO_RECORDS: HeroRecord[] = [
   {
     key: "receipt",
     kind: "receipt",
+    verdict: "witnessed",
+    note: "delivered · the open stays hollow",
     id: "msg_01J9Q7F2XKB4M0RVTC8H",
     to: "ana@sunsetvillas.com",
     subject: "Your booking is confirmed",
@@ -75,6 +88,8 @@ export const HERO_RECORDS: HeroRecord[] = [
   {
     key: "campaign",
     kind: "campaign",
+    verdict: "witnessed",
+    note: "marketing mail · the same pipeline",
     id: "msg_01J9QB4T7NC2X8HKD3M0",
     to: "dana@lakeshore.co",
     subject: "What changed in your dashboard this month",
@@ -103,6 +118,8 @@ export const HERO_RECORDS: HeroRecord[] = [
   {
     key: "reply",
     kind: "reply",
+    verdict: "witnessed",
+    note: "they wrote back · we saw it arrive",
     id: "msg_01J9QC8W2PD5R1TFN6Y4",
     to: "sam@northgate.co",
     subject: "Your invoice for July",
@@ -132,6 +149,8 @@ export const HERO_RECORDS: HeroRecord[] = [
   {
     key: "bounce",
     kind: "bounce",
+    verdict: "stopped",
+    note: "550 · the address is suppressed",
     id: "msg_01J9QDF6ZQ0B8VMH4K2S",
     to: "old@vantagepartners.io",
     subject: "Reset your password",

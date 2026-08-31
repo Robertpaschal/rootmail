@@ -111,53 +111,110 @@
 
      It re-points the ground tokens rather than hardcoding colours, so the
      line's knockout ring — which must use the ground token and never white —
-     keeps working inside it. */
+     keeps working inside it.
+
+     ── THE LIGHT-MODE BAND IS ITS OWN DESIGN (2026-08-31) ────────────────
+     The owner: *"in all the redesign, make sure the dark and the light mode
+     make sense. It mustn't be a complementary version of the dark mode."* They
+     named this section — `break.tsx`, "Email fails quietly" — as the one to
+     fix first, and on a light page this band is the darkest thing on the site,
+     so it was the most tempting place to just paste the dark theme in. That is
+     exactly what it used to be: `30 18% 10%` against the dark theme's own
+     `30 22% 8%`, two points apart, same hue, same near-zero chroma.
+
+     It is not that any more, and the difference is a rule rather than a nudge:
+
+     **The light page's planes BLEACH as they rise. This band's planes DEEPEN
+     IN COLOUR as they rise.** The band's raised card is `25 32% 17%` — more
+     saturated than its own ground and far more saturated than anything in the
+     dark theme, which keeps chroma flat and moves lightness. So the band reads
+     as inked board and pressed leather rather than as a screenshot of dark
+     mode, and it stops being derivable from the other half of the file.
+
+     ── AND IT RESTATES ELEVATION, WHICH IS A BUG FIX ────────────────────
+     `--elev-*` in the light theme are warm DROP shadows. On a near-black band
+     a drop shadow is invisible, so every `shadow-e1/e2/e3` in this section did
+     nothing at all — the precise failure `docs/design/` records for admin,
+     where tokens an override did not restate silently kept their page values.
+     The band now carries the emitted-light model: an inset top highlight and a
+     far brass glow. `.dark .ground-ink` restates the light ones for the same
+     reason in the other direction. */
   .ground-ink {
-    --background: 30 18% 10%;
+    --background: 26 34% 12%;
     /* The recessed plane has to be re-pointed with everything else or
        `bg-well` inside an inverted band is a LIGHT panel on a near-black
-       ground — the exact class of bug `docs/design/` records for admin, where
-       tokens the override did not restate silently kept their light values.
-       Deeper than both the band's ground (10%) and the slab it paints (14%). */
-    --well: 30 20% 7%;
-    --foreground: 40 20% 97%;
-    --ink: 40 20% 97%;
-    --ink-muted: 36 10% 64%;
-    --rule: 30 8% 22%;
-    --line-dim: 30 8% 34%;
-    --paper-raised: 30 14% 14%;
-    --card: 30 14% 14%;
+       ground. Deeper than both the band's ground and the slab it paints. */
+    --well: 24 40% 8%;
+    --foreground: 40 44% 96%;
+    --ink: 40 44% 96%;
+    --ink-muted: 34 16% 68%;
+    --rule: 28 18% 26%;
+    --line-dim: 28 14% 38%;
+    /* Rising DEEPENS the colour here — the opposite of the light page it sits
+       on, and the whole reason this band is not the dark theme in disguise. */
+    --paper-raised: 25 32% 17%;
+    --card: 25 32% 17%;
     --card-foreground: var(--ink);
-    --muted: 30 12% 16%;
+    --muted: 27 24% 18%;
     --muted-foreground: var(--ink-muted);
-    --secondary: 30 12% 16%;
+    --secondary: 27 24% 18%;
     --secondary-foreground: var(--ink);
+    --brass-tint: 34 42% 21%;
+    --brass-rule: 36 46% 42%;
     --border: var(--rule);
     --input: var(--rule);
     --ring: var(--ink);
     --primary: var(--ink);
-    --primary-foreground: 30 18% 10%;
-    /* Signals lift so they hold against the dark ground — same values the
-       dark theme uses. */
+    --primary-foreground: 26 34% 12%;
+    /* Emitted light, not drop shadow — see the note above. */
+    --elev-1: 0 1px 0 0 hsl(42 70% 90% / 0.07) inset, 0 8px 20px -12px hsl(0 0% 0% / 0.75);
+    --elev-2: 0 1px 0 0 hsl(42 70% 90% / 0.10) inset,
+              0 20px 44px -22px hsl(0 0% 0% / 0.88),
+              0 0 100px -56px hsl(var(--brass));
+    --elev-3: 0 1px 0 0 hsl(42 70% 90% / 0.15) inset,
+              0 32px 68px -26px hsl(0 0% 0% / 0.92),
+              0 0 130px -48px hsl(var(--brass));
+    --elev-well: inset 0 2px 10px -2px hsl(0 0% 0% / 0.7), 0 0 0 1px hsl(28 18% 26% / 0.9);
+    /* Signals lift so they hold against the dark ground. */
     --witnessed: 152 50% 52%;
     --acted: 35 88% 60%;
     --stopped: 2 75% 62%;
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
   }
+  /* On a dark page the band is the LIGHT one, so it takes the light theme's
+     material model whole: bleached card, linen well, and real drop shadows
+     with a warm bounce. Restating the elevation here is not optional — the
+     dark theme's `--elev-*` are inset highlights and a brass glow, which are
+     invisible on a near-white surface. */
   .dark .ground-ink {
-    --background: 40 20% 97%;
-    --well: 34 24% 90%;
-    --foreground: 30 18% 11%;
-    --ink: 30 18% 11%;
-    --ink-muted: 30 8% 40%;
-    --rule: 36 12% 86%;
-    --line-dim: 36 10% 78%;
-    --paper-raised: 40 30% 99%;
-    --card: 40 30% 99%;
-    --muted: 40 14% 93%;
-    --secondary: 40 14% 93%;
-    --primary-foreground: 40 30% 99%;
+    --background: 42 40% 97%;
+    --well: 30 36% 88%;
+    --foreground: 28 32% 11%;
+    --ink: 28 32% 11%;
+    --ink-muted: 30 12% 38%;
+    --rule: 32 24% 86%;
+    --line-dim: 34 16% 76%;
+    --paper-raised: 44 46% 99%;
+    --card: 44 46% 99%;
+    --muted: 32 32% 92%;
+    --secondary: 32 32% 92%;
+    --brass-tint: 40 76% 91%;
+    --brass-rule: 38 62% 72%;
+    --primary-foreground: 44 46% 99%;
+    --elev-1: 0 1px 1px -0.5px hsl(26 42% 18% / 0.13),
+              0 3px 8px -3px hsl(28 30% 22% / 0.10);
+    --elev-2: 0 1px 0 0 hsl(46 80% 100% / 0.85) inset,
+              0 1px 2px -1px hsl(26 44% 16% / 0.16),
+              0 10px 22px -10px hsl(28 32% 20% / 0.17),
+              0 26px 50px -30px hsl(30 26% 24% / 0.20);
+    --elev-3: 0 1px 0 0 hsl(46 84% 100% / 0.95) inset,
+              0 2px 3px -1px hsl(26 44% 16% / 0.15),
+              0 18px 38px -14px hsl(28 32% 20% / 0.20),
+              0 44px 76px -36px hsl(30 26% 24% / 0.26);
+    --elev-well: inset 0 2px 5px -2px hsl(26 46% 14% / 0.20),
+                 inset 0 -1px 0 0 hsl(46 70% 100% / 0.60),
+                 0 0 0 1px hsl(var(--rule));
     --witnessed: 152 55% 34%;
     --acted: 35 90% 45%;
     --stopped: 2 70% 45%;
@@ -230,70 +287,146 @@
   }
 }
 
-/* ---- The one-message panel — `docs/design/04-EXPERIENCE.md` §5.3 ------
-   Two axes of tabs (layer: Send/Converse/Prove; door: point-and-click/code)
-   over ONE panel, six states, and the message id is identical in all six.
+/* ---- THREE SIDES, ONE RECORD — `the-line.tsx` ------------------------
+   Send / Converse / Prove, advanced by SCROLL rather than chosen by a click.
+   The owner, 2026-08-31: *"Instead of having me click Converse or click Prove,
+   as I scroll it kind of changes. The distinction is kind of not relevant here
+   because we are trying to show them something."*
 
-   WHY THIS IS CSS AND NOT `useState`.
-   Law 1 is tested by killing the JavaScript and reading the page. A React tab
-   set fails that test twice over: five of the six panels are unreachable, and
-   the tabs become dead furniture that invites a click and does nothing. Radio
-   inputs plus sibling combinators are a real tab set with no script at all —
-   keyboard-operable, announced by a screen reader as a radio group, and
-   `display`-swapped rather than faded, so the inactive panels are out of the
-   accessibility tree and out of the word count instead of merely transparent.
+   WHY THIS IS STILL CSS AND NOT `useState`, even though a script now drives it.
+   The scroll rig can only ever set `checked` on a radio — the same thing a
+   finger does. With the JavaScript deleted this remains a real, keyboard-
+   operable tab set sitting on its first panel, and, more importantly, the
+   section's ARGUMENT does not live in the panels at all: the three claims are
+   prose in `.tri-rail`, on screen at rest, always. Only the illustration
+   rotates. A React tab set would fail that test twice over — two of the three
+   panels unreachable, and the rail dead furniture that invites a click and
+   does nothing.
 
-   The mechanism: every radio is a direct child of `.om`, in source order
-   layer-then-door, and `.om-caps` / `.om-body` follow them. `~` therefore
-   reaches from a checked layer radio, through a checked door radio, to the
-   panel that belongs to that pair. Each radio is followed IMMEDIATELY by its
-   own label, which is what lets one `input:checked + label` rule style all
-   five tabs. Reorder the children and this stops working; the order is load
-   bearing, so it is stated here rather than left to be discovered. */
+   THE ORDER OF CHILDREN IS LOAD BEARING. Every rule reaches from
+   `#side-N:checked`, a direct child of `.tri`, forward with `~`. Move a radio
+   after the columns and the section stops advancing.
+
+   ONE TRAP, PAID FOR ONCE: the panels must NOT carry a Tailwind `grid`
+   utility. Cascade layers are compared before specificity, so `.grid` in the
+   utilities layer beats `.tri [data-side-panel] { display: none }` in the
+   components layer no matter how specific the latter is, and all three panels
+   render at once. The two-door grid lives on an inner wrapper instead. */
 @layer components {
-  .om {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    gap: 0.5rem;
-  }
-  .om > .om-caps,
-  .om > .om-body {
-    flex-basis: 100%;
-  }
-  /* The door tabs sit at the far end of the same row as the layer tabs. */
-  .om > .om-door-first {
-    margin-left: auto;
+  .tri {
+    position: relative;
   }
 
-  .om [data-panel],
-  .om [data-cap] {
+  /* Visually hidden, never `display: none` — a hidden radio is not focusable,
+     and Tab plus the arrow keys reaching all three sides is the whole point. */
+  .tri > .tri-radio {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .tri-rail > li + li {
+    border-top: 1px solid hsl(var(--rule));
+  }
+
+  .tri-item {
+    position: relative;
+    border-radius: calc(var(--radius) + 0.25rem);
+    padding-left: 0.875rem;
+    transition: background-color var(--t-interaction) var(--ease-interaction);
+  }
+  .tri-item:hover {
+    background-color: hsl(var(--well) / 0.6);
+  }
+
+  /* The node is a control's mark, so it is BRASS when it is the live one —
+     `tokens.css`: brass is what you can act on, and every rail item is a
+     label for a radio. The signal colours stay reserved for what happened to
+     a message and never appear here. */
+  .tri-node {
+    display: block;
+    width: 9px;
+    height: 9px;
+    border-radius: 999px;
+    border: 2px solid hsl(var(--line-dim));
+    transition:
+      background-color var(--t-interaction) var(--ease-interaction),
+      border-color var(--t-interaction) var(--ease-interaction);
+  }
+
+  .tri [data-side-panel] {
     display: none;
   }
 
-  #om-l-send:checked ~ .om-caps [data-cap="send"],
-  #om-l-conv:checked ~ .om-caps [data-cap="conv"],
-  #om-l-prove:checked ~ .om-caps [data-cap="prove"] {
+  .tri > #side-0:checked ~ * [data-side-panel="send"],
+  .tri > #side-1:checked ~ * [data-side-panel="conv"],
+  .tri > #side-2:checked ~ * [data-side-panel="prove"] {
     display: block;
   }
 
-  #om-l-send:checked ~ #om-d-ui:checked ~ .om-body [data-panel="send-ui"],
-  #om-l-send:checked ~ #om-d-api:checked ~ .om-body [data-panel="send-api"],
-  #om-l-conv:checked ~ #om-d-ui:checked ~ .om-body [data-panel="conv-ui"],
-  #om-l-conv:checked ~ #om-d-api:checked ~ .om-body [data-panel="conv-api"],
-  #om-l-prove:checked ~ #om-d-ui:checked ~ .om-body [data-panel="prove-ui"],
-  #om-l-prove:checked ~ #om-d-api:checked ~ .om-body [data-panel="prove-api"] {
-    display: block;
+  .tri > #side-0:checked ~ * [data-side="0"],
+  .tri > #side-1:checked ~ * [data-side="1"],
+  .tri > #side-2:checked ~ * [data-side="2"] {
+    background-color: hsl(var(--well));
   }
 
-  .om > input:checked + label {
-    background-color: hsl(var(--ink));
-    color: hsl(var(--background));
-    border-color: hsl(var(--ink));
+  .tri > #side-0:checked ~ * [data-side="0"] .tri-node,
+  .tri > #side-1:checked ~ * [data-side="1"] .tri-node,
+  .tri > #side-2:checked ~ * [data-side="2"] .tri-node {
+    background-color: hsl(var(--brass));
+    border-color: hsl(var(--brass));
   }
-  .om > input:focus-visible + label {
+
+  .tri > #side-0:checked ~ * [data-side="0"] .tri-say,
+  .tri > #side-1:checked ~ * [data-side="1"] .tri-say,
+  .tri > #side-2:checked ~ * [data-side="2"] .tri-say {
+    color: hsl(var(--ink));
+  }
+
+  .tri > #side-0:focus-visible ~ * [data-side="0"],
+  .tri > #side-1:focus-visible ~ * [data-side="1"],
+  .tri > #side-2:focus-visible ~ * [data-side="2"] {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tri-item,
+  .tri-node {
+    transition: none;
+  }
+}
+
+/* ─── THE PINNED THREE-SIDES SCENE ─────────────────────────────────────────
+   Same rig, same three exemptions and the same reasons as `.hero-rig` below:
+   below 1024px the stage sits under the rail rather than beside it, below
+   780px of viewport height the scene is taller than the window, and under
+   `prefers-reduced-motion` nothing pins at all. In every one of those cases
+   the section is an ordinary document and every panel is one click away. */
+.line-rig {
+  position: relative;
+}
+
+@media (min-width: 1024px) and (min-height: 780px) and (prefers-reduced-motion: no-preference) {
+  .line-rig {
+    /* 250vh — ~1,350px of surplus at a 900px window, ~450px per side, which
+       is the same per-beat budget the hero settled on after 318px measured
+       as "one flick of a trackpad clears it". */
+    min-height: 250vh;
+  }
+  .line-pin {
+    position: sticky;
+    top: calc(var(--beta-notice-h, 0px) + 4rem);
+    min-height: calc(100vh - var(--beta-notice-h, 0px) - 4rem);
+    display: flex;
+    align-items: center;
   }
 }
 
@@ -328,6 +461,24 @@
      so the seam reads as one sheet tucked under another rather than a rule. */
   .slab + .slab {
     margin-top: calc(var(--radius-slab) * -0.75);
+  }
+
+  /* ── THE BAND WAS PAINTING ITSELF IN `--card`. ────────────────────────
+     `.ground-ink` is always applied TO a `.slab`. Both set the section's
+     background, both are single class selectors, and both live in this same
+     cascade layer — so the one declared LATER won, and that was `.slab`.
+     The five inverted sections were therefore painted in `--card`, the token
+     they re-point for the cards they carry, which means every `bg-card` panel
+     inside a band was **the identical colour as the band**: measured on the
+     ladder in `break.tsx`, the "rootmail" column and the section behind it
+     both came back rgb(57,41,29) — a contrast ratio of 1.00, the same class of
+     bug the pricing meters had against their section before the tray existed.
+
+     Two classes beat one, in either declaration order, so this cannot come
+     back by someone moving a block. The band paints its own ground and a card
+     inside it is a real plane above it. */
+  .slab.ground-ink {
+    background-color: hsl(var(--background));
   }
 
   /* `.slab-ink` WAS HERE AND IS GONE — 2026-08-31. It painted the band by
@@ -537,16 +688,22 @@
 }
 
 /* ─── THE HERO DECK ────────────────────────────────────────────────────────
-   Four records in a pressed tray, one open. See `hero-deck.tsx` for why this
-   is radio inputs and a sibling combinator rather than `useState`: the deck
-   has to be a complete, keyboard-operable tab set with the JavaScript bundle
-   deleted, and the only mechanism that is structurally incapable of failing
-   that test is one that never had any script in it.
+   Four records in a pressed tray, one open, plus a four-row index of the same
+   four records in the COPY column. See `hero-deck.tsx` for why this is radio
+   inputs and a sibling combinator rather than `useState`: the deck has to be a
+   complete, keyboard-operable tab set with the JavaScript bundle deleted, and
+   the only mechanism structurally incapable of failing that test is one that
+   never had any script in it.
+
+   `.deck` IS THE GRID (2026-08-31), not the tray. The radios were hoisted up
+   one level so a sibling combinator can reach BOTH columns — which is what
+   lets the left side respond to the scroll rig at all, with no script. They
+   are absolutely positioned, so they take no grid track.
 
    THE ORDER OF CHILDREN IS LOAD BEARING. Every rule below reaches from
-   `#rec-N:checked`, a direct child of `.deck`, forward through `~ .deck-rows`.
-   Move a radio after the rows and the deck stops opening. This is the same
-   mechanic — and the same warning — as `.om` above.
+   `#rec-N:checked`, a direct child of `.deck`, forward through `~ *`. Move a
+   radio after the columns and the deck stops opening. Same mechanic and same
+   warning as `.tri` above.
    ────────────────────────────────────────────────────────────────────────── */
 @layer components {
   .deck {
@@ -568,6 +725,19 @@
     border: 0;
   }
 
+  /* A brass halo under the tray. Decoration, so it is a pseudo-element and
+     cannot be given information to carry; it is what stops the tray reading as
+     a grey box parked on the sheet. It does not move — this scene is pinned,
+     and a `view()` timeline on a sticky element never advances. */
+  .deck-shell::before {
+    content: "";
+    position: absolute;
+    inset: -8% -6%;
+    z-index: -1;
+    pointer-events: none;
+    background: radial-gradient(60% 58% at 50% 42%, hsl(var(--brass) / 0.20), transparent 74%);
+  }
+
   .deck-rows {
     display: flex;
     flex-direction: column;
@@ -580,9 +750,31 @@
   }
 
   .deck-row {
+    position: relative;
+    /* Closed rows are not bare linen any more. At 0.4 over the tray they read
+       as four separate cards lying in it, which is what makes the open one
+       read as LIFTED rather than as the only object present. */
+    background-color: hsl(var(--card) / 0.4);
     transition:
       background-color var(--t-interaction) var(--ease-interaction),
       box-shadow var(--t-interaction) var(--ease-interaction);
+  }
+
+  /* THE VERDICT RAIL — the hero's colour distinction, and it is lawful.
+     `verdict` in `hero-records.ts` is what we OBSERVED about the message as a
+     whole: a provider confirmed delivery, or the send ended. It is never a
+     summary of the inferred stations, so a receipt whose `Clicked` is unknown
+     still gets the witnessed rail and no open is laundered into an
+     observation. The colour itself comes from a `before:bg-*` utility on the
+     row, which is a different property from everything set here. */
+  .deck-row::before {
+    content: "";
+    position: absolute;
+    left: 0.5rem;
+    top: 0.7rem;
+    bottom: 0.7rem;
+    width: 2px;
+    border-radius: 2px;
   }
 
   .deck-head {
@@ -596,37 +788,38 @@
     display: none;
   }
 
-  /* The open record is lifted OUT of the tray. `--background` is re-pointed
-     with it, because the line's knockout ring is drawn in the ground token and
-     a ring in the page's ground on a raised card is a visible halo around
-     every node — which is what the hero has been doing on `bg-well` all along. */
-  .deck > #rec-0:checked ~ .deck-rows [data-row="0"],
-  .deck > #rec-1:checked ~ .deck-rows [data-row="1"],
-  .deck > #rec-2:checked ~ .deck-rows [data-row="2"],
-  .deck > #rec-3:checked ~ .deck-rows [data-row="3"] {
+  /* The open record is lifted OUT of the tray, at `e3` — the top of the
+     elevation scale, because on this page it is the object everything else is
+     arranged around. `--background` is re-pointed with it, because the line's
+     knockout ring is drawn in the ground token and a ring in the page's ground
+     on a raised card is a visible halo around every node. */
+  .deck > #rec-0:checked ~ * [data-row="0"],
+  .deck > #rec-1:checked ~ * [data-row="1"],
+  .deck > #rec-2:checked ~ * [data-row="2"],
+  .deck > #rec-3:checked ~ * [data-row="3"] {
     --background: var(--card);
     background-color: hsl(var(--card));
-    box-shadow: var(--elev-2);
+    box-shadow: var(--elev-3);
   }
 
-  .deck > #rec-0:checked ~ .deck-rows [data-rec="0"],
-  .deck > #rec-1:checked ~ .deck-rows [data-rec="1"],
-  .deck > #rec-2:checked ~ .deck-rows [data-rec="2"],
-  .deck > #rec-3:checked ~ .deck-rows [data-rec="3"] {
+  .deck > #rec-0:checked ~ * [data-rec="0"],
+  .deck > #rec-1:checked ~ * [data-rec="1"],
+  .deck > #rec-2:checked ~ * [data-rec="2"],
+  .deck > #rec-3:checked ~ * [data-rec="3"] {
     display: block;
   }
 
-  .deck > #rec-0:checked ~ .deck-rows [data-head="0"] .deck-subject,
-  .deck > #rec-1:checked ~ .deck-rows [data-head="1"] .deck-subject,
-  .deck > #rec-2:checked ~ .deck-rows [data-head="2"] .deck-subject,
-  .deck > #rec-3:checked ~ .deck-rows [data-head="3"] .deck-subject {
+  .deck > #rec-0:checked ~ * [data-head="0"] .deck-subject,
+  .deck > #rec-1:checked ~ * [data-head="1"] .deck-subject,
+  .deck > #rec-2:checked ~ * [data-head="2"] .deck-subject,
+  .deck > #rec-3:checked ~ * [data-head="3"] .deck-subject {
     color: hsl(var(--ink));
   }
 
-  .deck > #rec-0:checked ~ .deck-rows [data-head="0"]:hover,
-  .deck > #rec-1:checked ~ .deck-rows [data-head="1"]:hover,
-  .deck > #rec-2:checked ~ .deck-rows [data-head="2"]:hover,
-  .deck > #rec-3:checked ~ .deck-rows [data-head="3"]:hover {
+  .deck > #rec-0:checked ~ * [data-head="0"]:hover,
+  .deck > #rec-1:checked ~ * [data-head="1"]:hover,
+  .deck > #rec-2:checked ~ * [data-head="2"]:hover,
+  .deck > #rec-3:checked ~ * [data-head="3"]:hover {
     background-color: transparent;
   }
 
@@ -635,25 +828,77 @@
      with its labels and timestamps — so the glyph is a duplicate, and a
      duplicate drawing of the one asset this page is arguing with is worse than
      no drawing. It goes; the row keeps its kind and its subject. */
-  .deck > #rec-0:checked ~ .deck-rows [data-head="0"] .deck-glyph,
-  .deck > #rec-1:checked ~ .deck-rows [data-head="1"] .deck-glyph,
-  .deck > #rec-2:checked ~ .deck-rows [data-head="2"] .deck-glyph,
-  .deck > #rec-3:checked ~ .deck-rows [data-head="3"] .deck-glyph {
+  .deck > #rec-0:checked ~ * [data-head="0"] .deck-glyph,
+  .deck > #rec-1:checked ~ * [data-head="1"] .deck-glyph,
+  .deck > #rec-2:checked ~ * [data-head="2"] .deck-glyph,
+  .deck > #rec-3:checked ~ * [data-head="3"] .deck-glyph {
     display: none;
   }
 
-  .deck > #rec-0:focus-visible ~ .deck-rows [data-head="0"],
-  .deck > #rec-1:focus-visible ~ .deck-rows [data-head="1"],
-  .deck > #rec-2:focus-visible ~ .deck-rows [data-head="2"],
-  .deck > #rec-3:focus-visible ~ .deck-rows [data-head="3"] {
+  .deck > #rec-0:focus-visible ~ * [data-head="0"],
+  .deck > #rec-1:focus-visible ~ * [data-head="1"],
+  .deck > #rec-2:focus-visible ~ * [data-head="2"],
+  .deck > #rec-3:focus-visible ~ * [data-head="3"] {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
+  }
+
+  /* ─── THE INDEX, in the copy column ──────────────────────────────────
+     The engagement half of the hero rework. Four rows, one per record, EVERY
+     one of them fully readable at rest — kind, a plain-words note, and a node
+     in the record's verdict colour. The mark moves as the scene advances; no
+     word ever appears. That is the difference between a contents page and a
+     reveal, and it is the line this site does not cross.
+
+     The current row is PRESSED, not lifted: it takes the well, which in the
+     light theme is the most saturated surface on the page, so "you are here"
+     is a material change rather than a highlight colour. */
+  .deck-index > li + li {
+    border-top: 1px solid hsl(var(--rule));
+  }
+
+  .deck-tick {
+    border-radius: calc(var(--radius) - 0.1875rem);
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+    transition:
+      background-color var(--t-interaction) var(--ease-interaction),
+      color var(--t-interaction) var(--ease-interaction);
+  }
+  .deck-tick:hover {
+    background-color: hsl(var(--well) / 0.55);
+  }
+
+  .deck > #rec-0:checked ~ * [data-tick="0"],
+  .deck > #rec-1:checked ~ * [data-tick="1"],
+  .deck > #rec-2:checked ~ * [data-tick="2"],
+  .deck > #rec-3:checked ~ * [data-tick="3"] {
+    background-color: hsl(var(--well));
+  }
+
+  .deck > #rec-0:checked ~ * [data-tick="0"] .deck-tick-note,
+  .deck > #rec-1:checked ~ * [data-tick="1"] .deck-tick-note,
+  .deck > #rec-2:checked ~ * [data-tick="2"] .deck-tick-note,
+  .deck > #rec-3:checked ~ * [data-tick="3"] .deck-tick-note {
+    color: hsl(var(--ink));
+  }
+
+  /* The ring is the ACTIVE row's own ground, not the page's — the active row
+     is pressed into the well, so a ring in `--card` would draw a lighter halo
+     around the node on a darker surface. Same class of mistake as the line's
+     knockout ring, which is why the token is named rather than a colour. */
+  .deck > #rec-0:checked ~ * [data-tick="0"] .deck-tick-node,
+  .deck > #rec-1:checked ~ * [data-tick="1"] .deck-tick-node,
+  .deck > #rec-2:checked ~ * [data-tick="2"] .deck-tick-node,
+  .deck > #rec-3:checked ~ * [data-tick="3"] .deck-tick-node {
+    box-shadow: 0 0 0 3px hsl(var(--well));
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .deck-row,
-  .deck-head {
+  .deck-head,
+  .deck-tick {
     transition: none;
   }
 }

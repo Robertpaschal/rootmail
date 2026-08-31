@@ -78,9 +78,6 @@ export function Footer() {
           <p className="text-[13px] text-ink-muted">
             Every email you send, and a record of what happened to it.
           </p>
-          <p className="font-mono text-[12px] text-ink-muted" data-fact>
-            closed beta · {new Date().getFullYear()}
-          </p>
         </div>
 
         <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-5 gap-y-2">

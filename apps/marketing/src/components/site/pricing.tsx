@@ -101,11 +101,15 @@ export async function Pricing({
             Take one whether or not you&apos;re on a paid plan. Pick them at checkout (one bill) or
             buy them on their own — and buying more never re-bills what you already have.
           </p>
-          <div className="mt-6 grid gap-px border border-rule bg-rule sm:grid-cols-2 lg:grid-cols-3">
+          {/* A tray with the catalogue lifted out of it, rather than a
+              hairline mesh painted in `--rule`. Same reason as the block
+              below: an item a reader can buy on its own should sit up off the
+              page, not be a cell in a grille. */}
+          <div className="mt-6 grid gap-2 rounded-2xl bg-well p-2 shadow-well sm:grid-cols-2 sm:p-3 lg:grid-cols-3">
             {addons.map((a) => {
               const onSale = a.sale_price != null;
               return (
-                <div key={a.id} className="flex h-full flex-col bg-background p-4">
+                <div key={a.id} className="flex h-full flex-col rounded-xl bg-card p-4 shadow-e1">
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium">{a.name}</p>
                     {onSale ? (
@@ -117,16 +121,22 @@ export async function Pricing({
                   <p className="mt-1 flex-1 text-xs leading-relaxed text-ink-muted">
                     {a.description}
                   </p>
-                  <p className="mt-3 font-mono text-sm" data-fact>
+                  <p className="mt-3 flex items-baseline gap-1.5">
                     {onSale ? (
                       <>
-                        <span className="font-semibold">${a.sale_price}</span>
-                        <span className="ml-1 text-ink-muted line-through">${a.unit_amount}</span>
+                        <span className={`display-num text-xl leading-none`} data-fact>
+                          ${a.sale_price}
+                        </span>
+                        <span className="font-mono text-[12.5px] text-ink-muted line-through">
+                          ${a.unit_amount}
+                        </span>
                       </>
                     ) : (
-                      <span className="font-semibold">${a.unit_amount}</span>
+                      <span className={`display-num text-xl leading-none`} data-fact>
+                        ${a.unit_amount}
+                      </span>
                     )}
-                    <span className="text-[12.5px] text-ink-muted">/mo per {a.unit}</span>
+                    <span className="font-mono text-[12.5px] text-ink-muted">/mo per {a.unit}</span>
                   </p>
                 </div>
               );
@@ -135,23 +145,72 @@ export async function Pricing({
         </Reveal>
         ) : null}
 
-        {/* The billing promises, in one strip. */}
-        <Reveal
-          inView
-          delay={0.16}
-          className="mt-14 flex flex-col items-start justify-between gap-6 border-y border-rule py-7 sm:flex-row sm:items-center"
-        >
-          <div className="max-w-2xl">
-            <p className="display-s">One bill. Never billed twice. Yearly is two months free.</p>
+        {/* ─── THE BILLING CALLOUT ───────────────────────────────────────
+            The owner: *"just before the pricing where you say 'yearly is two
+            months free' — that is supposed to be a CTA. We can design that
+            particular callout to stand out so somebody wants to click it."*
+
+            It was a `border-y` strip: two hairlines, a 1.125rem line of text,
+            and an OUTLINE button — the lowest-weight button on the page, on
+            the one row that is asking for the sale. It is a brass panel now,
+            lifted out of the section on `e2`, and the button is primary.
+
+            Brass is the correct colour by the system's own rule and not just
+            because it is warm: `tokens.css` reserves brass for **what you can
+            act on**, and the signal colours for what happened to a message. A
+            panel whose entire job is to be pressed is the definition of the
+            first. It is also the only brass SURFACE on the homepage, which is
+            what makes it the one thing on a long page that reads as an offer.
+
+            The saving is stated as a figure, not as a bare adjective, and the
+            three promises stay: one bill, never billed twice, and the yearly
+            terms — none of them is dropped to make the panel tidier. */}
+        <Reveal inView delay={0.16} className="mt-14">
+          <div className="overflow-hidden rounded-2xl border border-brass-rule bg-brass-tint shadow-e2">
+            <div className="flex flex-col items-start justify-between gap-6 p-6 sm:flex-row sm:items-center sm:p-8">
+              <div className="max-w-xl">
+                <p className="display-m text-balance">Pay yearly, get two months free.</p>
+                <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-ink-muted">
+                  One bill for both wings and every add-on. Adding capacity never re-bills what you
+                  already have, and nothing is charged twice.
+                </p>
+              </div>
+              <CtaButton
+                label="Start free"
+                size="lg"
+                arrow
+                className="shrink-0 whitespace-nowrap"
+              />
+            </div>
           </div>
-          <CtaButton label="Start free" variant="outline" className="shrink-0 whitespace-nowrap" />
         </Reveal>
 
-        <Reveal inView delay={0.2} className="mt-10">
-          <p className="display-s">Every account includes</p>
-          <ul className="mt-4 grid gap-x-10 font-mono text-[12.5px] text-ink-muted sm:grid-cols-2 lg:grid-cols-3">
+        {/* ─── EVERY ACCOUNT INCLUDES ────────────────────────────────────
+            *"'every account includes' and the add-ons — those two places can
+            be made more pronounced and better."*
+
+            Two things were wrong and one of them was a rule violation. The
+            six items were set in 12.5px MONO, and `00-PHILOSOPHY.md` §10.1 is
+            explicit that mono marks ids, timestamps and sourcing lines — a
+            recorded value. "AI assistant" is not a recorded value; setting it
+            in the ledger face told the reader it was one, in the smallest type
+            on the page. They are in the UI face at 14px now.
+
+            The second was weight: six hairline rows under a `display-s` were
+            the quietest block in the section, sitting directly under the loudest
+            one. It is a pressed tray with six cards in it now — the same
+            tray-and-lift vocabulary as the meters above it, so the floor every
+            account shares reads as a floor rather than as a footnote. */}
+        <Reveal inView delay={0.2} className="mt-14">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+            <h3 className="display-s">Every account includes</h3>
+            <p className="text-[13px] text-ink-muted">
+              on the free plan too — the wings price what you use, not what you can reach
+            </p>
+          </div>
+          <ul className="mt-4 grid gap-2 rounded-2xl bg-well p-2 shadow-well sm:grid-cols-2 sm:p-3 lg:grid-cols-3">
             {baseline.map((f) => (
-              <li key={f} className="border-t border-rule py-2.5" data-fact>
+              <li key={f} className="rounded-xl bg-card px-4 py-3 text-sm shadow-e1">
                 {f}
               </li>
             ))}

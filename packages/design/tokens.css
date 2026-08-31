@@ -56,19 +56,45 @@
   --track-heading: -0.02em;
   --track-body: -0.008em;
 
-  /* ---- Ground and ink — warm ivory, warm ink ------------------------- */
-  --paper: 36 38% 96%;
-  --paper-raised: 40 50% 99%;
-  --paper-lift: 34 30% 93%;
+  /* ---- Ground and ink — LIGHT MODE IS ITS OWN DESIGN -----------------
+     Read this before changing a value, because the light theme is not the
+     dark theme with the lightnesses swapped and must not become one.
+
+     THE TWO THEMES USE TWO DIFFERENT PHYSICAL MODELS.
+
+     Dark mode's depth is EMITTED LIGHT. A raised plane is lighter, it carries
+     an inset top highlight, and distance is a wide brass glow. Chroma barely
+     moves between planes; lightness carries everything.
+
+     Light mode's depth is MATERIAL — pressed linen and bleached paper. Moving
+     UP a plane loses colour; moving DOWN gains it. The recessed well is the
+     most saturated surface on a light page (linen, 36% chroma), the page is
+     mid (ivory, 32%), and a raised card is nearly desaturated (bleached, and
+     the only surface that goes cool-white). So on a light page you can tell
+     two planes apart with the lightness difference covered up, which was never
+     true of the old ramp — it was three shades of one colour eight points
+     apart. Nothing about this is derivable from the dark half of the file.
+     ------------------------------------------------------------------- */
+  --paper: 36 32% 96%;
+  /* Bleached: the least coloured surface in the light theme, and the only one
+     whose hue leaves the ivory family. It reads as the sheet you write on. */
+  --paper-raised: 44 46% 99%;
+  --paper-lift: 32 26% 92%;
   /* A RECESSED surface — for a panel that sits INSIDE a section and must read
      as a different plane, not the same one a shade off. Panels were using
      `--card`, which on a card-backed section made them the identical colour:
      measured 1.00 contrast against their own section, i.e. invisible as a
-     panel. A well is deeper than whatever carries it, and it is ringed. */
-  --well: 34 26% 90%;
+     panel. A well is deeper than whatever carries it, and it is ringed.
+     In light it is also the MOST SATURATED plane — linen under the paper. */
+  --well: 30 36% 88%;
   --ink: 28 32% 11%;
-  --ink-muted: 30 12% 40%;
-  --rule: 34 22% 87%;
+  /* 38%, not 40%. The light theme's recessed plane gained chroma and lost two
+     points of lightness when it became linen, and muted text ON that plane
+     measured 4.29:1 — an AA failure, and the tray is where half the small text
+     on the homepage lives (the defaults list, the features table, the pricing
+     meters). At 38% it is 4.63:1 on the tray and 5.92:1 on a card. */
+  --ink-muted: 30 12% 38%;
+  --rule: 32 24% 86%;
 
   /* ---- Brass: the one thing you can press ---------------------------- */
   --brass: 38 72% 52%;
@@ -76,6 +102,12 @@
      3.1:1 against paper, which fails AA for anything small. */
   --brass-text: 33 78% 33%;
   --brass-ink: 30 60% 8%;
+  /* A brass SURFACE. Light gets a real pigment wash — brass belongs to the
+     linen family here, so a brass panel is a warmer sheet rather than a
+     transparent overlay. Dark gets a low-lightness wash, because a pale tint
+     on a near-black ground is the contrast bug this system exists to stop. */
+  --brass-tint: 40 76% 91%;
+  --brass-rule: 38 62% 72%;
 
   /* ---- State: what happened to a message ----------------------------- */
   --witnessed: 145 45% 32%;
@@ -105,17 +137,35 @@
      big card rather than as a sheet. */
   --radius-slab: 2rem;
 
-  /* ---- Elevation: light from above, glow from far away --------------- */
-  --elev-1: 0 1px 2px -1px hsl(28 30% 20% / 0.10), 0 2px 6px -2px hsl(28 30% 20% / 0.08);
-  --elev-2: 0 1px 0 0 hsl(40 60% 100% / 0.7) inset,
-            0 8px 20px -10px hsl(28 30% 20% / 0.16),
-            0 24px 48px -28px hsl(28 30% 20% / 0.22);
+  /* ---- Elevation, LIGHT: three sources, not one -----------------------
+     The dark theme's depth is one glow. The light theme's is a lit room, and
+     every level names all three of its sources in the same order:
+
+       1. a CONTACT shadow  — tight, warm umber, high alpha, 1–3px
+       2. an AMBIENT shadow — wide, soft, and dropping in saturation as it
+          spreads, the way a real penumbra does
+       3. a BOUNCE          — a warm highlight along the top edge, from the
+          paper the card is lying on, not from a light above it
+
+     The old values were two neutral drop shadows at 0.08–0.22 on every level,
+     so a card at e1 and a card at e3 differed only in blur radius. */
+  --elev-1: 0 1px 1px -0.5px hsl(26 42% 18% / 0.13),
+            0 3px 8px -3px hsl(28 30% 22% / 0.10);
+  --elev-2: 0 1px 0 0 hsl(46 80% 100% / 0.85) inset,
+            0 1px 2px -1px hsl(26 44% 16% / 0.16),
+            0 10px 22px -10px hsl(28 32% 20% / 0.17),
+            0 26px 50px -30px hsl(30 26% 24% / 0.20);
   /* A well is pressed IN, so its depth is an inset shadow plus a ring — the
-     opposite of a card, which is lifted out. */
-  --elev-well: inset 0 2px 6px -2px hsl(28 40% 12% / 0.22), 0 0 0 1px hsl(var(--rule));
-  --elev-3: 0 1px 0 0 hsl(40 60% 100% / 0.9) inset,
-            0 16px 36px -14px hsl(28 30% 20% / 0.20),
-            0 40px 72px -34px hsl(28 30% 20% / 0.28);
+     opposite of a card, which is lifted out. The bottom inset highlight is the
+     linen catching light where the recess ends; without it a pressed tray on a
+     light page reads as a flat grey rectangle. */
+  --elev-well: inset 0 2px 5px -2px hsl(26 46% 14% / 0.20),
+               inset 0 -1px 0 0 hsl(46 70% 100% / 0.60),
+               0 0 0 1px hsl(var(--rule));
+  --elev-3: 0 1px 0 0 hsl(46 84% 100% / 0.95) inset,
+            0 2px 3px -1px hsl(26 44% 16% / 0.15),
+            0 18px 38px -14px hsl(28 32% 20% / 0.20),
+            0 44px 76px -36px hsl(30 26% 24% / 0.26);
 
   --ease-interaction: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --ease-narrative: cubic-bezier(0.32, 0.72, 0, 1);
@@ -132,11 +182,13 @@
   /* Primary is BRASS now, not ink: primary is the thing you press. */
   --primary: var(--brass);
   --primary-foreground: var(--brass-ink);
-  --secondary: 34 30% 93%;
+  /* Light: a secondary surface is LINEN-side, so it takes chroma rather than
+     just losing lightness — same rule as --well. */
+  --secondary: 32 32% 92%;
   --secondary-foreground: var(--ink);
-  --muted: 34 30% 93%;
+  --muted: 32 32% 92%;
   --muted-foreground: var(--ink-muted);
-  --accent: 36 40% 90%;
+  --accent: 38 46% 90%;
   --accent-foreground: var(--ink);
   --destructive: var(--stopped);
   --destructive-foreground: 40 50% 99%;
@@ -159,6 +211,11 @@
   --brass: 38 72% 58%;
   --brass-text: 38 78% 64%;
   --brass-ink: 30 60% 8%;
+  /* Dark's brass surface is a LOW-LIGHTNESS wash, not a pale pigment: the
+     light theme's 91% tint on a near-black ground is the exact contrast bug
+     `docs/design/` records for admin. */
+  --brass-tint: 36 44% 15%;
+  --brass-rule: 38 46% 34%;
 
   /* Signals lift in lightness so they hold against a dark ground; tints become
      low-alpha washes rather than pale fills — a `-100` tint on a dark ground is

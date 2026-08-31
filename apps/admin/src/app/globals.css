@@ -72,6 +72,14 @@
   --witnessed: 152 50% 52%;
   --acted: 35 88% 60%;
   --stopped: 2 75% 62%;
+  /* Restated because admin overrides the ground on bare `:root` and never sets
+     `.dark` — so any token this block does not repeat keeps its LIGHT value on a
+     near-black page. `--brass-tint` at its light cut is 91% lightness, which
+     would be a near-white slab here. Not a live bug today (nothing in admin
+     paints a brass surface yet) but this is the trap that already cost us
+     `--brass-text` at 3.48:1 and three invisible elevations. */
+  --brass-tint: 36 44% 15%;
+  --brass-rule: 38 46% 34%;
   --witnessed-tint: 152 40% 15%;
   --acted-tint: 35 60% 15%;
   --stopped-tint: 2 50% 17%;
