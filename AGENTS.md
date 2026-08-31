@@ -62,11 +62,11 @@ the industry's founding lie, in our own product.
 
 ---
 
-## Where things stand (2026-08-28)
+## Where things stand (2026-08-31)
 
-- Branch `main`, HEAD **`f6c3ca7`**, working tree clean.
-- **Production is running `f6c3ca7`** on all five services. All four public
-  surfaces return 200: `rootmail.io`, `app.rootmail.io`, `developers.rootmail.io`,
+- Branch `main`, HEAD **`35afa58`** plus this doc commit.
+- **Production runs this code** on all five services. All four public surfaces
+  return 200: `rootmail.io`, `app.rootmail.io`, `developers.rootmail.io`,
   `internal.rootmail.io`. API `/health` 200, 0 restarts.
 - Gates green: `pnpm typecheck` 13/13 · `pnpm test` 4/4 suites (30 API incl.
   tenant isolation, 27 db) · `pnpm build` 6/6 · `design-audit` exits 0.
@@ -74,12 +74,21 @@ the industry's founding lie, in our own product.
   that host builds by image name rather than pulling (see `CLAUDE.md`).
 
 ### Recently done
-A cohesive design system ("Ledger Luminous": Fraunces for headlines and figures,
+The design system ("Ledger Luminous": Fraunces for headlines and figures,
 Schibsted Grotesk for UI, JetBrains Mono for recorded values, brass accent,
-`--radius: 1rem`, depth as a token) applied across all four apps from one file.
-A live DNS auditor at `/check`. And a real bug fixed: the docs promised an
-`Idempotency-Key` header the API never read, so anyone not using our SDK got a
-duplicate email on every retry, silently.
+`--radius: 1rem`, depth as a token) across all four apps from one file. A live
+DNS auditor at `/check`. Light mode rebuilt as its own design (§11). The public
+sites reworked around scroll-driven sticky scenes rather than click-to-reveal
+tabs, a cropped outline wordmark in place of a 21-link footer, and a generated
+social card — there had been none, so every shared link rendered as bare text.
+
+Real bugs fixed along the way, all of which had shipped: the docs promised an
+`Idempotency-Key` header the API never read (a duplicate email on every retry
+for anyone not using our SDK); every inverted band painted itself in `--card`,
+the token it re-points for its own cards, at 1.00 contrast; a scroll driver
+looked up an element by an id that element did not have, so one scene never
+advanced, silently; and the developer site's sub-tenancy tabs governed one of
+four panels, leaving the code sample on a different customer's domain.
 
 ### Known open items
 1. ~12 lower-traffic dashboard routes still generic tables (`/analytics`,
@@ -121,7 +130,7 @@ reasoning for each rule is in it.
 | file | what |
 |---|---|
 | `CLAUDE.md` | full working notes + the gotcha list. Read it. |
-| `docs/design/00-PHILOSOPHY.md` | the design constitution. **§10 supersedes rules still written in §5 and §9** — do not follow those from memory. |
+| `docs/design/00-PHILOSOPHY.md` | the design constitution. **§10 supersedes rules still written in §5 and §9, and §11 is newer than both** — do not follow the earlier sections from memory. §11: light mode is its own design, not an inversion of dark; the two halves of `tokens.css` are supposed to disagree. |
 | `docs/design/01-REFERENCES.md`, `02-AUDIT.md`, `04-EXPERIENCE.md`, `05-ENGAGEMENT.md` | the measured evidence behind the design decisions |
 | `docs/deploy-runbook.md` | hosts, commands, and the two traps that have bitten |
 | `docs/COLLAB.md` | channel to the positioning agent — append when you change what we can honestly claim |

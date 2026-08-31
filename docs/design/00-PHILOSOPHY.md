@@ -521,3 +521,54 @@ its actual insight — that a 1px ring often beats a soft drop — survives as
 visible: the preview pane freezes `requestAnimationFrame` *and* `setTimeout`,
 observed repeatedly. The rendering law stands. No fake proof. Every number keeps
 its window and method — `<Metric>` still requires both by type.
+
+---
+
+## 11. Light is a design, not an inversion (2026-08-31)
+
+**Owner:** *"in all the redesign make sure the dark and the light mode make
+sense. It mustn't be a complementary version of the dark mode. Light mode can be
+a uniquely innovative colour choice or combination and style, completely
+distinct from what we did for the dark version."*
+
+We had built light as dark, mirrored — the same ramp with the lightness values
+flipped. That is why it read as the weaker of the two: it was derivable, so it
+had no character of its own.
+
+**The rule that replaced it: dark's depth is emitted light; light's depth is
+material.**
+
+- **Dark.** Rising a plane gains lightness, carries an inset top highlight, and
+  distance is a far brass glow. Chroma stays flat.
+- **Light.** Rising a plane **loses colour** and falling **gains** it. The
+  recessed well is the most saturated surface on the page (linen); the page sits
+  mid; a raised card is nearly desaturated and the only surface that leaves the
+  ivory family (bleached). Elevation is three named sources — a tight warm-umber
+  contact shadow, a wide ambient that loses saturation as it spreads, and a warm
+  bounce from the paper below.
+
+The test: **cover the lightness and you can still tell two light planes apart.**
+That was never true of the old ramp, which was three shades of one colour eight
+points from each other.
+
+**11.1 — Do not "harmonise" the themes.** They are supposed to disagree. An
+inverted band in light is inked board and pressed leather at real chroma, not a
+screenshot of the dark theme pasted into a light page. If a future pass makes
+the two halves of `tokens.css` derivable from each other again, it has undone
+this.
+
+**11.2 — A ground override must restate every token it depends on.** This has
+now cost us four separate bugs: `--brass-text` at 3.48:1 in admin, three
+invisible elevations in admin, `.slab-ink` at 3.02:1 on the homepage, and
+`.ground-ink` shipping light drop shadows onto a near-black band. Any selector
+that re-points `--background` must also re-point `--well`, `--card`, `--ink`,
+`--ink-muted` and `--elev-*`, or those keep the values of the ground it is
+sitting on top of.
+
+**11.3 — Specificity is part of the system.** `.ground-ink` is always applied to
+a `.slab`. Both are single-class selectors setting the section background in the
+same layer, so the later declaration won — and every inverted band was painted
+in `--card`, the token it re-points for the cards it carries, at a measured
+contrast of **1.00** against its own panels. It is `.slab.ground-ink` now: two
+classes beat one in either order, so it cannot come back when somebody moves a
+block.

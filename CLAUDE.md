@@ -239,6 +239,14 @@ run this before anything else — those are the tests that exist.
 Amendments and §10 The austerity correction*, before changing anything visual.
 The one-line version: email is a chain of custody and the enemy is the black box.
 
+**§11 is the newest amendment: light is a design, not an inversion of dark.**
+Dark's depth is emitted light; light's depth is material — in light, rising a
+plane LOSES colour and falling gains it. The two halves of `tokens.css` are
+supposed to disagree; if a pass makes them derivable from each other again, it
+has undone this. §11.2 and §11.3 record the two traps that cost four bugs: a
+ground override must restate every token it depends on, and `.ground-ink` must
+stay `.slab.ground-ink` because two classes beat one.
+
 **§10 reversed several §5/§9 rules — do not restore them from memory.** Radius is
 `1rem` with a full scale (not `0.25rem`); depth is a token (`shadow-e1/e2/e3`),
 not banned; type is **three** roles — Fraunces for headlines *and figures*,
