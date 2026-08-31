@@ -107,7 +107,7 @@ export function RateScale({
     <div>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h3 className="text-sm font-medium capitalize">{cfg.noun}</h3>
-        <p className="font-mono text-[11px] text-muted-foreground" data-fact>
+        <p className="font-mono text-[12.5px] text-muted-foreground" data-fact>
           yours: {fmt(start)} · {windowDays}d · {cfg.denominator} · provider feedback
         </p>
       </div>

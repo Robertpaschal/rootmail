@@ -198,7 +198,7 @@ function EndpointCard({ endpoint }: { endpoint: WebhookEndpoint }) {
         </div>
         <div className="flex flex-wrap gap-1">
           {endpoint.events.map((ev) => (
-            <Badge key={ev} variant="secondary" className="font-mono text-[10px]">
+            <Badge key={ev} variant="secondary" className="font-mono text-[12px]">
               {ev}
             </Badge>
           ))}
@@ -229,7 +229,7 @@ function EndpointCard({ endpoint }: { endpoint: WebhookEndpoint }) {
                   <li key={d.id} className="flex items-center justify-between gap-2 px-3 py-2">
                     <span className="font-mono">{d.event}</span>
                     <span className="flex items-center gap-2">
-                      <Badge variant={d.status === "success" ? "success" : "destructive"} className="text-[10px]">
+                      <Badge variant={d.status === "success" ? "success" : "destructive"} className="text-[12px]">
                         {d.status}
                         {d.response_status ? ` ${d.response_status}` : ""}
                       </Badge>

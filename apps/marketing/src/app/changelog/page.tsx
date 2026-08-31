@@ -61,7 +61,7 @@ export default async function ChangelogPage() {
         <section className="container py-14 md:py-20">
           <div className="max-w-3xl">
             <h1 className="display-xl text-balance">Everything we have shipped, dated.</h1>
-            <p className="mt-6 font-mono text-[11px] text-ink-muted" data-fact>
+            <p className="mt-6 font-mono text-[12.5px] text-ink-muted" data-fact>
               {entries.length} releases · {changeCount} changes · newest first
               {latest ? ` · last ${formatDate(latest)}` : ""}
             </p>
@@ -83,7 +83,7 @@ export default async function ChangelogPage() {
                         appears on every row is a border. */}
                     {newYear ? (
                       <p
-                        className={`pb-6 font-mono text-[11px] uppercase tracking-wide text-ink-muted ${
+                        className={`pb-6 font-mono text-[12.5px] uppercase tracking-wide text-ink-muted ${
                           i === 0 ? "" : "border-t border-rule pt-6"
                         }`}
                         data-fact
@@ -96,7 +96,7 @@ export default async function ChangelogPage() {
                       <div className="md:pt-0.5">
                         <time
                           dateTime={entry.date}
-                          className="font-mono text-[11px] text-ink-muted"
+                          className="font-mono text-[12.5px] text-ink-muted"
                           data-fact
                         >
                           {formatDate(entry.date)}
@@ -119,7 +119,7 @@ export default async function ChangelogPage() {
                               className="grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[4.5rem_1fr]"
                             >
                               <span
-                                className="font-mono text-[11px] uppercase tracking-wide text-ink-muted"
+                                className="font-mono text-[12.5px] uppercase tracking-wide text-ink-muted"
                                 data-fact
                               >
                                 {c.kind}

@@ -134,7 +134,7 @@ export function StateBadge({ tone, children }: { tone: "ok" | "warn" | "muted"; 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold",
+        "inline-flex items-center rounded-full px-2 py-0.5 text-[12.5px] font-semibold",
         tone === "ok" && "bg-witnessed/15 text-witnessed",
         tone === "warn" && "bg-acted/15 text-acted",
         tone === "muted" && "bg-muted text-muted-foreground",

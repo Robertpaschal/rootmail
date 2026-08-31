@@ -38,14 +38,14 @@ import { cn } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 function Screen({ path, children }: { path: string; children: ReactNode }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-rule bg-card shadow-e1">
+    <div className="overflow-hidden rounded-lg bg-well shadow-well">
       <div className="flex items-center gap-2 border-b bg-secondary/40 px-3 py-2.5">
         <span className="flex gap-1.5" aria-hidden="true">
           <span className="size-2 rounded-full bg-foreground/20" />
           <span className="size-2 rounded-full bg-foreground/20" />
           <span className="size-2 rounded-full bg-foreground/20" />
         </span>
-        <span className="mx-auto rounded-md bg-background/70 px-3 py-0.5 font-mono text-[10px] text-muted-foreground">
+        <span className="mx-auto rounded-md bg-background/70 px-3 py-0.5 font-mono text-[12px] text-muted-foreground">
           {path}
         </span>
       </div>
@@ -63,7 +63,7 @@ function Pane({ icon: Icon, title, children, className }: {
 }) {
   return (
     <div className={cn("rounded-lg border border-rule bg-background/60 p-3", className)}>
-      <p className="mb-2.5 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+      <p className="mb-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold uppercase tracking-wide text-muted-foreground">
         <Icon className="size-3.5" />
         {title}
       </p>
@@ -130,7 +130,7 @@ function StudioScene({ active }: { active: boolean }) {
         <Pane icon={Type} title="Blocks" className="hidden sm:block">
           <div className="space-y-1.5">
             {["Text", "Image", "Button", "Divider", "Columns"].map((t) => (
-              <div key={t} className="rounded-md bg-secondary/70 px-2 py-1.5 text-[11px]">
+              <div key={t} className="rounded-md bg-secondary/70 px-2 py-1.5 text-[12.5px]">
                 {t}
               </div>
             ))}
@@ -188,7 +188,7 @@ function AudienceScene({ active }: { active: boolean }) {
                 match ? "bg-background" : "bg-muted/30 opacity-45",
               )}
             >
-              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-[10px] font-semibold text-primary">
+              <span className="grid size-7 shrink-0 place-items-center rounded-full bg-primary/10 text-[12px] font-semibold text-primary">
                 {p.name[0]}
               </span>
               <span className="font-medium">{p.name}</span>
@@ -196,7 +196,7 @@ function AudienceScene({ active }: { active: boolean }) {
                 {p.tags.map((t) => (
                   <span
                     key={t}
-                    className="rounded-full bg-secondary px-2 py-0.5 text-[10px] text-muted-foreground"
+                    className="rounded-full bg-secondary px-2 py-0.5 text-[12px] text-muted-foreground"
                   >
                     {t}
                   </span>
@@ -243,7 +243,7 @@ function DeliveryScene({ active }: { active: boolean }) {
                   <span className={cn("font-medium", b.inferred && "text-muted-foreground")}>
                     {b.label}
                     {b.inferred ? (
-                      <>{" "}<span className="font-mono text-[10px]">inferred</span></>
+                      <>{" "}<span className="font-mono text-[12px]">inferred</span></>
                     ) : null}
                   </span>
                   <span className="tabular-nums text-muted-foreground">{b.n}</span>
@@ -265,12 +265,12 @@ function DeliveryScene({ active }: { active: boolean }) {
               </span>
               <span className="pb-1 text-xs text-muted-foreground">/ 100</span>
             </div>
-            <p className="mt-1 font-mono text-[10px] leading-snug text-muted-foreground">
+            <p className="mt-1 font-mono text-[12px] leading-snug text-muted-foreground">
               7d · real outcomes · warn at 0.1% complaints
             </p>
           </Pane>
           <Pane icon={Check} title="Your domain">
-            <div className="space-y-1.5 text-[11px]">
+            <div className="space-y-1.5 text-[12.5px]">
               {["SPF", "DKIM", "DMARC"].map((r) => (
                 <p key={r} className="flex items-center gap-1.5">
                   <Check className="size-3 text-witnessed" /> {r} verified
@@ -305,7 +305,7 @@ function RepliesScene({ active }: { active: boolean }) {
               )}
             >
               {n}
-              <span className="mt-0.5 block truncate text-[10px] font-normal opacity-70">
+              <span className="mt-0.5 block truncate text-[12px] font-normal opacity-70">
                 Re: Your order is on…
               </span>
             </div>
@@ -314,7 +314,7 @@ function RepliesScene({ active }: { active: boolean }) {
         <div className="space-y-3">
           <div className="ml-auto max-w-[85%] rounded-2xl rounded-br-sm bg-primary px-3.5 py-2.5 text-sm text-primary-foreground">
             Your order is on its way — track it here.
-            <span className="mt-1 block text-[10px] opacity-70">You · sent Tuesday</span>
+            <span className="mt-1 block text-[12px] opacity-70">You · sent Tuesday</span>
           </div>
           <div
             className={cn(
@@ -327,7 +327,7 @@ function RepliesScene({ active }: { active: boolean }) {
               aria-hidden="true"
             />
             Can I change the delivery address?
-            <span className="mt-1 block text-[10px] text-muted-foreground">A. Bello · just now</span>
+            <span className="mt-1 block text-[12px] text-muted-foreground">A. Bello · just now</span>
           </div>
           <div className="flex items-center gap-2 pl-1 text-xs text-muted-foreground">
             <span className="flex gap-1" aria-hidden="true">
@@ -420,7 +420,7 @@ export function ProductTour() {
       <div className="mx-auto max-w-4xl">
         <Carousel slides={slides} label="A tour of rootmail" interval={7000} />
       </div>
-      <p className="mx-auto mt-5 max-w-4xl font-mono text-[11px] text-muted-foreground" data-fact>
+      <p className="mx-auto mt-5 max-w-4xl font-mono text-[12.5px] text-muted-foreground" data-fact>
         <Users className="mr-1.5 inline size-3 align-[-1px]" />
         illustrative sample data · drawn in the page, not screenshotted · no real contacts
       </p>

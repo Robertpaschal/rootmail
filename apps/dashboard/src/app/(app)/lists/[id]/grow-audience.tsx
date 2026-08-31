@@ -81,7 +81,7 @@ function embedSnippet(endpoint: string, listId: string): string {
 function Stat({ label, value, tone, icon }: { label: string; value: string; tone?: string; icon?: React.ReactNode }) {
   return (
     <div className="rounded-lg border p-3">
-      <p className="flex items-center gap-1 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+      <p className="flex items-center gap-1 text-[12.5px] font-medium uppercase tracking-wide text-muted-foreground">
         {icon} {label}
       </p>
       <p className={cn("mt-0.5 text-xl font-bold tabular-nums", tone)}>{value}</p>
@@ -189,7 +189,7 @@ export function GrowAudience({
 
             {/* Diverging chart: joins up, leaves down, from a shared zero line */}
             <div className="rounded-lg border p-3">
-              <div className="mb-2 flex items-center justify-between text-[11px] text-muted-foreground">
+              <div className="mb-2 flex items-center justify-between text-[12.5px] text-muted-foreground">
                 <span className="flex items-center gap-3">
                   <span className="flex items-center gap-1"><span className="size-2 rounded-sm bg-witnessed/80" /> Joined</span>
                   <span className="flex items-center gap-1"><span className="size-2 rounded-sm bg-stopped/70" /> Unsubscribed</span>
@@ -211,7 +211,7 @@ export function GrowAudience({
                 </div>
                 <div className="pointer-events-none absolute inset-x-0 top-1/2 h-px -translate-y-1/2 bg-border" />
               </div>
-              <div className="mt-1.5 flex justify-between text-[10px] text-muted-foreground">
+              <div className="mt-1.5 flex justify-between text-[12px] text-muted-foreground">
                 <span>30 days ago</span>
                 <span>Today</span>
               </div>
@@ -324,7 +324,7 @@ export function GrowAudience({
             <div className="rounded-lg border p-3">
               <Label htmlFor="signup-redirect" className="text-xs">After subscribing, send them to</Label>
               <Input id="signup-redirect" value={redirect} onChange={(e) => setRedirect(e.target.value)} placeholder="https://yoursite.com/thanks (optional)" className="mt-1 h-8" />
-              <p className="mt-1 text-[11px] text-muted-foreground">Your own thank-you or welcome page. Leave blank to show ours.</p>
+              <p className="mt-1 text-[12.5px] text-muted-foreground">Your own thank-you or welcome page. Leave blank to show ours.</p>
             </div>
 
             <div className="flex items-center gap-3">

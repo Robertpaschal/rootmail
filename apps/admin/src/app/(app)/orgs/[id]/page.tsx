@@ -75,7 +75,7 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
                   ? `${formatNumber(org.billing.transactional_blocks)} blocks (${formatNumber(org.billing.transactional_blocks * 25_000)} sends/mo)`
                   : (org.billing.transactional_tier ?? "free allowance")}
               </p>
-              <p className="font-mono text-[11px] text-muted-foreground">
+              <p className="font-mono text-[12.5px] text-muted-foreground">
                 sub: {org.billing.subscriptions.transactional ?? "—"}
                 {org.billing.subscriptions.overage ? ` · overage: ${org.billing.subscriptions.overage}` : ""}
               </p>
@@ -87,7 +87,7 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
                   ? `${org.billing.marketing_tier} · ${formatNumber(org.billing.marketing_contacts)} contacts`
                   : (org.billing.marketing_tier ?? "free")}
               </p>
-              <p className="font-mono text-[11px] text-muted-foreground">
+              <p className="font-mono text-[12.5px] text-muted-foreground">
                 sub: {org.billing.subscriptions.marketing ?? "—"}
               </p>
             </div>
@@ -98,7 +98,7 @@ export default async function OrgDetailPage({ params }: { params: Promise<{ id: 
                   ? "none"
                   : org.billing.addons.map((a) => `${a.addon_id} ×${a.quantity}`).join(" · ")}
               </p>
-              <p className="font-mono text-[11px] text-muted-foreground">
+              <p className="font-mono text-[12.5px] text-muted-foreground">
                 sub: {org.billing.subscriptions.addons ?? "—"}
                 {org.billing.subscriptions.legacy ? ` · legacy: ${org.billing.subscriptions.legacy}` : ""}
               </p>

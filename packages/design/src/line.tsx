@@ -205,7 +205,7 @@ export function Line({
       </svg>
 
       {labels ? (
-        <span className="relative block text-[11px] leading-tight" style={{ width, height: 28 }}>
+        <span className="relative block text-[12.5px] leading-tight" style={{ width, height: 28 }}>
           {stations.map((s, i) => (
             <span
               key={s.label + i}
@@ -222,7 +222,7 @@ export function Line({
                 {s.label}
               </span>
               {s.at ? (
-                <span className="font-mono text-[10px] text-muted-foreground" data-fact>
+                <span className="font-mono text-[12px] text-muted-foreground" data-fact>
                   {s.at}
                 </span>
               ) : null}

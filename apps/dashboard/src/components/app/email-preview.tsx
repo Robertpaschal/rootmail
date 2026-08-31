@@ -114,7 +114,7 @@ img{max-width:100%;height:auto}a{color:${dark ? "#8ab4ff" : "#2563eb"}}</style><
                           )}
                         >
                           <span className="text-sm font-medium">{p.name ?? p.email}</span>
-                          <span className="truncate text-[11px] text-muted-foreground">{p.email}</span>
+                          <span className="truncate text-[12.5px] text-muted-foreground">{p.email}</span>
                         </button>
                       </li>
                     ))}
@@ -210,7 +210,7 @@ img{max-width:100%;height:auto}a{color:${dark ? "#8ab4ff" : "#2563eb"}}</style><
             <p className={cn("text-sm font-semibold leading-snug", dark ? "text-white" : "text-black")}>
               {filledSubject || "(no subject)"}
             </p>
-            <p className={cn("text-[11px]", dark ? "text-white/50" : "text-black/50")}>
+            <p className={cn("text-[12.5px]", dark ? "text-white/50" : "text-black/50")}>
               {fromLabel} → {person.email}
             </p>
           </div>

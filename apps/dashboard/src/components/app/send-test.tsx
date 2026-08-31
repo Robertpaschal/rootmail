@@ -104,7 +104,7 @@ export function SendTest({
             ) : null}
 
             <div className="p-2">
-              <p className="flex items-center gap-1.5 px-1 pb-1.5 pt-1 text-[11px] font-medium text-muted-foreground">
+              <p className="flex items-center gap-1.5 px-1 pb-1.5 pt-1 text-[12.5px] font-medium text-muted-foreground">
                 <ShieldCheck className="size-3" />
                 Force an outcome — real send, safe address
               </p>
@@ -134,11 +134,11 @@ export function SendTest({
                   </span>
                   <span className="min-w-0">
                     <span className="block text-sm font-medium">{r.label}</span>
-                    <span className="block text-[11px] leading-snug text-muted-foreground">{r.description}</span>
+                    <span className="block text-[12.5px] leading-snug text-muted-foreground">{r.description}</span>
                   </span>
                 </button>
               ))}
-              <p className="px-1 pb-1 pt-1.5 text-[11px] leading-snug text-muted-foreground">
+              <p className="px-1 pb-1 pt-1.5 text-[12.5px] leading-snug text-muted-foreground">
                 These take the same live path as real mail — and never affect your sending reputation.
               </p>
             </div>

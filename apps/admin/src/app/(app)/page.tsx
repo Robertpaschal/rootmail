@@ -166,7 +166,7 @@ export default async function OverviewPage() {
       <div className="grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg border bg-card p-4">
           <h2 className="text-sm font-medium tracking-heading">Customer mix</h2>
-          <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+          <p className="mt-0.5 font-mono text-[12.5px] text-muted-foreground">
             organizations · now · what each org holds
           </p>
           <div className="mt-3 space-y-2.5">

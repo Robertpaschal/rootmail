@@ -98,7 +98,7 @@ export async function Pricing({
                   <div className="flex items-start justify-between gap-2">
                     <p className="text-sm font-medium">{a.name}</p>
                     {onSale ? (
-                      <span className="shrink-0 font-mono text-[10px] text-acted" data-fact>
+                      <span className="shrink-0 font-mono text-[12px] text-acted" data-fact>
                         {a.sale_percent_off}% off
                       </span>
                     ) : null}
@@ -115,7 +115,7 @@ export async function Pricing({
                     ) : (
                       <span className="font-semibold">${a.unit_amount}</span>
                     )}
-                    <span className="text-[11px] text-ink-muted">/mo per {a.unit}</span>
+                    <span className="text-[12.5px] text-ink-muted">/mo per {a.unit}</span>
                   </p>
                 </div>
               );
@@ -138,7 +138,7 @@ export async function Pricing({
 
         <Reveal inView delay={0.2} className="mt-10">
           <p className="display-s">Every account includes</p>
-          <ul className="mt-4 grid gap-x-10 font-mono text-[11px] text-ink-muted sm:grid-cols-2 lg:grid-cols-3">
+          <ul className="mt-4 grid gap-x-10 font-mono text-[12.5px] text-ink-muted sm:grid-cols-2 lg:grid-cols-3">
             {baseline.map((f) => (
               <li key={f} className="border-t border-rule py-2.5" data-fact>
                 {f}

@@ -135,7 +135,7 @@ export function MessagesTable({
                           <Link
                             href="/testing"
                             title="A test send — real path, safe destination"
-                            className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
+                            className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[12px] font-medium uppercase tracking-wide text-muted-foreground transition-colors hover:text-foreground"
                           >
                             <FlaskConical className="size-2.5" /> Test
                           </Link>

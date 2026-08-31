@@ -66,7 +66,7 @@ export function StageRail({
               </span>
               <span
                 className={cn(
-                  "flex items-center gap-1 text-[11px] transition-colors",
+                  "flex items-center gap-1 text-[12.5px] transition-colors",
                   active
                     ? "font-medium text-foreground"
                     : done

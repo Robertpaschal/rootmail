@@ -346,7 +346,7 @@ export default async function BillingPage({
                       <td className="py-2 text-right">
                         <span
                           className={cn(
-                            "rounded-full px-2 py-0.5 text-[11px] font-medium",
+                            "rounded-full px-2 py-0.5 text-[12.5px] font-medium",
                             inv.status === "paid"
                               ? "bg-witnessed/15 text-witnessed"
                               : inv.status === "open"

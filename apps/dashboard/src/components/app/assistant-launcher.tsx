@@ -374,10 +374,10 @@ export function AssistantLauncher() {
             credits ? (
               <CreditMeter credits={credits} />
             ) : (
-              <span className="text-[11px] text-muted-foreground">Here to help with {ctx.hint}</span>
+              <span className="text-[12.5px] text-muted-foreground">Here to help with {ctx.hint}</span>
             )
           ) : (
-            <span className="text-[11px] text-muted-foreground">You&apos;re talking to a real person</span>
+            <span className="text-[12.5px] text-muted-foreground">You&apos;re talking to a real person</span>
           )}
         </div>
       </div>
@@ -527,7 +527,7 @@ export function AssistantLauncher() {
         ) : (
           groupByDay(filteredChats, (c) => c.updated_at).map((g) => (
             <div key={g.bucket} className="space-y-0.5">
-              <p className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="px-2 pt-1 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {g.bucket}
               </p>
               {g.items.map((c) => (
@@ -547,7 +547,7 @@ export function AssistantLauncher() {
                         conversations apart must show enough to tell them apart —
                         the full page learned this the hard way. */}
                     <span className="block break-words text-xs font-medium leading-snug">{c.title}</span>
-                    <span className="mt-0.5 block text-[10px] text-muted-foreground">
+                    <span className="mt-0.5 block text-[12px] text-muted-foreground">
                       {relativeTime(c.updated_at)}
                     </span>
                   </button>
@@ -594,7 +594,7 @@ export function AssistantLauncher() {
               <div className={cn("max-w-[88%] rounded-lg px-3 py-2 text-sm", t.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary")}>
                 {t.role === "user" ? <p className="whitespace-pre-wrap">{t.content}</p> : <Markdown>{t.content}</Markdown>}
                 {t.role !== "user" && t.actions && t.actions.length > 0 ? (
-                  <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                  <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-muted-foreground">
                     <Sparkles className="size-3 shrink-0 opacity-70" />
                     {t.actions.map((a, j) => (
                       <span key={j} className={cn("inline-flex items-center gap-1.5", a.status >= 400 && "text-acted")}>
@@ -657,7 +657,7 @@ export function AssistantLauncher() {
         <button
           type="button"
           onClick={() => setPane("support")}
-          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md py-1 text-[11px] text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md py-1 text-[12.5px] text-muted-foreground transition-colors hover:bg-secondary/60 hover:text-foreground"
         >
           <Headset className="size-3" />
           {messages.length > 0 ? "Talk to a human about this instead" : "Talk to a human instead"}

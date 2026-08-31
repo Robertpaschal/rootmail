@@ -506,7 +506,7 @@ export default async function OverviewPage() {
                       {m.subject || "(no subject)"}
                     </span>
                     <span
-                      className="shrink-0 whitespace-nowrap font-mono text-[11px] text-muted-foreground"
+                      className="shrink-0 whitespace-nowrap font-mono text-[12.5px] text-muted-foreground"
                       data-fact
                     >
                       {relativeTime(m.created_at)}
@@ -669,7 +669,7 @@ function WingCard({
               >
                 {s.value}
               </div>
-              <div className="font-mono text-[11px] leading-snug text-muted-foreground">
+              <div className="font-mono text-[12.5px] leading-snug text-muted-foreground">
                 {s.label}
               </div>
             </div>

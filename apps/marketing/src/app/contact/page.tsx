@@ -106,7 +106,7 @@ export default async function ContactPage({
           {/* Switch intent without leaving the page — real links, no script. */}
           <nav
             aria-label="What are you writing about"
-            className="mb-10 flex flex-wrap gap-x-6 gap-y-2 border-b border-rule pb-3 font-mono text-[11px] uppercase tracking-wide"
+            className="mb-10 flex flex-wrap gap-x-6 gap-y-2 border-b border-rule pb-3 font-mono text-[12.5px] uppercase tracking-wide"
           >
             {(Object.keys(TOPICS) as TopicKey[]).map((k) => (
               <a
@@ -129,19 +129,19 @@ export default async function ContactPage({
             <div className="lg:sticky lg:top-24 lg:self-start">
               <h1 className="display-l text-balance">{t.title}</h1>
               <p className="lead mt-5 text-ink-muted">{t.blurb}</p>
-              <p className="mt-5 font-mono text-[11px] text-ink-muted" data-fact>
+              <p className="mt-5 font-mono text-[12.5px] text-ink-muted" data-fact>
                 {t.fact}
               </p>
 
               {key === "enterprise" ? (
                 <div className="mt-8">
                   <p
-                    className="border-b border-rule pb-2.5 font-mono text-[11px] uppercase tracking-wide text-ink-muted"
+                    className="border-b border-rule pb-2.5 font-mono text-[12.5px] uppercase tracking-wide text-ink-muted"
                     data-fact
                   >
                     everything in Scale, plus
                   </p>
-                  <ul className="ruled font-mono text-[11px] text-ink-muted">
+                  <ul className="ruled font-mono text-[12.5px] text-ink-muted">
                     {ENTERPRISE_PERKS.map((f) => (
                       <li key={f} className="py-2.5" data-fact>
                         {f}

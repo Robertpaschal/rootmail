@@ -87,7 +87,7 @@ function TierRow({ tier }: { tier: AdminTier }) {
     <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 px-4 py-3 text-sm">
       <span className="w-40 font-medium">
         {tier.name}
-        <span className="block text-[11px] font-normal text-muted-foreground">{tier.id}</span>
+        <span className="block text-[12.5px] font-normal text-muted-foreground">{tier.id}</span>
       </span>
 
       <span className="min-w-32">
@@ -96,7 +96,7 @@ function TierRow({ tier }: { tier: AdminTier }) {
         ) : isMkPaid ? (
           <>
             ${((tier.perThousandCents ?? 0) / 100).toFixed(2)}/1k contacts
-            <span className="block text-[11px] text-muted-foreground">
+            <span className="block text-[12.5px] text-muted-foreground">
               ×{tier.sendsPerContact ?? 0} sends/contact · ×{tier.dailyPerContact ?? 0}/day · {cap(tier.includedAudiences)} audiences
             </span>
           </>
@@ -153,7 +153,7 @@ function Field({
         defaultValue={defaultValue == null ? "" : defaultValue}
         className="mt-1 h-8"
       />
-      {hint ? <p className="mt-0.5 text-[10px] text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="mt-0.5 text-[12px] text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }

@@ -215,7 +215,7 @@ export function SupportPane({
                 <span className="mt-0.5 flex items-center gap-1.5">
                   <span
                     className={cn(
-                      "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                      "rounded-full px-1.5 py-0.5 text-[12px] font-medium",
                       t.status === "open"
                         ? "bg-witnessed/15 text-witnessed"
                         : "bg-secondary text-muted-foreground",
@@ -223,7 +223,7 @@ export function SupportPane({
                   >
                     {t.status === "open" ? "Open" : "Resolved"}
                   </span>
-                  <span className="text-[10px] text-muted-foreground">{relativeTime(t.last_message_at)}</span>
+                  <span className="text-[12px] text-muted-foreground">{relativeTime(t.last_message_at)}</span>
                 </span>
               </span>
             </button>
@@ -250,7 +250,7 @@ export function SupportPane({
             <div className="flex items-center justify-end border-b pb-2">
               <span
                 className={cn(
-                  "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium",
+                  "shrink-0 rounded-full px-2 py-0.5 text-[12px] font-medium",
                   active.status === "open"
                     ? "bg-witnessed/15 text-witnessed"
                     : "bg-secondary text-muted-foreground",
@@ -271,7 +271,7 @@ export function SupportPane({
                   ) : null}
                   <div className={cn("max-w-[85%]", mine ? "text-right" : "")}>
                     {!mine ? (
-                      <p className="mb-0.5 text-[10px] font-medium text-muted-foreground">rootmail team</p>
+                      <p className="mb-0.5 text-[12px] font-medium text-muted-foreground">rootmail team</p>
                     ) : null}
                     <div
                       className={cn(
@@ -281,14 +281,14 @@ export function SupportPane({
                     >
                       <p className="whitespace-pre-wrap">{m.body}</p>
                     </div>
-                    <p className="mt-0.5 text-[10px] text-muted-foreground">{relativeTime(m.created_at)}</p>
+                    <p className="mt-0.5 text-[12px] text-muted-foreground">{relativeTime(m.created_at)}</p>
                   </div>
                 </div>
               );
             })}
 
             {active.status === "open" && (active.messages ?? []).every((m) => m.author === "customer") ? (
-              <p className="text-center text-[11px] text-muted-foreground">
+              <p className="text-center text-[12.5px] text-muted-foreground">
                 Sent — the team replies here and by email, usually within a business day.
               </p>
             ) : null}
@@ -313,7 +313,7 @@ export function SupportPane({
             saying so, which reads as "the team is still here" when they have
             moved on. Say what writing here does, and offer the other door. */}
         {resolved ? (
-          <p className="mb-2 text-[11px] text-muted-foreground">
+          <p className="mb-2 text-[12.5px] text-muted-foreground">
             This one was marked resolved — replying reopens it.{" "}
             <button
               type="button"
@@ -351,7 +351,7 @@ export function SupportPane({
         </form>
         {/* Support and SALES are different intents — keep the pricing path in
             reach rather than making people file a support ticket about a quote. */}
-        <p className="mt-2 text-center text-[11px] text-muted-foreground">
+        <p className="mt-2 text-center text-[12.5px] text-muted-foreground">
           Pricing or a custom plan?{" "}
           <Link href="/contact?topic=sales" className="font-medium text-primary hover:underline">
             Talk to sales

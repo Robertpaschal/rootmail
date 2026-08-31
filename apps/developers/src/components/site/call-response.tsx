@@ -166,7 +166,7 @@ export function CallResponse() {
           <RunButton onClick={send} disabled={pending}>
             {pending ? "sending…" : "Send it"}
           </RunButton>
-          <span className="font-mono text-[11px] text-ink-muted" data-fact>
+          <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
             {DEMO_DISCLOSURE}
           </span>
         </div>
@@ -221,7 +221,7 @@ export function Response({
           <span className="text-foreground">true</span>
         </div>
       ) : null}
-      <pre className="overflow-x-auto px-3 py-3 text-[12.5px] leading-[1.65]">
+      <pre className="overflow-x-auto px-3 py-3 text-[13.5px] leading-[1.7]">
         <code className="font-mono">{renderBody(run, compact)}</code>
       </pre>
     </Panel>

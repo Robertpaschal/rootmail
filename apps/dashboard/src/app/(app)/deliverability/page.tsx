@@ -294,7 +294,7 @@ export default async function DeliverabilityPage({
                 <span>Your sending reputation is</span>
                 <span className={meta.text}>{meta.label.toLowerCase()}</span>
                 {d.confidence === "low" ? (
-                  <Badge variant="secondary" className="text-[10px] font-normal">
+                  <Badge variant="secondary" className="text-[12px] font-normal">
                     low confidence — send more to be sure
                   </Badge>
                 ) : null}
@@ -372,7 +372,7 @@ export default async function DeliverabilityPage({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium">{f.label}</span>
-                        <Badge variant={severityBadge[f.severity]} className="text-[10px]">
+                        <Badge variant={severityBadge[f.severity]} className="text-[12px]">
                           {f.severity}
                         </Badge>
                       </div>

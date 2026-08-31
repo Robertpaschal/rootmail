@@ -396,7 +396,7 @@ export function SendForm({
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
                   <Paperclip className="size-3.5" /> Attach
                 </button>
-                <span className="hidden text-[11px] text-muted-foreground sm:inline">
+                <span className="hidden text-[12.5px] text-muted-foreground sm:inline">
                   One-to-one email · uses your transactional sends
                 </span>
               </div>

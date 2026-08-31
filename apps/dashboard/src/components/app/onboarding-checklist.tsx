@@ -185,17 +185,17 @@ export async function OnboardingChecklist() {
                   {s.label}
                 </p>
                 {!s.done && s.crucial ? (
-                  <span className="rounded-full bg-acted-tint px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-acted">
+                  <span className="rounded-full bg-acted-tint px-1.5 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-acted">
                     Required to send
                   </span>
                 ) : null}
-                {!s.done ? <span className="text-[11px] text-muted-foreground">~{s.minutes} min</span> : null}
+                {!s.done ? <span className="text-[12.5px] text-muted-foreground">~{s.minutes} min</span> : null}
               </div>
               <p className="mt-0.5 text-xs text-muted-foreground">{s.desc}</p>
               {!s.done && s.sub ? (
                 <ol className="mt-1.5 space-y-0.5">
                   {s.sub.map((step, i) => (
-                    <li key={step} className="flex gap-1.5 text-[11px] text-muted-foreground">
+                    <li key={step} className="flex gap-1.5 text-[12.5px] text-muted-foreground">
                       <span className="font-medium text-foreground">{i + 1}.</span> {step}
                     </li>
                   ))}

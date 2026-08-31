@@ -37,7 +37,7 @@ export function Cta() {
           dotted where we could not.
         </p>
 
-        <p className="font-mono text-[11px] text-ink-muted" data-fact>
+        <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
           no account · nothing sent · nothing stored
         </p>
 

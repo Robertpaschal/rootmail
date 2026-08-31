@@ -156,7 +156,7 @@ export function WorkspaceSwitcher({
         {inSandbox ? <FlaskConical className="size-3.5 shrink-0 text-acted" /> : null}
         <span className="truncate">{active.name}</span>
         {inSandbox ? (
-          <span className="rounded bg-acted/20 px-1 py-0.5 text-[10px] font-medium text-acted">
+          <span className="rounded bg-acted/20 px-1 py-0.5 text-[12px] font-medium text-acted">
             sandbox
           </span>
         ) : null}
@@ -178,13 +178,13 @@ export function WorkspaceSwitcher({
               <ArrowLeft className="size-4 shrink-0" />
               <span className="min-w-0">
                 <span className="block truncate">Leave the sandbox</span>
-                <span className="block truncate text-[11px] font-normal opacity-80">
+                <span className="block truncate text-[12.5px] font-normal opacity-80">
                   Back to {firstLive.name}
                 </span>
               </span>
             </button>
           ) : null}
-          <div className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="px-3 py-2 text-[12.5px] font-medium uppercase tracking-wide text-muted-foreground">
             Workspaces
           </div>
           <ul className="max-h-64 overflow-y-auto px-1 pb-1">
@@ -246,7 +246,7 @@ export function WorkspaceSwitcher({
                       <span className="flex min-w-0 items-center gap-2">
                         <span className="truncate">{w.name}</span>
                         {w.environment === "test" ? (
-                          <span className="rounded bg-acted/15 px-1 py-0.5 text-[10px] font-medium text-acted">
+                          <span className="rounded bg-acted/15 px-1 py-0.5 text-[12px] font-medium text-acted">
                             sandbox
                           </span>
                         ) : null}
@@ -342,11 +342,11 @@ export function WorkspaceSwitcher({
               </Link>
             )}
             {!unlimited && limit ? (
-              <p className="px-2 pb-1 pt-0.5 text-[11px] text-muted-foreground">
+              <p className="px-2 pb-1 pt-0.5 text-[12.5px] text-muted-foreground">
                 {limit.used} of {limit.capacity} used
               </p>
             ) : null}
-            {error ? <p className="px-2 pb-1 text-[11px] text-destructive">{error}</p> : null}
+            {error ? <p className="px-2 pb-1 text-[12.5px] text-destructive">{error}</p> : null}
           </div>
         </div>
       ) : null}

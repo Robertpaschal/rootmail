@@ -350,7 +350,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                       !stage && "border-primary ring-1 ring-primary/30",
                     )}
                   >
-                    <span className="text-[11px] font-medium text-muted-foreground">Everyone</span>
+                    <span className="text-[12.5px] font-medium text-muted-foreground">Everyone</span>
                     <span className="text-lg font-bold tabular-nums">{everyone.toLocaleString()}</span>
                   </Link>
                   {CONTACT_STAGES.map((st) => {
@@ -366,7 +366,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                           active && "border-primary ring-1 ring-primary/30",
                         )}
                       >
-                        <span className="flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                        <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-muted-foreground">
                           <span className={cn("size-1.5 rounded-full", meta.dot)} /> {meta.label}
                         </span>
                         <span className="text-lg font-bold tabular-nums">{(stages.stages[st] ?? 0).toLocaleString()}</span>
@@ -487,7 +487,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                             <TableCell className="text-muted-foreground">{c.name ?? "—"}</TableCell>
                             <TableCell><ContactStatusBadge status={c.status} /></TableCell>
                             <TableCell>
-                              <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium", STAGE_META[c.stage].badge)}>
+                              <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12.5px] font-medium", STAGE_META[c.stage].badge)}>
                                 <span className={cn("size-1.5 rounded-full", STAGE_META[c.stage].dot)} /> {STAGE_META[c.stage].label}
                               </span>
                             </TableCell>
@@ -495,7 +495,7 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                               {c.tags.length ? (
                                 <span className="flex flex-wrap gap-1">
                                   {c.tags.map((t) => (
-                                    <Badge key={t} variant="secondary" className="font-mono text-[10px]">{t}</Badge>
+                                    <Badge key={t} variant="secondary" className="font-mono text-[12px]">{t}</Badge>
                                   ))}
                                 </span>
                               ) : (

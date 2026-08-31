@@ -148,7 +148,7 @@ function Switch({ on, onToggle }: { on: boolean; onToggle: () => void }) {
       aria-checked={on}
       aria-label="Show the common default instead of rootmail's"
       onClick={onToggle}
-      className="inline-flex min-h-11 shrink-0 items-center gap-px rounded-lg border border-rule font-mono text-[11px]"
+      className="inline-flex min-h-11 shrink-0 items-center gap-px rounded-lg border border-rule font-mono text-[12.5px]"
     >
       <span className={`px-2 py-1.5 ${on ? "bg-ink text-background" : "text-ink-muted"}`}>
         default
@@ -209,12 +209,12 @@ export function Promises() {
                 </div>
 
                 {on && r.commonNote ? (
-                  <p className="mt-2 font-mono text-[11px] text-stopped" data-fact>
+                  <p className="mt-2 font-mono text-[12.5px] text-stopped" data-fact>
                     {r.commonNote}
                   </p>
                 ) : null}
 
-                <p className="mt-3 font-mono text-[11px] text-ink-muted" data-fact>
+                <p className="mt-3 font-mono text-[12.5px] text-ink-muted" data-fact>
                   {r.where}
                 </p>
               </div>

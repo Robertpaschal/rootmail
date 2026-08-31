@@ -60,6 +60,12 @@
   --paper: 36 38% 96%;
   --paper-raised: 40 50% 99%;
   --paper-lift: 34 30% 93%;
+  /* A RECESSED surface — for a panel that sits INSIDE a section and must read
+     as a different plane, not the same one a shade off. Panels were using
+     `--card`, which on a card-backed section made them the identical colour:
+     measured 1.00 contrast against their own section, i.e. invisible as a
+     panel. A well is deeper than whatever carries it, and it is ringed. */
+  --well: 34 26% 90%;
   --ink: 28 32% 11%;
   --ink-muted: 30 12% 40%;
   --rule: 34 22% 87%;
@@ -81,6 +87,16 @@
 
   --line-dim: 34 16% 76%;
 
+  /* ---- Code and app previews ------------------------------------- */
+  /* Deliberately dark in BOTH themes. A code block or an app preview is a
+     QUOTATION — a window onto something that is not this page — so it wants
+     contrast against the section rather than a tint of it. Brown code on a
+     brown section is the thing this fixes. The hue stays in the warm family so
+     it is complementary rather than a foreign colour dropped on the page. */
+  --code-bg: 26 24% 4%;
+  --code-fg: 40 22% 92%;
+  --code-ring: 34 18% 30%;
+
   /* ---- Curves -------------------------------------------------------- */
   /* Generous, but a scale rather than one bubble radius: dense app tables and
      a marketing hero want different amounts of curve. */
@@ -94,6 +110,9 @@
   --elev-2: 0 1px 0 0 hsl(40 60% 100% / 0.7) inset,
             0 8px 20px -10px hsl(28 30% 20% / 0.16),
             0 24px 48px -28px hsl(28 30% 20% / 0.22);
+  /* A well is pressed IN, so its depth is an inset shadow plus a ring — the
+     opposite of a card, which is lifted out. */
+  --elev-well: inset 0 2px 6px -2px hsl(28 40% 12% / 0.22), 0 0 0 1px hsl(var(--rule));
   --elev-3: 0 1px 0 0 hsl(40 60% 100% / 0.9) inset,
             0 16px 36px -14px hsl(28 30% 20% / 0.20),
             0 40px 72px -34px hsl(28 30% 20% / 0.28);
@@ -130,6 +149,9 @@
   --paper: 30 22% 8%;
   --paper-raised: 30 20% 11%;
   --paper-lift: 34 16% 15%;
+  /* Deeper than both the page ground (8%) and the slab it sits in (11%), so a
+     panel inside a slab still reads as a separate plane. */
+  --well: 26 24% 4%;
   --ink: 34 40% 92%;
   --ink-muted: 30 12% 62%;
   --rule: 30 14% 20%;
@@ -157,6 +179,7 @@
   --elev-2: 0 1px 0 0 hsl(40 60% 90% / 0.08) inset,
             0 20px 44px -22px hsl(0 0% 0% / 0.85),
             0 0 100px -58px hsl(var(--brass));
+  --elev-well: inset 0 2px 10px -2px hsl(0 0% 0% / 0.75), 0 0 0 1px hsl(var(--code-ring) / 0.9);
   --elev-3: 0 1px 0 0 hsl(40 60% 90% / 0.13) inset,
             0 32px 68px -26px hsl(0 0% 0% / 0.9),
             0 0 130px -50px hsl(var(--brass));

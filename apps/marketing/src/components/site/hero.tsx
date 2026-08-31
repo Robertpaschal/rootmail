@@ -96,12 +96,12 @@ export function Hero() {
 
         {/* The artifact. Drawn in the DOM so it stays honest as the product
             changes and weighs nothing on a phone. */}
-        <figure className="rounded-lg border border-rule bg-card shadow-e1">
+        <figure className="rounded-lg bg-well shadow-well">
           <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule px-4 py-3">
-            <span className="font-mono text-[11px] text-ink-muted" data-fact>
+            <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
               {sample.id}
             </span>
-            <span className="font-mono text-[11px] text-ink-muted" data-fact>
+            <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
               {sample.to}
             </span>
           </figcaption>

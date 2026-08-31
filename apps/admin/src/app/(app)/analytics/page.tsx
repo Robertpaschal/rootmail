@@ -95,7 +95,7 @@ export default async function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle>Customer mix</CardTitle>
-            <p className="font-mono text-[11px] text-muted-foreground">
+            <p className="font-mono text-[12.5px] text-muted-foreground">
               organizations · now · what each org holds
             </p>
           </CardHeader>
@@ -115,7 +115,7 @@ export default async function AnalyticsPage() {
         <Card>
           <CardHeader>
             <CardTitle>What happened to the mail</CardTitle>
-            <p className="font-mono text-[11px] text-muted-foreground">
+            <p className="font-mono text-[12.5px] text-muted-foreground">
               messages · this period · provider feedback + tracking pixel
             </p>
           </CardHeader>
@@ -130,7 +130,7 @@ export default async function AnalyticsPage() {
                 <BarRow key={s} label={s} value={n} max={statusMax} claim={STATUS_CLAIM[s] ?? "unknown"} />
               ))
             )}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 border-t pt-3 font-mono text-[11px]">
+            <div className="flex flex-wrap gap-x-4 gap-y-1 border-t pt-3 font-mono text-[12.5px]">
               <span className="text-witnessed">delivered {a.deliverability.delivered_rate}%</span>
               <span className="text-stopped">bounced {a.deliverability.bounce_rate}% · SES suspends at 5%</span>
               <span className="text-acted">complaints {a.deliverability.complaint_rate}% · SES suspends at 0.5%</span>
@@ -142,7 +142,7 @@ export default async function AnalyticsPage() {
       <Card>
         <CardHeader>
           <CardTitle>Email volume</CardTitle>
-          <p className="font-mono text-[11px] text-muted-foreground">
+          <p className="font-mono text-[12.5px] text-muted-foreground">
             messages · last {a.volume.trend.length} period(s) · api+worker
           </p>
         </CardHeader>
@@ -178,7 +178,7 @@ function BarRow({
           {label}
           {suffix ? <span className="ml-1.5 font-normal text-muted-foreground">{suffix}</span> : null}
           {claim === "inferred" ? (
-            <span className="ml-1.5 font-mono text-[10px] font-normal text-muted-foreground">
+            <span className="ml-1.5 font-mono text-[12px] font-normal text-muted-foreground">
               inferred · tracking pixel
             </span>
           ) : null}

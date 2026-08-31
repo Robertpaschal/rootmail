@@ -59,7 +59,7 @@ function CopyAddress({ email }: { email: string }) {
         setCopied(true);
         setTimeout(() => setCopied(false), 1600);
       }}
-      className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 font-mono text-[11px] text-muted-foreground transition-colors hover:bg-muted"
+      className="inline-flex max-w-full items-center gap-1.5 rounded-md bg-muted/60 px-2 py-1 font-mono text-[12.5px] text-muted-foreground transition-colors hover:bg-muted"
       title="Copy address"
     >
       <span className="truncate">{email}</span>
@@ -167,7 +167,7 @@ export function Scenarios({ recipients }: { recipients: TestRecipient[] }) {
               <CopyAddress email={r.email} />
 
               <div className="mt-auto flex items-center justify-between gap-2 pt-1">
-                <span className="text-[11px] font-medium text-muted-foreground">
+                <span className="text-[12.5px] font-medium text-muted-foreground">
                   Ends as <span className="text-foreground">{OUTCOME_LABEL[r.outcome]}</span>
                 </span>
                 <Button

@@ -196,11 +196,11 @@ export function LiveLine({
             )}
           >
             <span className="flex flex-wrap items-baseline gap-x-3">
-              <span className="w-[4.5rem] shrink-0 font-mono text-[11px] text-ink-muted" data-fact>
+              <span className="w-[4.5rem] shrink-0 font-mono text-[12.5px] text-ink-muted" data-fact>
                 {r.at}
               </span>
               <span className="w-20 shrink-0 font-medium">{r.event}</span>
-              <span className="font-mono text-[11px] text-ink-muted" data-fact>
+              <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
                 {r.note}
               </span>
             </span>
@@ -210,7 +210,7 @@ export function LiveLine({
                 open={openExplain === i}
                 onToggle={(e) => setOpenExplain(e.currentTarget.open ? i : null)}
               >
-                <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-[11px] text-ink-muted underline underline-offset-4 [&::-webkit-details-marker]:hidden">
+                <summary className="inline-flex min-h-11 cursor-pointer list-none items-center text-[12.5px] text-ink-muted underline underline-offset-4 [&::-webkit-details-marker]:hidden">
                   why hollow?
                 </summary>
                 <p className="max-w-md pb-2 text-[13px] leading-relaxed text-ink-muted">
@@ -230,7 +230,7 @@ export function LiveLine({
         >
           {reduced ? "Step through it" : "Run it again"}
         </button>
-        <span className="font-mono text-[11px] text-ink-muted" aria-live="polite" data-fact>
+        <span className="font-mono text-[12.5px] text-ink-muted" aria-live="polite" data-fact>
           {stations[stage]?.label.toLowerCase()}
         </span>
       </div>

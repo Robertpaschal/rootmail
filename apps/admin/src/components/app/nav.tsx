@@ -81,7 +81,7 @@ export function Nav() {
       {groups.map((g, gi) => (
         <div key={g.label ?? gi} className="space-y-1">
           {g.label ? (
-            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            <p className="px-3 pb-1 text-[12.5px] font-semibold uppercase tracking-wider text-muted-foreground/70">
               {g.label}
             </p>
           ) : null}

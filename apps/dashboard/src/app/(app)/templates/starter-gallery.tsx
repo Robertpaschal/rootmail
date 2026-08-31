@@ -96,7 +96,7 @@ export function StarterGallery({
               <Thumb html={basicHtml[b.id]} />
               <div className="p-3">
                 <p className="text-sm font-medium group-hover:text-primary">{b.title}</p>
-                <p className="mt-0.5 text-[11px] leading-snug text-muted-foreground">{b.blurb}</p>
+                <p className="mt-0.5 text-[12.5px] leading-snug text-muted-foreground">{b.blurb}</p>
               </div>
             </button>
           ))}

@@ -128,7 +128,7 @@ export function Scrub({
   return (
     <div className={cx("select-none", className)}>
       {/* The numbers, above the scale, always all of them. */}
-      <div className="relative hidden h-9 text-[11px] sm:block">
+      <div className="relative hidden h-9 text-[12.5px] sm:block">
         {rules
           .filter((r) => r.row !== 1)
           .map((r, i) => (
@@ -206,7 +206,7 @@ export function Scrub({
         />
         <span
           aria-hidden="true"
-          className="absolute -bottom-1 -translate-x-1/2 whitespace-nowrap font-mono text-[11px] font-medium"
+          className="absolute -bottom-1 -translate-x-1/2 whitespace-nowrap font-mono text-[12.5px] font-medium"
           style={{ left: `${pct(value)}%` }}
           data-fact
         >
@@ -218,7 +218,7 @@ export function Scrub({
           Positioned captions need room to sit beside each other, so below `sm`
           they are replaced by the ruled list further down — the same rules, the
           same numbers, stacked. Neither version is conditional on script. */}
-      <div className="relative mt-5 hidden h-8 text-[11px] leading-tight sm:block">
+      <div className="relative mt-5 hidden h-8 text-[12.5px] leading-tight sm:block">
         {rules
           .filter((r) => r.row !== 1)
           .map((r, i) => (
@@ -233,7 +233,7 @@ export function Scrub({
       </div>
 
       {rules.some((r) => r.row === 1) ? (
-        <div className="relative hidden h-8 text-[11px] leading-tight sm:block">
+        <div className="relative hidden h-8 text-[12.5px] leading-tight sm:block">
           {rules
             .filter((r) => r.row === 1)
             .map((r, i) => (
@@ -256,7 +256,7 @@ export function Scrub({
       ) : null}
 
       {/* The narrow-screen route to the same four facts. */}
-      <ul className="mt-4 divide-y divide-rule border-t border-rule text-[11px] sm:hidden">
+      <ul className="mt-4 divide-y divide-rule border-t border-rule text-[12.5px] sm:hidden">
         {rules.map((r, i) => (
           <li key={`m-${ruleKey(r, i)}`} className="flex items-baseline gap-3 py-2">
             <span className={cx("w-16 shrink-0 font-mono", TEXT[r.tone])} data-fact>

@@ -71,7 +71,7 @@ export function QuickCreate() {
                   </span>
                   <span className="min-w-0">
                     <span className="block font-medium">{a.label}</span>
-                    <span className="block text-[11px] text-muted-foreground">{a.hint}</span>
+                    <span className="block text-[12.5px] text-muted-foreground">{a.hint}</span>
                   </span>
                 </Link>
               </motion.div>

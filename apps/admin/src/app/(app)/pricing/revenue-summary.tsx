@@ -63,7 +63,7 @@ export function RevenueSummary({ analytics }: { analytics: AdminAnalytics }) {
       <div className="grid gap-4 lg:grid-cols-2">
         <div className="rounded-lg border bg-card p-4">
           <h3 className="text-sm font-medium tracking-heading">Revenue by stream</h3>
-          <p className="mt-0.5 font-mono text-[11px] text-muted-foreground">
+          <p className="mt-0.5 font-mono text-[12.5px] text-muted-foreground">
             dollars · {analytics.period} · what each org holds
           </p>
           <div className="mt-3 space-y-3">
@@ -96,7 +96,7 @@ export function RevenueSummary({ analytics }: { analytics: AdminAnalytics }) {
         <div className="rounded-lg border bg-card p-4">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-medium tracking-heading">Recurring revenue over time</h3>
-            <span className="font-mono text-[11px] text-muted-foreground">
+            <span className="font-mono text-[12.5px] text-muted-foreground">
               dollars · by signup month · estimate
             </span>
           </div>
@@ -105,11 +105,11 @@ export function RevenueSummary({ analytics }: { analytics: AdminAnalytics }) {
               const h = Math.max(4, Math.round((t.mrr / trendMax) * 84));
               return (
                 <div key={t.period} className="flex flex-1 flex-col items-center gap-1">
-                  <span className="font-mono text-[10px] tabular-nums text-muted-foreground">
+                  <span className="font-mono text-[12px] tabular-nums text-muted-foreground">
                     ${formatNumber(t.mrr)}
                   </span>
                   <div className="w-full bg-ink" style={{ height: `${h}px` }} />
-                  <span className="text-[10px] text-muted-foreground">{t.period.slice(5)}</span>
+                  <span className="text-[12px] text-muted-foreground">{t.period.slice(5)}</span>
                 </div>
               );
             })}

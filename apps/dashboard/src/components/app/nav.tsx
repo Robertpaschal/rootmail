@@ -215,7 +215,7 @@ function CollapsibleGroup({
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="flex w-full items-center gap-1.5 rounded-md px-3 pb-1 pt-2 text-left text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+        className="flex w-full items-center gap-1.5 rounded-md px-3 pb-1 pt-2 text-left text-[12.5px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
       >
         <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.15 }} className="flex">
           <ChevronRight className="size-3" />
@@ -243,7 +243,7 @@ function CollapsibleGroup({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="px-3 pb-1 text-[11px] leading-snug text-muted-foreground/60"
+            className="px-3 pb-1 text-[12.5px] leading-snug text-muted-foreground/60"
           >
             {group.hint}
           </motion.p>
@@ -322,7 +322,7 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
             ) : (
               <div key={g.label ?? `top-${i}`} className="space-y-1">
                 {g.label ? (
-                  <p className="truncate px-3 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  <p className="truncate px-3 pb-1 pt-2 text-[12.5px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                     {g.label}
                   </p>
                 ) : null}

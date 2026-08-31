@@ -279,7 +279,7 @@ export function MarkdownComposer({
             <t.icon className="size-4" />
           </button>
         ))}
-        <span className="ml-2 text-[11px] text-muted-foreground/60">
+        <span className="ml-2 text-[12.5px] text-muted-foreground/60">
           type <kbd className="rounded border bg-muted px-1 font-sans">/</kbd> for blocks
         </span>
       </div>

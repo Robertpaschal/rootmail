@@ -185,7 +185,7 @@ export function ScrubbableLine({
             <span className="ml-2 font-normal text-ink-muted">hasn&apos;t happened</span>
           ) : null}
         </p>
-        <p className="font-mono text-[11px] leading-snug text-muted-foreground" data-fact>
+        <p className="font-mono text-[12.5px] leading-snug text-muted-foreground" data-fact>
           {[ev.at, ev.method, ev.detail].filter(Boolean).join(" · ") ||
             (s.state === "unknown" ? "no event — we do not know" : "—")}
         </p>
@@ -208,7 +208,7 @@ export function ScrubbableLine({
               )}
             >
               <span className="min-w-24 font-medium">{st.label}</span>
-              <span className="font-mono text-[11px] text-muted-foreground" data-fact>
+              <span className="font-mono text-[12.5px] text-muted-foreground" data-fact>
                 {[e.at, e.method, e.detail].filter(Boolean).join(" · ") ||
                   (st.state === "unknown" ? "no event" : "—")}
               </span>

@@ -46,15 +46,25 @@ export function CodeBlock({
   };
 
   return (
-    <div className={cn("overflow-hidden rounded-lg border border-rule bg-card shadow-e1", className)}>
-      <div className="flex items-center justify-between gap-3 border-b border-rule bg-muted/40 px-3 py-2">
-        <span className="truncate font-mono text-[11px] text-ink-muted" data-fact>
+    <div
+      className={cn(
+        // A code block is a QUOTATION — a window onto something that is not
+        // this page — so it carries its own ground rather than a tint of the
+        // section's. It was `bg-card`, which on a card-backed section measured
+        // 1.00 contrast against its own background: brown on brown, invisible
+        // as a panel. Dark in both themes, ringed, and pressed in.
+        "overflow-hidden rounded-lg bg-code text-code-fg shadow-well",
+        className,
+      )}
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-code-ring/40 bg-white/[0.03] px-3 py-2">
+        <span className="truncate font-mono text-[12.5px] text-code-fg/60" data-fact>
           {filename}
         </span>
         <button
           type="button"
           onClick={copy}
-          className="-my-1 inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[11px] text-ink-muted transition-colors duration-interaction ease-interaction hover:bg-muted hover:text-foreground"
+          className="-my-1 inline-flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[12.5px] text-code-fg/60 transition-colors duration-interaction ease-interaction hover:bg-white/10 hover:text-code-fg"
           aria-label={`Copy ${filename ?? "code"}`}
         >
           {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
@@ -62,7 +72,7 @@ export function CodeBlock({
         </button>
       </div>
       <pre
-        className="overflow-x-auto px-3 py-3 text-[12.5px] leading-[1.65]"
+        className="overflow-x-auto px-3 py-3 text-[13.5px] leading-[1.7]"
         style={minLines ? { minHeight: `${minLines * 1.65 + 1.5}em` } : undefined}
       >
         <code className="font-mono">{code}</code>

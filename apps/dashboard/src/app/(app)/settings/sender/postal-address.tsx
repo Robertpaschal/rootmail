@@ -79,7 +79,7 @@ export function PostalAddress({ initial }: { initial: string }) {
       )}
 
       <div className="rounded-md border border-dashed p-3">
-        <p className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        <p className="text-[12.5px] uppercase tracking-wide text-muted-foreground">
           Footer preview · appended to marketing &amp; sales sends
         </p>
         <p className="mt-1.5 text-xs text-muted-foreground">

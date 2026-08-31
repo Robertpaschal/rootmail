@@ -101,7 +101,7 @@ export default function AboutPage() {
               rootmail sends your email and can account for every piece of it — including the email
               you send on someone else&apos;s behalf.
             </p>
-            <p className="mt-6 font-mono text-[11px] text-ink-muted" data-fact>
+            <p className="mt-6 font-mono text-[12.5px] text-ink-muted" data-fact>
               one core · two wings · one record per message
             </p>
           </Reveal>
@@ -164,7 +164,7 @@ export default function AboutPage() {
                     <p className="display-num text-4xl font-semibold leading-none">{l.n}</p>
                     <h3 className="display-s mt-4">{l.name}</h3>
                     <p className="mt-2 text-[0.9375rem] leading-relaxed text-ink-muted">{l.body}</p>
-                    <p className="mt-3 font-mono text-[11px] text-ink-muted" data-fact>
+                    <p className="mt-3 font-mono text-[12.5px] text-ink-muted" data-fact>
                       {l.fact}
                     </p>
                   </div>
@@ -191,7 +191,7 @@ export default function AboutPage() {
                     One place to design an email, build a list, send a campaign, follow up and read
                     what comes back.
                   </p>
-                  <p className="mt-3 font-mono text-[11px] text-ink-muted" data-fact>
+                  <p className="mt-3 font-mono text-[12.5px] text-ink-muted" data-fact>
                     studio · campaigns · inbox · no code
                   </p>
                 </div>
@@ -203,7 +203,7 @@ export default function AboutPage() {
                     The same product, through a REST API, a typed Node SDK and a CLI. The same data,
                     the same records.
                   </p>
-                  <p className="mt-3 font-mono text-[11px] text-ink-muted" data-fact>
+                  <p className="mt-3 font-mono text-[12.5px] text-ink-muted" data-fact>
                     idempotent sends · webhooks · sub-tenancy
                   </p>
                 </div>
@@ -220,7 +220,7 @@ export default function AboutPage() {
                 <Reveal key={b.claim} inView delay={0.04 * i}>
                   <div className="py-8">
                     <h2 className="display-m max-w-3xl text-balance">{b.claim}</h2>
-                    <p className="mt-3 font-mono text-[11px] text-ink-muted" data-fact>
+                    <p className="mt-3 font-mono text-[12.5px] text-ink-muted" data-fact>
                       {b.fact}
                     </p>
                   </div>

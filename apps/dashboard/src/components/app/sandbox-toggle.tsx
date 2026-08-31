@@ -74,7 +74,7 @@ export function SandboxToggle({
         {pending ? <Loader2 className="size-3.5 animate-spin" /> : <FlaskConical className="size-3.5" />}
         Open the sandbox
       </button>
-      {error ? <span className="text-[11px] text-destructive">{error}</span> : null}
+      {error ? <span className="text-[12.5px] text-destructive">{error}</span> : null}
     </div>
   );
 }

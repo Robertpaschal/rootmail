@@ -286,7 +286,7 @@ export function TemplateEditor({
                     type="button"
                     onClick={() => setTypeOpen((v) => !v)}
                     title={TYPE_FACT[type]}
-                    className="rounded-full border px-2.5 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                    className="rounded-full border px-2.5 py-1 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
                   >
                     {TYPE_LABEL[type]}
                   </button>
@@ -312,7 +312,7 @@ export function TemplateEditor({
                             )}
                           >
                             <span className="text-sm font-medium">{TYPE_LABEL[t]}</span>
-                            <span className="text-[11px] leading-snug text-muted-foreground">{TYPE_FACT[t]}</span>
+                            <span className="text-[12.5px] leading-snug text-muted-foreground">{TYPE_FACT[t]}</span>
                           </button>
                         ))}
                       </motion.div>
@@ -485,7 +485,7 @@ export function TemplateEditor({
                         }}
                         className="h-8 font-mono text-xs"
                       />
-                      <p className="text-[11px] text-muted-foreground">How code refers to this template. Generated from the name.</p>
+                      <p className="text-[12.5px] text-muted-foreground">How code refers to this template. Generated from the name.</p>
                     </div>
                   ) : null}
                 </div>

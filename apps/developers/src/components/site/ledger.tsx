@@ -154,7 +154,7 @@ export function Ledger() {
                 setCursor(WINDOW);
               }}
               className={cn(
-                "rounded-md px-2.5 py-1.5 font-mono text-[11px] transition-colors duration-interaction ease-interaction",
+                "rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors duration-interaction ease-interaction",
                 i === filter
                   ? "bg-foreground text-background"
                   : "text-ink-muted hover:bg-muted hover:text-foreground",
@@ -215,7 +215,7 @@ export function Ledger() {
         <p className="max-w-md text-sm text-ink-muted">
           The hollow node is an open — a pixel fired, and mail clients prefetch images.
         </p>
-        <p className="font-mono text-[11px] text-ink-muted" data-fact>
+        <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
           Rootmail-Signature · HMAC-SHA256 of timestamp + raw body
         </p>
       </div>

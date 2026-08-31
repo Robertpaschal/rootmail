@@ -226,7 +226,7 @@ export function MediaLibraryHost() {
                               {isVideo ? <Video className="size-7" /> : <FileText className="size-7" />}
                             </span>
                           )}
-                          <span className="block truncate border-t px-2 py-1 text-[11px] text-muted-foreground">
+                          <span className="block truncate border-t px-2 py-1 text-[12.5px] text-muted-foreground">
                             {a.filename} · {formatBytes(a.size)}
                           </span>
                         </button>

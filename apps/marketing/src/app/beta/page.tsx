@@ -129,7 +129,7 @@ export default async function BetaPage() {
               <WaitlistForm />
 
               <div>
-                <p className="border-b border-rule pb-2.5 font-mono text-[11px] uppercase tracking-wide text-ink-muted" data-fact>
+                <p className="border-b border-rule pb-2.5 font-mono text-[12.5px] uppercase tracking-wide text-ink-muted" data-fact>
                   what being a tester means
                 </p>
                 <div className="ruled">
@@ -139,7 +139,7 @@ export default async function BetaPage() {
                       <p className="mt-1.5 text-[0.9375rem] leading-relaxed text-ink-muted">
                         {p.body}
                       </p>
-                      <p className="mt-2 font-mono text-[11px] text-ink-muted" data-fact>
+                      <p className="mt-2 font-mono text-[12.5px] text-ink-muted" data-fact>
                         {p.fact}
                       </p>
                     </div>

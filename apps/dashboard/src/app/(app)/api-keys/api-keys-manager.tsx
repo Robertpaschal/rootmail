@@ -116,7 +116,7 @@ export function ApiKeysManager({ keys, currentKey, clients }: Props) {
                   {clients.length > 0 ? (
                     <p className="mt-2 text-xs text-muted-foreground">
                       A workspace key can act as any client by sending the{" "}
-                      <code className="rounded bg-muted px-1 py-0.5 font-mono text-[11px]">X-Rootmail-Subtenant</code>{" "}
+                      <code className="rounded bg-muted px-1 py-0.5 font-mono text-[12.5px]">X-Rootmail-Subtenant</code>{" "}
                       header — keep those to yourself. A key scoped to one client can only ever reach
                       that client&apos;s data, whatever headers it sends, so it&apos;s the one you can
                       safely hand over.

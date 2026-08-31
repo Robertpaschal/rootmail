@@ -347,7 +347,7 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
 function Field({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
   return (
     <div className="mt-1 flex items-center gap-1">
-      <span className="w-24 shrink-0 text-[11px] uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className="w-24 shrink-0 text-[12.5px] uppercase tracking-wide text-muted-foreground">{label}</span>
       <code
         className={`min-w-0 flex-1 truncate font-mono text-xs ${muted ? "text-muted-foreground" : ""}`}
         title={value}

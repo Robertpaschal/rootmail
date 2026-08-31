@@ -79,7 +79,7 @@ export function CommandTrigger() {
       aria-label="Search rootmail"
     >
       <Search className="size-3.5" /> Search
-      <kbd className="rounded border bg-muted px-1 font-mono text-[10px]">⌘K</kbd>
+      <kbd className="rounded border bg-muted px-1 font-mono text-[12px]">⌘K</kbd>
     </button>
   );
 }

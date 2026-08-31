@@ -321,7 +321,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                   <div className="flex w-full max-w-lg flex-col gap-3">
                     {SUGGESTION_GROUPS.map((g) => (
                       <div key={g.label} className="flex flex-wrap items-center justify-center gap-2">
-                        <span className="w-16 shrink-0 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <span className="w-16 shrink-0 text-right text-[12.5px] font-semibold uppercase tracking-wide text-muted-foreground">
                           {g.label}
                         </span>
                         {g.items.map((s) => (
@@ -364,7 +364,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                         <Markdown>{t.content}</Markdown>
                       )}
                       {t.actions && t.actions.length > 0 ? (
-                        <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11px] text-muted-foreground">
+                        <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-muted-foreground">
                           <Sparkles className="size-3 shrink-0 opacity-70" />
                           {t.actions.map((a, j) => (
                             <span key={j} className={cn("inline-flex items-center gap-1.5", a.status >= 400 && "text-acted")}>
@@ -445,17 +445,17 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
               )}
             </div>
             <div className="mt-1.5 flex items-center justify-between gap-3 px-1">
-              <p className="text-[11px] text-muted-foreground">
-                <kbd className="rounded border bg-muted px-1 py-px font-sans text-[10px]">Enter</kbd> to send ·{" "}
-                <kbd className="rounded border bg-muted px-1 py-px font-sans text-[10px]">Shift</kbd>
-                <kbd className="ml-0.5 rounded border bg-muted px-1 py-px font-sans text-[10px]">Enter</kbd> for a new line
+              <p className="text-[12.5px] text-muted-foreground">
+                <kbd className="rounded border bg-muted px-1 py-px font-sans text-[12px]">Enter</kbd> to send ·{" "}
+                <kbd className="rounded border bg-muted px-1 py-px font-sans text-[12px]">Shift</kbd>
+                <kbd className="ml-0.5 rounded border bg-muted px-1 py-px font-sans text-[12px]">Enter</kbd> for a new line
               </p>
               {credits ? <CreditMeter credits={credits} className="shrink-0" /> : null}
             </div>
           </form>
           {/* Same escalation path as the floating + docked modes — one tap from
               the AI to a real person, without leaving the help surface. */}
-          <p className="mt-2 text-center text-[11px] text-muted-foreground">
+          <p className="mt-2 text-center text-[12.5px] text-muted-foreground">
             Need a human?{" "}
             <Link href="/assistant?pane=support" className="font-medium text-primary hover:underline">
               Talk to the support team

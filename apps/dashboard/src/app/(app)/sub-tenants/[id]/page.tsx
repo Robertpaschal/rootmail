@@ -171,7 +171,7 @@ export default async function SubTenantDetailPage({
                       <div className="flex items-center gap-2">
                         <Icon className={cn("size-4 shrink-0", v.color)} />
                         <span className="text-sm font-medium">{it.label}</span>
-                        <Badge variant={v.badge} className="text-[10px] uppercase">
+                        <Badge variant={v.badge} className="text-[12px] uppercase">
                           {it.status}
                         </Badge>
                       </div>

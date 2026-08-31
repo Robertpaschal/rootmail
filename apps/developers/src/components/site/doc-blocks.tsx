@@ -111,7 +111,7 @@ export function DocBlockView({ block }: { block: DocBlock }) {
         <div className="flex items-center gap-3 rounded-lg border border-rule bg-card px-3 py-2.5 shadow-e1">
           <span
             className={cn(
-              "shrink-0 rounded-sm px-2 py-0.5 font-mono text-[11px] font-medium",
+              "shrink-0 rounded-sm px-2 py-0.5 font-mono text-[12.5px] font-medium",
               methodChip(block.method),
             )}
           >
@@ -129,7 +129,7 @@ export function DocBlockView({ block }: { block: DocBlock }) {
       return (
         <div className="overflow-hidden rounded-lg border border-rule">
           {block.title ? (
-            <p className="border-b border-rule bg-muted px-3 py-2 font-mono text-[11px] text-ink-muted">
+            <p className="border-b border-rule bg-muted px-3 py-2 text-[13px] text-ink-muted">
               {block.title}
             </p>
           ) : null}
@@ -142,11 +142,11 @@ export function DocBlockView({ block }: { block: DocBlock }) {
                       {r.name}
                     </code>
                     {r.required ? (
-                      <span className="ml-1.5 align-[0.15em] font-mono text-[10px] font-medium uppercase tracking-wide text-foreground">
+                      <span className="ml-1.5 align-[0.15em] font-mono text-[12px] font-medium uppercase tracking-wide text-foreground">
                         required
                       </span>
                     ) : null}
-                    <span className="mt-0.5 block font-mono text-[11px] text-ink-muted">{r.type}</span>
+                    <span className="mt-0.5 block font-mono text-[12.5px] text-ink-muted">{r.type}</span>
                   </td>
                   <td className="p-3 text-ink-muted">
                     <Runs content={r.desc} />
@@ -185,7 +185,7 @@ export function DocBlockView({ block }: { block: DocBlock }) {
         >
           <span
             className={cn(
-              "mr-1.5 font-mono text-[11px] font-medium uppercase tracking-wide",
+              "mr-1.5 font-mono text-[12.5px] font-medium uppercase tracking-wide",
               CALLOUT_LABEL[block.tone],
             )}
           >

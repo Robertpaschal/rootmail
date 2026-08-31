@@ -33,7 +33,7 @@ export function CopyLine({ command }: { command: string }) {
             /* clipboard unavailable — the command is still on screen */
           }
         }}
-        className="-my-1 inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[11px] text-ink-muted transition-colors duration-interaction ease-interaction hover:bg-muted hover:text-foreground"
+        className="-my-1 inline-flex shrink-0 items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[12.5px] text-ink-muted transition-colors duration-interaction ease-interaction hover:bg-muted hover:text-foreground"
       >
         {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
         {copied ? "copied" : "copy"}

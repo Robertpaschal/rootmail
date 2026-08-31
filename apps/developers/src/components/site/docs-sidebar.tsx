@@ -20,7 +20,7 @@ export function DocsSidebar() {
     <nav className="space-y-6">
       {DOCS.map((section) => (
         <div key={section.label}>
-          <p className="mb-1.5 px-2 font-mono text-[11px] uppercase tracking-wider text-ink-muted">
+          <p className="mb-1.5 px-2 font-mono text-[12.5px] uppercase tracking-wider text-ink-muted">
             {section.label}
           </p>
           <ul className="space-y-0.5">

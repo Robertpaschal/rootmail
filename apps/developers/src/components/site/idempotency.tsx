@@ -70,7 +70,7 @@ export function Idempotency() {
             whose thesis is that it draws the difference between what it
             witnessed and what it guessed, labelling our own demo IS the
             argument. */}
-        <span className="font-mono text-[11px] text-ink-muted" data-fact>
+        <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
           {DEMO_DISCLOSURE}
         </span>
       </div>

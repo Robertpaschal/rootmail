@@ -145,7 +145,7 @@ export function MessageFlow({ message }: { message: FlowInput }) {
         </span>
         {state === "stopped" && why ? (
           <span
-            className="min-w-0 truncate font-mono text-[10px] text-muted-foreground"
+            className="min-w-0 truncate font-mono text-[12px] text-muted-foreground"
             data-fact
             title={why}
           >

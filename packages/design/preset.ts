@@ -60,6 +60,11 @@ export const rootmailPreset = {
         },
         paper: { DEFAULT: "hsl(var(--paper))", raised: "hsl(var(--paper-raised))" },
         rule: "hsl(var(--rule))",
+        /* A recessed plane for panels that sit inside a section. */
+        well: "hsl(var(--well))",
+        /* Code and app previews: a quotation, so it contrasts with the page
+           rather than tinting it. Dark in both themes on purpose. */
+        code: { DEFAULT: "hsl(var(--code-bg))", fg: "hsl(var(--code-fg))", ring: "hsl(var(--code-ring))" },
         witnessed: { DEFAULT: "hsl(var(--witnessed))", tint: "hsl(var(--witnessed-tint))" },
         acted: { DEFAULT: "hsl(var(--acted))", tint: "hsl(var(--acted-tint))" },
         stopped: { DEFAULT: "hsl(var(--stopped))", tint: "hsl(var(--stopped-tint))" },
@@ -107,6 +112,8 @@ export const rootmailPreset = {
         e1: "var(--elev-1)",
         e2: "var(--elev-2)",
         e3: "var(--elev-3)",
+        /* Pressed in, not lifted out — inset shadow plus a ring. */
+        well: "var(--elev-well)",
         ring: "0 0 0 1px hsl(var(--rule))",
         knockout: "0 0 0 8px hsl(var(--background))",
       },

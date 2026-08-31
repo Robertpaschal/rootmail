@@ -38,7 +38,15 @@ export function Panel({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("rounded-lg border border-rule bg-card shadow-e1", className)}>
+    // A panel here is an APP PREVIEW — raw API output, a ledger, DNS records:
+    // a window onto something that is not this page. It used `bg-card`, the
+    // same surface as the section carrying it, which measured 1.00–1.08
+    // contrast against its own background: brown on brown.
+    //
+    // `--well` is RECESSED and theme-aware, so the panel reads as a separate
+    // plane in both themes while the ink tokens inside it stay correct. (The
+    // always-dark `--code-bg` is for `<pre>` only, where every child is code.)
+    <div className={cn("rounded-lg bg-well shadow-well", className)}>
       {children}
     </div>
   );
@@ -54,7 +62,7 @@ export function PanelHead({
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-rule px-3 py-2 font-mono text-[11px] text-ink-muted",
+        "flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-rule px-3 py-2 font-mono text-[12.5px] text-ink-muted",
         className,
       )}
       data-fact

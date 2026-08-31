@@ -50,7 +50,7 @@ export default async function DocPageView({ params }: { params: Promise<{ slug: 
     <div className="flex gap-10">
         <article className="min-w-0 max-w-2xl flex-1">
           {section ? (
-            <p className="font-mono text-[11px] uppercase tracking-wider text-ink-muted" data-fact>
+            <p className="font-mono text-[12.5px] uppercase tracking-wider text-ink-muted" data-fact>
               {section.label}
             </p>
           ) : null}
@@ -71,7 +71,7 @@ export default async function DocPageView({ params }: { params: Promise<{ slug: 
                 href={`/docs/${prev.slug}`}
                 className="group rounded-lg px-3 py-3 transition-colors duration-interaction ease-interaction hover:bg-muted"
               >
-                <span className="flex items-center gap-1 font-mono text-[11px] text-ink-muted">
+                <span className="flex items-center gap-1 font-mono text-[12.5px] text-ink-muted">
                   <ArrowLeft className="size-3" /> previous
                 </span>
                 <span className="mt-1 block font-medium group-hover:text-brass-text">
@@ -86,7 +86,7 @@ export default async function DocPageView({ params }: { params: Promise<{ slug: 
                 href={`/docs/${next.slug}`}
                 className="group rounded-lg px-3 py-3 text-right transition-colors duration-interaction ease-interaction hover:bg-muted"
               >
-                <span className="flex items-center justify-end gap-1 font-mono text-[11px] text-ink-muted">
+                <span className="flex items-center justify-end gap-1 font-mono text-[12.5px] text-ink-muted">
                   next <ArrowRight className="size-3" />
                 </span>
                 <span className="mt-1 block font-medium group-hover:text-brass-text">
@@ -102,7 +102,7 @@ export default async function DocPageView({ params }: { params: Promise<{ slug: 
         {/* On-page table of contents */}
         {toc.length > 1 ? (
           <aside className="sticky top-24 hidden h-fit w-44 shrink-0 xl:block">
-            <p className="mb-2 font-mono text-[11px] uppercase tracking-wider text-ink-muted">
+            <p className="mb-2 font-mono text-[12.5px] uppercase tracking-wider text-ink-muted">
               on this page
             </p>
             <ul className="space-y-1.5 border-l border-rule">

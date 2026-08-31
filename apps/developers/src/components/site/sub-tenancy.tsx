@@ -158,11 +158,11 @@ export function SubTenancy() {
                 <span className="min-w-0 truncate" data-fact>
                   {r.host}
                 </span>
-                <span className="ml-auto shrink-0 text-[11px] text-ink-muted">
+                <span className="ml-auto shrink-0 text-[12.5px] text-ink-muted">
                   {r.required ? "required" : "optional"}
                 </span>
               </div>
-              <div className="mt-0.5 truncate text-[11px] text-ink-muted" data-fact>
+              <div className="mt-0.5 truncate text-[12.5px] text-ink-muted" data-fact>
                 {r.value}
               </div>
             </div>
@@ -177,7 +177,7 @@ export function SubTenancy() {
 /** A station marker. Mono, because `01` is an ordinal we are recording. */
 function Station({ n, children }: { n: string; children: React.ReactNode }) {
   return (
-    <p className="mb-2 flex items-baseline gap-2 font-mono text-[11px] text-ink-muted" data-fact>
+    <p className="mb-2 flex items-baseline gap-2 font-mono text-[12.5px] text-ink-muted" data-fact>
       <span className="text-foreground">{n}</span>
       {children}
     </p>

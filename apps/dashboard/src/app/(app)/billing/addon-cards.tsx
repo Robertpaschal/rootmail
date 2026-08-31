@@ -134,7 +134,7 @@ export function AddonCards({
                       <Icon className="size-5" />
                     </span>
                     {owned ? (
-                      <span className="rounded-full bg-witnessed/15 px-2 py-0.5 text-[11px] font-medium text-witnessed">
+                      <span className="rounded-full bg-witnessed/15 px-2 py-0.5 text-[12.5px] font-medium text-witnessed">
                         You have {isToggle ? "this" : h}
                       </span>
                     ) : null}
@@ -145,7 +145,7 @@ export function AddonCards({
                     <span className="font-bold">${a.unit_amount}</span>
                     <span className="text-xs text-muted-foreground">/mo{isToggle ? "" : ` per ${a.unit}`}</span>
                   </p>
-                  <p className="text-[11px] text-muted-foreground">{a.unit_note}</p>
+                  <p className="text-[12.5px] text-muted-foreground">{a.unit_note}</p>
 
                   <div className="mt-3">
                     {isToggle ? (
@@ -171,7 +171,7 @@ export function AddonCards({
                             <Plus className="size-3.5" />
                           </Button>
                         </div>
-                        <p className="mt-1.5 h-4 text-center text-[11px] text-muted-foreground">
+                        <p className="mt-1.5 h-4 text-center text-[12.5px] text-muted-foreground">
                           {d > 0 ? `You'll have ${h + d}` : owned ? `Buy more (you have ${h})` : "Choose how many"}
                         </p>
                       </>
@@ -241,7 +241,7 @@ export function AddonCards({
                         <span className="tabular-nums">{money(afterTotal)}/mo</span>
                       </div>
                     </div>
-                    <p className="mt-2 text-[11px] text-muted-foreground">
+                    <p className="mt-2 text-[12.5px] text-muted-foreground">
                       Everything you already have is credited at checkout — you&apos;re never billed twice for it.
                     </p>
                   </div>

@@ -185,7 +185,7 @@ export function MarketingBilling({
                 <tr key={row.label} className="border-b last:border-0">
                   <th className="p-3 text-left font-medium">
                     {row.label}
-                    {row.hint ? <span className="block text-[11px] font-normal text-muted-foreground">{row.hint}</span> : null}
+                    {row.hint ? <span className="block text-[12.5px] font-normal text-muted-foreground">{row.hint}</span> : null}
                   </th>
                   {tiers.map((t) => {
                     const v = row.value(t);
@@ -406,7 +406,7 @@ function OrderBar({
                     {money(planAmount + addonsAmount)}
                     <span className="text-xs font-normal text-muted-foreground">/{unit}</span>
                   </p>
-                  <p className="text-[10px] text-muted-foreground">one bill{yr ? " · 2 mo free" : ""}</p>
+                  <p className="text-[12px] text-muted-foreground">one bill{yr ? " · 2 mo free" : ""}</p>
                 </div>
                 {chosen ? (
                   <Button size="sm" disabled={pending} onClick={checkout}>
@@ -491,16 +491,16 @@ function MarketingHeader({
             <motion.span key={shown} initial={{ opacity: 0.4 }} animate={{ opacity: 1 }} className="text-lg font-bold">
               {money(shown)}
             </motion.span>
-            <span className="text-[11px] font-normal text-muted-foreground">/{interval === "year" ? "yr" : "mo"}</span>
+            <span className="text-[12.5px] font-normal text-muted-foreground">/{interval === "year" ? "yr" : "mo"}</span>
           </>
         )}
       </p>
-      <p className="mb-2 h-4 text-[10px] text-witnessed">
+      <p className="mb-2 h-4 text-[12px] text-witnessed">
         {!isFree && interval === "month" ? `${money(monthly * 10)}/yr — 2 mo free` : !isFree ? "2 months free" : ""}
       </p>
       {/* CTA sits ABOVE the feature rows and sticks with the header. */}
       {isFree && !freeEligible ? (
-        <p className="text-[11px] text-muted-foreground">Free ≤ {free.toLocaleString()}</p>
+        <p className="text-[12.5px] text-muted-foreground">Free ≤ {free.toLocaleString()}</p>
       ) : (
         <Button size="sm" variant={isChosen || (recommended && !isCurrent) ? "default" : "outline"} className="w-full"
           disabled={freePending || isCurrent} onClick={cta}>
@@ -559,7 +559,7 @@ function MarketingAddons({
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm font-medium">
                     {a.name}
-                    {have > 0 ? <span className="rounded-full bg-witnessed/15 px-1.5 py-0.5 text-[10px] font-medium text-witnessed">you have {isToggle ? "this" : have}</span> : null}
+                    {have > 0 ? <span className="rounded-full bg-witnessed/15 px-1.5 py-0.5 text-[12px] font-medium text-witnessed">you have {isToggle ? "this" : have}</span> : null}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{a.description}</p>
                   <p className="mt-1 text-xs"><span className="font-semibold">${a.unit_amount}</span><span className="text-muted-foreground">/mo{isToggle ? "" : ` per ${a.unit}`} · {a.unit_note}</span></p>
@@ -581,7 +581,7 @@ function MarketingAddons({
                       <span className="w-8 text-center text-sm font-medium tabular-nums">+{d}</span>
                       <Button type="button" variant="outline" size="icon" className="size-7" disabled={a.max != null && have + d >= a.max} onClick={() => set(a, d + 1)} aria-label={`Add one more ${a.unit}`}><Plus className="size-3.5" /></Button>
                     </div>
-                    <span className="h-3.5 text-[10px] text-muted-foreground">{d > 0 ? `you'll have ${have + d}` : ""}</span>
+                    <span className="h-3.5 text-[12px] text-muted-foreground">{d > 0 ? `you'll have ${have + d}` : ""}</span>
                   </div>
                 )}
               </div>

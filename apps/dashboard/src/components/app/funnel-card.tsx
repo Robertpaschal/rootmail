@@ -55,7 +55,7 @@ export function FunnelCard({
                   <div key={s.key}>
                     <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
                       <span className="font-medium">{s.label}</span>
-                      <span className="truncate font-mono text-[10px] text-muted-foreground" data-fact>
+                      <span className="truncate font-mono text-[12px] text-muted-foreground" data-fact>
                         {s.method}
                         {s.inferred ? " · inferred" : ""}
                       </span>

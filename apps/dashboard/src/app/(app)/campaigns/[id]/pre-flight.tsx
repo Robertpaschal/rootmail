@@ -110,12 +110,12 @@ export function PreFlight({
           </div>
           <div className="flex items-center gap-1.5">
             {editedCount > 0 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-2.5 py-1 text-[11px] font-medium text-primary">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-2.5 py-1 text-[12.5px] font-medium text-primary">
                 <PenLine className="size-3" /> {editedCount} edited
               </span>
             ) : null}
             {variantCount > 1 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12.5px] font-medium text-muted-foreground">
                 <Split className="size-3" /> {variantCount} versions in play
               </span>
             ) : null}

@@ -97,7 +97,7 @@ function Branch({
         {domain}
       </span>
       <span className={`text-[13px] font-medium ${t.text}`}>{status}</span>
-      <span className="w-full font-mono text-[11px] text-ink-muted sm:ml-auto sm:w-auto" data-fact>
+      <span className="w-full font-mono text-[12.5px] text-ink-muted sm:ml-auto sm:w-auto" data-fact>
         {detail}
       </span>
     </div>
@@ -169,10 +169,10 @@ export function SubTenancy() {
           </p>
         </div>
 
-        <figure className="mt-10 rounded-lg border border-rule bg-card shadow-e1 p-5 sm:p-7">
+        <figure className="mt-10 rounded-lg bg-well shadow-well p-5 sm:p-7">
           <figcaption className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
             <span className="display-s">One trunk, one branch per client</span>
-            <span className="font-mono text-[11px] text-ink-muted" data-fact>
+            <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
               illustrative · sample domains · compressed from 7 days
             </span>
           </figcaption>
@@ -185,7 +185,7 @@ export function SubTenancy() {
               className="absolute bottom-6 left-0 top-2 w-[2px] bg-foreground"
               aria-hidden="true"
             />
-            <p className="-mt-1 mb-5 font-mono text-[11px] leading-relaxed text-ink-muted">
+            <p className="-mt-1 mb-5 font-mono text-[12.5px] leading-relaxed text-ink-muted">
               the trunk is shared: one provider account, one IP pool, one warm-up history
             </p>
 
@@ -211,7 +211,7 @@ export function SubTenancy() {
 
             {/* The disclosure, on the trunk, as a consequence of the click. */}
             {step === STEPS.length - 1 ? (
-              <p className="mt-5 font-mono text-[11px] text-ink-muted" data-fact>
+              <p className="mt-5 font-mono text-[12.5px] text-ink-muted" data-fact>
                 the trunk carried 1,180 of this client&apos;s bounces before we stopped it
               </p>
             ) : null}
@@ -225,7 +225,7 @@ export function SubTenancy() {
             >
               {dirty ? "Put it back" : "Simulate a dirty list"}
             </button>
-            <span className="font-mono text-[11px] text-ink-muted" aria-live="polite" data-fact>
+            <span className="font-mono text-[12.5px] text-ink-muted" aria-live="polite" data-fact>
               {running ? "running" : `step ${step}`}
             </span>
           </div>
@@ -233,7 +233,7 @@ export function SubTenancy() {
           {/* The five steps, always present. This is the reduced-motion route
               and the no-script route, and it is the same five figures the
               simulation walks. */}
-          <ol className="ruled mt-4 border-t border-rule font-mono text-[11px]">
+          <ol className="ruled mt-4 border-t border-rule font-mono text-[12.5px]">
             {STEPS.map((s, i) => (
               <li
                 key={s.bounces}
@@ -252,7 +252,7 @@ export function SubTenancy() {
             Connect your own SES or Mailgun; the mail keeps leaving on your account, and
             disconnecting puts it all back.
           </p>
-          <ul className="ruled mt-5 border-t border-rule font-mono text-[11px] text-ink-muted">
+          <ul className="ruled mt-5 border-t border-rule font-mono text-[12.5px] text-ink-muted">
             {[
               "your provider · SES, Mailgun, or ours",
               "your IP reputation and warm-up",

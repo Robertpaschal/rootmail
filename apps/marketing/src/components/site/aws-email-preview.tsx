@@ -30,7 +30,7 @@ export function AwsEmailPreview() {
 
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           {/* Stand-in for the sender avatar — no image to load, no origin to allow. */}
-          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[#ff9900]/15 text-[10px] font-bold text-[#e88b00]">
+          <span className="grid size-6 shrink-0 place-items-center rounded-full bg-[#ff9900]/15 text-[12px] font-bold text-[#e88b00]">
             aws
           </span>
           <span>
@@ -48,7 +48,7 @@ export function AwsEmailPreview() {
           </p>
           {/* The long signed URL is the part that looks alarming, so show its
               shape without pretending to be clickable. */}
-          <p className="break-all font-mono text-[10px] text-primary/70">
+          <p className="break-all font-mono text-[12px] text-primary/70">
             https://email-verification.us-east-1.amazonaws.com/?Context=…&amp;Identity.IdentityName=
             <span className="text-foreground">you@yourcompany.com</span>&amp;X-Amz-Signature=…
           </p>

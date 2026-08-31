@@ -23,7 +23,7 @@ import { cn } from "@/lib/utils";
  */
 
 const base =
-  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-mono text-[11px] transition-[color,background-color,box-shadow,transform] duration-interaction ease-interaction focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none";
+  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-mono text-[12.5px] transition-[color,background-color,box-shadow,transform] duration-interaction ease-interaction focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none";
 
 /** The one that runs something. Brass, and the only glow on the section. */
 export function RunButton({
@@ -108,7 +108,7 @@ export function Segmented({
             if (e.key === "ArrowLeft") onChange((active - 1 + options.length) % options.length);
           }}
           className={cn(
-            "rounded-md px-2.5 py-1.5 font-mono text-[11px] transition-colors duration-interaction ease-interaction motion-reduce:transition-none",
+            "rounded-md px-2.5 py-1.5 text-[13px] font-medium transition-colors duration-interaction ease-interaction motion-reduce:transition-none",
             i === active
               ? "bg-paper-raised text-foreground shadow-e1"
               : "text-ink-muted hover:text-foreground",

@@ -681,7 +681,7 @@ function BlocksPalette({ editor, onInserted, onAiSubject }: { editor: Editor; on
             <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-secondary text-muted-foreground group-hover:text-primary"><b.icon className="size-4" /></span>
             <span className="min-w-0">
               <span className="block text-sm font-medium leading-tight">{b.label}</span>
-              <span className="block truncate text-[11px] text-muted-foreground">{b.hint}</span>
+              <span className="block truncate text-[12.5px] text-muted-foreground">{b.hint}</span>
             </span>
           </button>
         ))}
@@ -706,7 +706,7 @@ function BlocksPalette({ editor, onInserted, onAiSubject }: { editor: Editor; on
             <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary"><Sparkles className="size-4" /></span>
             <span className="min-w-0">
               <span className="block text-sm font-medium leading-tight">Ask AI to write it</span>
-              <span className="block text-[11px] text-muted-foreground">Describe it — get a full draft</span>
+              <span className="block text-[12.5px] text-muted-foreground">Describe it — get a full draft</span>
             </span>
           </button>
         )}
@@ -764,7 +764,7 @@ function DesignPanel({ theme, setTheme }: { theme: EmailTheme; setTheme: (t: Ema
             </button>
           ))}
         </div>
-        <p className="text-[11px] leading-snug text-muted-foreground">
+        <p className="text-[12.5px] leading-snug text-muted-foreground">
           {MOTION_LEVELS.find((m) => m.value === theme.motion)?.hint}{" "}
           {theme.motion !== "none" && (
             <span>Apple Mail plays it. Gmail and Outlook show the email static — so it never carries meaning.</span>
@@ -785,7 +785,7 @@ function Swatch({ label, value, onChange }: { label: string; value: string; onCh
       <Label className="text-xs">{label}</Label>
       <label className="flex cursor-pointer items-center gap-2 rounded-md border bg-background px-2 py-1">
         <span className="size-5 rounded border" style={{ background: value }} />
-        <span className="font-mono text-[11px] uppercase text-muted-foreground">{value}</span>
+        <span className="font-mono text-[12.5px] uppercase text-muted-foreground">{value}</span>
         <input type="color" className="sr-only" value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#4f46e5"} onChange={(e) => onChange(e.target.value)} />
       </label>
     </div>
@@ -797,7 +797,7 @@ function Slider({ label, value, min, max, unit, onChange }: { label: string; val
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
         <Label className="text-xs">{label}</Label>
-        <span className="font-mono text-[11px] text-muted-foreground">{value}{unit}</span>
+        <span className="font-mono text-[12.5px] text-muted-foreground">{value}{unit}</span>
       </div>
       <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-primary" />
     </div>
@@ -900,7 +900,7 @@ function ColorField({ label, value, fallback, onChange, clearable }: { label: st
       <div className="flex items-center gap-2">
         <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-md border bg-background px-2 py-1.5">
           <span className="size-5 rounded border" style={{ background: value || "transparent" }} />
-          <span className="font-mono text-[11px] uppercase text-muted-foreground">{value || "none"}</span>
+          <span className="font-mono text-[12.5px] uppercase text-muted-foreground">{value || "none"}</span>
           <input type="color" className="sr-only" value={/^#[0-9a-f]{6}$/i.test(value) ? value : fallback} onChange={(e) => onChange(e.target.value)} />
         </label>
         {clearable && value ? <button type="button" onClick={() => onChange("")} className="text-muted-foreground hover:text-foreground" title="Clear"><X className="size-4" /></button> : null}
@@ -918,7 +918,7 @@ function ButtonFields({ attrs, patch }: { attrs: Record<string, unknown>; patch:
       <Field label="Link"><TextInput value={String(attrs.href ?? "")} onChange={(v) => patch({ href: v })} placeholder="{{action_url}}" mono /></Field>
       <ColorField label="Button color" value={String(attrs.bg ?? BRAND)} fallback={BRAND} onChange={(v) => patch({ bg: v })} />
       <Field label="Alignment"><AlignPicker value={String(attrs.align ?? "left")} onChange={(v) => patch({ align: v })} /></Field>
-      <p className="text-[11px] text-muted-foreground">Use <span className="font-mono">{"{{action_url}}"}</span> to send each recipient to a personalized link.</p>
+      <p className="text-[12.5px] text-muted-foreground">Use <span className="font-mono">{"{{action_url}}"}</span> to send each recipient to a personalized link.</p>
     </div>
   );
 }
@@ -986,8 +986,8 @@ function FooterFields({ attrs, patch }: { attrs: Record<string, unknown>; patch:
         <input type="checkbox" checked={attrs.showViewInBrowser !== false} onChange={(e) => patch({ showViewInBrowser: e.target.checked })} className="accent-primary" />
         Show &ldquo;view in browser&rdquo; link
       </label>
-      <p className="text-[11px] text-muted-foreground">Marketing emails always include a working unsubscribe + your postal address to stay compliant — we add it automatically.</p>
-      <p className="text-[11px] leading-snug text-muted-foreground">The browser copy renders this exact email as a web page, for readers whose inbox mangles it or blocks images. It stops working when the message passes your retention window.</p>
+      <p className="text-[12.5px] text-muted-foreground">Marketing emails always include a working unsubscribe + your postal address to stay compliant — we add it automatically.</p>
+      <p className="text-[12.5px] leading-snug text-muted-foreground">The browser copy renders this exact email as a web page, for readers whose inbox mangles it or blocks images. It stops working when the message passes your retention window.</p>
     </div>
   );
 }
@@ -1009,7 +1009,7 @@ function EmbedFields({ attrs, patch }: { attrs: Record<string, unknown>; patch: 
       </Field>
       {attrs.thumbnail ? <img src={String(attrs.thumbnail)} alt="" className="w-full rounded-md border" /> : null}
       <Field label="Caption"><TextInput value={String(attrs.title ?? "")} onChange={(v) => patch({ title: v })} placeholder="Watch the video" /></Field>
-      <p className="text-[11px] text-muted-foreground">Inboxes can&apos;t play video, so this becomes a clickable poster that opens the link — the reliable way to share video in email.</p>
+      <p className="text-[12.5px] text-muted-foreground">Inboxes can&apos;t play video, so this becomes a clickable poster that opens the link — the reliable way to share video in email.</p>
     </div>
   );
 }
@@ -1082,11 +1082,11 @@ function LiveFields({ attrs, patch }: { attrs: Record<string, unknown>; patch: (
       >
         {busy ? "Updating…" : "Apply colors & wording"}
       </button>
-      {error ? <p className="text-[11px] text-destructive">{error}</p> : null}
+      {error ? <p className="text-[12.5px] text-destructive">{error}</p> : null}
       {attrs.src ? (
         <img src={String(attrs.src)} alt="" className="w-full rounded-md border" />
       ) : (
-        <p className="text-[11px] text-muted-foreground">Set a deadline to generate the countdown.</p>
+        <p className="text-[12.5px] text-muted-foreground">Set a deadline to generate the countdown.</p>
       )}
       <Field label="Fallback line (no-image readers)">
         <TextInput
@@ -1095,7 +1095,7 @@ function LiveFields({ attrs, patch }: { attrs: Record<string, unknown>; patch: (
           placeholder="This offer ends soon"
         />
       </Field>
-      <p className="text-[11px] leading-snug text-muted-foreground">
+      <p className="text-[12.5px] leading-snug text-muted-foreground">
         The image is redrawn every time it loads, so Gmail and webmail readers see the time left when they open the
         email. Apple Mail loads images on delivery instead, so those readers see the time left when it arrived, and
         Outlook blocks images until the reader allows them. It counts in days, hours and minutes — never seconds. So
@@ -1127,7 +1127,7 @@ function TextBlockFields({ editor, type }: { editor: Editor; type: string }) {
           </div>
         </Field>
       ) : null}
-      <p className="text-[11px] text-muted-foreground">Type directly in the email. Select text to make it bold, colored, or a link.</p>
+      <p className="text-[12.5px] text-muted-foreground">Type directly in the email. Select text to make it bold, colored, or a link.</p>
     </div>
   );
 }

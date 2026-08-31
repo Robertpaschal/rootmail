@@ -121,14 +121,14 @@ export function CustomerOutreachPanel({
                 )}
                 <span className="min-w-0 flex-1 truncate text-xs">{m.subject}</span>
                 {m.kind ? (
-                  <Badge variant="muted" className="shrink-0 text-[10px]">
+                  <Badge variant="muted" className="shrink-0 text-[12px]">
                     {KIND_LABEL[m.kind] ?? m.kind}
                   </Badge>
                 ) : null}
                 <span className="shrink-0" title={m.error ?? undefined}>
                   <StatusBadge status={m.status} />
                 </span>
-                <time className="shrink-0 font-mono text-[10px] text-ink-muted">
+                <time className="shrink-0 font-mono text-[12px] text-ink-muted">
                   {new Date(m.created_at).toLocaleDateString()}
                 </time>
               </li>

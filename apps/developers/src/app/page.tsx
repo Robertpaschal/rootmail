@@ -157,7 +157,7 @@ export default function DevelopersHome() {
           <div className="container max-w-4xl py-14 md:py-20">
             <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2">
               <h2 className="display-m text-balance">The same key twice sends once.</h2>
-              <p className="font-mono text-[11px] text-ink-muted" data-fact>
+              <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
                 watch the id, the status and the header
               </p>
             </div>
@@ -217,7 +217,7 @@ export default function DevelopersHome() {
           <div className="container py-14 md:py-20">
             <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-1 border-b border-rule pb-3">
               <p className="display-s">Everything the dashboard does, the API does.</p>
-              <p className="font-mono text-[11px] text-ink-muted" data-fact>
+              <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
                 12 of them · every one documented
               </p>
             </div>

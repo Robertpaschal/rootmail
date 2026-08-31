@@ -40,11 +40,11 @@ export function Topbar({ staff }: { staff: StaffUser }) {
       </div>
       <div className="flex items-center gap-3">
         <div className="hidden items-center gap-2 rounded-full border bg-background py-1 pl-1 pr-3 sm:flex">
-          <span className="grid size-6 place-items-center rounded-full bg-primary/10 text-[10px] font-semibold text-foreground">
+          <span className="grid size-6 place-items-center rounded-full bg-primary/10 text-[12px] font-semibold text-foreground">
             {initials(staff)}
           </span>
           <span className="text-xs font-medium">{staff.name ?? staff.email}</span>
-          <Badge variant="muted" className="text-[10px]">
+          <Badge variant="muted" className="text-[12px]">
             {staff.role}
           </Badge>
         </div>

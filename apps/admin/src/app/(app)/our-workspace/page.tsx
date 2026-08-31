@@ -166,7 +166,7 @@ export default async function OurWorkspacePage() {
                       {m.to_email}
                     </span>
                     {m.kind ? (
-                      <Badge variant="muted" className="shrink-0 text-[10px]">
+                      <Badge variant="muted" className="shrink-0 text-[12px]">
                         {KIND_LABEL[m.kind] ?? m.kind}
                       </Badge>
                     ) : null}

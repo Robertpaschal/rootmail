@@ -178,7 +178,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                             <GripVertical className="mt-1 size-3.5 shrink-0 cursor-grab text-muted-foreground/50" />
                             <Link href={`/contacts/${c.id}`} className="min-w-0 flex-1">
                               <span className="flex items-start gap-2">
-                                <span className="grid size-6 shrink-0 place-items-center rounded-full border border-rule text-[10px] font-semibold text-ink-muted">
+                                <span className="grid size-6 shrink-0 place-items-center rounded-full border border-rule text-[12px] font-semibold text-ink-muted">
                                   {initials(c.name, c.email)}
                                 </span>
                                 <span className="min-w-0">
@@ -186,7 +186,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                                     {c.name ?? c.email}
                                   </span>
                                   {c.name ? (
-                                    <span className="mt-0.5 block break-all text-[11px] leading-tight text-muted-foreground">
+                                    <span className="mt-0.5 block break-all text-[12.5px] leading-tight text-muted-foreground">
                                       {c.email}
                                     </span>
                                   ) : null}
@@ -220,7 +220,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                                 type="button"
                                 onClick={() => setMenuId((id) => (id === c.id ? null : c.id))}
                                 className={cn(
-                                  "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium transition-colors hover:bg-accent",
+                                  "inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[12.5px] font-medium transition-colors hover:bg-accent",
                                   STAGE_META[c.stage].badge,
                                 )}
                                 aria-label={`Stage: ${STAGE_META[c.stage].label}. Change stage`}
@@ -240,7 +240,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                                       transition={{ duration: 0.12 }}
                                       className="absolute left-0 z-30 mt-1 w-44 overflow-hidden rounded-lg border bg-popover p-1 shadow-lg"
                                     >
-                                      <p className="px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                      <p className="px-2 py-1 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
                                         Move to stage
                                       </p>
                                       {CONTACT_STAGES.map((s) => {
@@ -269,7 +269,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                                 ) : null}
                               </AnimatePresence>
                             </div>
-                            <span className="shrink-0 text-[10px] text-muted-foreground">
+                            <span className="shrink-0 text-[12px] text-muted-foreground">
                               {relativeTime(c.updated_at)}
                             </span>
                           </div>
@@ -316,7 +316,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                   {col.count > col.contacts.length ? (
                     <Link
                       href={`/contacts?stage=${col.stage}`}
-                      className="block border-t px-2 py-1.5 text-center text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground"
+                      className="block border-t px-2 py-1.5 text-center text-[12.5px] text-muted-foreground hover:bg-accent hover:text-foreground"
                     >
                       View all {col.count.toLocaleString()} in the table
                     </Link>
@@ -333,7 +333,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                   <span className={cn("size-2 shrink-0 rounded-full", meta.dot)} />
                   <span className="text-xs font-semibold tabular-nums">{col.count.toLocaleString()}</span>
                   <span
-                    className="flex-1 text-[11px] font-medium text-muted-foreground"
+                    className="flex-1 text-[12.5px] font-medium text-muted-foreground"
                     style={{ writingMode: "vertical-rl" }}
                   >
                     {meta.label}

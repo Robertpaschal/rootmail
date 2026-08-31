@@ -62,7 +62,7 @@ export function DocBlockView({ block }: { block: DocBlock }) {
       void deep;
       return (
         <div className="flex items-center gap-3 rounded-lg border bg-card px-3 py-2">
-          <span className={cn("shrink-0 rounded px-2 py-0.5 font-mono text-[11px] font-bold", METHOD_TONE[block.method])}>{block.method}</span>
+          <span className={cn("shrink-0 rounded px-2 py-0.5 font-mono text-[12.5px] font-bold", METHOD_TONE[block.method])}>{block.method}</span>
           <code className="shrink-0 font-mono text-[13px]">{block.path}</code>
           <span className="ml-auto hidden truncate text-xs text-muted-foreground sm:block">{block.summary}</span>
         </div>
@@ -78,8 +78,8 @@ export function DocBlockView({ block }: { block: DocBlock }) {
                 <tr key={r.name} className="align-top">
                   <td className="w-36 p-3">
                     <code className="font-mono text-[13px]">{r.name}</code>
-                    {r.required ? <span className="ml-1 text-[10px] font-medium text-stopped">required</span> : null}
-                    <span className="mt-0.5 block font-mono text-[11px] text-muted-foreground">{r.type}</span>
+                    {r.required ? <span className="ml-1 text-[12px] font-medium text-stopped">required</span> : null}
+                    <span className="mt-0.5 block font-mono text-[12.5px] text-muted-foreground">{r.type}</span>
                   </td>
                   <td className="p-3 text-muted-foreground"><Runs content={r.desc} /></td>
                 </tr>

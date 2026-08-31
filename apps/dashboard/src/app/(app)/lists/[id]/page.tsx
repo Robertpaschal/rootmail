@@ -254,7 +254,7 @@ export default async function ListDetailPage({
                       <TableRow key={c.id}>
                         <TableCell>
                           <Link href={`/contacts/${c.id}`} className="flex items-center gap-2.5 hover:underline">
-                            <span className="grid size-7 shrink-0 place-items-center rounded-full border border-rule text-[10px] font-semibold text-ink-muted">
+                            <span className="grid size-7 shrink-0 place-items-center rounded-full border border-rule text-[12px] font-semibold text-ink-muted">
                               {initials(c.name, c.email)}
                             </span>
                             <span className="min-w-0">
@@ -264,7 +264,7 @@ export default async function ListDetailPage({
                           </Link>
                         </TableCell>
                         <TableCell>
-                          <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-medium", STAGE_META[c.stage].badge)}>
+                          <span className={cn("inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[12.5px] font-medium", STAGE_META[c.stage].badge)}>
                             <span className={cn("size-1.5 rounded-full", STAGE_META[c.stage].dot)} /> {STAGE_META[c.stage].label}
                           </span>
                         </TableCell>
@@ -272,7 +272,7 @@ export default async function ListDetailPage({
                           {c.tags.length ? (
                             <span className="flex flex-wrap gap-1">
                               {c.tags.slice(0, 3).map((t) => (
-                                <Badge key={t} variant="secondary" className="font-mono text-[10px]">{t}</Badge>
+                                <Badge key={t} variant="secondary" className="font-mono text-[12px]">{t}</Badge>
                               ))}
                             </span>
                           ) : (

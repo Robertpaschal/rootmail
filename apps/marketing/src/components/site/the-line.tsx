@@ -77,7 +77,7 @@ function Code({ children }: { children: React.ReactNode }) {
 function Row({ k, v, tone }: { k: string; v: string; tone?: string }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-4 py-2">
-      <span className="w-28 shrink-0 text-[11px] text-ink-muted">{k}</span>
+      <span className="w-28 shrink-0 text-[12.5px] text-ink-muted">{k}</span>
       <span className={`font-mono text-[12px] ${tone ?? ""}`} data-fact>
         {v}
       </span>
@@ -128,13 +128,13 @@ export function TheLine() {
             </p>
           </div>
 
-          <figure className="om-body mt-5 rounded-lg border border-rule bg-card shadow-e1">
+          <figure className="om-body mt-5 rounded-lg bg-well shadow-well">
             {/* The identity. One id, printed once, true of all six panels. */}
             <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule px-4 py-3">
-              <span className="font-mono text-[11px] text-ink-muted" data-fact>
+              <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
                 {ID}
               </span>
-              <span className="font-mono text-[11px] text-ink-muted" data-fact>
+              <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
                 same message · same id · either door
               </span>
             </figcaption>
@@ -179,7 +179,7 @@ export function TheLine() {
                     label="Sequence step 3, stopped because the contact replied"
                   />
                 </div>
-                <p className="mt-3 font-mono text-[11px] text-stopped" data-fact>
+                <p className="mt-3 font-mono text-[12.5px] text-stopped" data-fact>
                   stopped: contact replied 11:47
                 </p>
               </div>

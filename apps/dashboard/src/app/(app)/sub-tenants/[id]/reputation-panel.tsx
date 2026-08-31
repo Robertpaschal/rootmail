@@ -52,7 +52,7 @@ function Tile({
       <p className={cn("mt-0.5 text-2xl font-semibold tabular-nums", crossed && "text-stopped")}>
         {value}
       </p>
-      {hint ? <p className="mt-0.5 text-[11px] text-muted-foreground">{hint}</p> : null}
+      {hint ? <p className="mt-0.5 text-[12.5px] text-muted-foreground">{hint}</p> : null}
       {children}
     </div>
   );
@@ -61,7 +61,7 @@ function Tile({
 /** The three lines a rate can cross, smallest first — the ladder the sweep walks. */
 function Ladder({ warn, throttle, pause }: { warn: number; throttle: number; pause: number }) {
   return (
-    <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+    <p className="mt-1.5 text-[12.5px] leading-relaxed text-muted-foreground">
       <span className="text-acted">warn {formatRate(warn)}</span> ·{" "}
       <span className="text-acted">throttle {formatRate(throttle)}</span> ·{" "}
       <span className="text-stopped">pause {formatRate(pause)}</span>
@@ -82,7 +82,7 @@ function HistoryRow({ e }: { e: ReputationEvent }) {
       </div>
       {e.reason ? <p className="mt-0.5 text-xs text-muted-foreground">{e.reason}</p> : null}
       {typeof e.rate === "number" && typeof e.threshold === "number" ? (
-        <p className="mt-0.5 text-[11px] text-muted-foreground">
+        <p className="mt-0.5 text-[12.5px] text-muted-foreground">
           {e.metric === "complaint" ? "Complaint rate" : "Bounce rate"} {formatRate(e.rate)} against a
           limit of {formatRate(e.threshold)}
           {typeof e.score === "number" ? ` · score ${e.score}/100` : ""}
@@ -142,7 +142,7 @@ export function ReputationPanel({
             <p className={cn("text-3xl font-semibold tabular-nums leading-none", visual.text)}>
               {rep.score}
             </p>
-            <p className="mt-1 text-[11px] text-muted-foreground">out of 100</p>
+            <p className="mt-1 text-[12.5px] text-muted-foreground">out of 100</p>
           </div>
         ) : null}
       </CardHeader>
@@ -230,7 +230,7 @@ export function ReputationPanel({
                   />
                 </div>
                 {(reading.verdicts ?? 0) > 0 ? (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
+                  <p className="mt-2 text-[12.5px] text-muted-foreground">
                     So far, not enforced: {formatRate(reading.bounceRate)} bounce ·{" "}
                     {formatRate(reading.complaintRate)} complaint
                   </p>

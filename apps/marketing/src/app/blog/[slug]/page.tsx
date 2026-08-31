@@ -88,12 +88,12 @@ export default async function BlogArticlePage({ params }: { params: Promise<Para
         <section className="container max-w-3xl py-12 md:py-16">
           <Link
             href="/blog"
-            className="inline-flex items-center gap-1.5 font-mono text-[11px] text-ink-muted transition-colors duration-interaction ease-interaction hover:text-foreground"
+            className="inline-flex items-center gap-1.5 font-mono text-[12.5px] text-ink-muted transition-colors duration-interaction ease-interaction hover:text-foreground"
           >
             <ArrowLeft className="size-3.5" /> all posts
           </Link>
 
-          <p className="mt-8 border-y border-rule py-2.5 font-mono text-[11px] uppercase tracking-wide text-ink-muted" data-fact>
+          <p className="mt-8 border-y border-rule py-2.5 font-mono text-[12.5px] uppercase tracking-wide text-ink-muted" data-fact>
             {article.category} · {formatDate(article.date)} · {article.readingMinutes} min ·{" "}
             {article.author}
           </p>
@@ -121,7 +121,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<Para
           <div className="flex flex-col items-start justify-between gap-5 border-y border-rule py-7 sm:flex-row sm:items-center">
             <div>
               <p className="display-s">Send one and watch the line.</p>
-              <p className="mt-1.5 font-mono text-[11px] text-ink-muted" data-fact>
+              <p className="mt-1.5 font-mono text-[12.5px] text-ink-muted" data-fact>
                 free tier · no card · dashboard and API together
               </p>
             </div>

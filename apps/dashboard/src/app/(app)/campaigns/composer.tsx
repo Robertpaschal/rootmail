@@ -160,7 +160,7 @@ export function CampaignComposer({
               </span>
               <span
                 className={cn(
-                  "flex items-center gap-1 text-[11px] transition-colors",
+                  "flex items-center gap-1 text-[12.5px] transition-colors",
                   now ? "font-medium text-foreground" : "text-muted-foreground",
                   reachable && !now && "group-hover:text-foreground",
                 )}
@@ -316,7 +316,7 @@ export function CampaignComposer({
                   >
                     <span className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium">{t.name}</span>
-                      {active ? <Check className="size-4 shrink-0 text-primary" /> : <Badge variant="outline" className="shrink-0 text-[10px]">{t.type}</Badge>}
+                      {active ? <Check className="size-4 shrink-0 text-primary" /> : <Badge variant="outline" className="shrink-0 text-[12px]">{t.type}</Badge>}
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">“{t.subject}”</span>
                   </button>

@@ -119,7 +119,7 @@ export function DomainCheck() {
           </div>
         </details>
 
-        <p className="font-mono text-[11px] leading-relaxed text-muted-foreground">
+        <p className="font-mono text-[12.5px] leading-relaxed text-muted-foreground">
           public DNS only · we do not send anything · we do not store your domain
         </p>
       </form>
@@ -168,7 +168,7 @@ function Resting() {
           label="Nothing checked yet: SPF, DKIM, DMARC and enforcement are all unknown."
         />
       </div>
-      <p className="font-mono text-[11px] text-muted-foreground">nothing checked yet</p>
+      <p className="font-mono text-[12.5px] text-muted-foreground">nothing checked yet</p>
 
       <div className="ruled border-y border-rule">
         {MECHANISMS.map((m) => (
@@ -197,7 +197,7 @@ function Result({ checked, paired }: { checked: CheckedDomain; paired: boolean }
     <section className="flex flex-col gap-6">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
         {heading ? (
-          <span className="text-[11px] uppercase tracking-heading text-ink-muted">{heading}</span>
+          <span className="text-[12.5px] uppercase tracking-heading text-ink-muted">{heading}</span>
         ) : null}
         <h2 className="display-s">
           <Fact>{result.domain}</Fact>
@@ -316,7 +316,7 @@ function Row({ item }: { item: MechanismResult }) {
             {item.found.map((value, i) => (
               <pre
                 key={i}
-                className="whitespace-pre-wrap break-all font-mono text-[11px] leading-relaxed text-foreground"
+                className="whitespace-pre-wrap break-all font-mono text-[12.5px] leading-relaxed text-foreground"
                 data-fact
               >
                 {value}
@@ -325,7 +325,7 @@ function Row({ item }: { item: MechanismResult }) {
           </div>
         ) : null}
 
-        <p className="font-mono text-[11px] leading-relaxed text-muted-foreground">
+        <p className="font-mono text-[12.5px] leading-relaxed text-muted-foreground">
           {item.queried.length === 1
             ? `looked at ${item.queried[0]}`
             : `looked at ${item.queried.length} names, starting ${item.queried[0]}`}
@@ -368,12 +368,12 @@ function Suggestion({ host, value }: { host: string; value: string }) {
   return (
     <div className="flex flex-col gap-1.5 rounded-sm border border-rule p-3">
       <div className="flex items-baseline justify-between gap-3">
-        <span className="text-[11px] uppercase tracking-heading text-ink-muted">
+        <span className="text-[12.5px] uppercase tracking-heading text-ink-muted">
           publish this TXT record
         </span>
         <button
           type="button"
-          className="shrink-0 font-mono text-[11px] text-ink-muted underline decoration-rule underline-offset-4 transition-colors duration-interaction ease-interaction hover:text-foreground"
+          className="shrink-0 font-mono text-[12.5px] text-ink-muted underline decoration-rule underline-offset-4 transition-colors duration-interaction ease-interaction hover:text-foreground"
           onClick={() => {
             void navigator.clipboard?.writeText(value).then(
               () => setCopied(true),
@@ -384,7 +384,7 @@ function Suggestion({ host, value }: { host: string; value: string }) {
           {copied ? "copied" : "copy"}
         </button>
       </div>
-      <pre className="whitespace-pre-wrap break-all font-mono text-[11px] leading-relaxed" data-fact>
+      <pre className="whitespace-pre-wrap break-all font-mono text-[12.5px] leading-relaxed" data-fact>
         <span className="text-muted-foreground">{host}</span>
         {"\n"}
         {value}
@@ -405,7 +405,7 @@ function Sourcing({
   note: string;
 }) {
   return (
-    <p className="font-mono text-[11px] leading-relaxed text-muted-foreground">
+    <p className="font-mono text-[12.5px] leading-relaxed text-muted-foreground">
       {lead ? (
         <>
           {lead}

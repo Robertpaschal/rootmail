@@ -95,7 +95,7 @@ export function ClientSwitcher({
           role="menu"
           className="absolute right-0 z-50 mt-1.5 w-72 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
         >
-          <div className="px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="px-3 py-2 text-[12.5px] font-medium uppercase tracking-wide text-muted-foreground">
             View as
           </div>
           <ul className="max-h-72 overflow-y-auto px-1 pb-1">
@@ -159,7 +159,7 @@ export function ClientSwitcher({
             >
               <Settings2 className="size-4 text-muted-foreground" /> Manage client domains
             </Link>
-            {error ? <p className="px-2 pb-1 text-[11px] text-destructive">{error}</p> : null}
+            {error ? <p className="px-2 pb-1 text-[12.5px] text-destructive">{error}</p> : null}
           </div>
         </div>
       ) : null}

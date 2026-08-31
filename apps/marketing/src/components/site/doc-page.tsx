@@ -48,7 +48,7 @@ export function DocPage({
           <h1 className="display-l text-balance">{title}</h1>
           {subtitle ? <p className="lead mt-5 text-ink-muted">{subtitle}</p> : null}
           <p
-            className="mt-8 border-y border-rule py-2.5 font-mono text-[11px] uppercase tracking-wide text-ink-muted"
+            className="mt-8 border-y border-rule py-2.5 font-mono text-[12.5px] uppercase tracking-wide text-ink-muted"
             data-fact
           >
             rootmail.io · {title}
@@ -59,7 +59,7 @@ export function DocPage({
         {/* ── The document ───────────────────────────────────────────────── */}
         <section className="slab settle">
           <div className="container max-w-3xl py-12 md:py-16">
-            <div className="max-w-[68ch] space-y-5 text-[0.9375rem] leading-relaxed text-ink-muted [&_a]:font-medium [&_a]:text-brass-text [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-12 [&_h2]:border-t [&_h2]:border-rule [&_h2]:pt-5 [&_h2]:font-mono [&_h2]:text-[11px] [&_h2]:font-normal [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground [&_li]:ml-4 [&_li]:list-disc [&_strong]:text-foreground [&_ul]:space-y-1.5">
+            <div className="max-w-[68ch] space-y-5 text-[0.9375rem] leading-relaxed text-ink-muted [&_a]:font-medium [&_a]:text-brass-text [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-12 [&_h2]:border-t [&_h2]:border-rule [&_h2]:pt-5 [&_h2]:font-mono [&_h2]:text-[12.5px] [&_h2]:font-normal [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground [&_li]:ml-4 [&_li]:list-disc [&_strong]:text-foreground [&_ul]:space-y-1.5">
               {children}
             </div>
           </div>

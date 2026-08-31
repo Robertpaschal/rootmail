@@ -257,7 +257,7 @@ export function SequenceBuilder({
                               <p.icon className="size-4 text-primary" />
                               <p className="mt-1.5 text-sm font-medium">{p.name}</p>
                               <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{p.blurb}</p>
-                              <p className="mt-1.5 text-[11px] text-muted-foreground">
+                              <p className="mt-1.5 text-[12.5px] text-muted-foreground">
                                 {p.gaps.length} emails
                               </p>
                             </button>
@@ -280,7 +280,7 @@ export function SequenceBuilder({
                               className="rounded-lg border bg-muted/20 p-3"
                             >
                               <div className="flex flex-wrap items-center gap-2">
-                                <span className="grid size-6 shrink-0 place-items-center rounded-full border border-rule text-[11px] font-semibold text-ink-muted">
+                                <span className="grid size-6 shrink-0 place-items-center rounded-full border border-rule text-[12.5px] font-semibold text-ink-muted">
                                   {i + 1}
                                 </span>
 

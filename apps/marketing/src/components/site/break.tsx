@@ -125,7 +125,7 @@ export function ThresholdScrub() {
 
   return (
     <div className="mt-12">
-      <p className="font-mono text-[11px] text-ink-muted" data-fact>
+      <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
         complaint rate · harbourclinic.com · 7d
       </p>
 
@@ -147,7 +147,7 @@ export function ThresholdScrub() {
       <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-rule pt-6">
         <Branch band={band} />
         <span
-          className={`font-mono text-[11px] ${band === "paused" ? "text-stopped" : band === "clear" ? "text-witnessed" : "text-acted"}`}
+          className={`font-mono text-[12.5px] ${band === "paused" ? "text-stopped" : band === "clear" ? "text-witnessed" : "text-acted"}`}
           aria-live="polite"
           data-fact
         >
@@ -155,7 +155,7 @@ export function ThresholdScrub() {
         </span>
       </div>
 
-      <p className="mt-3 font-mono text-[11px] text-ink-muted" data-fact>
+      <p className="mt-3 font-mono text-[12.5px] text-ink-muted" data-fact>
         the common default:{" "}
         <span className={band === "paused" ? "text-stopped" : undefined}>{DEFAULTED[band]}</span>
       </p>

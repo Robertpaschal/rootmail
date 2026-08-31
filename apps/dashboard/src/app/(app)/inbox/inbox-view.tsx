@@ -178,7 +178,7 @@ function EmailCard({
             <LocalTime iso={m.created_at} />
           </span>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] text-muted-foreground">
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12.5px] text-muted-foreground">
           <span className="truncate">
             <span className="text-foreground/70">From</span> {sender}
           </span>
@@ -190,17 +190,17 @@ function EmailCard({
         {outbound && (m.status || m.opened_at || m.clicked_at) ? (
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             {m.status ? (
-              <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide", STATUS_TONE[m.status] ?? "bg-muted text-muted-foreground")}>
+              <span className={cn("rounded-full px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide", STATUS_TONE[m.status] ?? "bg-muted text-muted-foreground")}>
                 {m.status}
               </span>
             ) : null}
             {m.opened_at ? (
-              <span className="rounded-full bg-ink/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <span className="rounded-full bg-ink/15 px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
                 opened {relativeTime(m.opened_at)}
               </span>
             ) : null}
             {m.clicked_at ? (
-              <span className="rounded-full bg-ink/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <span className="rounded-full bg-ink/15 px-2 py-0.5 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
                 clicked {relativeTime(m.clicked_at)}
               </span>
             ) : null}
@@ -238,7 +238,7 @@ function EmailCard({
               ))}
             </div>
           ) : null}
-          <button type="button" onClick={onToggle} className="block w-full border-t px-4 py-1.5 text-center text-[11px] text-muted-foreground hover:bg-accent/40">
+          <button type="button" onClick={onToggle} className="block w-full border-t px-4 py-1.5 text-center text-[12.5px] text-muted-foreground hover:bg-accent/40">
             Collapse email
           </button>
         </motion.div>
@@ -692,7 +692,7 @@ export function InboxView({
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
                     <span className="truncate text-sm font-medium">{c.name ?? c.email}</span>
-                    <span className="shrink-0 text-[11px] text-muted-foreground">{relativeTime(c.lastAt)}</span>
+                    <span className="shrink-0 text-[12.5px] text-muted-foreground">{relativeTime(c.lastAt)}</span>
                   </span>
                   <span className="mt-0.5 flex items-center gap-1.5">
                     {c.needsReply ? <span className="size-1.5 shrink-0 rounded-full bg-acted" aria-label="Needs reply" /> : null}
@@ -700,7 +700,7 @@ export function InboxView({
                       {c.preview ?? "No messages yet"}
                     </span>
                   </span>
-                  <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  <span className="mt-0.5 block text-[12.5px] text-muted-foreground">
                     {c.threads.length === 1 ? "1 subject" : `${c.threads.length} subjects`}
                   </span>
                 </span>
@@ -743,7 +743,7 @@ export function InboxView({
                           animate={{ opacity: 1, scale: 1 }}
                           exit={{ opacity: 0, scale: 0.85 }}
                           transition={reduce ? { duration: 0 } : EASE_OPEN}
-                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-acted/15 px-2 py-0.5 text-[10px] font-medium text-acted"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-acted/15 px-2 py-0.5 text-[12px] font-medium text-acted"
                         >
                           <span className="size-1.5 rounded-full bg-acted" /> waiting on you
                         </motion.span>
@@ -863,7 +863,7 @@ export function InboxView({
                         </motion.span>
                         <span className="min-w-0 flex-1">
                           <span className="block truncate text-sm font-semibold">{t.subject || "(no subject)"}</span>
-                          <span className="text-[11px] text-muted-foreground">
+                          <span className="text-[12.5px] text-muted-foreground">
                             {count != null ? `${count} ${count === 1 ? "email" : "emails"} · ` : ""}
                             {relativeTime(t.last_message_at)}
                           </span>
@@ -928,7 +928,7 @@ export function InboxView({
 
                           {/* Reply composer — scoped to THIS subject-thread. */}
                           <div id={`reply-${t.id}`} className="scroll-mt-4 rounded-lg border bg-muted/20 p-3">
-                            <p className="mb-2 flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+                            <p className="mb-2 flex flex-wrap items-center gap-1 text-[12.5px] text-muted-foreground">
                               Replying to {contact.name?.split(" ")[0] ?? contact.email} on{" "}
                               <span className="font-medium text-foreground">“{t.subject}”</span>
                               <InfoHint label="What a reply costs and counts as">
@@ -1001,7 +1001,7 @@ export function InboxView({
                               </motion.div>
                             </div>
                             <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 px-1">
-                              <span className="text-[11px] text-muted-foreground">
+                              <span className="text-[12.5px] text-muted-foreground">
                                 ⌘/Ctrl + Enter · need formatting, a template, or attachments?{" "}
                                 <Link
                                   href={`/messages/new?to=${encodeURIComponent(contact.email)}&subject=${encodeURIComponent(`Re: ${t.subject}`)}`}
@@ -1017,7 +1017,7 @@ export function InboxView({
                                 <button
                                   onClick={simulate}
                                   disabled={sending}
-                                  className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+                                  className="inline-flex items-center gap-1 text-[12.5px] text-muted-foreground hover:text-foreground"
                                 >
                                   <Sparkles className="size-3" /> Simulate a reply
                                 </button>

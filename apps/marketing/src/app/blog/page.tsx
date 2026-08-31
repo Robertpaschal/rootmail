@@ -55,7 +55,7 @@ export default async function BlogPage() {
         <section className="container py-14 md:py-20">
           <div className="max-w-3xl">
             <h1 className="display-xl text-balance">From the rootmail team.</h1>
-            <p className="mt-6 font-mono text-[11px] text-ink-muted" data-fact>
+            <p className="mt-6 font-mono text-[12.5px] text-ink-muted" data-fact>
               {allPosts.length} posts · {articles} written here · newest first
             </p>
           </div>
@@ -70,7 +70,7 @@ export default async function BlogPage() {
                 {...(isArticle(lead) ? {} : { target: "_blank", rel: "noreferrer" })}
                 className="group block"
               >
-                <p className="border-b border-rule pb-3 font-mono text-[11px] uppercase tracking-wide text-ink-muted" data-fact>
+                <p className="border-b border-rule pb-3 font-mono text-[12.5px] uppercase tracking-wide text-ink-muted" data-fact>
                   {lead.category} · {formatDate(lead.date)} · {lengthOf(lead)}
                 </p>
                 <h2 className="display-l mt-8 max-w-3xl text-balance group-hover:underline group-hover:underline-offset-8">
@@ -102,7 +102,7 @@ export default async function BlogPage() {
               {/* The head row names four columns, and three of them are folded into
                   the row itself below `sm` — so the head row is hidden there
                   rather than left labelling columns that are not on screen. */}
-              <div className="hidden border-b border-rule pb-2.5 font-mono text-[11px] uppercase tracking-wide text-ink-muted sm:grid sm:grid-cols-[6.5rem_1fr_7rem_4.5rem] sm:gap-x-6">
+              <div className="hidden border-b border-rule pb-2.5 font-mono text-[12.5px] uppercase tracking-wide text-ink-muted sm:grid sm:grid-cols-[6.5rem_1fr_7rem_4.5rem] sm:gap-x-6">
                 <span>date</span>
                 <span>title</span>
                 <span>kind</span>
@@ -114,7 +114,7 @@ export default async function BlogPage() {
                   const external = !isArticle(post);
                   const inner = (
                     <span className="grid grid-cols-[1fr_auto] items-baseline gap-x-6 gap-y-1 py-4 sm:grid-cols-[6.5rem_1fr_7rem_4.5rem]">
-                      <span className="hidden font-mono text-[11px] text-ink-muted sm:block" data-fact>
+                      <span className="hidden font-mono text-[12.5px] text-ink-muted sm:block" data-fact>
                         {formatDate(post.date)}
                       </span>
                       <span className="min-w-0">
@@ -126,14 +126,14 @@ export default async function BlogPage() {
                             {post.description}
                           </span>
                         ) : null}
-                        <span className="mt-1 block font-mono text-[11px] text-ink-muted sm:hidden" data-fact>
+                        <span className="mt-1 block font-mono text-[12.5px] text-ink-muted sm:hidden" data-fact>
                           {formatDate(post.date)} · {post.category}
                         </span>
                       </span>
-                      <span className="hidden font-mono text-[11px] text-ink-muted sm:block" data-fact>
+                      <span className="hidden font-mono text-[12.5px] text-ink-muted sm:block" data-fact>
                         {post.category}
                       </span>
-                      <span className="text-right font-mono text-[11px] text-ink-muted" data-fact>
+                      <span className="text-right font-mono text-[12.5px] text-ink-muted" data-fact>
                         {lengthOf(post)}
                       </span>
                     </span>
@@ -172,7 +172,7 @@ export default async function BlogPage() {
               href="https://x.com/rootmail"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex shrink-0 items-center gap-1 font-mono text-[11px] text-brass-text underline underline-offset-4"
+              className="inline-flex shrink-0 items-center gap-1 font-mono text-[12.5px] text-brass-text underline underline-offset-4"
             >
               @rootmail <ArrowUpRight className="size-3.5" />
             </a>

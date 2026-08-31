@@ -49,7 +49,7 @@ export async function DevNavbar() {
       <div className="container flex h-16 items-center justify-between gap-4">
         <Link href="/" aria-label="rootmail developers" className="flex items-center gap-2">
           <Logo />
-          <span className="hidden font-mono text-[11px] text-ink-muted sm:inline" data-fact>
+          <span className="hidden font-mono text-[12.5px] text-ink-muted sm:inline" data-fact>
             developers
           </span>
         </Link>

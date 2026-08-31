@@ -122,7 +122,7 @@ export function Proof() {
             <span>POST /v1/proof/verify</span>
             <span>no key required</span>
           </PanelHead>
-          <pre className="overflow-x-auto px-3 py-3 text-[12.5px] leading-[1.65]">
+          <pre className="overflow-x-auto px-3 py-3 text-[13.5px] leading-[1.7]">
             <code className="font-mono">
               {`{\n  "object": "proof_verification",\n  "valid": `}
               <span className={broken ? "text-stopped" : "text-witnessed"}>
@@ -132,7 +132,7 @@ export function Proof() {
             </code>
           </pre>
           <div
-            className="border-t border-rule px-3 py-2 font-mono text-[11px] text-ink-muted"
+            className="border-t border-rule px-3 py-2 text-[13px] text-ink-muted"
             data-fact
           >
             {broken
@@ -146,7 +146,7 @@ export function Proof() {
         <PanelHead>
           <span>GET /v1/messages/:id/proof</span>
         </PanelHead>
-        <pre className="overflow-x-auto px-3 py-3 text-[12.5px] leading-[1.65]">
+        <pre className="overflow-x-auto px-3 py-3 text-[13.5px] leading-[1.7]">
           <code className="font-mono">
             {"{\n"}
             {bundleLines(subject).map((l) =>
@@ -165,7 +165,7 @@ export function Proof() {
             {"}\n"}
           </code>
         </pre>
-        <div className="border-t border-rule px-3 py-2 font-mono text-[11px] text-ink-muted" data-fact>
+        <div className="border-t border-rule px-3 py-2 font-mono text-[12.5px] text-ink-muted" data-fact>
           signature {SIGNATURE.slice(0, 22)}… · ed25519
         </div>
       </Panel>

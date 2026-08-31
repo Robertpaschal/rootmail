@@ -168,7 +168,7 @@ export function OutlineRail({
               >
                 <span className="block truncate">{s.label}</span>
                 {s.meta ? (
-                  <span className="mt-0.5 block truncate text-[10px] text-muted-foreground">{s.meta}</span>
+                  <span className="mt-0.5 block truncate text-[12px] text-muted-foreground">{s.meta}</span>
                 ) : null}
               </button>
             ))}

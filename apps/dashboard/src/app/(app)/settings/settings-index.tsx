@@ -73,12 +73,12 @@ function Row({ r, reduce }: { r: SettingRow; reduce: boolean | null }) {
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-sm font-medium">{r.label}</span>
             {r.where ? (
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[12px] font-medium text-muted-foreground">
                 {r.where}
               </span>
             ) : null}
             {r.attention ? (
-              <span className="inline-flex items-center gap-1 rounded-full bg-acted/15 px-2 py-0.5 text-[10px] font-semibold text-acted">
+              <span className="inline-flex items-center gap-1 rounded-full bg-acted/15 px-2 py-0.5 text-[12px] font-semibold text-acted">
                 <AlertTriangle className="size-3" /> {r.attention}
               </span>
             ) : null}

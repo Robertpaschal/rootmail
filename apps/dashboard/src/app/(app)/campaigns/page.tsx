@@ -157,7 +157,7 @@ export default async function CampaignsPage() {
                           <span className="ml-2 text-xs text-muted-foreground">tag: {c.segment_tag}</span>
                         ) : null}
                         {c.variants.length > 0 ? (
-                          <Badge variant="outline" className="ml-2 text-[10px]">A/B ×{c.variants.length + 1}</Badge>
+                          <Badge variant="outline" className="ml-2 text-[12px]">A/B ×{c.variants.length + 1}</Badge>
                         ) : null}
                       </TableCell>
                       <TableCell>

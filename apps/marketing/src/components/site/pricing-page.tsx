@@ -91,7 +91,7 @@ export function PricingClaim() {
           The calculators below run the same maths the product bills on, against the live catalog. A
           number here and a number at checkout cannot disagree.
         </p>
-        <p className="mt-6 font-mono text-[11px] text-ink-muted" data-fact>
+        <p className="mt-6 font-mono text-[12.5px] text-ink-muted" data-fact>
           two wings · two bills · either one can be $0
         </p>
       </Reveal>
@@ -106,7 +106,7 @@ export function PricingMeters({ pricing }: { pricing: PublicPricing }) {
       <div className="container py-14 md:py-20">
         <Reveal inView className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-3">
           <h2 className="display-m text-balance">Size it yourself.</h2>
-          <p className="font-mono text-[11px] text-ink-muted" data-fact>
+          <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
             live catalog · sale prices included
           </p>
         </Reveal>
@@ -149,13 +149,13 @@ export function PricingFloor({ pricing }: { pricing: PublicPricing }) {
       <div className="container max-w-3xl py-14 md:py-20">
         <Reveal inView>
           <h2 className="display-l text-balance">The free tier is not a trial.</h2>
-          <p className="mt-6 font-mono text-[11px] text-ink-muted" data-fact>
+          <p className="mt-6 font-mono text-[12.5px] text-ink-muted" data-fact>
             transactional · {num(tx.free_sends)} sends/mo · free · no expiry
           </p>
-          <p className="mt-1.5 font-mono text-[11px] text-ink-muted" data-fact>
+          <p className="mt-1.5 font-mono text-[12.5px] text-ink-muted" data-fact>
             marketing · {num(mk.free_contacts)} contacts · free · no expiry
           </p>
-          <p className="mt-1.5 font-mono text-[11px] text-ink-muted" data-fact>
+          <p className="mt-1.5 font-mono text-[12.5px] text-ink-muted" data-fact>
             both · pause at the cap · never auto-charge
           </p>
         </Reveal>
@@ -178,7 +178,7 @@ export function PricingIncluded() {
         <Reveal inView delay={0.05} className="mt-10 overflow-x-auto">
           <table className="w-full min-w-[38rem] border-collapse text-left">
             <thead>
-              <tr className="border-y border-rule font-mono text-[11px] uppercase tracking-wide text-ink-muted">
+              <tr className="border-y border-rule font-mono text-[12.5px] uppercase tracking-wide text-ink-muted">
                 <th className="py-2.5 pr-6 font-normal">what each client gets</th>
                 <th className="py-2.5 pr-6 font-normal">plan required</th>
                 <th className="py-2.5 font-normal">where it lives</th>
@@ -188,10 +188,10 @@ export function PricingIncluded() {
               {included.map((r) => (
                 <tr key={r.what} className="border-t border-rule align-baseline">
                   <td className="py-3 pr-6 text-[0.9375rem]">{r.what}</td>
-                  <td className="py-3 pr-6 font-mono text-[11px] text-foreground" data-fact>
+                  <td className="py-3 pr-6 font-mono text-[12.5px] text-foreground" data-fact>
                     {r.plan}
                   </td>
-                  <td className="py-3 font-mono text-[11px] text-ink-muted" data-fact>
+                  <td className="py-3 font-mono text-[12.5px] text-ink-muted" data-fact>
                     {r.where}
                   </td>
                 </tr>
@@ -205,7 +205,7 @@ export function PricingIncluded() {
             Mailgun gates subaccounts behind its Scale plan, from $90 a month. Ours are part of the
             data model, so the free plan has them.
           </p>
-          <p className="mt-2 font-mono text-[11px] text-ink-muted" data-fact>
+          <p className="mt-2 font-mono text-[12.5px] text-ink-muted" data-fact>
             competitor gate · Mailgun published pricing
           </p>
         </Reveal>
@@ -232,7 +232,7 @@ export function PricingAddons({ pricing }: { pricing: PublicPricing }) {
       <div className="container max-w-5xl py-16 md:py-24">
         <Reveal
           inView
-          className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2 border-b border-rule pb-3 font-mono text-[11px] uppercase tracking-wide text-ink-muted"
+          className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2 border-b border-rule pb-3 font-mono text-[12.5px] uppercase tracking-wide text-ink-muted"
         >
           <span>add-ons · priced per one</span>
           <span data-fact>no plan required · buy one on its own</span>
@@ -250,7 +250,7 @@ export function PricingAddons({ pricing }: { pricing: PublicPricing }) {
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="display-s">{a.name}</p>
                   {onSale ? (
-                    <span className="shrink-0 font-mono text-[10px] text-acted" data-fact>
+                    <span className="shrink-0 font-mono text-[12px] text-acted" data-fact>
                       {a.sale_percent_off}% off
                     </span>
                   ) : null}
@@ -263,11 +263,11 @@ export function PricingAddons({ pricing }: { pricing: PublicPricing }) {
                     {price}
                   </span>
                   {onSale ? (
-                    <span className="font-mono text-[11px] text-ink-muted line-through">
+                    <span className="font-mono text-[12.5px] text-ink-muted line-through">
                       ${a.unit_amount}
                     </span>
                   ) : null}
-                  <span className="font-mono text-[11px] text-ink-muted" data-fact>
+                  <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
                     /mo per {a.unit}
                   </span>
                 </p>
@@ -291,7 +291,7 @@ export function PricingEdges() {
         <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-16">
           <div className="lg:sticky lg:top-24 lg:self-start">
             <h2 className="display-m text-balance">The edges of the bill.</h2>
-            <p className="mt-4 font-mono text-[11px] text-ink-muted" data-fact>
+            <p className="mt-4 font-mono text-[12.5px] text-ink-muted" data-fact>
               three questions · answered in full
             </p>
           </div>
@@ -304,7 +304,7 @@ export function PricingEdges() {
                   <p className="mt-2 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
                     {e.a}
                   </p>
-                  <p className="mt-2.5 font-mono text-[11px] text-ink-muted" data-fact>
+                  <p className="mt-2.5 font-mono text-[12.5px] text-ink-muted" data-fact>
                     {e.fact}
                   </p>
                 </div>
@@ -322,7 +322,7 @@ export function PricingClose() {
   return (
     <section className="container flex flex-col items-start gap-6 py-16 md:py-24">
       <h2 className="display-l max-w-2xl text-balance">Start on the free tier. Both of them.</h2>
-      <p className="font-mono text-[11px] text-ink-muted" data-fact>
+      <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
         no card · no sales call · both wings free to start
       </p>
       <div className="flex flex-col gap-3 sm:flex-row">

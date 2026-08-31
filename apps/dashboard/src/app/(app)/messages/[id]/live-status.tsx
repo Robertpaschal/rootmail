@@ -366,7 +366,7 @@ export function LiveStatus({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h2 className={cn("text-lg font-semibold", TONE_TEXT[meta.tone])}>{meta.label}</h2>
-              {live ? <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[11px] font-medium text-muted-foreground" data-fact><span className="size-1.5 animate-throb rounded-full bg-ink-muted motion-reduce:animate-none" /> watching</span> : null}
+              {live ? <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[12.5px] font-medium text-muted-foreground" data-fact><span className="size-1.5 animate-throb rounded-full bg-ink-muted motion-reduce:animate-none" /> watching</span> : null}
             </div>
             <p className="text-sm text-muted-foreground">{meta.blurb}</p>
             {errorish && operatorReason(message.error) ? <p className="mt-1 text-sm text-muted-foreground">Reason: <span className="text-foreground">{operatorReason(message.error)}</span></p> : null}
@@ -500,7 +500,7 @@ function ActivityTrail({ entries }: { entries: AuditEntry[] }) {
               <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm font-medium">{m?.label ?? e.event}</span>
-                  {source ? <span className="text-[11px] text-muted-foreground">{source}</span> : null}
+                  {source ? <span className="text-[12.5px] text-muted-foreground">{source}</span> : null}
                   <span
                     className="ml-auto shrink-0 font-mono text-xs text-muted-foreground"
                     data-fact

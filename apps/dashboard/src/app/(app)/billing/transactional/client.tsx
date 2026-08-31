@@ -192,7 +192,7 @@ export function TransactionalBilling({
                   </div>
                 </div>
                 {current > 0 ? (
-                  <span className="rounded-full bg-witnessed/15 px-2 py-0.5 text-[11px] font-medium text-witnessed">
+                  <span className="rounded-full bg-witnessed/15 px-2 py-0.5 text-[12.5px] font-medium text-witnessed">
                     You have {num(current)}
                   </span>
                 ) : null}
@@ -279,7 +279,7 @@ export function TransactionalBilling({
                           <p className="flex items-center gap-2 text-sm font-medium">
                             {a.name}
                             {h > 0 ? (
-                              <span className="rounded-full bg-witnessed/15 px-1.5 py-0.5 text-[10px] font-medium text-witnessed">
+                              <span className="rounded-full bg-witnessed/15 px-1.5 py-0.5 text-[12px] font-medium text-witnessed">
                                 you have {h}
                               </span>
                             ) : null}
@@ -300,7 +300,7 @@ export function TransactionalBilling({
                               <Plus className="size-3.5" />
                             </Button>
                           </div>
-                          <span className="h-3.5 text-[10px] text-muted-foreground">{d > 0 ? `you'll have ${h + d}` : ""}</span>
+                          <span className="h-3.5 text-[12px] text-muted-foreground">{d > 0 ? `you'll have ${h + d}` : ""}</span>
                         </div>
                       </div>
                     );
@@ -383,7 +383,7 @@ export function TransactionalBilling({
                 {isCurrent ? "Current plan" : current > 0 ? "Review & update" : "Review & checkout"}
               </Button>
               {current > 0 ? <FreeButton /> : (
-                <p className="mt-2 text-center text-[11px] text-muted-foreground">
+                <p className="mt-2 text-center text-[12.5px] text-muted-foreground">
                   Or stay on Free — {num(tx.free_sends)} sends/mo (up to {num(tx.free_daily_sends)}/day), no card.
                 </p>
               )}
@@ -527,7 +527,7 @@ function FreeButton() {
   return (
     <button
       type="button"
-      className="mt-2 w-full text-center text-[11px] text-muted-foreground hover:text-foreground"
+      className="mt-2 w-full text-center text-[12.5px] text-muted-foreground hover:text-foreground"
       disabled={pending}
       onClick={() => {
         if (!confirm("Drop to the free allowance? Your send blocks stop at the end of the period.")) return;

@@ -83,7 +83,7 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
         title="Your accounts"
         className="inline-flex max-w-[13rem] items-center gap-2 rounded-full border bg-background py-1 pl-1 pr-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
       >
-        <Avatar entry={current} className="size-6 text-[10px]" />
+        <Avatar entry={current} className="size-6 text-[12px]" />
         <span className="hidden max-w-[8rem] truncate sm:inline">
           {current.name || current.email}
         </span>
@@ -106,7 +106,7 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
                 <p className="truncate text-xs text-muted-foreground">{current.email}</p>
               ) : null}
               {current.workspaceName ? (
-                <p className="truncate text-[11px] text-muted-foreground">
+                <p className="truncate text-[12.5px] text-muted-foreground">
                   in {current.workspaceName}
                 </p>
               ) : null}
@@ -125,7 +125,7 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
 
           {others.length > 0 ? (
             <>
-              <div className="border-t px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              <div className="border-t px-3 pb-1 pt-2 text-[12.5px] font-medium uppercase tracking-wide text-muted-foreground">
                 Switch account
               </div>
               <ul className="max-h-64 overflow-y-auto p-1">
@@ -138,12 +138,12 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
                       onClick={() => onSwitch(entry.index)}
                       className="flex w-full items-center gap-3 rounded-md px-2 py-2 text-left transition-colors hover:bg-accent disabled:opacity-60"
                     >
-                      <Avatar entry={entry} className="size-7 text-[10px]" />
+                      <Avatar entry={entry} className="size-7 text-[12px]" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm text-foreground">
                           {entry.name || entry.email}
                         </span>
-                        <span className="block truncate text-[11px] text-muted-foreground">
+                        <span className="block truncate text-[12.5px] text-muted-foreground">
                           {entry.name ? entry.email : null}
                           {entry.name && entry.workspaceName ? " · " : null}
                           {entry.workspaceName ? `in ${entry.workspaceName}` : null}
@@ -232,7 +232,7 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
           </div>
 
           {error ? (
-            <p className="border-t px-3 py-2 text-[11px] text-destructive">{error}</p>
+            <p className="border-t px-3 py-2 text-[12.5px] text-destructive">{error}</p>
           ) : null}
         </div>
       ) : null}

@@ -69,11 +69,11 @@ export function ChangeRow({ change }: { change: Change }) {
           {change.headline}
         </h3>
         {change.at ? (
-          <Fact className="ml-auto shrink-0 text-[11px] text-muted-foreground">
+          <Fact className="ml-auto shrink-0 text-[12.5px] text-muted-foreground">
             {relativeTime(change.at)}
           </Fact>
         ) : (
-          <Fact className="ml-auto shrink-0 text-[11px] text-muted-foreground">still true</Fact>
+          <Fact className="ml-auto shrink-0 text-[12.5px] text-muted-foreground">still true</Fact>
         )}
       </div>
 
@@ -82,7 +82,7 @@ export function ChangeRow({ change }: { change: Change }) {
       </p>
 
       {change.metric ? (
-        <p className="mt-2 font-mono text-[11px] leading-snug text-muted-foreground" data-fact>
+        <p className="mt-2 font-mono text-[12.5px] leading-snug text-muted-foreground" data-fact>
           <span className="text-foreground">{change.metric.value}</span>
           {" · "}
           {change.metric.label}
@@ -103,7 +103,7 @@ export function ChangeRow({ change }: { change: Change }) {
         // The honest gap: what this entry would need in order to become a
         // number. Drawn, not hidden — a product confident enough to show its
         // own edge is more credible than one pretending it has none.
-        <p className="mt-2 border-l-2 border-dashed border-rule pl-3 font-mono text-[11px] leading-snug text-muted-foreground">
+        <p className="mt-2 border-l-2 border-dashed border-rule pl-3 font-mono text-[12.5px] leading-snug text-muted-foreground">
           {change.gap}
         </p>
       ) : null}

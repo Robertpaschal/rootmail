@@ -93,15 +93,15 @@ export function Features() {
                 <span className="mt-1 block text-[0.9375rem] leading-relaxed text-ink-muted">
                   {q.body}
                 </span>
-                <span className="mt-1.5 block font-mono text-[11px] text-ink-muted" data-fact>
+                <span className="mt-1.5 block font-mono text-[12.5px] text-ink-muted" data-fact>
                   {q.src}
                 </span>
               </button>
             ))}
           </div>
 
-          <figure className="rounded-lg border border-rule bg-card shadow-e1">
-            <figcaption className="border-b border-rule px-4 py-3 font-mono text-[11px] text-ink-muted" data-fact>
+          <figure className="rounded-lg bg-well shadow-well">
+            <figcaption className="border-b border-rule px-4 py-3 font-mono text-[12.5px] text-ink-muted" data-fact>
               one message · demonstration
             </figcaption>
             <div className="ruled px-4 py-1">
@@ -116,7 +116,7 @@ export function Features() {
                     }`}
                   >
                     <span
-                      className={`w-28 shrink-0 text-[11px] ${off ? "text-ink-muted/50" : "text-ink-muted"}`}
+                      className={`w-28 shrink-0 text-[12.5px] ${off ? "text-ink-muted/50" : "text-ink-muted"}`}
                     >
                       {f.k}
                     </span>

@@ -150,7 +150,7 @@ export function OnboardingWizard({
         {(step === 4 ? [...steps, "Size your plan"] : steps).map((label, i) => (
           <div key={label} className="flex flex-1 flex-col gap-1.5">
             <div className={cn("h-1 rounded-full", i <= step ? "bg-primary" : "bg-secondary")} />
-            <span className={cn("text-[11px]", i === step ? "font-medium text-foreground" : "text-muted-foreground")}>
+            <span className={cn("text-[12.5px]", i === step ? "font-medium text-foreground" : "text-muted-foreground")}>
               {label}
             </span>
           </div>

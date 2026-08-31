@@ -74,7 +74,7 @@ export default function CareersPage() {
               <h2 className="display-l max-w-3xl text-balance">
                 Most people think email is a solved problem. It is not.
               </h2>
-              <div className="ruled mt-10 max-w-xl border-y border-rule font-mono text-[11px] text-ink-muted">
+              <div className="ruled mt-10 max-w-xl border-y border-rule font-mono text-[12.5px] text-ink-muted">
                 <p className="py-2.5" data-fact>
                   reaching the inbox · nobody can promise it · unsolved
                 </p>
@@ -95,7 +95,7 @@ export default function CareersPage() {
             <Reveal inView className="overflow-x-auto">
               <table className="w-full min-w-[34rem] border-collapse text-left">
                 <thead>
-                  <tr className="border-b border-rule font-mono text-[11px] uppercase tracking-wide text-ink-muted">
+                  <tr className="border-b border-rule font-mono text-[12.5px] uppercase tracking-wide text-ink-muted">
                     <th className="py-2.5 pr-8 font-normal">how we work</th>
                     <th className="py-2.5 font-normal">what it costs us</th>
                   </tr>
@@ -126,7 +126,7 @@ export default function CareersPage() {
             We are early and deliberate about who joins. Introduce yourself anyway — what you have
             made, and what you would want to make here. We read every message.
           </p>
-          <p className="font-mono text-[11px] text-ink-muted" data-fact>
+          <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
             open roles · 0 · we will say so here when that changes
           </p>
           <Link href="/contact" className={cn(buttonVariants({ size: "lg" }))}>

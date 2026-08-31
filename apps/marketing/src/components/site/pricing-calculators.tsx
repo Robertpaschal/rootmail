@@ -113,7 +113,7 @@ export function BlocksCalculator({ tx }: { tx: PublicPricing["wings"]["transacti
         </table>
       </div>
 
-      <ul className="ruled mt-5 flex-1 border-t border-rule font-mono text-[11px] text-ink-muted">
+      <ul className="ruled mt-5 flex-1 border-t border-rule font-mono text-[12.5px] text-ink-muted">
         {["send API · templates · sandbox", "score · suppression · webhooks", "client domains · included", "append-only audit trail"].map((f) => (
           <li key={f} className="py-2" data-fact>
             {f}
@@ -201,7 +201,7 @@ export function ContactPricer({ mk }: { mk: PublicPricing["wings"]["marketing"] 
               <div className="min-w-0">
                 <p className="text-sm font-semibold">
                   {t.name}
-                  {t.id === "mk_growth" ? <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground">Recommended</span> : null}
+                  {t.id === "mk_growth" ? <span className="ml-1.5 rounded-full bg-primary px-1.5 py-0.5 text-[12px] font-medium text-primary-foreground">Recommended</span> : null}
                 </p>
                 <p className="mt-0.5 text-xs text-muted-foreground">
                   {num(clamped * (t.sends_per_contact ?? 0))} emails/mo · {num(clamped * (t.daily_per_contact ?? 0))}/day ·{" "}
@@ -210,14 +210,14 @@ export function ContactPricer({ mk }: { mk: PublicPricing["wings"]["marketing"] 
               </div>
               <p className="shrink-0 text-right text-lg font-semibold tabular-nums" data-fact>
                 {money(p)}
-                <span className="block text-[10px] font-normal text-muted-foreground">/mo · {money(p * 10)}/yr</span>
+                <span className="block text-[12px] font-normal text-muted-foreground">/mo · {money(p * 10)}/yr</span>
               </p>
             </div>
           );
         })}
       </div>
 
-      <ul className="ruled mt-5 flex-1 border-t border-rule font-mono text-[11px] text-ink-muted">
+      <ul className="ruled mt-5 flex-1 border-t border-rule font-mono text-[12.5px] text-ink-muted">
         {["campaigns · sequences · inbox", "sent → delivered → opened", "footers · one-click unsubscribe", "separate from transactional"].map((f) => (
           <li key={f} className="py-2" data-fact>
             {f}

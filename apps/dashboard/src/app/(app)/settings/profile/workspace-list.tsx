@@ -61,7 +61,7 @@ export function WorkspaceList({
                     {w.environment === "live" ? "Live" : "Sandbox"}
                   </Badge>
                   {active ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
+                    <span className="inline-flex items-center gap-1 text-[12.5px] font-medium text-primary">
                       <Check className="size-3" /> You&apos;re here
                     </span>
                   ) : null}

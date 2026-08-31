@@ -200,7 +200,7 @@ export function ConversationRail({
           ) : (
             groups.map((g) => (
               <div key={g.label} className="space-y-1">
-                <p className="px-2 pt-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                <p className="px-2 pt-1 text-[12px] font-semibold uppercase tracking-wide text-muted-foreground">
                   {g.label}
                 </p>
                 {g.items.map((c) => (
@@ -258,7 +258,7 @@ export function ConversationRail({
                               conversation from another, and truncation defeated
                               that whenever two started with the same words. */}
                           <span className="block break-words leading-snug">{c.title}</span>
-                          <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                          <span className="mt-0.5 block text-[12.5px] text-muted-foreground">
                             {relativeTime(c.updated_at)}
                           </span>
                         </button>

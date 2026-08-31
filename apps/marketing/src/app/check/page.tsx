@@ -96,7 +96,7 @@ export default function CheckPage() {
         <section className="border-b border-rule">
           <div className="container py-14 md:py-20">
             <div className="max-w-2xl">
-              <p className="font-mono text-[11px] uppercase tracking-heading text-ink-muted">
+              <p className="font-mono text-[12.5px] uppercase tracking-heading text-ink-muted">
                 public DNS · nothing sent · nothing stored
               </p>
               <h1 className="display-l mt-4 text-balance">
@@ -153,7 +153,7 @@ function HowToRead() {
                 label="DMARC published: witnessed. Mail protected: unknown — the segment between them is dashed."
               />
             </div>
-            <p className="mt-3 font-mono text-[11px] leading-relaxed text-muted-foreground">
+            <p className="mt-3 font-mono text-[12.5px] leading-relaxed text-muted-foreground">
               v=DMARC1; p=none; rua=mailto:…
               <br />
               published · not protecting anything
@@ -161,7 +161,7 @@ function HowToRead() {
           </div>
 
           <div>
-            <h3 className="text-[11px] uppercase tracking-heading text-ink-muted">
+            <h3 className="text-[12.5px] uppercase tracking-heading text-ink-muted">
               The four states, and what each one is a claim about
             </h3>
             <dl className="ruled mt-4 border-y border-rule">
@@ -192,7 +192,7 @@ function HowToRead() {
                 <div key={state} className="grid grid-cols-[6.5rem_1fr] gap-x-4 py-3.5">
                   <dt className="font-mono text-[13px]">
                     {state}
-                    <span className="block text-[11px] text-muted-foreground">{drawing}</span>
+                    <span className="block text-[12.5px] text-muted-foreground">{drawing}</span>
                   </dt>
                   <dd className="text-sm leading-relaxed text-ink-muted">{body}</dd>
                 </div>
@@ -238,7 +238,7 @@ function Refusals() {
           ))}
         </dl>
 
-        <p className="mt-8 max-w-prose font-mono text-[11px] leading-relaxed text-muted-foreground">
+        <p className="mt-8 max-w-prose font-mono text-[12.5px] leading-relaxed text-muted-foreground">
           {LIMITS.perIp} lookups an hour from one address, {LIMITS.global} an hour across
           everyone · each lookup gets 3 seconds and then we say we do not know
           <br />

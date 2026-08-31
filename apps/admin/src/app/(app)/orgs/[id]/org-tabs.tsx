@@ -72,7 +72,7 @@ export function OrgTabs({
           >
             {t.label}
             {t.badge ? (
-              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[10px] tabular-nums text-muted-foreground">
+              <span className="rounded-full bg-muted px-1.5 py-0.5 text-[12px] tabular-nums text-muted-foreground">
                 {t.badge}
               </span>
             ) : null}

@@ -70,7 +70,7 @@ export function Metric(props: MetricProps) {
       >
         {value}
       </span>
-      <span className="font-mono text-[11px] leading-snug text-muted-foreground">
+      <span className="font-mono text-[12.5px] leading-snug text-muted-foreground">
         <span className="text-foreground/70">{label}</span>
         {" · "}
         {window}

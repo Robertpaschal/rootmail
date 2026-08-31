@@ -87,7 +87,7 @@ export async function RolesSection() {
                 <p className="font-medium">{r.name}</p>
                 <div className="mt-1 flex flex-wrap gap-1">
                   {r.permissions.map((p) => (
-                    <Badge key={p} variant="secondary" className="font-mono text-[10px]">
+                    <Badge key={p} variant="secondary" className="font-mono text-[12px]">
                       {p}
                     </Badge>
                   ))}

@@ -551,11 +551,11 @@ export function ContactCrm({
               </span>
               {/* Things THEY did are news; things you typed are not. */}
               {theirsUnseen ? (
-                <span className="shrink-0 rounded border border-ink px-2 py-0.5 text-[10px] font-semibold text-foreground">
+                <span className="shrink-0 rounded border border-ink px-2 py-0.5 text-[12px] font-semibold text-foreground">
                   New
                 </span>
               ) : null}
-              <span className="shrink-0 text-[11px] text-muted-foreground">
+              <span className="shrink-0 text-[12.5px] text-muted-foreground">
                 {relativeTime(latest.at)}
               </span>
               <ChevronRight className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
@@ -668,7 +668,7 @@ export function ContactCrm({
                   <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
                     {shownFields.map((f) => (
                       <div key={f.key} className="min-w-0 rounded-lg border bg-muted/30 px-2.5 py-1.5">
-                        <p className="truncate text-[10px] uppercase tracking-wide text-muted-foreground">
+                        <p className="truncate text-[12px] uppercase tracking-wide text-muted-foreground">
                           {traitLabel(f.key)}
                         </p>
                         <p className="truncate text-sm font-medium" title={formatTrait(f.value)}>
@@ -727,7 +727,7 @@ export function ContactCrm({
                             <Plus className="size-3.5" />
                           </Button>
                         </form>
-                        <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                        <p className="mt-1 text-[12.5px] leading-snug text-muted-foreground">
                           A tag can trigger a sequence, target a campaign variant, or become an audience.
                         </p>
                       </motion.div>
@@ -779,7 +779,7 @@ export function ContactCrm({
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: "auto", opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden pt-1.5 text-[11px] leading-snug text-muted-foreground"
+                        className="overflow-hidden pt-1.5 text-[12.5px] leading-snug text-muted-foreground"
                       >
                         {audiences.length > 0
                           ? "They are already in every audience you have. "
@@ -858,7 +858,7 @@ export function ContactCrm({
                                   </div>
                                 ))}
                             </dl>
-                            <p className="mt-1.5 text-[11px] leading-snug text-muted-foreground">
+                            <p className="mt-1.5 text-[12.5px] leading-snug text-muted-foreground">
                               Synced so you can segment on them; hidden by default so the record
                               stays readable. Any trait whose key starts with{" "}
                               <span className="font-mono">_</span> lands here.
@@ -952,15 +952,15 @@ export function ContactCrm({
                   <MessageSquare className="size-3.5 shrink-0 text-muted-foreground" />
                   <span className="min-w-0 flex-1 truncate font-medium">{t.subject}</span>
                   {t.status === "needs_reply" ? (
-                    <span className="shrink-0 rounded-full bg-acted/15 px-2 py-0.5 text-[10px] font-medium text-acted">
+                    <span className="shrink-0 rounded-full bg-acted/15 px-2 py-0.5 text-[12px] font-medium text-acted">
                       Needs reply
                     </span>
                   ) : t.status === "closed" ? (
-                    <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                    <span className="shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[12px] font-medium text-muted-foreground">
                       Closed
                     </span>
                   ) : null}
-                  <span className="shrink-0 text-[11px] text-muted-foreground">{relativeTime(t.last_message_at)}</span>
+                  <span className="shrink-0 text-[12.5px] text-muted-foreground">{relativeTime(t.last_message_at)}</span>
                 </Link>
               ))}
             </div>
@@ -973,7 +973,7 @@ export function ContactCrm({
                     <span className={cn("absolute -left-[27px] top-1 size-2.5 rounded-full ring-4 ring-card", t.dot)} />
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0 flex-1">{t.node}</div>
-                      {t.kind !== "note" ? <span className="shrink-0 text-[11px] text-muted-foreground">{relativeTime(t.at)}</span> : null}
+                      {t.kind !== "note" ? <span className="shrink-0 text-[12.5px] text-muted-foreground">{relativeTime(t.at)}</span> : null}
                     </div>
                   </li>
                 ))}
@@ -1047,7 +1047,7 @@ export function ContactCrm({
           {stats.lastAt ? <Stat label="last activity" value={relativeTime(stats.lastAt)} /> : null}
           <Stat label="a customer since" value={new Date(contact.created_at).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })} />
           {stats.capped ? (
-            <span className="text-[11px] text-muted-foreground/70">across their 20 most recent emails</span>
+            <span className="text-[12.5px] text-muted-foreground/70">across their 20 most recent emails</span>
           ) : null}
         </div>
         ) : null}
@@ -1108,7 +1108,7 @@ function NoteRow({ note, onDelete }: { note: ContactNote; onDelete: () => void }
           <StickyNote className="size-3.5" /> Note
         </span>
         <span className="flex items-center gap-2">
-          <span className="text-[11px] text-muted-foreground">{relativeTime(note.created_at)}</span>
+          <span className="text-[12.5px] text-muted-foreground">{relativeTime(note.created_at)}</span>
           <button type="button" onClick={onDelete} className="text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100" aria-label="Delete note">
             <Trash2 className="size-3.5" />
           </button>

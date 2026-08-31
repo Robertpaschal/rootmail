@@ -24,7 +24,7 @@ export function isOutOfCredits(c: Credits): boolean {
 export function CreditMeter({ credits, className }: { credits: Credits; className?: string }) {
   if (credits.allowance === -1) {
     return (
-      <span className={cn("inline-flex items-center gap-1.5 text-[11px] text-muted-foreground", className)}>
+      <span className={cn("inline-flex items-center gap-1.5 text-[12.5px] text-muted-foreground", className)}>
         <Sparkles className="size-3" /> Unlimited AI credits
       </span>
     );
@@ -33,7 +33,7 @@ export function CreditMeter({ credits, className }: { credits: Credits; classNam
   const low = isLowCredits(credits);
   const out = isOutOfCredits(credits);
   return (
-    <span className={cn("inline-flex min-w-0 items-center gap-2 text-[11px] text-muted-foreground", className)}>
+    <span className={cn("inline-flex min-w-0 items-center gap-2 text-[12.5px] text-muted-foreground", className)}>
       <Zap className={cn("size-3 shrink-0", out ? "text-destructive" : low ? "text-acted" : "text-primary")} />
       <span className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
         <span
