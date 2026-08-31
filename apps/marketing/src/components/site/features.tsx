@@ -67,9 +67,27 @@ export function Features() {
     <section id="features" className="slab settle">
       <div className="container py-14 md:py-24">
         <div className="max-w-2xl">
-          <h2 className="display-m text-balance">What we can account for</h2>
+          <h2 className="display-m text-balance">
+            Three weeks later, somebody asks what happened to one email.
+          </h2>
           <p className="lead mt-5 text-ink-muted">
-            Six questions we can answer three weeks later, all out of one record.
+            Every answer comes out of one record. Point at a question and the part of the record
+            that answers it is marked — and under each question is the exact field we read it
+            from, so you can check us.
+          </p>
+          {/* THE DIFFERENTIATOR, IN PLAIN ENGLISH, AT THE POINT IT IS EARNED.
+              The rendering law is the strongest thing we have and it spent the
+              last pass being the FIRST thing on the page, where it read as
+              philosophy instead of as a promise. It belongs here, after a
+              stranger knows what the product is and has seen the drawing three
+              times, said in words rather than implied by a stroke weight. */}
+          <p className="mt-6 max-w-[62ch] text-[0.9375rem] leading-relaxed text-ink-muted">
+            And where we do not know, the record says so. An &ldquo;open&rdquo; is a tiny image
+            loading, and roughly a third of the time it is a mail app fetching pictures with
+            nobody in the room — so we draw an open hollow and a confirmed delivery solid,
+            everywhere, for ever. You will not find a chart here that quietly turns a guess into
+            a fact. It costs us a tick in a comparison table, and it is the reason the rest of
+            the numbers on this page are worth reading.
           </p>
         </div>
 

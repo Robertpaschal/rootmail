@@ -33,12 +33,12 @@ const mono = JetBrains_Mono({
 // platform sending on behalf of others; a description that only speaks to the
 // second loses the first before they ever arrive.
 const description =
-  "Receipts, campaigns and the replies that come back — one system, one contact list, one reputation. If you send for your own customers, each of them gets their own sending domain, their own suppression list and their own score, and we throttle the one going wrong before it costs the others. Keep the provider you already use, or let us deliver it.";
+  "Order confirmations, password resets, newsletters, and the replies people send back — one system, one contact list, one address of your own. If you send for your own customers, each of them gets their own sending domain, their own suppression list and their own score, and we throttle the one going wrong before it costs the others. Keep the provider you already use, or let us deliver it.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://rootmail.io"),
   title: {
-    default: "rootmail — every email you send, and a record of what happened to it",
+    default: "rootmail — send your company's email, and know what happened to every one",
     template: "%s · rootmail",
   },
   description,
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "rootmail",
-    title: "rootmail — every email you send, and a record of what happened to it",
+    title: "rootmail — send your company's email, and know what happened to every one",
     description,
     url: "https://rootmail.io",
   },

@@ -69,13 +69,22 @@ export function Hero() {
           <HeroDeckRadios />
 
           <div className="max-w-xl">
+            {/* ONE PLAIN SENTENCE, NO METAPHOR. The owner, reading the old
+                headline pair cold: *"I am in the fourth section and I still
+                don't know what rootmail is about."* The old h1 — "Every email
+                you send, and a record of what happened to it" — is a phrase
+                about a RECORD, and a stranger does not yet know why a record
+                is the interesting part. This one names the job first (send
+                your company's email) and the differentiator second (and know
+                what happened to it), and the lead underneath is nothing but
+                nouns a person recognises. */}
             <h1 className="display-xl text-balance">
-              Every email you send, and a record of what happened to it.
+              Send your company&apos;s email, and know what happened to every one.
             </h1>
 
             <p className="lead mt-6 max-w-md text-ink-muted">
-              Receipts, campaigns and the replies that come back — one system, one contact list, one
-              reputation.
+              Order confirmations, password resets, newsletters, and the replies people send back
+              — one system, one contact list, one address of your own.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-x-7 gap-y-3">

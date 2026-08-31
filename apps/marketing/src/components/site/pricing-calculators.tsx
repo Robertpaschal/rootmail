@@ -176,10 +176,10 @@ export function BlocksCalculator({ tx }: { tx: PublicPricing["wings"]["transacti
 
       <ul className="ruled mt-5 flex-1 border-t border-rule font-mono text-[12.5px] text-ink-muted">
         {[
-          "send API · templates · sandbox",
-          "score · suppression · webhooks",
-          "client domains · included",
-          "append-only audit trail",
+          "send from your app, or from a template you designed",
+          "reputation score, do-not-send list, webhooks",
+          "a sending domain for each of your clients",
+          "a record of every message that cannot be edited",
         ].map((f) => (
           <li key={f} className="py-2" data-fact>
             {f}
@@ -308,9 +308,9 @@ export function ContactPricer({ mk }: { mk: PublicPricing["wings"]["marketing"] 
       <ul className="ruled mt-5 flex-1 border-t border-rule font-mono text-[12.5px] text-ink-muted">
         {[
           "campaigns · sequences · inbox",
-          "sent → delivered → opened",
-          "footers · one-click unsubscribe",
-          "separate from transactional",
+          "who it reached, and who opened it",
+          "unsubscribe footers, handled for you",
+          "billed apart from your receipts and resets",
         ].map((f) => (
           <li key={f} className="py-2" data-fact>
             {f}

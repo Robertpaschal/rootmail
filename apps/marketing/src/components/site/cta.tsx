@@ -33,8 +33,10 @@ export function Cta() {
           What does the internet actually say about your email?
         </h2>
         <p className="lead text-ink-muted">
-          Name a domain. We draw what public DNS publishes about it — solid where we verified it,
-          dotted where we could not.
+          Type in your web address. We look up the records that tell mail providers your email is
+          really from you, and show you which are in place and which are missing. It takes about
+          five seconds, and it is the same drawing you have been reading all the way down this
+          page: solid where we checked it ourselves, dotted where we could not.
         </p>
 
         <p className="font-mono text-[12.5px] text-ink-muted" data-fact>

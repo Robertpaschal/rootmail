@@ -60,9 +60,30 @@
  *    transform-only and behind `@supports`, and whose failure mode is a row
  *    fourteen pixels low.
  * 2. `prefers-reduced-motion` reaches the identical information.
- * 3. `the common default` names nobody. It is a structural claim about what a
+ * 3. `what usually happens` names nobody. It is a structural claim about what a
  *    system without per-sender scoring is ABLE to say, which is the only form
  *    of comparison that ships here.
+ *
+ * ── THE STORY PASS (2026-08-31): EVERY FIGURE NOW SAYS WHAT IT IS ───────────
+ * The owner, reading the finished page as a stranger: *"I don't understand
+ * what these numbers are for — 0.1%, 0.3%, 0.5%. What are those about? What
+ * are you trying to show? And then 'complaint rate · harbourclinic.com ·
+ * 7-day window' — that second part is confusing."*
+ *
+ * Both halves were the same failure. A `.display-num` figure with a mono
+ * sourcing line beside it satisfies the LETTER of §5.3 (a number ships with
+ * its window and its method) and misses the point entirely: the window and
+ * the method are not what the reader was missing. They were missing **what
+ * the measure is and why anyone should care**, which no sourcing line has
+ * ever said.
+ *
+ * So: a prose block above the ladder names the measure, says who watches it
+ * and states that these three points are OURS, set under the provider's own —
+ * and every rung carries a `gloss` that translates the percentage into people
+ * ("1 person in every 1,000 marked it as spam"). `gloss` is a required field
+ * on `Rung`, so a rung cannot be added without one. The sourcing line is
+ * still there; it is now a footnote under the ladder, in words, where a
+ * footnote belongs.
  */
 
 /** The tone of a branch, in the rendering law's own vocabulary. */
@@ -143,6 +164,8 @@ type Cell = { branches: BranchSpec[]; say: string; tone: Tone };
 
 type Rung = {
   rate: string;
+  /** What the figure MEANS, in words, right next to it. Never optional. */
+  gloss: string;
   tone: Tone;
   ours: Cell;
   theirs: Cell;
@@ -151,34 +174,37 @@ type Rung = {
 const rungs: Rung[] = [
   {
     rate: "0.10%",
+    gloss: "1 person in every 1,000 marked it as spam",
     tone: "acted",
     ours: {
       tone: "acted",
       branches: [{ tone: "acted", end: "node" }],
-      say: "rootmail warns you, and names the client",
+      say: "rootmail emails you, and names the client whose mail it is",
     },
     theirs: {
       tone: "unknown",
       branches: [{ tone: "unknown", end: "open" }],
-      say: "nothing is said",
+      say: "nothing happens, and nobody tells you",
     },
   },
   {
     rate: "0.30%",
+    gloss: "3 in every 1,000",
     tone: "acted",
     ours: {
       tone: "acted",
       branches: [{ tone: "acted", metered: true, end: "node" }],
-      say: "throttled to 60 sends an hour",
+      say: "that client is slowed to 60 emails an hour \u2014 held back, never dropped",
     },
     theirs: {
       tone: "unknown",
       branches: [{ tone: "unknown", end: "open" }],
-      say: "nothing is said",
+      say: "nothing happens, and nobody tells you",
     },
   },
   {
     rate: "0.50%",
+    gloss: "5 in every 1,000",
     tone: "stopped",
     ours: {
       tone: "stopped",
@@ -186,12 +212,12 @@ const rungs: Rung[] = [
         { tone: "stopped", end: "bar", label: "harbourclinic.com" },
         { tone: "witnessed", end: "open", label: "your other clients" },
       ],
-      say: "one client is paused. Everyone else keeps sending.",
+      say: "that one client is stopped. Everyone else keeps sending.",
     },
     theirs: {
       tone: "stopped",
       branches: [{ tone: "stopped", end: "bar", label: "every client" }],
-      say: "the provider suspends the whole account. You hear it from a customer.",
+      say: "your email provider suspends the whole account. You hear about it from a customer.",
     },
   },
 ];
@@ -225,24 +251,46 @@ function Column({ name, cell, kind }: { name: string; cell: Cell; kind: "ours" |
 export function ThresholdLadder() {
   return (
     <div className="mt-10 lg:mt-0">
-      <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
-        complaint rate · harbourclinic.com · 7-day window
+      {/* WHAT THE NUMBERS ARE. The owner, on the version without this block:
+          *"I don't understand what these numbers are for — 0.1%, 0.3%, 0.5%.
+          What are those about?"* Three bare percentages with a mono caption
+          reading `complaint rate · harbourclinic.com · 7-day window` is a
+          figure a reader cannot interpret, which by our own rule is a figure
+          that may not ship. So: what the measure is, why anyone should care,
+          and whose numbers these are — in prose, above the ladder. */}
+      <h3 className="display-s text-balance">
+        Complaint rate: how many people hit &ldquo;mark as spam&rdquo;
+      </h3>
+      <p className="mt-3 max-w-[58ch] text-[0.9375rem] leading-relaxed text-ink-muted">
+        Out of everyone you mailed. It is the number mailbox providers use to decide whether the
+        rest of your email is worth delivering, and it moves slowly enough that by the time you
+        notice, weeks of mail have already gone to spam folders.
+      </p>
+      <p className="mt-3 max-w-[58ch] text-[0.9375rem] leading-relaxed text-ink-muted">
+        The three points below are <em>ours</em>. We set them deliberately under the point where an
+        email provider starts acting on its own — because when the provider acts, it acts on your
+        whole account, and everything you send stops at once.
       </p>
 
-      <div className="mt-5 rounded-2xl bg-well p-3 shadow-well sm:p-4">
+      <div className="mt-6 rounded-2xl bg-well p-3 shadow-well sm:p-4">
         {rungs.map((r) => (
           <div key={r.rate} className={`rise border-l-2 py-5 pl-4 sm:pl-6 ${RAIL[r.tone]}`}>
-            <p className={`display-num text-[1.75rem] leading-none ${INK[r.tone]}`}>{r.rate}</p>
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <p className={`display-num text-[1.75rem] leading-none ${INK[r.tone]}`}>{r.rate}</p>
+              <p className="text-[13px] text-ink-muted">{r.gloss}</p>
+            </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <Column name="rootmail" cell={r.ours} kind="ours" />
-              <Column name="the common default" cell={r.theirs} kind="theirs" />
+              <Column name="rootmail does this" cell={r.ours} kind="ours" />
+              <Column name="what usually happens" cell={r.theirs} kind="theirs" />
             </div>
           </div>
         ))}
       </div>
 
       <p className="mt-6 border-t border-rule pt-4 text-xs leading-relaxed text-ink-muted">
-        7-day trailing window, never on fewer than 20 sends the provider ruled on.
+        Example figures for one client, counted over the last 7 days — and never on fewer than 20
+        emails the mail provider actually ruled on, so one bad afternoon on a brand-new client
+        cannot trip it.
       </p>
     </div>
   );
@@ -256,11 +304,16 @@ export function TheBreak() {
           <div>
             <div className="lg:sticky lg:top-28">
               <h2 className="display-l text-balance">
-                Email fails quietly. The number on the screen keeps going up.
+                When email stops working, nobody tells you.
               </h2>
               <p className="lead mt-6 max-w-md text-ink-muted">
-                The fix is not a better chart. It is an account of every sender, and acting on it
-                before a person has to.
+                It does not break. It quietly starts landing in spam folders, and you find out
+                from a customer three weeks later asking why they never got their receipt.
+              </p>
+              <p className="mt-5 max-w-md text-[0.9375rem] leading-relaxed text-ink-muted">
+                Two numbers decide it: how many of your addresses reject the mail, and how many
+                people mark it as spam. rootmail watches both, separately for every sender on your
+                account, and does something about them before anybody has to notice.
               </p>
             </div>
           </div>

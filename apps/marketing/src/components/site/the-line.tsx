@@ -2,52 +2,58 @@ import { Line, type Station } from "@rootmail/design";
 import { DeckScroll } from "./deck-scroll";
 
 /**
- * "How does it work?" — `<OneMessage>`, `docs/design/04-EXPERIENCE.md` §5.3.
+ * "WHAT DOES IT DO FOR ME?" — section two, and the first place a stranger is
+ * told, in nouns, what they get.
  *
- * Three views of ONE MESSAGE says "there is one record and it follows you,"
- * which is the only structural claim rootmail has that the category does not.
- * The message id is identical in all three panels, pinned in the stage header.
- * That identity is the argument; no sentence in this section has to make it.
+ * ── WHAT CHANGED (2026-08-31, the story pass) ───────────────────────────────
+ * This section used to be headed *"One record, seen from three sides"* and it
+ * ran an axis of Send / Converse / Prove crossed with an axis of
+ * point-and-click / code — six half-panels, all on screen. The owner, reading
+ * the finished page as a stranger:
  *
- * ── WHAT CHANGED (2026-08-31), AND WHY ──────────────────────────────────────
- * What was here was two segmented controls over one panel — an axis of
- * Send / Converse / Prove crossed with an axis of Point-and-click / Code, six
- * states, both operated by clicking. The owner:
+ *   *"nobody at this junction would care about that. There's no need for point
+ *   and click and code. Just show what you're trying to show. Be assertive,
+ *   tell somebody what you're trying to show him."* And: *"I don't know why
+ *   I'm still seeing this arrow/line thing — it doesn't make sense in this
+ *   context."*
  *
- *   *"I would not be thinking that somebody would want the distinction between
- *   Send, Converse and Prove… Instead of having me click Converse or click
- *   Prove, as I scroll it kind of changes. The distinction is kind of not
- *   relevant here because we are trying to show them something."*
+ * Three fixes, and the first two are removals:
  *
- * Both halves of that are acted on, and they are two different fixes:
+ * 1. **The code door is gone.** The parity claim (the same action exists in a
+ *    mouse and in a call) is real and it survives as ONE sentence at the foot
+ *    of the section pointing at the developer site. It was never worth half of
+ *    every panel on the page's explaining section.
+ * 2. **The line in the sequence panel is gone.** A two-station line labelled
+ *    `step 2 → step 3 (stopped)` is only legible to somebody who already knows
+ *    what a sequence is, which is nobody at section two. The same fact is now
+ *    a sentence: she replied, so the follow-up cancelled itself.
+ * 3. **The one line that stays is legended.** The send panel's line is the
+ *    product, so it keeps its five stations — and gains one plain sentence
+ *    saying what filled and hollow mean. That is comprehension, not the
+ *    epistemology argument; the argument itself is section seven's job and is
+ *    deliberately not made here.
  *
- * 1. **The layer axis is no longer a control.** It is a scroll-driven
- *    progression on the same sticky rig the hero uses — `min-height` on the
- *    section, `position: sticky` on its child, and the surplus mapped to a
- *    beat by `deck-scroll.tsx`. The reader is shown the three sides; they are
- *    not asked to choose between them.
- *
- * 2. **The door axis is not a control either — both doors are drawn at once.**
- *    The point of `00-PHILOSOPHY.md §6` is that the same action exists in a
- *    mouse and in a call. A tab set made that a claim you had to verify by
- *    clicking; side by side, it is a thing you can see. Nothing was removed:
- *    every one of the six former states is on screen, three at a time.
+ * The three sides are now three plain jobs — send it, read what comes back,
+ * look it up later — and the three panels are three moments of ONE email:
+ * the morning it went out, the moment Ana wrote back, and the day somebody
+ * asked for proof. The shared id is still printed, and it still does the
+ * arguing, but no sentence depends on the reader noticing it.
  *
  * ── THE LAWS THAT STILL BIND ────────────────────────────────────────────────
- * 1. **All three panels and all six half-panels are in the DOM at first paint,
- *    and the three claims are prose that is never hidden.** The rail on the
- *    left states what Send, Converse and Prove each are, at rest, always — so
- *    the section's ARGUMENT is complete with no script and no scrolling. Only
- *    the illustration rotates, and the rail items are `<label>`s for real
- *    radio inputs, so with JavaScript deleted this is a keyboard-operable tab
- *    set sitting on its first panel. The scroll rig can only advance a scene
- *    that is already finished; it never creates or removes content.
+ * 1. **All three panels are in the DOM at first paint, and all three claims are
+ *    prose that is never hidden.** The rail on the left states what each side
+ *    is, at rest, always — so the section's argument is complete with no script
+ *    and no scrolling. The rail items are `<label>`s for real radio inputs, so
+ *    with JavaScript deleted this is a keyboard-operable tab set sitting on its
+ *    first panel. The scroll rig only ever advances a scene that is already
+ *    finished; it never creates or removes content.
  * 2. `prefers-reduced-motion` turns the pin off entirely (see `.line-rig` in
- *    `globals.css`). The section becomes an ordinary one, every panel one
- *    click away, and it moves under nobody who asked it not to.
- * 3. `Opened` is hollow in the Send panel exactly as it is in production, and
- *    the sequence's third step in the Converse panel is severed with the reason
- *    that severed it. The demonstration is labelled as one.
+ *    `globals.css`). Every panel is one click away and it moves under nobody.
+ * 3. `Opened` is hollow here exactly as it is in production, and `Clicked` has
+ *    no timestamp so it draws dashed. The honest gap is in the first panel.
+ *
+ * The CSS keys (`data-side-panel="send" | "conv" | "prove"`, `#side-N`) are
+ * load-bearing and unchanged — `globals.css` reaches forward from them.
  */
 
 const ID = "msg_01J9Q7F2XKB4M0RVTC8H";
@@ -61,45 +67,29 @@ const sendStations: Station[] = [
   { label: "Clicked", state: "unknown", at: "—" },
 ];
 
-/** The sequence the reply stopped. Nothing is drawn past a severed station. */
-const sequenceStations: Station[] = [
-  { label: "step 2", state: "witnessed", at: "sent 08:00" },
-  { label: "step 3", state: "stopped", reason: "contact replied 11:47" },
-];
-
 /** The three sides, in scroll order. `say` is never hidden — see law 1. */
 const SIDES = [
   {
     key: "send",
-    name: "Send",
-    say: "Receipts and campaigns, from your own address, through your provider or ours.",
+    name: "Send it",
+    say: "Order confirmations, password resets, newsletters, launch announcements — written once and sent from your own address.",
   },
   {
     key: "conv",
-    name: "Converse",
-    say: "Replies come back threaded, and a sequence stops the moment somebody writes back.",
+    name: "Read what comes back",
+    say: "Replies land in one inbox your whole team can see, not a no-reply void — and an automatic follow-up stops the moment somebody writes back.",
   },
   {
     key: "prove",
-    name: "Prove",
-    say: "A signed record of what went out, checkable by somebody who does not trust us.",
+    name: "Look it up later",
+    say: "Weeks on, find any message, see every step it took, and export a sealed record you can hand to somebody who does not trust you.",
   },
 ] as const;
-
-/** A block of a request or a response. Data, drawn as data — and drawn as a
- *  QUOTATION, on the code ground, which is dark in both themes on purpose. */
-function Code({ children }: { children: React.ReactNode }) {
-  return (
-    <pre className="overflow-x-auto whitespace-pre-wrap break-words rounded-xl bg-code px-3.5 py-3 font-mono text-[12px] leading-relaxed text-code-fg ring-1 ring-code-ring">
-      {children}
-    </pre>
-  );
-}
 
 function Row({ k, v, tone }: { k: string; v: string; tone?: string }) {
   return (
     <div className="flex flex-wrap items-baseline gap-x-4 py-2">
-      <span className="w-24 shrink-0 text-[12.5px] text-ink-muted">{k}</span>
+      <span className="w-28 shrink-0 text-[12.5px] text-ink-muted">{k}</span>
       <span className={`min-w-0 break-words font-mono text-[12px] ${tone ?? ""}`} data-fact>
         {v}
       </span>
@@ -107,15 +97,10 @@ function Row({ k, v, tone }: { k: string; v: string; tone?: string }) {
   );
 }
 
-/** One half-panel, with the door it belongs to named above it. */
-function Door({ name, children }: { name: string; children: React.ReactNode }) {
+/** The sentence under a panel that says, in words, what the panel means. */
+function Says({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-w-0">
-      <p className="font-mono text-[12px] uppercase tracking-[0.14em] text-ink-muted" data-fact>
-        {name}
-      </p>
-      <div className="mt-3">{children}</div>
-    </div>
+    <p className="mt-5 max-w-[62ch] text-[0.9375rem] leading-relaxed text-ink-muted">{children}</p>
   );
 }
 
@@ -141,10 +126,13 @@ export function TheLine() {
             ))}
 
             <div>
-              <h2 className="display-m text-balance">One record, seen from three sides.</h2>
+              <h2 className="display-m text-balance">
+                Everything your email needs to just work.
+              </h2>
               <p className="lead mt-5 max-w-md text-ink-muted">
-                The thing you sent, the conversation it became and the proof it leaves are the same
-                message.
+                One editor, one contact list, one address of your own. Below is a single email at
+                three moments: the morning it went out, the minute she wrote back, and the day
+                somebody asked us to prove it.
               </p>
 
               {/* The rail. All three claims are prose at rest; the mark moves,
@@ -168,6 +156,19 @@ export function TheLine() {
                   </li>
                 ))}
               </ol>
+
+              {/* The parity claim, kept as one sentence instead of half of
+                  every panel. See the file note. */}
+              <p className="mt-8 max-w-sm text-[13px] leading-relaxed text-ink-muted">
+                Everything here is also one API call.{" "}
+                <a
+                  href="https://developers.rootmail.io"
+                  className="font-medium text-foreground underline underline-offset-4"
+                >
+                  If you have developers, they get the same product
+                </a>
+                .
+              </p>
             </div>
 
             <figure className="tri-stage min-w-0 rounded-2xl bg-well p-2 shadow-well sm:p-3">
@@ -176,8 +177,8 @@ export function TheLine() {
                 <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
                   {ID}
                 </span>
-                <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
-                  same message · same id · either door
+                <span className="text-[12.5px] text-ink-muted">
+                  one email, at three moments — the same record every time
                 </span>
               </figcaption>
 
@@ -188,108 +189,79 @@ export function TheLine() {
                 className="rounded-xl bg-card p-4 shadow-e2 sm:p-5"
                 style={{ "--background": "var(--card)" } as React.CSSProperties}
               >
-                <div className="tri-panels min-h-[26rem] lg:min-h-[20rem]">
+                <div className="tri-panels min-h-[26rem] lg:min-h-[21rem]">
                   <div data-side-panel="send">
-                    <div className="grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,6fr)] lg:gap-6">
-                    <Door name="point and click">
-                      <div className="ruled">
-                        <Row k="to" v={TO} />
-                        <Row k="subject" v="Your booking is confirmed" />
-                        <Row k="template" v="booking-confirmed" />
-                      </div>
-                      <div className="mt-5 overflow-x-auto pb-2">
-                        <Line
-                          stations={sendStations}
-                          scale="page"
-                          label="Queued, sent, delivered, opened; clicked unknown"
-                        />
-                      </div>
-                    </Door>
-                    <Door name="code">
-                      <Code>{`await mail.send({
-  to: "${TO}",
-  template: "booking-confirmed",
-  idempotencyKey: "bk_88213",
-});
-
-201 {
-  "id": "${ID}",
-  "status": "queued",
-}`}</Code>
-                    </Door>
+                    <p className="text-[13px] font-medium">
+                      Tuesday, 09:14 — a customer books a room, and your site asks rootmail to send
+                      the confirmation.
+                    </p>
+                    <div className="ruled mt-4">
+                      <Row k="to" v={TO} />
+                      <Row k="subject" v="Your booking is confirmed" />
+                      <Row k="template" v="booking-confirmed" />
                     </div>
+                    <div className="mt-5 overflow-x-auto pb-2">
+                      <Line
+                        stations={sendStations}
+                        scale="page"
+                        label="Queued, sent, delivered, opened; clicked unknown"
+                      />
+                    </div>
+                    <Says>
+                      Filled means the mail provider told us it happened. Hollow means we are
+                      guessing — an &ldquo;open&rdquo; is a tracking image loading, and a mail app
+                      can load it with nobody in the room. Nothing was recorded for a click, so
+                      that one is left blank rather than counted as a no.
+                    </Says>
                   </div>
 
                   <div data-side-panel="conv">
-                    <div className="grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,6fr)] lg:gap-6">
-                    <Door name="point and click">
-                      <div className="ruled">
-                        <Row k="09:14 · out" v="Your booking is confirmed" />
-                        <Row k="11:47 · in" v="Can we get a late checkout?" />
-                      </div>
-                      <div className="mt-5 overflow-x-auto pb-2">
-                        <Line
-                          stations={sequenceStations}
-                          scale="page"
-                          label="Sequence step 3, stopped because the contact replied"
-                        />
-                      </div>
-                      <p className="mt-3 font-mono text-[12.5px] text-stopped" data-fact>
-                        stopped: contact replied 11:47
-                      </p>
-                    </Door>
-                    <Door name="code">
-                      <Code>{`await mail.threads.get(
-  "thr_01J9QB4K2MP7",
-);
-
-entries: [
-  { dir: "out", at: "09:14:07" },
-  { dir: "in",  at: "11:47:12" },
-]
-
-event: sequence_exited_on_reply
-       seq_welcome step 3`}</Code>
-                    </Door>
+                    <p className="text-[13px] font-medium">
+                      11:47 — she writes back. It is a conversation now, not a send.
+                    </p>
+                    <div className="ruled mt-4">
+                      <Row k="09:14 · out" v="Your booking is confirmed" />
+                      <Row k="11:47 · in" v="Can we get a late checkout?" />
                     </div>
+                    <p className="mt-4 font-mono text-[12.5px] text-stopped" data-fact>
+                      follow-up cancelled 11:47 · contact replied
+                    </p>
+                    <Says>
+                      Her reply arrives in the shared inbox with the original underneath it, so
+                      whoever is on duty can answer without asking who sent what. And the
+                      follow-up email that was queued for her tomorrow morning cancelled itself
+                      the second she replied — nobody has to remember to stop it.
+                    </Says>
                   </div>
 
                   <div data-side-panel="prove">
-                    <div className="grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,6fr)] lg:gap-6">
-                    <Door name="point and click">
-                      <div className="ruled">
-                        <Row k="recipient" v={TO} />
-                        <Row k="subject" v="Your booking is confirmed" />
-                        <Row k="content hash" v="sha256:9f2c41ab…7d0e" />
-                        <Row k="signature" v="ed25519:4b81…c2af" />
-                      </div>
-                      {/* `<details>` because Verify must work with no script:
-                          the summary IS the button and the result is its
-                          content. */}
-                      <details className="mt-5">
-                        <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-lg border border-rule px-3 text-[13px] font-medium [&::-webkit-details-marker]:hidden">
-                          Verify
-                        </summary>
-                        <p className="mt-3 font-mono text-[12px] text-witnessed" data-fact>
-                          signature valid (Ed25519) · content hash matches
-                        </p>
-                      </details>
-                    </Door>
-                    <Door name="code">
-                      <Code>{`await mail.proof.get(
-  "${ID}",
-);
-
-{ "algo": "Ed25519",
-  "content_sha256":
-    "9f2c41ab…7d0e",
-  "signature": "4b81…c2af" }
-
-$ rootmail proof verify $ID
-signature valid (Ed25519)
-content hash matches`}</Code>
-                    </Door>
+                    <p className="text-[13px] font-medium">
+                      Three weeks later — a customer says the confirmation never arrived.
+                    </p>
+                    <div className="ruled mt-4">
+                      <Row k="recipient" v={TO} />
+                      <Row k="subject" v="Your booking is confirmed" />
+                      <Row k="sent" v="09:14:03 · delivered 09:14:07" />
+                      <Row k="content hash" v="sha256:9f2c41ab…7d0e" />
+                      <Row k="signature" v="ed25519:4b81…c2af" />
                     </div>
+                    {/* `<details>` because the check must work with no script:
+                        the summary IS the button and the result is its
+                        content. */}
+                    <details className="mt-5">
+                      <summary className="inline-flex min-h-11 cursor-pointer list-none items-center rounded-lg border border-rule px-3 text-[13px] font-medium [&::-webkit-details-marker]:hidden">
+                        Check the seal
+                      </summary>
+                      <p className="mt-3 font-mono text-[12px] text-witnessed" data-fact>
+                        signature valid (Ed25519) · content hash matches
+                      </p>
+                    </details>
+                    <Says>
+                      This is the receipt for the receipt: what went out, to whom, at what second,
+                      sealed at the moment of sending so nobody — including us — can edit it
+                      afterwards. Download it and their lawyer, their auditor or their bank can
+                      check the seal themselves, without taking our word for anything.
+                    </Says>
                   </div>
                 </div>
               </div>

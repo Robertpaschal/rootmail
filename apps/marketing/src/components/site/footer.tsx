@@ -61,7 +61,12 @@ export function Footer() {
           references the owner pointed at: the CTA pair recurs near the end of
           the page, not only in the header. */}
       <div className="container relative z-10 flex flex-col items-center gap-5 border-b border-rule py-14 text-center">
-        <p className="display-m max-w-[18ch] text-balance">Send one, and watch the whole line.</p>
+        {/* The owner, on the old line: *"'Send one and watch the whole line' —
+            what does that even mean? Is that a sensible sentence?"* It was
+            house shorthand for the rendering law, which is not a sentence a
+            stranger who has just met us can parse. This one asks for the
+            smallest possible first step, which is what a close is for. */}
+        <p className="display-m max-w-[20ch] text-balance">Send your first email today.</p>
         <p className="max-w-[46ch] text-[15px] text-ink-muted">
           Free for 3,000 sends and 500 contacts a month. No card.
         </p>
@@ -76,7 +81,7 @@ export function Footer() {
       <div className="container relative z-10 flex flex-col gap-6 py-12 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-col gap-1">
           <p className="text-[13px] text-ink-muted">
-            Every email you send, and a record of what happened to it.
+            One place for every email your business sends.
           </p>
         </div>
 

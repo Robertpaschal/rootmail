@@ -21,7 +21,7 @@ import { ImageResponse } from "next/og";
 
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
-export const alt = "rootmail — every email you send, and a record of what happened to it";
+export const alt = "rootmail — send your company's email, and know what happened to every one";
 
 const PAPER = "#191410";
 const INK = "#F3ECE2";
@@ -72,7 +72,7 @@ export default function Image() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 34 }}>
           <div style={{ fontSize: 66, lineHeight: 1.04, letterSpacing: -1.8, maxWidth: 940 }}>
-            Every email you send, and a record of what happened to it.
+            {"Send your company's email, and know what happened to every one."}
           </div>
 
           {/* The line. Solid to Delivered, hollow at Opened, dotted after. */}

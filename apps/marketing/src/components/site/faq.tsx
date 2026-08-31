@@ -58,7 +58,7 @@ const faqs = [
   },
   {
     q: "What does it cost?",
-    a: "Each product is priced by what it uses. Transactional: 3,000 sends a month free, then blocks of 25,000 with rates that drop as you grow, and overage never stops your sending. Marketing: free up to 500 contacts, then audience size sets the price. Extras (seats, workspaces, SSO, AI credits, dedicated IPs) are add-ons priced per one. Yearly is 2 months free; sandbox sends are always free.",
+    a: "You pay for two things and nothing else: how many emails you send, and how many contacts you keep. Sends: 3,000 sends a month free, then blocks of 25,000 with rates that drop as you grow, and going over never stops your sending. Contacts: free up to 500, then the size of your list sets the price. Every feature is on every plan including the free one; extras like seats, workspaces, SSO, AI credits and dedicated IPs are bought one at a time if you want them. Yearly is 2 months free, and sandbox sends are always free.",
   },
   {
     q: "Are there webhooks?",
@@ -69,7 +69,7 @@ const faqs = [
     a: "Yes — that's what client domains are for. Each client sends from their own name and web address, with their bounces, complaints, contacts and history scored and stored separately. Clients share one provider account and one IP pool, which we draw rather than hide: what we do about it is measure each client on its own and throttle, then pause, the one going wrong. Agencies run all their clients from one account; most other senders never need this.",
   },
   {
-    q: "Different from Resend or Mailchimp?",
+    q: "How is this different from Resend or Mailchimp?",
     a: "Those are separate products for separate jobs, so you pay two bills, keep two contact lists, and build two sending reputations — for the same customers. rootmail puts every email your business sends in one place, which is why an unsubscribe here means everywhere. The sharper difference is what we draw: an open is a tracking pixel firing, and we render it as an inference rather than at the same weight as a delivery the provider confirmed.",
   },
 ];

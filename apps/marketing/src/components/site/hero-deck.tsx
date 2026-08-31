@@ -100,8 +100,8 @@ export function HeroDeckRadios() {
 export function HeroDeckIndex() {
   return (
     <div className="mt-9 max-w-md">
-      <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
-        four records · one workspace · illustrative
+      <p className="text-[12.5px] text-ink-muted">
+        four example emails, and what rootmail recorded about each
       </p>
       <ol className="deck-index mt-3">
         {HERO_RECORDS.map((r, i) => (

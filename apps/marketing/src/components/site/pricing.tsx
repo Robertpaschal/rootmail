@@ -7,12 +7,12 @@ import { BlocksCalculator, ContactPricer } from "./pricing-calculators";
 // The floor every account shares — so the two wings are about what THEY do,
 // not table stakes.
 const baseline = [
-  "visual studio · no code",
-  "AI assistant",
-  "replies · shared inbox",
-  "score · suppression · webhooks",
-  "signed proof",
-  "API · SDKs · docs",
+  "a drag-and-drop editor, no code needed",
+  "an AI assistant that builds and diagnoses",
+  "one shared inbox for every reply",
+  "reputation score, do-not-send list, webhooks",
+  "signed records anyone can check",
+  "the API, the SDKs and the docs",
 ];
 
 /**
@@ -49,8 +49,25 @@ export async function Pricing({
       <div className="container py-14 md:py-24">
         <Reveal inView className="max-w-3xl">
           <Heading className="display-m text-balance">
-            Two products. Each priced by what it actually uses.
+            You pay for two things. Everything else is included.
           </Heading>
+          {/* THE OWNER, ON THE OLD HEADING: *"'two products each priced by what
+              it's actually worth' — are you marketing two products? I am not
+              motivated to purchase anything because I don't even know what
+              you're trying to sell to me."* Fair. rootmail is ONE account; what
+              is split in two is the METER, and saying "two products" invited a
+              reader to go looking for the second product and the second login.
+              This says what is metered and, more importantly, what is not. */}
+          <p className="lead mt-5 text-ink-muted">
+            How many emails you send, and how many contacts you keep. They are billed separately,
+            so if you only ever send receipts you never pay for a contact list, and if you only
+            send a newsletter you are not paying per send.
+          </p>
+          <p className="mt-5 max-w-2xl text-[0.9375rem] leading-relaxed text-ink-muted">
+            Everything else is on every plan, the free one included: the drag-and-drop editor, the
+            shared reply inbox, the AI assistant, per-client scoring, signed records, the API. We
+            charge for volume, never for features.
+          </p>
         </Reveal>
 
         {/* What you can actually send TODAY, said before the calculator rather
@@ -63,7 +80,7 @@ export async function Pricing({
         {pricing.beta?.active ? (
           <div className="mt-8 max-w-3xl border-l-2 border-acted pl-4">
             <p className="text-sm font-medium">
-              rootmail is in closed beta — every account is capped at{" "}
+              rootmail is in closed beta, so every account is capped at{" "}
               <span className="font-mono" data-fact>
                 {pricing.beta.daily_send_cap}
               </span>{" "}
@@ -171,8 +188,8 @@ export async function Pricing({
               <div className="max-w-xl">
                 <p className="display-m text-balance">Pay yearly, get two months free.</p>
                 <p className="mt-2.5 text-[0.9375rem] leading-relaxed text-ink-muted">
-                  One bill for both wings and every add-on. Adding capacity never re-bills what you
-                  already have, and nothing is charged twice.
+                  One bill for everything — both meters and any extras. Buying more capacity part
+                  way through a month never re-bills what you have already paid for.
                 </p>
               </div>
               <CtaButton
@@ -205,7 +222,7 @@ export async function Pricing({
           <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
             <h3 className="display-s">Every account includes</h3>
             <p className="text-[13px] text-ink-muted">
-              on the free plan too — the wings price what you use, not what you can reach
+              on the free plan too — you pay for volume, never for features
             </p>
           </div>
           <ul className="mt-4 grid gap-2 rounded-2xl bg-well p-2 shadow-well sm:grid-cols-2 sm:p-3 lg:grid-cols-3">
@@ -220,7 +237,9 @@ export async function Pricing({
               href="/pricing"
               className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-4"
             >
-              {showAddons ? "Talk to us about committed volume" : "Add-ons, and the edges of the bill"}
+              {showAddons
+                ? "Talk to us about committed volume"
+                : "See the full pricing, add-ons and all"}
             </Link>
           </p>
         </Reveal>

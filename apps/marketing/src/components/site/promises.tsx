@@ -49,8 +49,17 @@
  * 2. **Nothing is revealed by anything.** Every word of both columns is in the
  *    first paint.
  *
+ * ── THE STORY PASS (2026-08-31) ─────────────────────────────────────────────
+ * The owner on the old heading pair: *"'defaults set the way we would want
+ * them set for our own mail' — it's very confusing."* It was: it asked the
+ * reader to model our preferences about our own hypothetical mail before they
+ * knew what the product did. The heading now says what the section is for, and
+ * the two column names say which column is which without a legend —
+ * `rootmail` / `the common default` became `how rootmail arrives` / `how it is
+ * usually set`, which is the same claim in words a stranger can act on.
+ *
  * ── THE HONESTY GUARD (what decides whether a row may ship) ──────────────────
- * `the common default` names nobody, and every row must be a STRUCTURAL fact
+ * `how it is usually set` names nobody, and every row must be a STRUCTURAL fact
  * about a mechanism rather than a strawman about a company: what a single
  * unscoped suppression list does to a transactional message; what a *simulated*
  * sandbox is able to report about a message that never left; what a screenshot
@@ -82,9 +91,9 @@ type Row = {
 
 const rows: Row[] = [
   {
-    title: "We don't ask you to leave your provider",
+    title: "You do not have to leave your current email provider",
     where: "credentials checked live before they are stored",
-    commonNote: "the warm-up history is not portable",
+    commonNote: "you start your sending history over from zero",
     lines: [
       {
         label: "your provider",
@@ -116,9 +125,9 @@ const rows: Row[] = [
     ],
   },
   {
-    title: "The sandbox doesn't lie to you",
+    title: "The test send is a real send",
     where: "test sends excluded from scoring",
-    commonNote: "nothing left the building",
+    commonNote: "the test never actually left the building",
     lines: [
       {
         label: "the test send",
@@ -133,9 +142,9 @@ const rows: Row[] = [
     ],
   },
   {
-    title: "A data request you can answer the same day",
+    title: "\u201cDelete everything you have on me\u201d, answered the same day",
     where: "one export call · one erase call",
-    commonNote: "and the opt-out goes with the record",
+    commonNote: "and deleting them forgets that they opted out",
     lines: [
       {
         label: "export",
@@ -155,9 +164,9 @@ const rows: Row[] = [
     ],
   },
   {
-    title: "Proof you can hand to someone else",
+    title: "Proof somebody else can check without asking us",
     where: "signed · independently verifiable · content hash included",
-    commonNote: "checkable by nobody",
+    commonNote: "a screenshot proves nothing to anyone",
     lines: [
       {
         label: "what you get",
@@ -269,10 +278,17 @@ export function Promises() {
       <div className="container grid gap-10 py-14 md:py-24 lg:grid-cols-[minmax(0,3fr)_minmax(0,8fr)] lg:gap-12">
         <div>
           <div className="lg:sticky lg:top-28">
-            <h2 className="display-l text-balance">What happens if you change nothing</h2>
+            <h2 className="display-l text-balance">
+              The settings people get wrong, already set right.
+            </h2>
             <p className="lead mt-5 max-w-sm text-ink-muted">
-              Five defaults, set the way we would want them set for our own mail — beside the way
-              they are usually set.
+              Five choices that quietly decide whether your email helps you or hurts you. On the
+              left is how rootmail arrives, out of the box, before you touch anything. On the
+              right is how they are usually set instead.
+            </p>
+            <p className="mt-5 max-w-sm text-[0.9375rem] leading-relaxed text-ink-muted">
+              None of them is a setting you have to find. That is the point of putting them here:
+              you should be able to see what you are getting without reading a manual.
             </p>
           </div>
         </div>
@@ -290,11 +306,11 @@ export function Promises() {
                   {/* OURS — on the raised ground, with elevation under it.
                       `--background` moves with the plane so any knockout ring
                       matches the card and not the page. */}
-                  <Column name="rootmail" lines={r.lines} side="ours" note={r.where} sourced />
+                  <Column name="how rootmail arrives" lines={r.lines} side="ours" note={r.where} sourced />
                   {/* THEIRS — left in the tray. No fill of its own, because the
                       tray IS its ground; that is the whole visual argument. */}
                   <Column
-                    name="the common default"
+                    name="how it is usually set"
                     lines={r.lines}
                     side="theirs"
                     note={r.commonNote}
