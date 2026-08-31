@@ -116,22 +116,52 @@ export default function DevelopersHome() {
       <main className="space-y-4 px-3 pb-4 sm:px-5">
         {/* ── D1 · on the bare ground ─────────────────────────────────────
             No slab. The hero and the close are the page's two asks, and they
-            are the two places the page is not a document. */}
+            are the two places the page is not a document.
+
+            THE ARRANGEMENT, AFTER THE OWNER'S NOTE (2026-08-31):
+
+              "'One call to send, one honest word back' and then there is a
+               whole empty space on the right. Not necessarily bad, but the
+               arrangement of this particular header can be done better — the
+               arrangement of information and the presentation of the
+               information."
+
+            It was one `max-w-xl` column: headline, lead, two buttons, and then
+            570px of nothing to the right of all three, for the full height of
+            the block. The fold's first impression was a third of a page in use.
+
+            It is a two-column masthead now — the shape a broadsheet uses for
+            exactly this problem. The headline holds the left seven columns and
+            keeps its own measure; the lead and the two controls move to the
+            right five and sit on the headline's LAST BASELINE (`lg:items-end`),
+            so the two blocks close on the same line instead of both starting at
+            the top and one of them stopping early. Nothing was added to fill
+            space and nothing was cut: the same four elements, arranged so the
+            band has no hole in it.
+
+            Underneath, the call/response diptych is unchanged. It was already
+            the right shape — the call on the left, the word back on the right,
+            which is the headline read left to right. */}
         <section className="container py-14 md:py-20">
-          <div className="max-w-xl">
+          <div className="grid grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-7 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end">
             <h1 className="display-xl text-balance">One call to send. One honest word back.</h1>
-            <p className="lead mt-6 text-ink-muted">
-              Bearer auth, snake_case JSON, a typed Node SDK. Press Send it and read what the real
-              sandbox returns.
-            </p>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-              <CtaButton label="Get an API key" size="lg" arrow />
-              <Link href="/docs" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
-                Read the docs
-              </Link>
+            <div className="lg:pb-1">
+              <p className="lead text-ink-muted">
+                Bearer auth, snake_case JSON, a typed Node SDK. Press Send it and read what the real
+                sandbox returns.
+              </p>
+              <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                <CtaButton label="Get an API key" size="lg" arrow />
+                <Link
+                  href="/docs"
+                  className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
+                >
+                  Read the docs
+                </Link>
+              </div>
             </div>
           </div>
-          <div className="mt-12">
+          <div className="mt-12 md:mt-14">
             <CallResponse />
           </div>
         </section>
@@ -169,31 +199,38 @@ export default function DevelopersHome() {
             uses it: the claim is small and exact, so the section is too. */}
         <section id="idempotency" className="slab settle">
           <div className="container max-w-4xl py-14 md:py-20">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-8 gap-y-2">
-              <h2 className="display-m text-balance">The same key twice sends once.</h2>
-              <p className="font-mono text-[12.5px] text-ink-muted" data-fact>
-                watch the id, the status and the header
-              </p>
-            </div>
+            {/* The mono line that used to sit out here — "watch the id, the
+                status and the header" — is gone. It was a CAPTION set in the
+                code face, which §10.1 no longer allows, and it was instructing
+                the reader to look for a relationship the layout was not
+                drawing. The artifact draws it now: one key in at the top, one
+                message out at the bottom. */}
+            <h2 className="display-m max-w-2xl text-balance">The same key twice sends once.</h2>
+            <p className="lead mt-4 max-w-xl text-ink-muted">
+              One key. Two requests. One message — and a response header that names the replay.
+            </p>
             <div className="mt-8">
               <Idempotency />
             </div>
           </div>
         </section>
 
-        {/* ── D4 · stepped ────────────────────────────────────────────────
-            Onboarding a customer's domain is a two-station journey and the
-            artifact already has two columns, so the columns get their station
-            numbers. */}
+        {/* ── D4 · the trunk and its branches ─────────────────────────────
+            The head no longer has to explain that the pieces below are
+            related — the artifact is one thing with a spine running down it,
+            so the sentence that used to do that work ("Switch identity below
+            and the From address, the DKIM selector and the reputation switch
+            with it") is deleted rather than reworded. A caption whose job is to
+            hold a layout together is a layout that failed. */}
         <section id="client-domains" className="slab settle">
           <div className="container py-14 md:py-24">
-            <div className="grid grid-cols-[minmax(0,1fr)] gap-8 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-14">
+            <div className="grid grid-cols-[minmax(0,1fr)] gap-x-14 gap-y-4 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end">
               <h2 className="display-m text-balance">
-                Onboard a customer&apos;s domain, get the DNS table back.
+                One integration. A branch for every customer you send for.
               </h2>
-              <p className="text-sm text-ink-muted">
-                Switch identity below and the From address, the DKIM selector and the reputation
-                switch with it.
+              <p className="text-sm text-ink-muted lg:pb-1">
+                Their domain, their DKIM key, their reputation — hanging off the one API key you
+                already integrated.
               </p>
             </div>
             <div className="mt-10">

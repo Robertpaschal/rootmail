@@ -22,20 +22,45 @@ import { cn } from "@/lib/utils";
  * distinction is the whole reason a coloured thing here is still unambiguous.
  */
 
+/**
+ * THE BUTTONS WERE SET IN JETBRAINS MONO AT 12.5px, AND THAT WAS TWO MISTAKES.
+ *
+ * §10.1 narrowed mono to ids, timestamps and sourcing lines — a button label
+ * is a thing you do, not a value we recorded, and setting it in the code face
+ * made the one control we most want pressed read as another field in the
+ * output. It was also the smallest text in its own row: the owner's note on D3
+ * was "the placement of buttons, the font type, font size, the arrangement —
+ * that particular section can be made a lot better", and font size was the
+ * literal half of it.
+ *
+ * So: the UI sans, a real weight, and two sizes with a 40/44px minimum height
+ * (the touch target the old 30px row never met).
+ */
 const base =
-  "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 font-mono text-[12.5px] transition-[color,background-color,box-shadow,transform] duration-interaction ease-interaction focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none";
+  "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-[color,background-color,box-shadow,transform] duration-interaction ease-interaction focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background motion-reduce:transition-none";
+
+const SIZE = {
+  sm: "min-h-10 px-3.5 py-1.5 text-[13px]",
+  md: "min-h-11 px-5 py-2 text-[15px]",
+} as const;
+
+type ControlProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
+  size?: keyof typeof SIZE;
+};
 
 /** The one that runs something. Brass, and the only glow on the section. */
 export function RunButton({
   className,
+  size = "sm",
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+}: ControlProps) {
   return (
     <button
       type="button"
       {...props}
       className={cn(
         base,
+        SIZE[size],
         "bg-primary text-primary-foreground shadow-[0_6px_18px_-8px_hsl(var(--brass)/0.85)]",
         "hover:brightness-[1.07] hover:-translate-y-px active:translate-y-0",
         "disabled:pointer-events-none disabled:opacity-60 motion-reduce:hover:transform-none",
@@ -48,14 +73,16 @@ export function RunButton({
 /** The secondary one — "Change one byte", "Replay". Outlined, no accent. */
 export function QuietButton({
   className,
+  size = "sm",
   ...props
-}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+}: ControlProps) {
   return (
     <button
       type="button"
       {...props}
       className={cn(
         base,
+        SIZE[size],
         "border border-rule text-ink-muted hover:bg-muted hover:text-foreground",
         "disabled:pointer-events-none disabled:opacity-60",
         className,

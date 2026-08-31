@@ -219,6 +219,210 @@
   }
 }
 
+/* ─── LIGHT IS NOT THE DARK ONE TURNED OVER ───────────────────────────────
+   Owner, 2026-08-31: "in all the redesign, make sure the dark and the light
+   mode make sense. It mustn't be a complementary version of the dark mode.
+   Light mode can be a uniquely innovative colour choice or combination and
+   style, completely distinct from what we did for the dark version."
+
+   The palette family is not up for grabs — paper, ink and brass are the
+   product's identity and they live in `packages/design/tokens.css`, which this
+   app does not own. What IS up for grabs is what the two themes are PICTURES
+   OF, and that is where they were previously the same picture at two
+   brightnesses: a card, lifted, with a soft shadow under it.
+
+   So the two themes are now two different materials:
+
+     LIGHT — a printed form. Flat: no drop shadow anywhere on an artifact. A
+       2px ink rule across the top edge, the way a printed control sheet is
+       ruled off; a hairline ink border rather than a warm tint; the head strip
+       a shade DEEPER than the body, because on paper the header band is where
+       more ink went. Connective lines are drawn IN INK — a drafting hairline.
+
+     DARK — an instrument. Recessed: the artifact is pressed into the ground
+       (`--elev-well`), no top rule at all, a single dim brass filament along
+       the top edge where a lit panel catches its own housing, and the head
+       strip a shade LIGHTER than the body, because on an instrument the lit
+       band is where more light fell. Connective lines are drawn IN LIGHT — a
+       warm grey filament, not ink.
+
+   Everything below is local to this app deliberately: it is a divergence, and
+   a divergence belongs where it diverges rather than in the shared package. If
+   it earns its keep here it can be promoted later.
+
+   `--dev-spine` carries its alpha inside the token (`H S L / A`) so the two
+   themes can differ in ALPHA as well as in hue — an ink line at 28% and a
+   light filament at 90% are not the same line dimmed. */
+@layer base {
+  :root {
+    --dev-spine: 28 32% 11% / 0.36;
+    --dev-artifact-edge: 28 32% 11% / 0.16;
+    --dev-artifact-rule: 28 32% 11% / 0.62;
+  }
+  .dark {
+    --dev-spine: 34 14% 62% / 0.85;
+    --dev-artifact-edge: 34 18% 30% / 0.85;
+  }
+}
+
+@layer components {
+  /* THE ARTIFACT — one continuous thing, not several boxes near each other.
+     D3 and D4 each used to be three or four separate panels laid out beside
+     one another, and the owner read them exactly as that: "we just have two
+     distinct boxes … it doesn't really talk to one information". A single
+     bordered container with internal rules says "one record" the way four
+     containers cannot. */
+  .artifact {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--radius);
+    /* Printed on the same sheet the section is: the artifact takes the slab's
+       own ground and is ruled OFF it rather than lifted out of it. The panels
+       nested inside are `--well`, nine points deeper, so the depth in this
+       theme all lives inside the frame. */
+    background: hsl(var(--paper-raised));
+    border: 1px solid hsl(var(--dev-artifact-edge));
+    border-top: 2px solid hsl(var(--dev-artifact-rule));
+  }
+
+  /* The head band. An ink wash rather than a named ground, so it lands between
+     the body and the nested wells in BOTH themes — and, because `--ink` flips,
+     the same wash darkens the printed head and lightens the lit one, which is
+     the difference the two materials should have. */
+  .artifact-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.375rem 1rem;
+    padding: 0.625rem 0.875rem;
+    border-bottom: 1px solid hsl(var(--rule));
+    background: hsl(var(--ink) / 0.05);
+  }
+
+  .dark .artifact {
+    /* `--well` at 55% over the slab lands between the section ground and the
+       panels inside — the artifact is pressed in, and the panels are pressed
+       into IT. A flat `--well` would have made the two the same black. */
+    background: hsl(var(--well) / 0.55);
+    border: 1px solid hsl(var(--dev-artifact-edge));
+    border-top-width: 1px;
+    box-shadow: var(--elev-well);
+  }
+
+  /* The filament. Decoration, so it is a pseudo-element and out of the
+     accessibility tree by construction, and it carries no information. */
+  .dark .artifact::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 8%;
+    right: 8%;
+    height: 1px;
+    pointer-events: none;
+    background: linear-gradient(90deg, transparent, hsl(var(--brass) / 0.32), transparent);
+  }
+
+  .dark .artifact-head {
+    background: hsl(var(--ink) / 0.06);
+    border-bottom-color: hsl(var(--dev-artifact-edge));
+  }
+
+  /* ─── THE TRUNK AND ITS BRANCHES ──────────────────────────────────────
+     D4's claim is one integration carrying a separate identity per customer.
+     Before this the claim was a sentence and the drawing was two unrelated
+     panels; now the drawing carries it — a spine descending from the platform
+     row, with a tick out to every beat that hangs off it.
+
+     `--branch-tail` stops the spine at the last tick. A trunk that runs on
+     past its final branch draws something we did not say. */
+  /* The left padding lives HERE and not in a Tailwind `pl-*` utility on the
+     element, because utilities beat the components layer: a `px-4` on the same
+     element silently replaced this padding, the spine kept its own offset, and
+     the ticks poked out of the left of the frame. The tree owns its left
+     gutter; callers pad the other three sides. */
+  .branch-tree {
+    position: relative;
+    padding-left: 2.25rem;
+  }
+  .branch-tree::before {
+    content: "";
+    position: absolute;
+    left: 1.25rem;
+    top: 0;
+    bottom: var(--branch-tail, 0px);
+    width: 1px;
+    background: hsl(var(--dev-spine));
+  }
+  .branch-node {
+    position: relative;
+  }
+  .branch-node::before {
+    content: "";
+    position: absolute;
+    left: -1rem;
+    top: 0.62em;
+    width: 1rem;
+    height: 1px;
+    background: hsl(var(--dev-spine));
+  }
+
+  /* On a phone the gutter the drawing costs is the gutter a DKIM host needs,
+     so the tree draws itself narrower rather than eating the values. */
+  @media (max-width: 640px) {
+    .branch-tree {
+      padding-left: 1.5rem;
+    }
+    .branch-tree::before {
+      left: 0.5rem;
+    }
+    .branch-node::before {
+      left: -0.75rem;
+      width: 0.75rem;
+    }
+  }
+
+  /* ─── THE MERGE ───────────────────────────────────────────────────────
+     D3's two requests converge on one message, and the bracket under them
+     says so in the layout rather than in a caption. Four hairlines, no SVG,
+     no script: two risers over the column centres, a beam between them and a
+     stem down into the row that names the single message.
+
+     It is hidden below the breakpoint where the two responses stop being
+     columns — a merge bracket over a vertical stack would be drawing a
+     relationship the layout no longer has. */
+  .merge {
+    position: relative;
+    height: 1.5rem;
+  }
+  .merge::before,
+  .merge::after {
+    content: "";
+    position: absolute;
+    background: hsl(var(--dev-spine));
+  }
+  /* The beam, and the stem hanging from its middle. */
+  .merge::before {
+    left: 25%;
+    right: 25%;
+    top: 0.5rem;
+    height: 1px;
+  }
+  .merge::after {
+    left: 50%;
+    top: 0.5rem;
+    bottom: 0;
+    width: 1px;
+  }
+  .merge-riser {
+    position: absolute;
+    top: 0;
+    height: 0.5rem;
+    width: 1px;
+    background: hsl(var(--dev-spine));
+  }
+}
+
 /* ─── SLABS ───────────────────────────────────────────────────────────────
    The developer site's sections were seven full-bleed bands separated by a
    hairline, all at one padding, each opening with a left-aligned heading over

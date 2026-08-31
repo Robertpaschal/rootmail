@@ -144,14 +144,15 @@ export function DevFooter() {
   return (
     <footer className="relative overflow-hidden border-t border-rule bg-paper">
       <div className="container relative z-10 flex flex-col gap-6 py-12 sm:flex-row sm:items-end sm:justify-between">
-        <div className="flex flex-col gap-1">
-          <p className="text-[13px] text-ink-muted">
-            One call to send. Everything after it, on your webhook.
-          </p>
-          <p className="font-mono text-[12px] text-ink-muted" data-fact>
-            closed beta · {new Date().getFullYear()}
-          </p>
-        </div>
+        {/* The `closed beta · <year>` mono line that used to sit under this
+            sentence is gone — owner's request, 2026-08-31, the same deletion
+            they asked for on the marketing footer. The beta is still stated at
+            the top of every page by `<BetaNotice>`; saying it again in the
+            sign-off was the site apologising for itself on the way out.
+            Nothing else in this footer changes: the owner likes it as it is. */}
+        <p className="text-[13px] text-ink-muted">
+          One call to send. Everything after it, on your webhook.
+        </p>
 
         <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-5 gap-y-2">
           {FOOTER_LINKS.map((l) => (
