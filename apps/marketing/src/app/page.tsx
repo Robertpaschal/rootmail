@@ -41,10 +41,11 @@ import { Footer } from "@/components/site/footer";
  *   2. TheLine     What does it do for me?  send it / read what comes back /
  *                                           look it up later — one email at
  *                                           three moments, in nouns
- *   3. WhoItsFor   Who is it for?           six shapes of business on a
- *                                           horizontal rail, platform first
+ *   3. WhoItsFor   Who is it for?           seven cards dealt one at a time,
+ *                                           platform first
  *   4. ATuesday    What is an ordinary day? six beats of one small business's
- *                                           Tuesday; two needed a person
+ *                                           Tuesday, dealt as a deck running the
+ *                                           other way; one needed a person
  *   5. TheBreak    Why is it different? (1) email stops working quietly, and
  *                                           what we do at each threshold
  *   6. SubTenancy  Why is it different? (2) the wedge — sending for other
@@ -91,7 +92,8 @@ import { Footer } from "@/components/site/footer";
  *
  *    1. Hero        paper    the default sheet
  *    2. TheLine     linen    recessed — pressed into the page, not lifted
- *    3. WhoItsFor   BRASS    the one pigment band; also the horizontal rail
+ *    3. WhoItsFor   BRASS    the one pigment band; also the first of the two
+ *                              pinned card decks
  *    4. ATuesday    paper
  *    5. TheBreak    ink      inverted
  *    6. SubTenancy  paper

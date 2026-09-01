@@ -1258,133 +1258,244 @@
   }
 }
 
-/* ─── THE HORIZONTAL RAIL — "who it's for" ─────────────────────────────────
-   THE OWNER, POINTING AT A REFERENCE:
+/* ─── THE DECK — one large card at a time, the rest receding into the page ──
+   THE OWNER, ON "WHO IS IT FOR" (2026-09-01):
 
-     *"in Wispr Flow there is, in its testimonials, it scrolls in from left to
-     right as you scroll down — it whips in from left to right. I think we can
-     do that with 'who is it for' instead of having four boxes … we can even do
-     more [than four]."*
+     *"we don't have to show so many at once … we would have a box on the left
+     of that box, and you would have an icon image. On the right of that box,
+     you have, for example, 'Software that emails on behalf of its customers'.
+     The sub-description beneath it. It's a whole first, large, very large
+     card. You have the second one almost visible, and as you are scrolling, it
+     is revealing itself. 'Who is it for?' is going to be kind of centered and
+     bold … The same thing can be applied to 'What an ordinary Tuesday looks
+     like' as well."*
 
-   ── WHAT WISPRFLOW.AI ACTUALLY DOES, MEASURED 2026-09-01 AT 1280×900 ──────
-   Their section `.section_new-testi` is **3,486px tall on a 900px viewport**
-   (3.87×). Inside it `.testiv2_wrap` is `position: sticky; top: 0` at exactly
-   100vh, carrying `perspective: 832px`. Six `.testiv2_card`s are
-   `position: absolute` and each is moved by its OWN `transform` — sampled
-   translateX values `-370, -624, -1063, -1652, -1917, -2506` — so the track is
-   about 2,900px of travel driven by roughly 2,586px of scroll, a touch faster
-   than 1:1. Cards away from centre also carry a `rotateX` of 41° then 50°
-   (read out of the `matrix3d`), so it is a cylinder rather than a flat belt.
-   `will-change: transform` is on the cards and on nothing else.
+   THIS REPLACES THE HORIZONTAL RAIL that shipped one deploy earlier. Not a
+   variant of it — the belt is gone. A belt shows six cards at 17rem and asks
+   the reader to pick one; the owner's note is that a persona is worth a whole
+   screen, and that only ONE of them should be asking for attention at a time.
 
-   Two findings mattered more than the numbers:
+   ── THE REFERENCE, MEASURED 2026-09-01 AT 1280×900 ────────────────────────
+   wisprflow.ai, the section headed "EARLY ACCESS, REAL RESULTS / From the
+   first people to use it" — the owner named this section specifically.
 
-   1. **No horizontal scrollbar exists anywhere.** `documentElement.scrollWidth`
-      and `clientWidth` both measure 1265. It is not `overflow-x: hidden` on the
-      body — it is `overflow-x: clip` on the section plus `overflow: clip` on
-      their page wrapper. Clip, not hidden, because `hidden` would make those
-      elements scroll containers and break the sticky pin inside.
-   2. **The cards are complete in the DOM at every scroll position.** Their
-      quote and author blocks measured real widths and heights before, during
-      and after the travel. The motion positions content; it never reveals it.
+     · The section is **3,659px tall on a 900px viewport — 4.07×**.
+     · Its sticky child is `position: sticky; top: 0`, exactly **100vh**, and
+       carries **`perspective: 1924px`**.
+     · The FRONT card is **740×460** at `matrix(1,0,0,1,-370,-230)` — a pure 2D
+       translate. **No rotation: the active card is flat and square-on.**
+     · The cards behind it are rotated on X via `matrix3d` — ≈**34°**, then
+       **47°**, then **50°** — each smaller and further LEFT (x = −309, −885,
+       −1794 against a −370 centring offset). It is a cylinder receding away
+       from the reader, not a flat stack.
+     · **Every card is `opacity: 1` throughout.** Depth is rotation and scale.
+       **Nothing fades**, which is why their content is never hidden — their
+       markup states our own motion law.
+     · No horizontal scrollbar exists: the page wrapper is `overflow: clip`.
+       **Clip, never `hidden`** — `hidden` makes it a scroll container and
+       kills the sticky pin inside it.
 
-   Finding 2 is our motion law stated in their markup, so the rig is adoptable
-   as-is. Finding 1 is the implementation detail that makes it safe.
+   THE ONE THING NOT TAKEN is their per-card pastel tint (`rgb(240,215,255)`,
+   `rgb(255,255,235)`, a different one per card). We have four grounds that
+   mean something and a palette where colour is state; `who` sits on the page's
+   single brass band and stays on it. Depth here comes from the elevation
+   tokens, which are designed twice (§11) — material on a light page, emitted
+   light on a dark one — so the deck is not one recipe with the alpha changed.
 
-   ── WHAT WE DO DIFFERENTLY, AND WHY ──────────────────────────────────────
-   Theirs is driven by JavaScript writing transforms on every frame. Ours is
-   ONE CSS animation on ONE element, driven by `animation-timeline` — scroll
-   POSITION, not a clock — because the preview pane in this project freezes
-   `requestAnimationFrame` AND `setTimeout`, and a rig that needs a frame loop
-   to reach its resting state is a rig that sometimes has no content in it.
+   ── WHY THERE IS NO JAVASCRIPT ────────────────────────────────────────────
+   Theirs writes a transform onto every card on every frame. Ours is ONE
+   registered custom property advanced by `animation-timeline` — scroll
+   POSITION, not a clock — from which each card derives its own transform in
+   `calc()`. The preview pane in this project freezes `requestAnimationFrame`
+   AND `setTimeout`, so a rig that needs a frame loop to reach its resting
+   state is a rig that sometimes has no content in it.
 
-   THE FOUR WAYS THIS DEGRADES, all of which are a readable stacked list:
-     · no `animation-timeline` support  → `@supports` never matches
-     · narrower than 1024px             → media query never matches
-     · shorter than 820px               → ditto; a pinned scene taller than the
-                                          window strands its own bottom half
-     · `prefers-reduced-motion`         → ditto
-   In every one of them `.who-track` stays the two-column grid it is by
-   default and the section is an ordinary list of cards. Nothing is hidden by
-   the rig and nothing is only reachable through it.
+   `--deck-p` runs 0→1 across the pin. A card's DEPTH is `--i` minus
+   `--deck-p × --deck-steps`: **0** while it is the front card, **positive**
+   while it is still waiting behind, **negative** once it has been dealt away.
+   `clamp()` splits that single number into the two halves the transform needs
+   (`--back`, `--fwd`), so a seven-card deck and a six-card deck are the same
+   four declarations with a different inline `--i` and nothing to keep in sync.
 
-   ── WHY THE TRAVEL NEEDS NO JAVASCRIPT AND NO MAGIC NUMBER ───────────────
-   `translateX(calc(100cqw - 100%))`: the percentage resolves against the
-   track's own border box and `100cqw` against `.who-frame`, which is the
-   query container. So the end state is exactly "track width minus frame
-   width" — the track ends flush with the right edge of the frame — for any
-   card count, any card width and any viewport, with nothing to keep in sync.
-   Seven cards at a 17rem floor is 2,000px+ of track against a frame that can
-   never exceed the page width, so the value is always negative.
+   Every browser that matches `@supports (animation-timeline: view())` also
+   supports `@property` — scroll-driven animations landed later than custom
+   property registration in all three engines — so the gate below covers both.
+
+   ── THE FOUR WAYS IT DEGRADES, ALL OF THEM A PLAIN READABLE LIST ──────────
+     · no `animation-timeline` support → `@supports` never matches
+     · narrower than 1024px           → media query never matches
+     · shorter than 820px             → ditto; a 100vh pin on a short window
+                                        strands its own bottom half
+     · `prefers-reduced-motion`       → ditto
+   In all four `.deck-stage` stays the ordinary stacked grid it is by default
+   and the section is a list of cards, in order, complete.
+
+   **NOTHING HERE IS REVEALED BY MOTION.** No card is `opacity: 0` in any
+   state, in any mode, at any scroll position — the same rule the reference
+   happens to keep. So this section needs none of the radio-and-sibling
+   machinery the hero deck needs: with JavaScript off and every frame and timer
+   dead, the server-rendered HTML is already the whole section.
    ──────────────────────────────────────────────────────────────────────── */
-.who-rig {
-  position: relative;
+
+@property --deck-p {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
 }
 
-.who-track {
-  display: grid;
-  gap: 0.5rem;
+.deck-rig {
+  position: relative;
+  /* Upcoming cards fan out to the LEFT and dealt cards leave to the RIGHT, so
+     the deck runs left → right the way the reference does. */
+  --deck-x: -9rem;
+  --deck-out: calc(52vw + 24rem);
+  --deck-tilt-x: 15deg;
+  --deck-tilt-y: 0deg;
+  --deck-lift: -0.35rem;
+  --deck-w: 46rem;
+  --deck-h: 30rem;
 }
-@media (min-width: 640px) {
-  .who-track {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+
+/* THE VARIATION — used by "an ordinary Tuesday". A day runs left to right, so
+   the beats still to come are to the RIGHT and the hours already past leave to
+   the LEFT; and the cards turn on Y rather than X, so the deck reads as a
+   sequence laid along the day rather than as a pile falling away. Same rig,
+   opposite axis, and the reason is the content's, not the rig's. */
+.deck-rig[data-run="right"] {
+  --deck-x: 9rem;
+  --deck-out: calc(-52vw - 24rem);
+  --deck-tilt-x: 0deg;
+  --deck-tilt-y: 12deg;
+  --deck-w: 44rem;
+  --deck-h: 25rem;
+}
+
+/* The section name, set small and tracked above the display line — the
+   reference's `EARLY ACCESS, REAL RESULTS` at 14px/500/uppercase/1.12px. In
+   the UI face, not mono: mono is for ids, timestamps and sourcing lines, and a
+   section name is none of those. */
+.deck-eyebrow {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: hsl(var(--ink-muted));
+}
+
+/* DEFAULT — and therefore what the server renders, what a phone gets, and what
+   anybody who asked for less motion gets: a list. */
+.deck-pin {
+  padding-block: 3.5rem;
+}
+@media (min-width: 768px) {
+  .deck-pin {
+    padding-block: 5rem;
   }
+}
+
+.deck-stage {
+  display: grid;
+  gap: 0.875rem;
+  margin-top: 2.5rem;
+}
+
+.deck-card {
+  position: relative;
 }
 
 @supports (animation-timeline: view()) {
   @media (min-width: 1024px) and (min-height: 820px) and (prefers-reduced-motion: no-preference) {
-    .who-rig {
-      /* 280vh = 180vh of surplus driving ~1,100px of travel on a 900px
-         window: slower than 1:1, deliberately. Measured on the reference the
-         belt runs slightly FASTER than the scroll and the cards read as
-         flicking past; at this ratio a reader can actually finish a card. */
-      min-height: 280vh;
-      view-timeline-name: --who-rig;
+    .deck-rig {
+      --deck-top: calc(var(--beta-notice-h, 0px) + 4rem);
+      /* 100vh of pin plus 50vh of scroll per card change. The reference spends
+         552px per card on a 900px window (61vh); 50vh is 450px, still well
+         over one flick of a trackpad, which is the bar — a scene faster than
+         the reader's thumb reads as a glitch rather than as a walk. */
+      min-height: calc(100vh + var(--deck-steps, 5) * 50vh);
+      view-timeline-name: --deck;
       view-timeline-axis: block;
     }
-    .who-pin {
+
+    .deck-pin {
       position: sticky;
-      top: calc(var(--beta-notice-h, 0px) + 4rem);
-      min-height: calc(100vh - var(--beta-notice-h, 0px) - 4rem);
+      top: var(--deck-top);
+      height: calc(100vh - var(--deck-top));
       display: flex;
       flex-direction: column;
       justify-content: center;
-      gap: 2.5rem;
+      gap: clamp(1rem, 3.5vh, 2.25rem);
+      /* The list mode's generous section padding would eat a third of the pin;
+         a pinned scene pays for its own breathing room out of the same 100vh
+         it is showing the card in. */
+      padding-block: clamp(1rem, 4vh, 2.5rem);
     }
-    .who-frame {
-      /* `clip`, not `hidden` — the same reason `.slab` uses it and the same
-         reason the reference does: `hidden` would make this a scroll
-         container and kill the sticky pin above it. */
-      overflow-x: clip;
-      container-type: inline-size;
-    }
-    .who-track {
-      display: flex;
-      width: max-content;
-      gap: 1rem;
-      padding-inline: clamp(1.25rem, 4vw, 4rem);
-      animation: who-travel linear both;
-      animation-timeline: --who-rig;
+
+    .deck-stage {
+      /* Full bleed: the receding cards need the whole slab to fan into, and a
+         deck that stops at the text measure reads as a widget dropped into a
+         column. `.container`'s measure is dropped here rather than with an
+         `lg:` utility because the rig is gated on height and motion too. */
+      max-width: none;
+      padding-inline: 0;
+      flex: 1 1 auto;
+      min-height: 0;
+      margin-top: 0;
+      grid-template-rows: 1fr;
+      grid-template-columns: minmax(0, 1fr);
+      justify-items: center;
+      align-items: center;
+      gap: 0;
+      /* `clip`, not `hidden` — see the reference note above. */
+      overflow: clip;
+      perspective: 1900px;
+      perspective-origin: 50% 45%;
+      animation: deck-advance linear both;
+      animation-timeline: --deck;
       /* `contain` on a subject taller than the viewport runs from "top edge at
          viewport top" to "bottom edge at viewport bottom" — precisely the
-         window in which `.who-pin` is stuck. Held two points off each end so
-         the belt has finished before the pin lets go. */
-      animation-range: contain 2% contain 96%;
-      will-change: transform;
+         window in which `.deck-pin` is stuck. Held off each end so the deck
+         has settled before the pin lets go. */
+      animation-range: contain 2% contain 94%;
     }
-    .who-card {
-      width: clamp(17rem, 25cqw, 24rem);
-      flex: none;
+
+    .deck-card {
+      grid-row: 1;
+      grid-column: 1;
+      width: min(var(--deck-w), 84vw);
+      height: min(var(--deck-h), 100%);
+      /* The front card is the newest one on top of the pile; a card that has
+         been dealt away keeps its higher z-index, which is what makes it read
+         as sliding out OVER the one arriving behind it. By then it is past the
+         clip edge anyway — `--deck-out` clears half the viewport plus a whole
+         card, so nothing lingers in the corner. */
+      z-index: calc(40 - var(--i));
+
+      --d: calc(var(--i) - var(--deck-p) * var(--deck-steps));
+      /* How far BEHIND, capped at three: past that the cards coincide and only
+         the shallowest is visible, which is what gives the deck thickness
+         without a transform per card. */
+      --back: clamp(0, var(--d), 3);
+      /* How far PAST — one step is the whole exit. */
+      --fwd: clamp(0, 0 - var(--d), 1);
+
+      transform:
+        translateX(calc(var(--back) * var(--deck-x) + var(--fwd) * var(--deck-out)))
+        translateY(calc(var(--back) * var(--deck-lift)))
+        scale(calc(1 - 0.115 * var(--back) + 0.06 * var(--fwd)))
+        rotateX(calc(var(--back) * var(--deck-tilt-x)))
+        rotateY(calc(var(--back) * var(--deck-tilt-y)));
+      will-change: transform;
     }
   }
 }
 
-@keyframes who-travel {
+@keyframes deck-advance {
   from {
-    transform: translateX(0);
+    --deck-p: 0;
   }
   to {
-    transform: translateX(calc(100cqw - 100%));
+    --deck-p: 1;
   }
 }
 
@@ -1651,87 +1762,45 @@
   }
 }
 
-/* ─── AN ORDINARY TUESDAY, AS A LINE ACROSS THE PAGE ───────────────────────
-   THE OWNER, ON THE VERSION THIS REPLACES:
+/* ─── AN ORDINARY TUESDAY — THE DECK'S VARIATION ───────────────────────────
+   The owner asked for the deck in "who is it for" and then: *"The same thing
+   can be applied to 'What an ordinary Tuesday looks like' as well."* Variations
+   of it, not a copy — so the rig is shared (`.deck-*` above) and four things
+   are different, each for a reason that belongs to this content and not to the
+   rig:
 
-     *"the storytelling can be improved with the visuals — how it wipes across
-     and how it is presented. The design and font type and colour choice is
-     good, but it still feels like you'll be reading both sides. The less you
-     make people read and the more intuitive and contextual, the more engaging.
-     Rather than just having it show in a box of how things go."*
+     1. **It runs the other way.** `data-run="right"`: the hours still to come
+        fan out to the RIGHT and the hours already past leave to the LEFT,
+        because a day runs left to right and that is the one spatial metaphor
+        nobody has to be taught. `who` runs the reference's direction.
+     2. **It turns on Y, not X.** A pile falling away is right for six shapes
+        of business; a sequence laid along a day should pivot along that day.
+     3. **The left box is a clock, not an icon.** Same geometry the owner
+        described — a box on the left, the sentence on the right — but what is
+        in the box is the recorded hour, in the display face because it is a
+        value, with the node that says what kind of hour it was.
+     4. **Every card carries the whole day at its foot.** Six nodes, the
+        current one ringed. This is what the horizontal spine used to do and
+        the reason it had to survive the change: the section's argument is
+        *exactly one of these six hours needed a person*, and that is only
+        VISIBLE if you can see all six at once. One hollow ring among five
+        filled ones says it; a sentence would only assert it.
 
-   THREE THINGS WERE WRONG AND THEY WERE ALL THE SAME THING.
-
-   1. **You read both sides.** It was a `4fr / 8fr` split: a sticky rail with a
-      heading, a lead AND a 44-word summary on the left, and six 40-word rows
-      on the right. The summary said what the rows said. A reader had to hold
-      two columns at once to find that out.
-   2. **It was a box of how things go.** Six paragraphs stacked in a tray is a
-      list of prose wearing a diagram's clothes. Nothing about the arrangement
-      carried any of the meaning.
-   3. **A day is a line, and it was drawn as a column.** Time running
-      left-to-right is the one spatial metaphor nobody has to be taught.
-
-   So the section is a single horizontal rail with six stations, ~240 words of
-   prose became ~90, and the argument — *exactly one of these six needed a
-   person* — is now VISIBLE rather than asserted: it is the one hollow node in
-   a row of six.
-
-   ── WHY THE SPINE IS NEUTRAL AND ONLY THE NODES CARRY COLOUR ──────────────
+   ── WHY THE NODE COLOURS ARE WHAT THEY ARE ───────────────────────────────
    `witnessed / acted / stopped` mean what happened TO A MESSAGE. A day is not
-   a message, so drawing this spine in a signal colour would be the rendering
-   law used decoratively, which is worse than not using it. The spine is
-   `--line-dim`; each node states what happened at that hour, and a fourth
-   kind — a hollow ring in plain ink, no signal colour at all — marks the hour
-   a human was involved.
-
-   ── THE SWEEP ─────────────────────────────────────────────────────────────
-   "How it wipes across" is `::after`: a second copy of the spine, in ink at
-   45%, scaled from 0 to 1 as the section enters. It is drawn OVER a `::before`
-   that is already complete, so if it never runs the line is still a line and
-   every station is still on it. Scroll-driven, transform-only, `@supports`-
-   and `prefers-reduced-motion`-gated, and decorative in the strict sense: it
-   is a pseudo-element, so it cannot hold content by construction.
-   ────────────────────────────────────────────────────────────────────────── */
-.day-track {
-  position: relative;
-  display: grid;
-  gap: 1.75rem;
-  padding-left: 1.75rem;
-}
-.day-track::before,
-.day-track::after {
-  content: "";
-  position: absolute;
-  pointer-events: none;
-  /* Vertical spine on a narrow page: the beats are stacked, so the day runs
-     down the left margin and the nodes hang off it. */
-  left: 5px;
-  top: 6px;
-  bottom: 6px;
-  width: 2px;
-  border-radius: 2px;
-}
-.day-track::before {
-  background: hsl(var(--line-dim));
-}
-.day-track::after {
-  background: hsl(var(--ink) / 0.45);
-  transform-origin: top center;
-}
-.day-beat {
-  position: relative;
-}
+   a message, so the hour a HUMAN was involved takes no signal colour at all —
+   it is a hollow ring in plain ink, and it is the only hollow one in the row.
+   The ring is transparent rather than filled with a ground token: it sits on a
+   card in one place and on the section ground in the legend, and a fill that
+   names one of those is wrong in the other. This is the same class of bug as
+   the admin console's unrestated tokens.
+   ──────────────────────────────────────────────────────────────────────── */
 .day-node {
-  position: absolute;
-  left: -1.75rem;
-  top: 0;
-  height: 12px;
-  width: 12px;
+  display: inline-block;
+  height: 11px;
+  width: 11px;
+  flex: none;
   border-radius: 999px;
-  /* Every node sits ON the spine, so each one needs the ground painted behind
-     it or the line runs straight through the hollow one. */
-  box-shadow: 0 0 0 3px hsl(var(--well));
 }
 .day-node[data-kind="watched"] {
   background: hsl(var(--witnessed));
@@ -1739,67 +1808,27 @@
 .day-node[data-kind="acted"] {
   background: hsl(var(--acted));
 }
-/* A person is not a message state, so this node takes no signal colour at all
-   — a hollow ring in plain ink. It is also the only hollow one in the row,
-   which is the whole argument of the section rendered rather than claimed. */
 .day-node[data-kind="person"] {
-  background: hsl(var(--well));
+  background: transparent;
   border: 2px solid hsl(var(--ink));
 }
 
-@media (min-width: 1024px) {
-  .day-track {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-    gap: 0 1.5rem;
-    padding-left: 0;
-    padding-top: 1.75rem;
-  }
-  .day-track::before,
-  .day-track::after {
-    left: 6px;
-    right: 6px;
-    top: 5px;
-    bottom: auto;
-    width: auto;
-    height: 2px;
-  }
-  .day-track::after {
-    transform-origin: left center;
-  }
-  .day-node {
-    left: 0;
-    top: -1.75rem;
-  }
+/* The day at the foot of every card. The hour you are on is ringed in its own
+   card's ground — a halo, not a second colour, so the ruler stays a statement
+   about WHAT HAPPENED and never about where you are in a widget. */
+.day-ruler {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
 }
-
-@supports (animation-timeline: view()) {
-  @media (prefers-reduced-motion: no-preference) {
-    .day-track::after {
-      animation: day-sweep-y linear both;
-      animation-timeline: view();
-      animation-range: entry 25% entry 95%;
-    }
-    @media (min-width: 1024px) {
-      .day-track::after {
-        animation-name: day-sweep-x;
-      }
-    }
-  }
+.day-ruler .day-node {
+  height: 9px;
+  width: 9px;
+  opacity: 0.55;
 }
-
-@keyframes day-sweep-x {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
-@keyframes day-sweep-y {
-  from {
-    transform: scaleY(0);
-  }
-  to {
-    transform: scaleY(1);
-  }
+.day-ruler .day-node[data-here="true"] {
+  height: 13px;
+  width: 13px;
+  opacity: 1;
+  box-shadow: 0 0 0 3px hsl(var(--ink) / 0.14);
 }

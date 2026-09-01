@@ -46,7 +46,7 @@ const faqs = [
   },
   {
     q: "What do you do about deliverability?",
-    a: "Four things, none of them a promise about the inbox — nobody can make that promise. We authenticate with DKIM, SPF and DMARC and generate the records to publish. We stop sending to addresses that bounced or marked you as spam, before each send. We score you 0–100 from real outcomes on a 7-day window and name what is moving it. And we re-check your DNS hourly, so a record that disappears is something you hear from us within the hour.",
+    a: "Four things, none of them a promise about the inbox — nobody can make that promise. We authenticate with DKIM, SPF and DMARC and generate the records to publish. We stop sending to addresses that bounced or marked you as spam, before each send. We score you 0–100 from what actually happened over the last 7 days, and name what is moving it. And we re-check your DNS hourly, so a record that disappears is something you hear from us within the hour.",
   },
   {
     q: "Do I need my own domain?",
