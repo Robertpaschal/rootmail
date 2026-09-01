@@ -156,8 +156,25 @@ export function WhoItsFor() {
           <h2 className="display-l mx-auto mt-4 max-w-3xl text-balance">
             If your business reaches people by email, it fits.
           </h2>
+          {/* The owner, 2026-09-01, on the line this replaces — *"These six
+              are the ones we built for first, and the reason is different in
+              every case"*: *"I don't think we need to. We can do a better
+              sub-heading for that section."*
+
+              They were right, and the fault is a specific one worth naming so
+              it does not come back: that sentence was about US. "The ones we
+              built for" is our roadmap, and "the reason is different in every
+              case" is a caveat about the copy the reader is about to read
+              rather than anything they can use. A reader arriving at a deck of
+              six businesses wants to know why they should scroll it.
+
+              So this one names the through-line the six actually share — they
+              have nothing in common except the thing this product is for. It
+              is also true of all six as written: a booking platform, an
+              agency, a shop, a developer, a school office and a one-person
+              consultancy, each with somebody at the other end of an email. */}
           <p className="lead mx-auto mt-4 max-w-xl text-ink-muted">
-            These six are the ones we built for first, and the reason is different in every case.
+            Six businesses with nothing in common, except that somebody is waiting on an email.
           </p>
         </div>
 

@@ -38,7 +38,7 @@ const description =
 export const metadata: Metadata = {
   metadataBase: new URL("https://rootmail.io"),
   title: {
-    default: "rootmail — send your company's email, and know what happened to every one",
+    default: "rootmail — send your business's email, and know what happened to every one",
     template: "%s · rootmail",
   },
   description,
@@ -58,7 +58,7 @@ export const metadata: Metadata = {
   openGraph: {
     type: "website",
     siteName: "rootmail",
-    title: "rootmail — send your company's email, and know what happened to every one",
+    title: "rootmail — send your business's email, and know what happened to every one",
     description,
     url: "https://rootmail.io",
   },

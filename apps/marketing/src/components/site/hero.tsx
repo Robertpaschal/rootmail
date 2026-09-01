@@ -174,11 +174,23 @@ export function Hero() {
                 you send, and a record of what happened to it" — is a phrase
                 about a RECORD, and a stranger does not yet know why a record
                 is the interesting part. This one names the job first (send
-                your company's email) and the differentiator second (and know
+                your business's email) and the differentiator second (and know
                 what happened to it), and the lead underneath is nothing but
-                nouns a person recognises. */}
+                nouns a person recognises.
+
+                BUSINESS, NOT COMPANY (owner, 2026-09-01): *"'Company' kind of
+                makes it seem higher than 'business', even though by definition
+                they're not really that different. People tend to say 'business'
+                more than they would say 'company'."* Worth honouring past this
+                one line, because it is the same audience call the whole page
+                turns on — the deck below this fold opens with a school office,
+                a five-a-side league and a one-person consultancy, none of whom
+                would describe themselves as having a company. Changed in the
+                metadata title and the social card too, so the sentence a
+                stranger meets in a search result or a pasted link is the one on
+                the page. */}
             <h1 className="display-xl text-balance">
-              Send your company&apos;s email, and know what happened to every one.
+              Send your business&apos;s email, and know what happened to every one.
             </h1>
 
             <p className="lead mt-6 max-w-md text-ink-muted">

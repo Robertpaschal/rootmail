@@ -32,7 +32,7 @@ import { DeckScroll } from "./deck-scroll";
  *
  * ── WHAT CHANGED (2026-09-01): THE TRAY IS A VERTICAL DECK ─────────────────
  * The owner, after seeing the two dealt decks below the fold: *"in the main
- * header where we say 'Send your company's email and know what happened to
+ * header where we say 'Send your business's email and know what happened to
  * every one' — we can now use that vertical version of it to really, really
  * make it stand out and not be so flat."*
  *
