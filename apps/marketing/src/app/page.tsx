@@ -37,7 +37,7 @@ import { Footer } from "@/components/site/footer";
  * ── THE ORDER, AND THE QUESTION EACH SECTION ANSWERS ────────────────────────
  *
  *   1. Hero        What is this?            one plain sentence, then four real
- *                                           records in the deck
+ *                                           records dealt as a vertical deck
  *   2. TheLine     What does it do for me?  send it / read what comes back /
  *                                           look it up later — one email at
  *                                           three moments, in nouns
@@ -84,28 +84,60 @@ import { Footer } from "@/components/site/footer";
  * `hsl(var(--card))`, so nine of these eleven sections were literally the same
  * ground and the only relief on the page was two inverted bands.
  *
- * **THE RULE: no two consecutive sections may read as the same ground.**
- * There are four (defined under "THE ALTERNATION" in `globals.css`), and the
- * order below is the check. If you add, remove or reorder a section, re-read
- * this column top to bottom before you ship it — a repeat is invisible in a
- * diff and obvious on the page.
+ * **THE RULE, CORRECTED 2026-09-01: adjacent grounds need a minimum
+ * PERCEPTUAL STEP, not merely different token values.** The first version of
+ * this rule said "no two consecutive sections may read as the same ground" and
+ * it was checked by comparing computed colours for equality — which passed
+ * with zero duplicates while three seams on this page sat at **1.17:1**. The
+ * owner reported all three anyway, because 1.17 is not a section change; it is
+ * the same ground with a slightly different lid.
+ *
+ * The floor is roughly **1.5:1 at a seam, in BOTH themes.** Measured (dark /
+ * light), after the 2026-09-01 pass:
  *
  *    1. Hero        paper    the default sheet
- *    2. TheLine     linen    recessed — pressed into the page, not lifted
+ *                              ↓ 15.99 / 16.14
+ *    2. TheLine     ink      inverted. Was `linen`, which measured 1.17 dark
+ *                              and 1.16 light against the hero — the owner:
+ *                              *"you can alternate the colours between those
+ *                              two first sections so it's not both on brown
+ *                              backgrounds."*
+ *                              ↓ 10.07 / 11.47
  *    3. WhoItsFor   BRASS    the one pigment band; also the first of the two
- *                              pinned card decks
+ *                              full-bleed card decks
+ *                              ↓ 1.59 / 1.41
  *    4. ATuesday    paper
+ *                              ↓ 15.99 / 16.14
  *    5. TheBreak    ink      inverted
+ *                              ↓ 15.99 / 16.14
  *    6. SubTenancy  paper
+ *                              ↓ 1.17 / 1.22   ← KNOWN, not yet fixed
  *    7. Promises    linen
+ *                              ↓ 18.73 / 13.28
  *    8. Features    ink      inverted
+ *                              ↓ 15.99 / 16.14
  *    9. Pricing     paper
+ *                              ↓ 1.17 / 1.22   ← KNOWN, not yet fixed
  *   10. Faq         linen
+ *                              ↓ 18.73 / 13.28
  *   11. Cta         ink      inverted, and the only one with a drifting layer
+ *                              ↓ 17.34 / 15.10
  *   —   Footer      paper    (`bg-paper`, so it does not repeat the Cta's ink)
  *
- * Brass appears once on purpose. It is the loudest ground in the set, and a
- * second one would make the first mean nothing.
+ * TWO PAPER→LINEN SEAMS SURVIVE (6→7 and 9→10) and they are the same defect
+ * as the one just fixed at the top. They are left deliberately: fixing them is
+ * a ground change to four sections nobody was rebuilding, and it is a separate
+ * decision about how many inverted bands this page should carry.
+ *
+ * WHY NOT BRASS FOR THE SECOND SECTION, which is what the owner reached for
+ * ("when we have yellow too"): brass is section 3, and two brass bands in a
+ * row is the same bug in a louder pigment. Brass on the HERO instead was
+ * measured and rejected — 1.86 against linen in dark, but **1.16 in light**,
+ * because brass and linen differ by hue and hardly at all by lightness on a
+ * light page. It would have moved the complaint into the other theme.
+ *
+ * Brass still appears once on purpose. It is the loudest ground in the set,
+ * and a second one would make the first mean nothing.
  *
  * Two of them are also different MATERIALS rather than different shades:
  * `linen` gives up its lift and takes the well's inset treatment, and `brass`

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { CtaButton } from "./cta-button";
 import { HeroDeck, HeroDeckIndex, HeroDeckRadios } from "./hero-deck";
+import { HERO_RECORDS } from "./hero-records";
 
 /**
  * THE HERO IS THE MECHANISM RUNNING, NOT A SENTENCE ABOUT IT.
@@ -15,8 +16,8 @@ import { HeroDeck, HeroDeckIndex, HeroDeckRadios } from "./hero-deck";
  *    one is recognisable as severed before it is opened. Data and reasoning:
  *    `hero-records.ts`. The mechanism is four radio inputs: `hero-deck.tsx`.
  *
- * 2. **The scene is pinned.** The section is 280vh and its child sticks, so
- *    ~180vh of scroll is spent advancing the deck through the four cases rather
+ * 2. **The scene is pinned.** The section is 250vh and its child sticks, so
+ *    ~150vh of scroll is spent advancing the deck through the four cases rather
  *    than on prose. This is the measured pattern from `05-ENGAGEMENT.md` §1.3 —
  *    a sticky child in an over-tall parent, progress mapped to state by hand.
  *    It is off below `lg` and off on short viewports, where a pin would trap the
@@ -54,12 +55,56 @@ import { HeroDeck, HeroDeckIndex, HeroDeckRadios } from "./hero-deck";
  * production, and the `Clicked` station on the first record has no timestamp,
  * so it draws dashed. The honest gap is still the first thing a stranger sees.
  *
+ * ── WHAT CHANGED (2026-09-01) ───────────────────────────────────────────────
+ * Two things, and they are separate asks that landed together.
+ *
+ * **1. The tray is a vertical deck.** *"in the main header … we can now use
+ * that vertical version of it to really, really make it stand out and not be
+ * so flat."* The mechanic is `.deck-col` in `globals.css` and the DOM did not
+ * change to get it — see `hero-deck.tsx`. The constraint this section has and
+ * the two below it do not: **it is the first thing anyone sees.** So the front
+ * record is complete, square-on and readable at `--deck-p: 0`, nothing plays
+ * by itself, and the deck's whole job is to make scrolling rewarding rather
+ * than to gate comprehension. The second card showing below the first is the
+ * one piece of it that does work at rest: it is the cue that there is more.
+ *
+ * **2. The section below it went dark, and this one did not.** *"you can
+ * alternate the colours between those two first sections so it's not both on
+ * brown backgrounds when we have yellow too and adjacent colours."* Hero and
+ * TheLine were paper and linen — different tokens, and measured **1.17:1**
+ * apart in dark and **1.16:1** in light. A hex check calls that two grounds;
+ * an eye calls it one, and the owner is the eye.
+ *
+ * THE YELLOW WAS TRIED HERE FIRST and it is measurably wrong. On brass this
+ * hero is 1.86:1 against the linen below it in DARK — fixed — and **1.16:1 in
+ * LIGHT**, because brass and linen differ by hue and barely by lightness on a
+ * light page (`globals.css` says so at the token: "1.15:1 against linen"). It
+ * would have moved the complaint from one theme to the other. Brass on the
+ * SECOND section is not available either: `who-its-for` is brass, and two
+ * brass bands in a row is the same bug with a louder pigment.
+ *
+ * So the fix is one class on `the-line`, not on this file: it is `ground-ink`
+ * now, the seam is ~16:1 in both themes, and this section keeps the default
+ * sheet — which is also what keeps `Start free` a brass control on a neutral
+ * ground rather than an ink pill on gold. Brass still appears exactly once.
+ *
  * ALSO NOT HERE, and not to be restored: the `3,000 sends · 500 contacts · free
  * monthly` strip. The owner removed it on 2026-08-31.
  */
 export function Hero() {
   return (
-    <section id="hero-rig" className="hero-rig slab">
+    <section
+      id="hero-rig"
+      className="hero-rig deck-rig slab"
+      data-run="down"
+      style={
+        {
+          "--deck-steps": HERO_RECORDS.length - 1,
+          /* One record open is 460px. The tray is one card plus the peek. */
+          "--deck-h": "29rem",
+        } as React.CSSProperties
+      }
+    >
       <div id="hero-pin" className="hero-pin lit lit-edge">
         {/* `.deck` is the GRID, so the four radios below can reach both columns
             with a sibling combinator. They are absolutely positioned and take

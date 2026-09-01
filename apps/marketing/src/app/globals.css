@@ -240,15 +240,28 @@
      stops seeing section boundaries at all.
 
      ── THE RULE THAT REPLACES "EVERY SLAB IS A CARD" ──────────────────────
-     **No two consecutive sections may read as the same ground.** There are
-     four grounds and the homepage cycles them; `page.tsx` carries the table
-     and is the place to check it.
+     **Adjacent grounds need a minimum PERCEPTUAL STEP — roughly 1.5:1 at the
+     seam, in BOTH themes.** There are four grounds and the homepage cycles
+     them; `page.tsx` carries the measured table and is the place to check it.
 
        paper   the default `.slab` — bleached sheet (light) / raised brown (dark)
        linen   RECESSED. A deeper, more saturated sheet. Not "paper minus 4%":
                it also loses its lift, so it reads as a different material.
        brass   the pigment sheet. The owner's "yellow on brown". Used ONCE.
-       ink     the inverted band (`.ground-ink`, above). Used three times.
+       ink     the inverted band (`.ground-ink`, above). Used four times.
+
+     ── WHY "DIFFERENT VALUES" WAS THE WRONG TEST (2026-09-01) ─────────────
+     The first cut of this rule was checked by comparing computed backgrounds
+     for EQUALITY, and it passed with zero duplicates while the owner went on
+     reporting seams. Measured afterwards, three of them sat at **1.17:1** —
+     every one of them paper→linen, in both directions. Two different tokens
+     and one apparent ground.
+
+     paper→linen is the pair to watch, and it is the pair this file's own
+     comments predicted: linen is 90% against paper's 99% in light and 4%
+     against 11% in dark. Those are real, deliberate steps for a plane change
+     under a card; they are not enough to say "new section" across a seam.
+     Where a seam needs to READ, use ink or brass, and measure it.
 
      ── WHY A BRASS GROUND DOES NOT BREAK "BRASS = WHAT YOU CAN ACT ON" ────
      That rule governs CONTROLS: a brass button, link or focus ring means
@@ -647,10 +660,18 @@
 
 @media (min-width: 1024px) and (min-height: 780px) and (prefers-reduced-motion: no-preference) {
   .line-rig {
-    /* 250vh — ~1,350px of surplus at a 900px window, ~450px per side, which
-       is the same per-beat budget the hero settled on after 318px measured
-       as "one flick of a trackpad clears it". */
-    min-height: 250vh;
+    /* 200vh, down from 250vh (2026-09-01). The three panels became a vertical
+       deck, so the budget is now the deck's own measured per-card figure —
+       100vh of pin plus 50vh per card change — rather than a number picked for
+       this section alone. Same formula as `.deck-rig`, restated here because
+       this half is NOT behind `@supports`: a browser without scroll-driven
+       animations still gets the pin and the JS-driven tab set it has today.
+
+       The homepage was 21,211px before this pass. The two rigs it touches gave
+       back 50vh here and 30vh in the hero. */
+    min-height: calc(100vh + var(--deck-steps, 2) * 50vh);
+    view-timeline-name: --deck;
+    view-timeline-axis: block;
   }
   .line-pin {
     position: sticky;
@@ -1242,12 +1263,19 @@
 
 @media (min-width: 1024px) and (min-height: 780px) and (prefers-reduced-motion: no-preference) {
   .hero-rig {
-    /* 280vh gives ~1,720px of surplus, ~430px per record. Measured at 230vh
-       each record got 318px, which one flick of a trackpad clears — the scene
-       has to be slower than the reader's thumb or it reads as a glitch rather
-       than a walk. Still a fifth of the page, against the 39% the reference in
-       `05-ENGAGEMENT.md` §1.3 spends on its one pinned scene. */
-    min-height: 280vh;
+    /* 250vh, down from 280vh (2026-09-01), and it is now the same expression
+       every deck on this page uses: 100vh of pin plus 50vh per card change.
+       280vh was ~430px per record; 250vh is 450px, so the scene did not get
+       faster — the arithmetic simply stopped being this section's own.
+
+       Restated outside `@supports` on purpose: a browser with no scroll-driven
+       animations gets no `.deck-col`, and must still get the pin and the
+       four-record tab set the JS driver advances. */
+    min-height: calc(100vh + var(--deck-steps, 3) * 50vh);
+    /* The vertical deck's timeline. Ignored where it is not supported, which
+       is exactly the case the line above is written for. */
+    view-timeline-name: --deck;
+    view-timeline-axis: block;
   }
   .hero-pin {
     position: sticky;
@@ -1346,12 +1374,29 @@
 .deck-rig {
   position: relative;
   /* Upcoming cards fan out to the LEFT and dealt cards leave to the RIGHT, so
-     the deck runs left → right the way the reference does. */
+     the deck runs left → right the way the reference does.
+
+     THE AXIS IS DATA, NOT CODE (2026-09-01). There were two of these when the
+     deck shipped and there are four now, so every axis-dependent number is a
+     variable and the transform below reads all of them unconditionally. A new
+     variation is a block of custom properties; it is never a second transform
+     to keep in sync with the first.
+
+       --deck-x / --deck-out    fan and exit on X
+       --deck-y / --deck-out-y  fan and exit on Y   (0 exit on the horizontal
+                                                     runs, where --deck-y is
+                                                     just the pile's slight lift)
+       --deck-depth             how many cards deep the pile is drawn
+       --deck-persp/--deck-po   the camera */
   --deck-x: -9rem;
   --deck-out: calc(52vw + 24rem);
+  --deck-y: -0.35rem;
+  --deck-out-y: 0rem;
   --deck-tilt-x: 15deg;
   --deck-tilt-y: 0deg;
-  --deck-lift: -0.35rem;
+  --deck-depth: 3;
+  --deck-persp: 1900px;
+  --deck-po: 50% 45%;
   --deck-w: 46rem;
   --deck-h: 30rem;
 }
@@ -1368,6 +1413,59 @@
   --deck-tilt-y: 12deg;
   --deck-w: 44rem;
   --deck-h: 25rem;
+}
+
+/* ─── THE VERTICAL VARIANT ─────────────────────────────────────────────────
+   THE OWNER, 2026-09-01:
+
+     *"Can we do the vertical version of this horizontal parallax in this
+     section where it says 'Everything your email needs to just work'? … Also,
+     in the main header where we say 'Send your company's email and know what
+     happened to every one' — we can now use that vertical version of it to
+     really, really make it stand out and not be so flat."*
+
+   Same grammar, one axis rotated. The card still travels; it travels on Y.
+   The upcoming card sits BELOW the front one and the dealt card leaves
+   UPWARD, because that is the direction the reader's own scroll is already
+   moving the page — a deck that dealt downward would be fighting the thumb.
+
+   ── WHY THIS ONE IS NARROWER THAN THE OTHER TWO ──────────────────────────
+   `who` and `a-tuesday` fan into the whole slab: their stage is full-bleed and
+   there is half a viewport of empty page on either side to recede into. The
+   two sections here are the two that are NOT full-bleed — a hero and a
+   three-moments panel, both of which keep a reading column beside the
+   artifact. So the vertical deck fans inside a COLUMN (`.deck-col` below),
+   where the budget is a few centimetres rather than half a screen. Every
+   number is smaller for that reason and not for a stylistic one:
+
+     · the pile is drawn `--deck-depth: 2` rather than 3. A third receding edge
+       in a 40rem column is a smear, not thickness.
+     · the exit is `--deck-h + 8rem` rather than half a viewport — it only has
+       to clear the stage's own clip, and the stage is one card tall.
+     · the perspective is 1300px rather than 1900px, because the subject is
+       ~620px wide rather than ~1280px and a camera tuned for the wider one
+       barely bends the narrower.
+
+   The tilt is NEGATIVE on X, which is the whole read: `rotateX()` is positive
+   toward the viewer at the BOTTOM edge, so a positive tilt would flop the
+   waiting card's near edge out at the reader — the opposite of receding. At
+   −13° per step the card below leans back into the page, and the pile reads as
+   a stack going away from you and down. Measured against the reference's
+   34/47/50° cumulative: ours is 13/26, shallower on purpose because these
+   cards are read at rest rather than glanced at.
+
+   Everything else is the shared rig: `opacity: 1` on every card at every
+   position, depth from rotation and scale only, nothing revealed by motion. */
+.deck-rig[data-run="down"] {
+  --deck-x: 0rem;
+  --deck-out: 0rem;
+  --deck-y: 5.75rem;
+  --deck-out-y: calc(-1 * var(--deck-h) - 8rem);
+  --deck-tilt-x: -13deg;
+  --deck-tilt-y: 0deg;
+  --deck-depth: 2;
+  --deck-persp: 1300px;
+  --deck-po: 50% 22%;
 }
 
 /* The section name, set small and tracked above the display line — the
@@ -1448,8 +1546,8 @@
       gap: 0;
       /* `clip`, not `hidden` — see the reference note above. */
       overflow: clip;
-      perspective: 1900px;
-      perspective-origin: 50% 45%;
+      perspective: var(--deck-persp);
+      perspective-origin: var(--deck-po);
       animation: deck-advance linear both;
       animation-timeline: --deck;
       /* `contain` on a subject taller than the viewport runs from "top edge at
@@ -1472,20 +1570,108 @@
       z-index: calc(40 - var(--i));
 
       --d: calc(var(--i) - var(--deck-p) * var(--deck-steps));
-      /* How far BEHIND, capped at three: past that the cards coincide and only
-         the shallowest is visible, which is what gives the deck thickness
-         without a transform per card. */
-      --back: clamp(0, var(--d), 3);
+      /* How far BEHIND, capped at `--deck-depth`: past that the cards coincide
+         and only the shallowest is visible, which is what gives the deck
+         thickness without a transform per card. Three on the full-bleed runs,
+         two in a column — see `[data-run="down"]`. */
+      --back: clamp(0, var(--d), var(--deck-depth));
       /* How far PAST — one step is the whole exit. */
       --fwd: clamp(0, 0 - var(--d), 1);
 
       transform:
         translateX(calc(var(--back) * var(--deck-x) + var(--fwd) * var(--deck-out)))
-        translateY(calc(var(--back) * var(--deck-lift)))
+        translateY(calc(var(--back) * var(--deck-y) + var(--fwd) * var(--deck-out-y)))
         scale(calc(1 - 0.115 * var(--back) + 0.06 * var(--fwd)))
         rotateX(calc(var(--back) * var(--deck-tilt-x)))
         rotateY(calc(var(--back) * var(--deck-tilt-y)));
       will-change: transform;
+    }
+
+    /* ─── THE COLUMN STAGE ────────────────────────────────────────────────
+       The vertical deck's stage, and the one place the two runs genuinely
+       differ in more than a number. `.deck-stage` is full-bleed and centres
+       its card in a 100vh pin; `.deck-col` is a tray inside a two-column
+       section, so:
+
+         · it is TOP-ALIGNED, not centred. The front card sits at the top of
+           the tray and the surplus below it is where the next card shows. A
+           centred card would split that gap in two and halve the peek.
+         · it has an explicit height — one card plus the peek — because a grid
+           whose only row is `1fr` inside an `align-items: center` flex parent
+           has no height of its own to clip against.
+
+       THE PEEK IS THE POINT. Measured, not derived: `--deck-y` at 68px left
+       21px of the second card showing, because the scale step and the 13° of
+       rotateX each eat into it from the top. At 92px (5.75rem) it is 45px —
+       unmistakably a second object, at rest, before a pixel of scroll. That sliver is not decoration: it
+       is the only thing on a still first frame that says there is more here
+       and that scrolling will do something. If it ever disappears the deck has
+       defeated itself, so the tray's height is derived from it rather than
+       guessed:  stage = card + peek + a little air.
+
+       AND NOTHING IS REVEALED. Both scenes below are radio-and-sibling tab
+       sets in their degraded form — one panel open, the rest closed. In deck
+       mode that is exactly backwards: every card is OPEN, all the time, and
+       the deck only chooses which one is square-on. So this block OPENS the
+       panels rather than hiding any, which is why it can be unlayered and win
+       over the `display: none` in `@layer components` without a fight. */
+    .deck-rig .deck-col {
+      display: grid;
+      grid-template-rows: 1fr;
+      grid-template-columns: minmax(0, 1fr);
+      align-items: start;
+      gap: 0;
+      /* MIN-height plus `flex: 1`, not a fixed height. The floor is one card
+         plus the peek, which is what the deck actually needs; the flex line is
+         so that where the stage sits in a tray taller than that — `the-line`'s
+         figure is stretched to the copy column beside it, 93px taller — the
+         stage GROWS to fill it rather than clipping 93px above the tray's own
+         bottom edge and leaving a hard cut across the middle of the well.
+         Inside a tray that hugs its content (the hero's) the flex line is
+         inert and the floor is the height.
+
+         EVERY SELECTOR IN THIS BLOCK IS PREFIXED `.deck-rig ` for a reason
+         that cost a measurement: Tailwind v3's `@layer` is its own directive
+         and is STRIPPED, not a CSS cascade layer — so a `min-h-[21rem]`
+         utility on the same element is an ordinary (0,1,0) rule emitted after
+         this file's unlayered ones, and it won. Two classes beat it in either
+         order. `.deck-col` only ever exists inside a `.deck-rig` anyway; the
+         timeline it reads is declared there. */
+      min-height: calc(var(--deck-h) + var(--deck-y) + 0.75rem);
+      flex: 1 1 auto;
+      /* `clip`, not `hidden` — `hidden` would make this a scroll container and
+         kill the `position: sticky` pin above it. */
+      overflow: clip;
+      perspective: var(--deck-persp);
+      perspective-origin: var(--deck-po);
+      animation: deck-advance linear both;
+      animation-timeline: --deck;
+      animation-range: contain 2% contain 94%;
+    }
+
+    .deck-rig .deck-col > .deck-card {
+      width: 100%;
+      height: var(--deck-h);
+      /* The line's knockout ring is drawn in the ground token, so a card that
+         does not re-point it draws a halo in the page's ground around every
+         node. Every card here is a raised card, so every one re-points. */
+      --background: var(--card);
+      background-color: hsl(var(--card));
+      box-shadow: var(--elev-2);
+    }
+
+    /* Open, all of them, always. */
+    .deck-rig .deck-col > [data-side-panel],
+    .deck-rig .deck-col .deck-body {
+      display: block;
+    }
+
+    /* The head glyph is a duplicate once the body below it is open — the same
+       line, eighty pixels down, four times the size, with its labels. It is
+       dropped on the OPEN row in the tab-set mode; in deck mode every row is
+       open, so it is dropped on all of them. */
+    .deck-rig .deck-col .deck-glyph {
+      display: none;
     }
   }
 }

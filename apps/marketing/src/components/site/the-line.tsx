@@ -39,6 +39,47 @@ import { DeckScroll } from "./deck-scroll";
  * asked for proof. The shared id is still printed, and it still does the
  * arguing, but no sentence depends on the reader noticing it.
  *
+ * ── THE THREE MOMENTS BECAME A VERTICAL DECK (2026-09-01) ──────────────────
+ * The owner: *"Can we do the vertical version of this horizontal parallax in
+ * this section where it says 'Everything your email needs to just work'?"*
+ *
+ * The section's IA is untouched: same two columns, same rail, same three
+ * moments in the same order, same words. What changed is that the three panels
+ * stopped being one card with its contents swapped and became three cards in a
+ * pile — the current one square-on and complete, the next showing ~42px below
+ * it, the finished one dealt upward. Mechanic and reasoning: `.deck-col` and
+ * `[data-run="down"]` in `globals.css`.
+ *
+ * **The rail is why a deck is safe here.** These three are not alternatives a
+ * reader picks between — they are one email at three moments, and the argument
+ * is cumulative. A deck shows one card at a time, so the SET has to stay
+ * visible some other way, and it does: all three names and all three claims
+ * are prose in `.tri-rail`, at rest, always, whatever the deck is doing. That
+ * is the same job `a-tuesday`'s six-node ruler does. If the rail ever goes,
+ * the deck has to go with it.
+ *
+ * The section is also 50vh shorter than it was: `.line-rig` now uses the
+ * deck's own budget (100vh of pin + 50vh per card change = 200vh) instead of
+ * the 250vh it had picked for itself.
+ *
+ * ── AND THE GROUND IS INK (2026-09-01) ─────────────────────────────────────
+ * The owner: *"you can alternate the colours between those two first sections
+ * so it's not both on brown backgrounds when we have yellow too and adjacent
+ * colours."* They mean the hero and this section. It was `ground-linen`, which
+ * measures **1.17:1 against the hero in dark and 1.16:1 in light** — two
+ * different tokens that read as one ground, which is exactly what they are
+ * describing. `ground-ink` makes the seam ~16:1 in both themes.
+ *
+ * Not brass, which is what "yellow" points at: `who-its-for` directly below is
+ * the brass band, and two in a row is the same bug louder. Brass on the HERO
+ * instead was measured and rejected — see `hero.tsx`. The full seam table,
+ * both themes, is in `page.tsx`.
+ *
+ * Inverting this band costs nothing the section was using: `.ground-ink`
+ * restates every token including the three signal cuts, so the line inside the
+ * cards draws in the inverted theme's own witnessed/inferred colours rather
+ * than the page's.
+ *
  * ── THE LAWS THAT STILL BIND ────────────────────────────────────────────────
  * 1. **All three panels are in the DOM at first paint, and all three claims are
  *    prose that is never hidden.** The rail on the left states what each side
@@ -106,7 +147,21 @@ function Says({ children }: { children: React.ReactNode }) {
 
 export function TheLine() {
   return (
-    <section id="platform" className="line-rig slab ground-linen lit lit-edge">
+    <section
+      id="platform"
+      className="line-rig deck-rig slab ground-ink lit lit-edge"
+      data-run="down"
+      style={
+        {
+          "--deck-steps": SIDES.length - 1,
+          /* The tallest of the three panels is `prove` at 395px; plus the
+             card's own 40px of padding that is 435, so 28rem. Every card is
+             this height, which is what stops the tray resizing between
+             moments — the job the locked `min-h` used to do. */
+          "--deck-h": "28rem",
+        } as React.CSSProperties
+      }
+    >
       <div id="line-pin" className="line-pin">
         <div className="container py-14 md:py-20">
           <div className="tri grid gap-8 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-12">
@@ -171,7 +226,7 @@ export function TheLine() {
               </p>
             </div>
 
-            <figure className="tri-stage min-w-0 rounded-2xl bg-well p-2 shadow-well sm:p-3">
+            <figure className="tri-stage flex min-w-0 flex-col rounded-2xl bg-well p-2 shadow-well sm:p-3">
               {/* The identity. One id, printed once, true of all three panels. */}
               <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-3 pb-3 pt-2">
                 <span className="font-mono text-[12.5px] text-ink-muted" data-fact>
@@ -182,15 +237,36 @@ export function TheLine() {
                 </span>
               </figcaption>
 
-              {/* One lifted card out of the tray, holding whichever side is
-                  current. The panel height is locked to the tallest of the
-                  three so nothing below it moves when the beat changes. */}
-              <div
-                className="rounded-xl bg-card p-4 shadow-e2 sm:p-5"
-                style={{ "--background": "var(--card)" } as React.CSSProperties}
-              >
-                <div className="tri-panels min-h-[26rem] lg:min-h-[21rem]">
-                  <div data-side-panel="send">
+              {/* THE THREE MOMENTS, AS A VERTICAL DECK (2026-09-01).
+
+                  Each moment is now its own lifted card rather than three
+                  panels swapped inside one. Outside the deck gate that is a
+                  distinction without a difference — `.tri` closes two of the
+                  three and what you see is the single card this has always
+                  been. Inside it, `.deck-col` opens all three, stands the
+                  current one square-on, and shows the next one below it.
+
+                  The panel heights are unchanged (341 / 258 / 395px measured
+                  at this width), and `--deck-h` on the section is the tallest
+                  of them rounded up — so nothing below the tray moves when the
+                  moment changes, which is what the locked `min-h` used to buy.
+
+                  `--background` is re-pointed per card, not on a wrapper: the
+                  line's knockout ring is drawn in the ground token, and each
+                  of these is now its own raised plane.
+
+                  The `min-h` utilities are the DEGRADED path's version of the
+                  same guarantee: on a phone, where this is still a tab set,
+                  they stop the tray resizing under the reader's thumb as the
+                  moment changes. `.deck-col` sets its own `min-height` from
+                  outside a cascade layer, so in deck mode it wins over them
+                  without either one having to know about the other. */}
+              <div className="tri-panels deck-col min-h-[26rem] lg:min-h-[21rem]">
+                <div
+                  data-side-panel="send"
+                  className="deck-card rounded-xl bg-card p-4 shadow-e2 sm:p-5"
+                  style={{ "--i": 0, "--background": "var(--card)" } as React.CSSProperties}
+                >
                     <p className="text-[13px] font-medium">
                       Tuesday, 09:14 — a customer books a room, and your site asks rootmail to send
                       the confirmation.
@@ -215,7 +291,11 @@ export function TheLine() {
                     </Says>
                   </div>
 
-                  <div data-side-panel="conv">
+                <div
+                  data-side-panel="conv"
+                  className="deck-card rounded-xl bg-card p-4 shadow-e2 sm:p-5"
+                  style={{ "--i": 1, "--background": "var(--card)" } as React.CSSProperties}
+                >
                     <p className="text-[13px] font-medium">
                       11:47 — she writes back. It is a conversation now, not a send.
                     </p>
@@ -234,7 +314,11 @@ export function TheLine() {
                     </Says>
                   </div>
 
-                  <div data-side-panel="prove">
+                <div
+                  data-side-panel="prove"
+                  className="deck-card rounded-xl bg-card p-4 shadow-e2 sm:p-5"
+                  style={{ "--i": 2, "--background": "var(--card)" } as React.CSSProperties}
+                >
                     <p className="text-[13px] font-medium">
                       Three weeks later — a customer says the confirmation never arrived.
                     </p>
@@ -263,7 +347,6 @@ export function TheLine() {
                       check the seal themselves, without taking our word for anything.
                     </Says>
                   </div>
-                </div>
               </div>
             </figure>
 

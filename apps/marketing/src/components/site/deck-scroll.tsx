@@ -70,7 +70,15 @@ export function DeckScroll({
       const surplus = r.height - pinEl.getBoundingClientRect().height;
       if (surplus < 200) return;
       const p = Math.min(Math.max(-r.top / surplus, 0), 1);
-      const i = Math.min(count - 1, Math.floor(p * count));
+      /* ROUND `p × steps`, not floor `p × count` (2026-09-01). Both scenes now
+         also run a CSS deck off the same progress, and the deck's front card
+         is the one whose `--i` equals `--deck-p × --deck-steps` — steps being
+         `count - 1`, because four cards need three changes. Flooring `p ×
+         count` divides the scroll into quarters and the deck into thirds, so
+         the marked row and the square-on card drifted apart by up to a whole
+         beat in the middle of the scene. This is the same number the CSS uses,
+         rounded to the nearest card. */
+      const i = Math.min(count - 1, Math.max(0, Math.round(p * (count - 1))));
       if (i === last) return;
       last = i;
       const input = document.getElementById(`${prefix}-${i}`);

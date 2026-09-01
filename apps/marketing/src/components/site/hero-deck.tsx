@@ -30,6 +30,35 @@ import { DeckScroll } from "./deck-scroll";
  * campaigns and replies, and stops a send that bounced. Opening a record adds
  * its ledger; it does not reveal its existence.
  *
+ * ── WHAT CHANGED (2026-09-01): THE TRAY IS A VERTICAL DECK ─────────────────
+ * The owner, after seeing the two dealt decks below the fold: *"in the main
+ * header where we say 'Send your company's email and know what happened to
+ * every one' — we can now use that vertical version of it to really, really
+ * make it stand out and not be so flat."*
+ *
+ * The DOM below did not change to do it. `.deck-rows` also carries `.deck-col`
+ * and each row also carries `.deck-card`, and inside the deck gate
+ * (`globals.css`) those two class names turn the same four rows into a pile:
+ * every body open, one record square-on and complete, the next one showing
+ * ~42px below it, the dealt one leaving upward. Outside the gate — a phone, a
+ * short window, reduced motion, a browser with no scroll-driven animations —
+ * not one of those rules matches and this is the tab set it has always been.
+ *
+ * TWO THINGS THAT SURVIVED THE MOVE ON PURPOSE.
+ *
+ * 1. **The first record is complete and square-on with zero scroll.** At
+ *    `--deck-p: 0` the front card's transform is the identity — no rotation,
+ *    no scale, no offset — and nothing here plays by itself. Measured on the
+ *    reference (`05-ENGAGEMENT.md`): filtering its hero for `opacity !== 1 ||
+ *    transform !== none` returns an empty set. A stranger reads the headline
+ *    and one whole record without moving.
+ * 2. **The index still names all four.** A deck shows one card at a time, and
+ *    these four records are not alternatives a reader picks between — they are
+ *    cumulative evidence that receipts, campaigns, replies and bounces are all
+ *    the same drawing. `HeroDeckIndex` is what keeps the SET visible while one
+ *    of them is in focus, which is the job `a-tuesday`'s six-node ruler does
+ *    for its day. It is the reason the index is not optional.
+ *
  * ── WHAT CHANGED (2026-08-31) ───────────────────────────────────────────────
  * The owner, on the hero: *"if we can implement the kind of depth we did for
  * the 'email fails quietly' section in the main header section… the critique is
@@ -140,12 +169,13 @@ export function HeroDeck() {
   return (
     <div className="deck-shell relative">
       <div className="deck-tray rounded-2xl bg-well p-2 shadow-well">
-        <div className="deck-rows">
+        <div className="deck-rows deck-col">
           {HERO_RECORDS.map((r, i) => (
             <div
               key={r.key}
               data-row={i}
-              className={`deck-row ${RAIL[r.verdict]}`}
+              style={{ "--i": i } as React.CSSProperties}
+              className={`deck-row deck-card ${RAIL[r.verdict]}`}
             >
               {/* One row at `sm` and up; two below it, where a kind, a subject
                   and a 111px glyph on one line would leave the subject about
