@@ -114,6 +114,14 @@ export const config = {
     // response it asked for. The stream reader would find no SSE frames in it
     // and report "the assistant stopped unexpectedly" — when the real answer is
     // "your session expired". Handlers return a real 401 instead.
-    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|robots.txt|sitemap.xml|impersonate).*)",
+    //
+    // THE ICON ROUTES MUST ALL BE LISTED, and `apple-icon.png` was not.
+    // `favicon.ico` and `icon.svg` were excluded here from the start; the
+    // apple touch icon arrived later and inherited the auth wall, so
+    // /apple-icon.png answered 307 → /login. A browser asking for a home-screen
+    // icon and being handed a sign-in page just shows no icon, which is a
+    // failure with no error anywhere. Any new file in `app/` that a browser
+    // fetches WITHOUT a session belongs in this list.
+    "/((?!api|_next/static|_next/image|favicon.ico|icon.svg|apple-icon.png|robots.txt|sitemap.xml|impersonate).*)",
   ],
 };
