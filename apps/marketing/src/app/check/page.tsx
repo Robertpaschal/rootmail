@@ -92,8 +92,14 @@ export default function CheckPage() {
   return (
     <>
       <Navbar />
-      <main>
-        <section className="border-b border-rule">
+      {/* THE SAME GUTTER THE HOME PAGE USES, so this page's sections are the
+          same objects as that page's — inset plates on a ground rather than
+          full-bleed slices divided by a hairline. `<main>` had no padding and
+          each section was `border-b border-rule`, which is precisely the flat
+          composition the home page was rebuilt out of; this page never got the
+          pass. See `.slab` in `globals.css`. */}
+      <main className="px-3 pb-4 sm:px-5">
+        <section className="slab settle lit">
           <div className="container py-14 md:py-20">
             <div className="max-w-2xl">
               <p className="font-mono text-[12.5px] uppercase tracking-heading text-ink-muted">
@@ -131,7 +137,12 @@ export default function CheckPage() {
  */
 function HowToRead() {
   return (
-    <section id="how-to-read" className="border-b border-rule">
+    /* INVERTED, and not only for rhythm. This section is the rendering law
+       itself — the one claim the whole product rests on — and on the home page
+       that argument is carried on an ink band too. The alternation rule from
+       the home page applies: no two adjacent sections on the same ground, and
+       the seam here measures ~16:1. */
+    <section id="how-to-read" className="slab settle ground-ink lit-edge">
       <div className="container py-14 md:py-20">
         <div className="grid gap-10 lg:grid-cols-[minmax(0,26rem)_minmax(0,1fr)] lg:gap-16">
           <div>
@@ -224,7 +235,9 @@ function HowToRead() {
 
 function Refusals() {
   return (
-    <section className="border-b border-rule">
+    /* Linen, so the close is neither the paper it opened on nor a second ink
+       band against the one above it. */
+    <section className="slab settle ground-linen">
       <div className="container py-14 md:py-20">
         <h2 className="display-m max-w-2xl text-balance">What this page will not do</h2>
         <dl className="ruled mt-8 max-w-3xl border-y border-rule">

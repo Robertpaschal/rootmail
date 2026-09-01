@@ -102,7 +102,11 @@ export default async function ContactPage({
     <>
       <Navbar />
       <main className="px-3 pb-4 sm:px-5">
-        <section className="container py-12 md:py-20">
+        {/* A plate, like every other section on the site. It had the gutter
+            already but sat on the page ground with nothing under it, so it read
+            as loose text on a large empty sheet rather than as a page. */}
+        <section className="slab settle lit">
+          <div className="container py-12 md:py-20">
           {/* Switch intent without leaving the page — real links, no script. */}
           <nav
             aria-label="What are you writing about"
@@ -162,6 +166,7 @@ export default async function ContactPage({
 
             <ContactForm topic={{ source: t.source, cta: t.cta, full: t.full }} />
           </div>
+        </div>
         </section>
       </main>
       <Footer />
