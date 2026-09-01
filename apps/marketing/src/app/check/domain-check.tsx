@@ -77,7 +77,7 @@ export function DomainCheck() {
               spellCheck={false}
               autoComplete="off"
               defaultValue={domainValue}
-              placeholder="yourcompany.com"
+              placeholder="yourbusiness.com"
               className="h-11 w-full rounded-sm border border-rule bg-background px-3 font-mono text-[15px] outline-none ring-ink placeholder:text-muted-foreground focus-visible:ring-2"
             />
           </div>
@@ -109,7 +109,7 @@ export function DomainCheck() {
               spellCheck={false}
               autoComplete="off"
               defaultValue={clientValue}
-              placeholder="theircompany.com"
+              placeholder="theirbusiness.com"
               className="h-11 w-full max-w-sm rounded-sm border border-rule bg-background px-3 font-mono text-[15px] outline-none ring-ink placeholder:text-muted-foreground focus-visible:ring-2"
             />
             <p className="text-sm text-ink-muted">

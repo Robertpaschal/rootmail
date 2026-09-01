@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
     }
   } catch {
     return NextResponse.json(
-      { error: "Send {\"domain\":\"yourcompany.com\"} as JSON." },
+      { error: "Send {\"domain\":\"yourbusiness.com\"} as JSON." },
       { status: 400, headers: NO_STORE },
     );
   }
@@ -62,7 +62,7 @@ export async function GET() {
   return NextResponse.json(
     {
       error:
-        "POST {\"domain\":\"yourcompany.com\"}. This endpoint refuses GET so the domain never lands in a URL, a log or a referrer.",
+        "POST {\"domain\":\"yourbusiness.com\"}. This endpoint refuses GET so the domain never lands in a URL, a log or a referrer.",
       limit: `${LIMITS.perIp}/hour per address, ${LIMITS.global}/hour overall`,
     },
     { status: 405, headers: { ...NO_STORE, Allow: "POST" } },

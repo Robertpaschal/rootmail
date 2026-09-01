@@ -256,7 +256,7 @@ function Refusals() {
           everyone · each lookup gets 3 seconds and then we say we do not know
           <br />
           the same answer as JSON: <code>POST /api/check</code> with{" "}
-          <code>{'{"domain":"yourcompany.com"}'}</code> — it refuses GET so the domain never
+          <code>{'{"domain":"yourbusiness.com"}'}</code> — it refuses GET so the domain never
           lands in a URL
         </p>
       </div>

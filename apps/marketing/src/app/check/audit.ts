@@ -96,7 +96,7 @@ export function parseDomain(raw: unknown): ParsedDomain | { error: string } {
   // what someone meant is how a checker ends up checking the wrong thing.
   if (/[\s"'<>\\]/.test(value)) return { error: "A domain has no spaces or punctuation like that." };
   if (value.includes("://") || value.includes("/") || value.includes("?") || value.includes("#")) {
-    return { error: "Enter just the domain — no scheme, no path. Example: yourcompany.com" };
+    return { error: "Enter just the domain — no scheme, no path. Example: yourbusiness.com" };
   }
   if (value.includes(":")) {
     return { error: "Enter just the domain — no port, and no IPv6 address." };
@@ -109,7 +109,7 @@ export function parseDomain(raw: unknown): ParsedDomain | { error: string } {
   if (ascii.length > 253) return { error: "That is too long to be a domain name." };
 
   const labels = ascii.split(".");
-  if (labels.length < 2) return { error: "Enter a full domain, including the ending. Example: yourcompany.com" };
+  if (labels.length < 2) return { error: "Enter a full domain, including the ending. Example: yourbusiness.com" };
   if (!labels.every((l) => LABEL.test(l))) return { error: "That is not a domain name we can look up." };
 
   const tld = labels[labels.length - 1]!;
