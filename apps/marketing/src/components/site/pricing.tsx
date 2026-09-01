@@ -97,7 +97,34 @@ export async function Pricing({
             whole of "it still feels flat": there was one plane pretending to be
             three. The pressed tray gives the cards something to be lifted out
             of, which is what `--well` exists for. */}
-        <Reveal inView delay={0.05} className="mt-10">
+        {/* ─── ONE ACCOUNT, EITHER METER, OR BOTH ────────────────────────
+            The owner, on this section: *"I like how you stopped presenting
+            transactional and marketing as two distinct products … I don't want
+            it marketed as two products. Anyone can use transactional, anyone
+            can use marketing, you can use both if that works for you — as well
+            as add-ons that are available. What we're trying to prove is you can
+            use one or the other or both."*
+
+            The heading and the lead already said what is metered. What neither
+            said is the thing they actually want proven, and a reader looking at
+            two side-by-side priced panels will assume "two plans, pick one"
+            unless told otherwise — that is what two boxes of that shape mean
+            everywhere else on the internet. So it is said, in one line, on the
+            lid of the tray that holds both meters, where it cannot be missed by
+            somebody who skips the lead.
+
+            It is a `border-l-2` strip and not a brass panel on purpose: there
+            is exactly one brass surface on this page (the yearly callout
+            below), and a second one three hundred pixels above it would make
+            the first stop reading as an offer. */}
+        <Reveal inView delay={0.04} className="mt-10 border-l-2 border-brass-rule pl-4">
+          <p className="text-[0.9375rem] font-medium leading-relaxed">
+            One account, and you are never asked to choose. Use one meter, the other, or both —
+            they are billed independently, so a meter you do not use costs nothing.
+          </p>
+        </Reveal>
+
+        <Reveal inView delay={0.05} className="mt-5">
           <div className="rounded-2xl bg-well p-3 shadow-well sm:p-4">
             <div className="grid items-stretch gap-3 sm:gap-4 lg:grid-cols-2">
               <BlocksCalculator tx={pricing.wings.transactional} />

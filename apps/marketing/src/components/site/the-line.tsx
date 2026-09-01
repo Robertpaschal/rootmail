@@ -106,7 +106,7 @@ function Says({ children }: { children: React.ReactNode }) {
 
 export function TheLine() {
   return (
-    <section id="platform" className="line-rig slab lit lit-edge">
+    <section id="platform" className="line-rig slab ground-linen lit lit-edge">
       <div id="line-pin" className="line-pin">
         <div className="container py-14 md:py-20">
           <div className="tri grid gap-8 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-12">

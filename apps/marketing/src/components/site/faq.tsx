@@ -76,7 +76,7 @@ const faqs = [
 
 export function Faq() {
   return (
-    <section className="slab settle">
+    <section className="slab settle ground-linen">
       <div className="container grid gap-10 py-14 md:py-24 lg:grid-cols-[minmax(0,4fr)_minmax(0,8fr)] lg:gap-20">
         <h2 className="display-m lg:sticky lg:top-28 lg:self-start">Questions, answered</h2>
 

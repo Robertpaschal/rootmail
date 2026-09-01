@@ -64,7 +64,7 @@ export function Features() {
   const active = hovered ?? pinned;
 
   return (
-    <section id="features" className="slab settle">
+    <section id="features" className="slab settle ground-ink lit-edge">
       <div className="container py-14 md:py-24">
         <div className="max-w-2xl">
           <h2 className="display-m text-balance">

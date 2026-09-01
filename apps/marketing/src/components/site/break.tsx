@@ -160,7 +160,27 @@ function Branch({ spec }: { spec: BranchSpec }) {
   );
 }
 
-type Cell = { branches: BranchSpec[]; say: string; tone: Tone };
+type Cell = {
+  branches: BranchSpec[];
+  say: string;
+  tone: Tone;
+  /**
+   * THE RUNG AT WHICH THIS COLUMN'S READER LEARNS ANYTHING AT ALL.
+   *
+   * The owner, on the version without it: *"you're trying to make a
+   * distinction between what rootmail does and what others do, but it's not
+   * clear that's what you mean … we can present it in a better format that
+   * would make people understand that **rootmail allows you to see the spam
+   * problem at an early stage, rather than you not knowing how spammy your
+   * email has become to your receivers.**"*
+   *
+   * That is the argument of the whole section and the ladder was leaving the
+   * reader to derive it by comparing six cells. It is marked now: exactly ONE
+   * cell per column carries `found`, and the two are three rungs apart. The
+   * distance between the two marks IS the product.
+   */
+  found?: string;
+};
 
 type Rung = {
   rate: string;
@@ -180,6 +200,7 @@ const rungs: Rung[] = [
       tone: "acted",
       branches: [{ tone: "acted", end: "node" }],
       say: "rootmail emails you, and names the client whose mail it is",
+      found: "This is where you find out",
     },
     theirs: {
       tone: "unknown",
@@ -189,7 +210,7 @@ const rungs: Rung[] = [
   },
   {
     rate: "0.30%",
-    gloss: "3 in every 1,000",
+    gloss: "3 people in every 1,000 marked it as spam",
     tone: "acted",
     ours: {
       tone: "acted",
@@ -204,7 +225,7 @@ const rungs: Rung[] = [
   },
   {
     rate: "0.50%",
-    gloss: "5 in every 1,000",
+    gloss: "5 people in every 1,000 marked it as spam",
     tone: "stopped",
     ours: {
       tone: "stopped",
@@ -218,6 +239,7 @@ const rungs: Rung[] = [
       tone: "stopped",
       branches: [{ tone: "stopped", end: "bar", label: "every client" }],
       say: "your email provider suspends the whole account. You hear about it from a customer.",
+      found: "This is where you find out",
     },
   },
 ];
@@ -237,13 +259,25 @@ function Column({ name, cell, kind }: { name: string; cell: Cell; kind: "ours" |
           : "rounded-xl px-4 py-4"
       }
     >
-      <p className="text-[13px] text-ink-muted">{name}</p>
-      <div className="mt-3 flex flex-col gap-2.5">
+      {/* The column name repeats here only where the header row above the
+          ladder is not on screen. Above `sm` the grid is two columns and the
+          header sits over them; below it the cells stack and each one has to
+          say which side it is. */}
+      <p className="text-[13px] text-ink-muted sm:hidden">{name}</p>
+      <div className="mt-3 flex flex-col gap-2.5 sm:mt-0">
         {cell.branches.map((b, i) => (
           <Branch key={i} spec={b} />
         ))}
       </div>
       <p className={`mt-3 max-w-[34ch] text-[13px] leading-snug ${INK[cell.tone]}`}>{cell.say}</p>
+      {cell.found ? (
+        <p
+          className={`mt-3 flex items-center gap-1.5 text-[12.5px] font-medium ${INK[cell.tone]}`}
+        >
+          <span aria-hidden="true" className={`h-[2px] w-4 rounded-sm ${STROKE[cell.tone === "unknown" ? "acted" : cell.tone]}`} />
+          {cell.found}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -273,11 +307,41 @@ export function ThresholdLadder() {
       </p>
 
       <div className="mt-6 rounded-2xl bg-well p-3 shadow-well sm:p-4">
+        {/* THE TWO COLUMNS, NAMED ONCE AND LOUDLY. The owner: *"you're trying
+            to make a distinction between what rootmail does and what others
+            do, but it's not clear that's what you mean. You just see 'rootmail
+            does this, what usually happens'."* They were 13px muted captions
+            repeated inside all six cells — the same size and colour as the
+            sentence underneath them, so the comparison was a caption rather
+            than the frame. It is a header row at heading size now, drawn once
+            over the grid it labels, and the cells no longer repeat it above
+            `sm`. Both names are written in the SECOND PERSON so the axis is
+            "what YOU see", which is what the section is actually about. */}
+        <div className="hidden gap-4 border-b border-rule px-4 pb-3 sm:grid sm:grid-cols-2">
+          <p className="display-s">What you see with rootmail</p>
+          <p className="display-s text-ink-muted">What you see without it</p>
+        </div>
+
         {rungs.map((r) => (
           <div key={r.rate} className={`rise border-l-2 py-5 pl-4 sm:pl-6 ${RAIL[r.tone]}`}>
+            {/* THE WORDS LEAD, THE FIGURE SOURCES. The owner: *"'0.1% — one
+                person in every 1,000 marked it as spam' — I understand what
+                you're trying to do but it's not immediately clear."* It was a
+                1.75rem figure with the plain-English translation set beside it
+                at 13px muted — so the thing a reader could actually parse was
+                the quietest thing in the row, and the thing they could not was
+                the loudest. Swapped. The percentage is still here, still in
+                the display face, still tone-coloured; it is now the second
+                thing read rather than the first, and it is captioned so the
+                bare number never has to stand alone. */}
             <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-              <p className={`display-num text-[1.75rem] leading-none ${INK[r.tone]}`}>{r.rate}</p>
-              <p className="text-[13px] text-ink-muted">{r.gloss}</p>
+              <p className="display-s text-balance">{r.gloss}</p>
+              <p className="flex items-baseline gap-1.5">
+                <span className={`display-num text-[1.5rem] leading-none ${INK[r.tone]}`}>
+                  {r.rate}
+                </span>
+                <span className="text-[12.5px] text-ink-muted">complaint rate</span>
+              </p>
             </div>
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <Column name="rootmail does this" cell={r.ours} kind="ours" />
@@ -314,6 +378,20 @@ export function TheBreak() {
                 Two numbers decide it: how many of your addresses reject the mail, and how many
                 people mark it as spam. rootmail watches both, separately for every sender on your
                 account, and does something about them before anybody has to notice.
+              </p>
+              {/* THE SENTENCE THE SECTION IS FOR. The owner, after reading the
+                  ladder: *"we can present it in a better format that would
+                  make people understand that **rootmail allows you to see the
+                  spam problem at an early stage, rather than you not knowing
+                  how spammy your email has become to your receivers.**"* That
+                  is the claim; it was implied by a drawing and stated nowhere,
+                  so it is stated here, and the two marked cells in the ladder
+                  are the evidence for it. */}
+              <p className="mt-5 max-w-md text-[0.9375rem] leading-relaxed">
+                The whole job is to move the moment you find out. With rootmail that moment is one
+                complaint in a thousand, while it is still a list you can fix. Without it the
+                moment is the one where a mail provider has already decided about you — and by
+                then the decision covers everything you send.
               </p>
             </div>
           </div>

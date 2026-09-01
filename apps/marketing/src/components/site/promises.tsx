@@ -274,7 +274,7 @@ function Column({
 
 export function Promises() {
   return (
-    <section className="slab settle lit">
+    <section className="slab settle ground-linen lit">
       <div className="container grid gap-10 py-14 md:py-24 lg:grid-cols-[minmax(0,3fr)_minmax(0,8fr)] lg:gap-12">
         <div>
           <div className="lg:sticky lg:top-28">

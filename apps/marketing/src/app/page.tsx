@@ -41,8 +41,8 @@ import { Footer } from "@/components/site/footer";
  *   2. TheLine     What does it do for me?  send it / read what comes back /
  *                                           look it up later — one email at
  *                                           three moments, in nouns
- *   3. WhoItsFor   Who is it for?           four shapes of business, the
- *                                           platform case first
+ *   3. WhoItsFor   Who is it for?           six shapes of business on a
+ *                                           horizontal rail, platform first
  *   4. ATuesday    What is an ordinary day? six beats of one small business's
  *                                           Tuesday; two needed a person
  *   5. TheBreak    Why is it different? (1) email stops working quietly, and
@@ -71,6 +71,44 @@ import { Footer } from "@/components/site/footer";
  * visual system is not what changed here. Type, brass, depth, curves, the
  * slabs, the scroll-driven scenes, the hero deck and the footer are untouched.
  * Words, headings, section purpose and ordering are what moved.
+ *
+ * ── THE GROUND TABLE (2026-09-01) ───────────────────────────────────────────
+ * The owner said this three separate times, about three different pairs:
+ *
+ *   *"I don't think it's good to have two sections on brown and on brown. We
+ *   can invert the colours, maybe yellow and brown … the one on top of it and
+ *   the one below it, they are all on brown backgrounds."*
+ *
+ * They were right, and it was structural. Every `.slab` paints itself
+ * `hsl(var(--card))`, so nine of these eleven sections were literally the same
+ * ground and the only relief on the page was two inverted bands.
+ *
+ * **THE RULE: no two consecutive sections may read as the same ground.**
+ * There are four (defined under "THE ALTERNATION" in `globals.css`), and the
+ * order below is the check. If you add, remove or reorder a section, re-read
+ * this column top to bottom before you ship it — a repeat is invisible in a
+ * diff and obvious on the page.
+ *
+ *    1. Hero        paper    the default sheet
+ *    2. TheLine     linen    recessed — pressed into the page, not lifted
+ *    3. WhoItsFor   BRASS    the one pigment band; also the horizontal rail
+ *    4. ATuesday    paper
+ *    5. TheBreak    ink      inverted
+ *    6. SubTenancy  paper
+ *    7. Promises    linen
+ *    8. Features    ink      inverted
+ *    9. Pricing     paper
+ *   10. Faq         linen
+ *   11. Cta         ink      inverted, and the only one with a drifting layer
+ *   —   Footer      paper    (`bg-paper`, so it does not repeat the Cta's ink)
+ *
+ * Brass appears once on purpose. It is the loudest ground in the set, and a
+ * second one would make the first mean nothing.
+ *
+ * Two of them are also different MATERIALS rather than different shades:
+ * `linen` gives up its lift and takes the well's inset treatment, and `brass`
+ * takes the deepest one in the set. That is what stops the alternation from
+ * being four browns in dark mode, which is the failure it was built to fix.
  */
 export default function HomePage() {
   return (

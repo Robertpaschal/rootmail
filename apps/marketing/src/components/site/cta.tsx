@@ -24,11 +24,64 @@ import { CtaButton } from "./cta-button";
  *
  * It is `py-32` where every other section is `py-24`: the one argued exception
  * in §7.2, so the close reads as arrival rather than as a tenth station.
+ *
+ * ── THE DRIFTING LAYER (2026-09-01) ─────────────────────────────────────────
+ * The owner: *"this second-to-last section is good, it's not boring, but the
+ * background — we can do a job with images floating behind it, maybe in a
+ * translucent glassmorphism kind of way, because it is a CTA-heavy section.
+ * Images floating behind the text, from left to right or up and down."*
+ *
+ * There are no images, because we have none and will not invent any. The stage
+ * below is a colour wash with six frosted panes drifting over it at three
+ * different rates, and **every pane is empty**. That is deliberate and it is
+ * the constraint that keeps this legal: a pane containing a DNS row or a
+ * message id would be information rendered at 6% opacity behind a 22px blur,
+ * which is information we have hidden. There is nothing in there to hide.
+ *
+ * The whole stage is one `aria-hidden` div outside the reading order, it is
+ * `pointer-events: none`, and its worst case — no scroll-driven animation
+ * support — is a still background. The words, the figures and both controls
+ * are in the layer above it and do not know it exists.
  */
 export function Cta() {
   return (
     <section id="cta" className="slab settle ground-ink lit-edge">
-      <div className="container flex max-w-2xl flex-col items-start gap-6 py-20 md:py-32">
+      {/* Decoration, and nothing but. See the note above. */}
+      <div aria-hidden="true" className="cta-stage">
+        <div className="cta-wash" />
+        <div className="cta-glass cta-p1">
+          <div className="cta-mark" style={{ width: "62%" }} />
+          <div className="cta-mark" style={{ width: "38%" }} />
+          <div className="cta-mark-dim" style={{ width: "80%" }} />
+        </div>
+        <div className="cta-glass cta-p2">
+          <div className="cta-node" />
+          <div className="cta-mark" style={{ width: "74%" }} />
+          <div className="cta-mark" style={{ width: "52%" }} />
+          <div className="cta-mark-dim" style={{ width: "66%" }} />
+          <div className="cta-mark" style={{ width: "44%" }} />
+        </div>
+        <div className="cta-glass cta-p3">
+          <div className="cta-mark" style={{ width: "48%" }} />
+          <div className="cta-mark-dim" style={{ width: "72%" }} />
+        </div>
+        <div className="cta-glass cta-p4">
+          <div className="cta-mark" style={{ width: "70%" }} />
+          <div className="cta-mark" style={{ width: "40%" }} />
+        </div>
+        <div className="cta-glass cta-p5">
+          <div className="cta-mark" style={{ width: "56%" }} />
+          <div className="cta-mark-dim" style={{ width: "84%" }} />
+          <div className="cta-node" />
+          <div className="cta-mark" style={{ width: "36%" }} />
+        </div>
+        <div className="cta-glass cta-p6">
+          <div className="cta-mark-dim" style={{ width: "78%" }} />
+          <div className="cta-mark" style={{ width: "46%" }} />
+        </div>
+      </div>
+
+      <div className="container relative z-10 flex max-w-2xl flex-col items-start gap-6 py-20 md:py-32">
         <h2 className="display-l text-balance">
           What does the internet actually say about your email?
         </h2>

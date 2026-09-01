@@ -219,6 +219,237 @@
     --acted: 35 90% 45%;
     --stopped: 2 70% 45%;
   }
+
+  /* ═══ THE ALTERNATION ═══════════════════════════════════════════════════
+     THE OWNER SAID THIS THREE TIMES, ABOUT THREE DIFFERENT PAIRS:
+
+       *"it seems to be the same colour with the main header … having it the
+       same brown as the top one doesn't make it easily distinguishable or
+       engaging in its own right. I think that second one can be yellow on
+       brown or something else."*
+
+       *"I don't think it's good to have two sections on brown and on brown.
+       We can invert the colours, maybe yellow and brown … the one on top of
+       it and the one below it, they are all on brown backgrounds."*
+
+     They were right and the cause was structural, not a taste call. Every
+     `.slab` paints itself `hsl(var(--card))`. In dark mode `--card` is
+     `30 20% 11%` — one brown — so nine of the eleven homepage sections were
+     the SAME GROUND, and the only relief on the page was the two `.ground-ink`
+     bands. A reader scrolling that learns the rhythm by section three and
+     stops seeing section boundaries at all.
+
+     ── THE RULE THAT REPLACES "EVERY SLAB IS A CARD" ──────────────────────
+     **No two consecutive sections may read as the same ground.** There are
+     four grounds and the homepage cycles them; `page.tsx` carries the table
+     and is the place to check it.
+
+       paper   the default `.slab` — bleached sheet (light) / raised brown (dark)
+       linen   RECESSED. A deeper, more saturated sheet. Not "paper minus 4%":
+               it also loses its lift, so it reads as a different material.
+       brass   the pigment sheet. The owner's "yellow on brown". Used ONCE.
+       ink     the inverted band (`.ground-ink`, above). Used three times.
+
+     ── WHY A BRASS GROUND DOES NOT BREAK "BRASS = WHAT YOU CAN ACT ON" ────
+     That rule governs CONTROLS: a brass button, link or focus ring means
+     press me. A brass SHEET is paper stock, the same way `.ground-ink` is —
+     and it is safe for exactly the reason `.ground-ink` is safe: the band
+     re-points `--primary` off brass, so nothing inside it can be brass AND a
+     control at the same time. `--brass-text` is re-cut too, because the light
+     theme's brass link colour on a brass ground measures 1.6:1.
+
+     ── DESIGNED TWICE, NEVER INVERTED ONCE (§11) ──────────────────────────
+     Light's depth is MATERIAL: rising bleaches, sinking gains pigment. So a
+     light `linen` ground is deeper AND more saturated than the page, and the
+     card inside it stays bleached — two planes you could tell apart with the
+     lightness covered up.
+
+     Dark's depth is EMITTED LIGHT. So a dark `linen` ground goes DOWN in
+     lightness and gives up its glow: `.slab.ground-linen` in dark carries an
+     inset ring instead of `--elev-2`, which is what makes it read as pressed
+     into the page rather than as a slightly darker card. Neither half is
+     derivable from the other, which is the whole point of §11.
+
+     Every ground restates `--elev-*`. A ground that does not is the admin bug
+     in miniature — a token an override left alone keeps its page value while
+     sitting on the opposite surface, silently.
+     ═══════════════════════════════════════════════════════════════════════ */
+
+  /* ── LINEN, light: pressed sheet. More pigment than the page, less light. ── */
+  .ground-linen {
+    /* 90%, not 92%. Measured against the default slab's bleached 99%: at 92%
+       the two grounds were 1.16:1 apart. At 90% with the chroma up it is
+       1.23:1, and — the part that actually does the work on a light page — it
+       is a visibly more PIGMENTED sheet, which is how the light theme is
+       supposed to say "lower plane" (§11). */
+    --background: 33 32% 90%;
+    --ink: 28 32% 11%;
+    --foreground: var(--ink);
+    /* 35%, not 38%: the page's muted cut is tuned against 96% paper and
+       measures 4.31:1 on 92% linen, which is an AA failure on the body copy
+       of a whole section. At 35% it is 5.03:1. */
+    --ink-muted: 30 14% 34%;
+    --rule: 32 22% 80%;
+    --line-dim: 32 16% 70%;
+    /* Rising BLEACHES — a card on linen is the same sheet the rest of the page
+       is written on, which is what makes it read as laid on top. */
+    --paper-raised: 44 46% 99%;
+    --card: var(--paper-raised);
+    --card-foreground: var(--ink);
+    --well: 28 32% 82%;
+    --muted: 32 26% 86%;
+    --muted-foreground: var(--ink-muted);
+    --secondary: 32 26% 88%;
+    --secondary-foreground: var(--ink);
+    --accent: 38 40% 87%;
+    --accent-foreground: var(--ink);
+    --brass-text: 33 78% 31%;
+    --brass-tint: 40 66% 88%;
+    --brass-rule: 38 56% 70%;
+    --border: var(--rule);
+    --input: var(--rule);
+    --elev-1: 0 1px 1px -0.5px hsl(26 42% 18% / 0.14),
+              0 3px 8px -3px hsl(28 30% 22% / 0.11);
+    --elev-2: 0 1px 0 0 hsl(46 80% 100% / 0.9) inset,
+              0 1px 2px -1px hsl(26 44% 16% / 0.18),
+              0 10px 22px -10px hsl(28 32% 20% / 0.19),
+              0 26px 50px -30px hsl(30 26% 24% / 0.22);
+    --elev-3: 0 1px 0 0 hsl(46 84% 100% / 0.95) inset,
+              0 2px 3px -1px hsl(26 44% 16% / 0.16),
+              0 18px 38px -14px hsl(28 32% 20% / 0.22),
+              0 44px 76px -36px hsl(30 26% 24% / 0.28);
+    --elev-well: inset 0 2px 5px -2px hsl(26 46% 14% / 0.22),
+                 inset 0 -1px 0 0 hsl(46 70% 100% / 0.5),
+                 0 0 0 1px hsl(var(--rule));
+  }
+
+  /* ── LINEN, dark: the plane BELOW the page, so it gives up its glow. ── */
+  .dark .ground-linen {
+    /* 4%, not 5%. Measured against the default slab's 11%: at 5% the two
+       grounds were 1.15:1 apart, which is the owner's "two sections on brown
+       and on brown" with an extra step in it. At 4% with the chroma raised it
+       is 1.29:1 AND a visibly different pigment, and the section's inset ring
+       does the rest. */
+    --background: 26 28% 4%;
+    --ink: 34 40% 92%;
+    --foreground: var(--ink);
+    --ink-muted: 30 12% 62%;
+    --rule: 28 16% 17%;
+    --line-dim: 30 10% 30%;
+    --paper-raised: 30 20% 13%;
+    --card: var(--paper-raised);
+    --well: 24 34% 2%;
+    --muted: 30 14% 14%;
+    --secondary: 30 14% 14%;
+    --accent: 30 14% 17%;
+    --brass-text: 38 78% 64%;
+    --brass-tint: 36 44% 13%;
+    --brass-rule: 38 46% 30%;
+    /* No brass glow at any level. A recessed plane does not emit. */
+    --elev-1: 0 1px 0 0 hsl(40 60% 90% / 0.04) inset, 0 8px 20px -12px hsl(0 0% 0% / 0.75);
+    --elev-2: 0 1px 0 0 hsl(40 60% 90% / 0.07) inset,
+              0 20px 44px -22px hsl(0 0% 0% / 0.9);
+    --elev-3: 0 1px 0 0 hsl(40 60% 90% / 0.11) inset,
+              0 32px 68px -26px hsl(0 0% 0% / 0.92);
+    --elev-well: inset 0 2px 10px -2px hsl(0 0% 0% / 0.8), 0 0 0 1px hsl(28 16% 17% / 0.9);
+  }
+
+  /* ── BRASS, light: a real pigment sheet, not a wash over paper. ──
+     The light theme's linen family taken all the way: this is the most
+     saturated surface on the light page, and the card inside it is bleached,
+     so a panel on brass reads as paper laid on metal. */
+  .ground-brass {
+    /* 84%, not 87%. At 87% this band measured **1.06:1 against the linen
+       section above it** — separated by hue alone, which is not enough on its
+       own and is nothing at all to a reader with a colour deficiency. At 84%
+       with the chroma up it is 1.15:1 against linen and 1.35:1 against paper,
+       and it is unmistakably a gold sheet rather than a warm white one. */
+    --background: 39 62% 80%;
+    --ink: 27 42% 12%;
+    --foreground: var(--ink);
+    /* 30%, not 38%: on an 87% brass sheet the page cut measures 4.05:1. */
+    --ink-muted: 28 24% 29%;
+    --rule: 36 36% 73%;
+    --line-dim: 36 28% 64%;
+    --paper-raised: 44 56% 97%;
+    --card: var(--paper-raised);
+    --card-foreground: var(--ink);
+    --well: 36 48% 75%;
+    --muted: 38 44% 80%;
+    --muted-foreground: var(--ink-muted);
+    --secondary: 38 44% 80%;
+    --secondary-foreground: var(--ink);
+    --accent: 38 48% 79%;
+    --accent-foreground: var(--ink);
+    /* Brass link text on a brass ground is 1.6:1. Re-cut, dark. */
+    --brass-text: 26 84% 25%;
+    --brass-tint: 42 64% 93%;
+    --brass-rule: 34 46% 66%;
+    --border: var(--rule);
+    --input: var(--rule);
+    /* Nothing inside a brass band may be brass AND a control. */
+    --primary: var(--ink);
+    --primary-foreground: 42 60% 95%;
+    --ring: var(--ink);
+    --elev-1: 0 1px 1px -0.5px hsl(28 46% 20% / 0.15),
+              0 3px 8px -3px hsl(30 34% 24% / 0.12);
+    --elev-2: 0 1px 0 0 hsl(48 90% 100% / 0.9) inset,
+              0 1px 2px -1px hsl(28 48% 18% / 0.2),
+              0 10px 22px -10px hsl(30 36% 22% / 0.2),
+              0 26px 50px -30px hsl(32 30% 26% / 0.24);
+    --elev-3: 0 1px 0 0 hsl(48 92% 100% / 0.95) inset,
+              0 2px 3px -1px hsl(28 48% 18% / 0.17),
+              0 18px 38px -14px hsl(30 36% 22% / 0.23),
+              0 44px 76px -36px hsl(32 30% 26% / 0.3);
+    --elev-well: inset 0 2px 5px -2px hsl(28 50% 16% / 0.24),
+                 inset 0 -1px 0 0 hsl(48 80% 100% / 0.45),
+                 0 0 0 1px hsl(var(--rule));
+  }
+
+  /* ── BRASS, dark: the one band on the page that is LIT. ──
+     Dark depth is emitted light, so the dark cut of this ground is not "brass
+     made darker" — it is a low-lightness, high-chroma ground carrying the
+     brightest glow in the elevation set. A pale brass fill here would be the
+     admin contrast bug exactly. */
+  .dark .ground-brass {
+    /* 21%, not 13%. At 13% this band measured **1.09:1 against the section
+       under it** — which is the owner's complaint reproduced by the fix for
+       it. Dark's depth is emitted light, so the brass band goes UP in
+       lightness and UP in chroma rather than down: it is now 1.7:1 against the
+       default slab, it is the only ground on the dark page above 20%, and it
+       carries the widest brass glow in the elevation set. It reads as lit
+       metal, which is the "yellow on brown" that was asked for. */
+    --background: 35 54% 21%;
+    --ink: 44 56% 96%;
+    --foreground: var(--ink);
+    --ink-muted: 40 26% 78%;
+    --rule: 35 30% 35%;
+    --line-dim: 36 26% 48%;
+    --paper-raised: 34 42% 29%;
+    --card: var(--paper-raised);
+    --well: 33 52% 12%;
+    --muted: 34 32% 28%;
+    --secondary: 34 32% 28%;
+    --accent: 34 34% 31%;
+    --brass-text: 44 92% 80%;
+    --brass-tint: 36 44% 29%;
+    --brass-rule: 40 54% 50%;
+    --primary: var(--ink);
+    --primary-foreground: 33 40% 13%;
+    --ring: var(--ink);
+    --elev-1: 0 1px 0 0 hsl(44 70% 90% / 0.08) inset, 0 8px 20px -12px hsl(0 0% 0% / 0.7);
+    --elev-2: 0 1px 0 0 hsl(44 70% 90% / 0.12) inset,
+              0 20px 44px -22px hsl(0 0% 0% / 0.85),
+              0 0 110px -50px hsl(var(--brass));
+    --elev-3: 0 1px 0 0 hsl(44 70% 90% / 0.17) inset,
+              0 32px 68px -26px hsl(0 0% 0% / 0.9),
+              0 0 140px -42px hsl(var(--brass));
+    --elev-well: inset 0 2px 10px -2px hsl(0 0% 0% / 0.72), 0 0 0 1px hsl(34 24% 26% / 0.9);
+    --witnessed: 150 46% 56%;
+    --acted: 38 84% 66%;
+    --stopped: 6 76% 66%;
+  }
+
 }
 
 @layer utilities {
@@ -436,6 +667,15 @@
   body {
     background-color: hsl(var(--paper-lift));
   }
+
+  /* The upward cast a section throws onto the one it is climbing over. See
+     `.slab + .slab`. Two physical models, two values — never one inverted. */
+  :root {
+    --seam-cast: 0 -14px 26px -18px hsl(28 44% 18% / 0.32);
+  }
+  .dark {
+    --seam-cast: 0 -18px 32px -20px hsl(0 0% 0% / 0.7);
+  }
 }
 
 @layer components {
@@ -458,9 +698,28 @@
   }
 
   /* Consecutive slabs overlap slightly and each new one sits above the last,
-     so the seam reads as one sheet tucked under another rather than a rule. */
+     so the seam reads as one sheet tucked under another rather than a rule.
+
+     AND EACH ONE CASTS UPWARD. Every other shadow in this system falls down,
+     which is correct for a sheet lying on a page and useless for the one edge
+     that matters here: the seam a section is climbing through as it enters
+     (see `@keyframes slab-settle`). Without a cast on the TOP edge the lift
+     moves pixels and nothing reads as covered.
+
+     `--seam-cast` is designed twice like everything else. On a light page it
+     is a warm umber penumbra — material, a sheet shading the one under it. On
+     a dark page a drop shadow on near-black is invisible, so it is a deeper
+     black wash that eats the emitted light off the slab below, and the brass
+     hairline of `.lit-edge` supplies the lit edge on top of it. */
   .slab + .slab {
     margin-top: calc(var(--radius-slab) * -0.75);
+    box-shadow: var(--seam-cast), var(--elev-2);
+  }
+  .slab + .slab.ground-linen {
+    box-shadow: var(--seam-cast), var(--elev-well);
+  }
+  .slab + .slab.ground-brass {
+    box-shadow: var(--seam-cast), var(--elev-3);
   }
 
   /* ── THE BAND WAS PAINTING ITSELF IN `--card`. ────────────────────────
@@ -477,8 +736,33 @@
      Two classes beat one, in either declaration order, so this cannot come
      back by someone moving a block. The band paints its own ground and a card
      inside it is a real plane above it. */
-  .slab.ground-ink {
+  .slab.ground-ink,
+  .slab.ground-linen,
+  .slab.ground-brass {
     background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+
+  /* ── LINEN IS PRESSED, NOT LIFTED ──────────────────────────────────────
+     Every other slab is a sheet lying ON the page ground. A linen slab is a
+     recess CUT INTO it, and that is the difference that makes it a second
+     material rather than a fourth shade of the first one. So it drops the
+     raised elevation and takes the well's treatment at section scale: an
+     inset shadow along the top edge and a ring, drawn from the tokens the
+     ground itself already restated, so light gets a material press and dark
+     gets an absence of emitted light. Without this, `linen` and `paper` in
+     dark mode were 12% vs 11% lightness — the exact "two sections on brown
+     and on brown" the owner is complaining about, reintroduced by me. */
+  .slab.ground-linen {
+    box-shadow: var(--elev-well);
+    border-color: hsl(var(--rule));
+  }
+
+  /* The brass band is the loudest ground on the page and it is used ONCE, so
+     it may carry the deepest lift in the set. */
+  .slab.ground-brass {
+    box-shadow: var(--elev-3);
+    border-color: hsl(var(--brass-rule) / 0.5);
   }
 
   /* `.slab-ink` WAS HERE AND IS GONE — 2026-08-31. It painted the band by
@@ -556,12 +840,40 @@
   }
 }
 
+/* ─── THE SEAM LIFT ────────────────────────────────────────────────────────
+   THE OWNER, ON WHAT A SECTION SHOULD DO AS YOU REACH IT:
+
+     *"as you scroll to the new section let it move up a bit above that
+     separation line between those two sections, so it signals 'you're in my
+     section now' … it kind of covers the section above — not really covered,
+     but you already have a halo illuminated line between two sections which is
+     good. As you scroll past, the below section moves up a bit to show 'I'm
+     present and I'm coming in'."*
+
+   `.settle` already ran on entry; it simply resolved to `transform: none`, so
+   a section arrived at its layout position and stopped. It now OVERSHOOTS and
+   STAYS overshot: 26px low at the start of its entry, 12px HIGH by 55% of it,
+   and 12px high for the rest of the page. Because every slab does this, the
+   whole stack shifts by the same 12px and no gutter changes size — what
+   changes is that a section spends its entry travelling 38px UP THROUGH the
+   seam it shares with the one before it, tucking further under it and past the
+   `.lit-edge` halo. That is the read the owner is describing.
+
+   `animation-fill-mode: both` is what makes it hold: the final keyframe is the
+   resting state, so a browser that stops evaluating the timeline leaves the
+   section 12px high and completely readable. THE FAILURE MODE IS A DOZEN
+   PIXELS, in either direction, and never a hidden section.
+
+   The overlap it exaggerates is real geometry, not a shadow trick: `.slab +
+   .slab` already pulls each section up by three quarters of the slab radius,
+   and `--seam-cast` below puts a soft shadow on the TOP edge so the covering
+   reads on a page where every other shadow falls downward. */
 @keyframes slab-settle {
   from {
     transform: translateY(26px) scale(0.988);
   }
   to {
-    transform: none;
+    transform: translateY(-12px);
   }
 }
 
@@ -943,5 +1255,551 @@
     min-height: calc(100vh - var(--beta-notice-h, 0px) - 4rem);
     display: flex;
     align-items: center;
+  }
+}
+
+/* ─── THE HORIZONTAL RAIL — "who it's for" ─────────────────────────────────
+   THE OWNER, POINTING AT A REFERENCE:
+
+     *"in Wispr Flow there is, in its testimonials, it scrolls in from left to
+     right as you scroll down — it whips in from left to right. I think we can
+     do that with 'who is it for' instead of having four boxes … we can even do
+     more [than four]."*
+
+   ── WHAT WISPRFLOW.AI ACTUALLY DOES, MEASURED 2026-09-01 AT 1280×900 ──────
+   Their section `.section_new-testi` is **3,486px tall on a 900px viewport**
+   (3.87×). Inside it `.testiv2_wrap` is `position: sticky; top: 0` at exactly
+   100vh, carrying `perspective: 832px`. Six `.testiv2_card`s are
+   `position: absolute` and each is moved by its OWN `transform` — sampled
+   translateX values `-370, -624, -1063, -1652, -1917, -2506` — so the track is
+   about 2,900px of travel driven by roughly 2,586px of scroll, a touch faster
+   than 1:1. Cards away from centre also carry a `rotateX` of 41° then 50°
+   (read out of the `matrix3d`), so it is a cylinder rather than a flat belt.
+   `will-change: transform` is on the cards and on nothing else.
+
+   Two findings mattered more than the numbers:
+
+   1. **No horizontal scrollbar exists anywhere.** `documentElement.scrollWidth`
+      and `clientWidth` both measure 1265. It is not `overflow-x: hidden` on the
+      body — it is `overflow-x: clip` on the section plus `overflow: clip` on
+      their page wrapper. Clip, not hidden, because `hidden` would make those
+      elements scroll containers and break the sticky pin inside.
+   2. **The cards are complete in the DOM at every scroll position.** Their
+      quote and author blocks measured real widths and heights before, during
+      and after the travel. The motion positions content; it never reveals it.
+
+   Finding 2 is our motion law stated in their markup, so the rig is adoptable
+   as-is. Finding 1 is the implementation detail that makes it safe.
+
+   ── WHAT WE DO DIFFERENTLY, AND WHY ──────────────────────────────────────
+   Theirs is driven by JavaScript writing transforms on every frame. Ours is
+   ONE CSS animation on ONE element, driven by `animation-timeline` — scroll
+   POSITION, not a clock — because the preview pane in this project freezes
+   `requestAnimationFrame` AND `setTimeout`, and a rig that needs a frame loop
+   to reach its resting state is a rig that sometimes has no content in it.
+
+   THE FOUR WAYS THIS DEGRADES, all of which are a readable stacked list:
+     · no `animation-timeline` support  → `@supports` never matches
+     · narrower than 1024px             → media query never matches
+     · shorter than 820px               → ditto; a pinned scene taller than the
+                                          window strands its own bottom half
+     · `prefers-reduced-motion`         → ditto
+   In every one of them `.who-track` stays the two-column grid it is by
+   default and the section is an ordinary list of cards. Nothing is hidden by
+   the rig and nothing is only reachable through it.
+
+   ── WHY THE TRAVEL NEEDS NO JAVASCRIPT AND NO MAGIC NUMBER ───────────────
+   `translateX(calc(100cqw - 100%))`: the percentage resolves against the
+   track's own border box and `100cqw` against `.who-frame`, which is the
+   query container. So the end state is exactly "track width minus frame
+   width" — the track ends flush with the right edge of the frame — for any
+   card count, any card width and any viewport, with nothing to keep in sync.
+   Seven cards at a 17rem floor is 2,000px+ of track against a frame that can
+   never exceed the page width, so the value is always negative.
+   ──────────────────────────────────────────────────────────────────────── */
+.who-rig {
+  position: relative;
+}
+
+.who-track {
+  display: grid;
+  gap: 0.5rem;
+}
+@media (min-width: 640px) {
+  .who-track {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (min-width: 1024px) and (min-height: 820px) and (prefers-reduced-motion: no-preference) {
+    .who-rig {
+      /* 280vh = 180vh of surplus driving ~1,100px of travel on a 900px
+         window: slower than 1:1, deliberately. Measured on the reference the
+         belt runs slightly FASTER than the scroll and the cards read as
+         flicking past; at this ratio a reader can actually finish a card. */
+      min-height: 280vh;
+      view-timeline-name: --who-rig;
+      view-timeline-axis: block;
+    }
+    .who-pin {
+      position: sticky;
+      top: calc(var(--beta-notice-h, 0px) + 4rem);
+      min-height: calc(100vh - var(--beta-notice-h, 0px) - 4rem);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2.5rem;
+    }
+    .who-frame {
+      /* `clip`, not `hidden` — the same reason `.slab` uses it and the same
+         reason the reference does: `hidden` would make this a scroll
+         container and kill the sticky pin above it. */
+      overflow-x: clip;
+      container-type: inline-size;
+    }
+    .who-track {
+      display: flex;
+      width: max-content;
+      gap: 1rem;
+      padding-inline: clamp(1.25rem, 4vw, 4rem);
+      animation: who-travel linear both;
+      animation-timeline: --who-rig;
+      /* `contain` on a subject taller than the viewport runs from "top edge at
+         viewport top" to "bottom edge at viewport bottom" — precisely the
+         window in which `.who-pin` is stuck. Held two points off each end so
+         the belt has finished before the pin lets go. */
+      animation-range: contain 2% contain 96%;
+      will-change: transform;
+    }
+    .who-card {
+      width: clamp(17rem, 25cqw, 24rem);
+      flex: none;
+    }
+  }
+}
+
+@keyframes who-travel {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(100cqw - 100%));
+  }
+}
+
+/* ─── THE CLOSE, BEHIND GLASS ──────────────────────────────────────────────
+   THE OWNER, ON THE SECOND-TO-LAST SECTION:
+
+     *"this second-to-last section is good, it's not boring, but the background
+     — we can do a job with images floating behind it, maybe in a translucent
+     glassmorphism kind of way, because it is a CTA-heavy section. Images
+     floating behind the text, from left to right or up and down."*
+
+   ── WHY THERE ARE NO IMAGES ────────────────────────────────────────────────
+   We have no photography and will not invent any, and a marketing site in
+   closed beta is the last place to put a picture of a dashboard nobody can
+   sign into yet. So the drifting layer is built out of the product's own
+   drawing vocabulary — rules, nodes, a dashed run — and it carries **no text
+   and no data at all**. That is a hard rule and not a shortcut: the moment a
+   pane behind glass says `v=DMARC1` or a message id, it is information, and
+   information at 6% opacity behind a blur is information we have hidden.
+   Anything a reader must be able to act on is in the content layer above.
+
+   ── WHY IT IS ACTUALLY GLASS, AND NOT A BLUR FOR THE LOOK OF IT ────────────
+   `backdrop-filter` with nothing behind it is an expensive no-op. So the stage
+   has two layers and the order matters: `.cta-wash` paints two wide, soft
+   colour fields FIRST, and `.cta-glass` panes are frosted panels sitting on
+   top of them. What you see through a pane is the wash, displaced and
+   softened — which is what makes the panes read as material rather than as
+   rectangles at 6% opacity.
+
+   ── DESIGNED TWICE (§11) ───────────────────────────────────────────────────
+   The close is a `.ground-ink` band, so it FLIPS: near-black on a light page,
+   near-white on a dark one. Glass on those two grounds is not one recipe with
+   the alpha changed.
+
+     Light page → dark band: the panes are EMITTED LIGHT. They are lighter than
+     their ground, edged with a bright hairline, and the wash is brass at low
+     lightness. A dark pane here would be a hole.
+
+     Dark page → light band: the panes are MATERIAL. They are frosted white
+     with a real drop shadow and a dark hairline, and the wash is a warmer,
+     denser pigment because a pale wash on near-white is invisible. A light
+     pane here would not be visible at all.
+
+   ── THE MOTION LAW ─────────────────────────────────────────────────────────
+   Scroll-driven (`view()`), transform-only, behind `@supports` and
+   `prefers-reduced-motion`, and every pane is `aria-hidden` decoration whose
+   worst case is "it sits still". Nothing in the content layer depends on it,
+   and nothing in it can be the only place anything appears — because there is
+   nothing in it. */
+.cta-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: clip;
+  pointer-events: none;
+}
+
+/* ── NOTHING DECORATIVE PASSES BEHIND THE READING COLUMN ──────────────────
+   MEASURED, not assumed. The close's content is `container max-w-2xl`, which
+   `container: { center: true }` puts in the MIDDLE of the band at 297–969px
+   on a 1280 viewport — not on the left, which is what the pane placement was
+   drafted against. Three of the six panes crossed it.
+
+   That is a contrast problem the automated sweep cannot see: it composites a
+   text node against its ANCESTORS' backgrounds, and these panes are siblings.
+   The worst case is `--ink-muted` over the brightest point of the wash, which
+   works out at 4.95:1 — over AA, but by six hundredths, and derived rather
+   than measured. A guarantee is cheaper than a calculation that has to be
+   redone every time the copy reflows.
+
+   TWO FIXES, and the numbers are the point of both. The wash's two bright
+   blobs moved from 22%/82% out to 12%/90%, and the whole stage is masked: the
+   middle 32% is fully transparent, faded over 12% on each side so the cut
+   reads as a falloff rather than a band.
+
+   RE-MEASURED AFTER: the text column runs 321–945px. Its worst point is the
+   left edge, where the wash is down to an effective 0.117 alpha and
+   `--ink-muted` composites at **6.3:1** — up from 4.95:1, and now with margin
+   rather than by six hundredths. The panes themselves were never the problem:
+   at 0.07 alpha the same text measures 6.5:1 straight through one.
+
+   ONE SIDE EFFECT WORTH KNOWING: a mask makes this element a BACKDROP ROOT, so
+   the panes' `backdrop-filter` now frosts only what is painted inside the
+   stage. That is the wash — which is the only thing we wanted frosted. The
+   section ground behind it is a flat colour and blurring it was always a
+   no-op. */
+@media (min-width: 1024px) {
+  .cta-stage {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      #000 0%,
+      #000 22%,
+      transparent 34%,
+      transparent 66%,
+      #000 78%,
+      #000 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      #000 0%,
+      #000 22%,
+      transparent 34%,
+      transparent 66%,
+      #000 78%,
+      #000 100%
+    );
+  }
+}
+
+.cta-wash {
+  position: absolute;
+  inset: -25% -15%;
+  /* Light page → dark band. Brass held at low lightness so it reads as a lit
+     surface rather than a pale film on near-black. */
+  background:
+    radial-gradient(38% 46% at 12% 26%, hsl(38 70% 46% / 0.28), transparent 70%),
+    radial-gradient(42% 50% at 90% 74%, hsl(24 60% 40% / 0.24), transparent 72%),
+    radial-gradient(50% 40% at 50% -2%, hsl(44 60% 60% / 0.1), transparent 75%);
+}
+.dark .cta-wash {
+  /* Dark page → light band. Denser pigment: the light values above measure as
+     nothing at all on a 97% ground. */
+  background:
+    radial-gradient(38% 46% at 12% 26%, hsl(38 78% 56% / 0.4), transparent 70%),
+    radial-gradient(42% 50% at 90% 74%, hsl(26 58% 46% / 0.26), transparent 72%),
+    radial-gradient(50% 40% at 50% -2%, hsl(34 46% 40% / 0.12), transparent 75%);
+}
+
+.cta-glass {
+  position: absolute;
+  border-radius: var(--radius);
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.6rem;
+  /* Emitted light: lighter than the band, bright hairline, no drop shadow —
+     a drop shadow on near-black is invisible and costs a paint. */
+  background: hsl(44 60% 92% / 0.07);
+  border: 1px solid hsl(44 60% 92% / 0.16);
+  box-shadow: 0 1px 0 0 hsl(44 70% 96% / 0.1) inset;
+  -webkit-backdrop-filter: blur(22px) saturate(130%);
+  backdrop-filter: blur(22px) saturate(130%);
+}
+.dark .cta-glass {
+  /* Material: frosted white with a real umber shadow and a dark hairline. */
+  background: hsl(44 46% 99% / 0.5);
+  border: 1px solid hsl(28 30% 20% / 0.1);
+  box-shadow:
+    0 1px 0 0 hsl(46 80% 100% / 0.7) inset,
+    0 18px 40px -24px hsl(28 32% 20% / 0.35);
+  -webkit-backdrop-filter: blur(18px) saturate(115%);
+  backdrop-filter: blur(18px) saturate(115%);
+}
+
+/* The marks inside a pane. Rules, one node, one dashed run — the drawing
+   vocabulary with nothing written in it. */
+.cta-mark {
+  height: 2px;
+  border-radius: 2px;
+  background: hsl(var(--ink) / 0.16);
+}
+.cta-mark-dim {
+  height: 0;
+  border-top: 2px dashed hsl(var(--ink) / 0.13);
+}
+.cta-node {
+  height: 8px;
+  width: 8px;
+  border-radius: 999px;
+  background: hsl(var(--ink) / 0.2);
+}
+
+/* Six panes, placed rather than randomised, so the composition is the same on
+   every load and can be judged. They sit AROUND the reading measure — the
+   content column is `max-w-2xl` on the left — so nothing frosted ever passes
+   behind a line of text on a wide screen. */
+.cta-p1 { inset: 6% auto auto 2%; width: 14rem; height: 8rem; }
+.cta-p2 { inset: auto 6% 8% auto; width: 19rem; height: 11rem; }
+.cta-p3 { inset: 4% 3% auto auto; width: 13rem; height: 7rem; }
+.cta-p4 { inset: auto auto 6% 8%; width: 12rem; height: 6.5rem; }
+.cta-p5 { inset: 36% 1% auto auto; width: 15rem; height: 9rem; }
+.cta-p6 { inset: 62% auto auto 2%; width: 10rem; height: 5.5rem; }
+
+@media (max-width: 1023px) {
+  /* On a narrow page the content column is the whole width, so the panes would
+     be behind the copy. Two are kept, far from the text, and the rest go. */
+  .cta-p2, .cta-p3, .cta-p5, .cta-p6 { display: none; }
+  .cta-p1 { inset: 2% auto auto auto; right: 4%; left: auto; width: 11rem; height: 6rem; }
+  .cta-p4 { inset: auto 6% 3% auto; width: 9rem; height: 5rem; }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .cta-wash {
+      animation: cta-wash-drift linear both;
+      animation-timeline: view();
+      animation-range: cover;
+    }
+    .cta-glass {
+      animation: cta-pane-drift linear both;
+      animation-timeline: view();
+      animation-range: cover;
+      will-change: transform;
+    }
+    /* Different rates and directions, which is the whole of parallax. The
+       owner asked for "left to right or up and down"; it is both, split
+       between the panes so the layer has depth rather than a single slide. */
+    .cta-p1 { animation-name: cta-pane-drift-a; }
+    .cta-p2 { animation-name: cta-pane-drift-b; }
+    .cta-p3 { animation-name: cta-pane-drift-c; }
+    .cta-p4 { animation-name: cta-pane-drift-b; }
+    .cta-p5 { animation-name: cta-pane-drift-a; }
+    .cta-p6 { animation-name: cta-pane-drift-c; }
+  }
+}
+
+@keyframes cta-wash-drift {
+  from { transform: translate3d(-3%, -6%, 0); }
+  to   { transform: translate3d(3%, 6%, 0); }
+}
+@keyframes cta-pane-drift {
+  from { transform: translateY(24px); }
+  to   { transform: translateY(-24px); }
+}
+@keyframes cta-pane-drift-a {
+  from { transform: translate3d(-34px, 26px, 0); }
+  to   { transform: translate3d(34px, -26px, 0); }
+}
+@keyframes cta-pane-drift-b {
+  from { transform: translate3d(30px, 34px, 0); }
+  to   { transform: translate3d(-30px, -34px, 0); }
+}
+@keyframes cta-pane-drift-c {
+  from { transform: translate3d(-18px, 40px, 0); }
+  to   { transform: translate3d(18px, -40px, 0); }
+}
+
+/* ─── THE FIGURE THAT IS A HEADING ─────────────────────────────────────────
+   Lifted from `apps/developers`, which is the treatment the owner pointed at:
+   *"can we have the footer of the main marketing site have this kind of bold,
+   centred [treatment] like you see in the developer site … 'Send your first
+   email today', we can improve the font size, the volume and all … Free for
+   3,000 sends and 500 contacts, no card — put it big and centred."*
+
+   Scroll-driven, transform-only, `@supports`-gated: worst case the figure is
+   fourteen pixels low and completely readable. */
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .figure-rise {
+      animation: figure-rise linear both;
+      animation-timeline: view();
+      animation-range: entry 10% entry 85%;
+    }
+  }
+}
+
+@keyframes figure-rise {
+  from {
+    transform: translateY(14px);
+  }
+  to {
+    transform: none;
+  }
+}
+
+/* ─── AN ORDINARY TUESDAY, AS A LINE ACROSS THE PAGE ───────────────────────
+   THE OWNER, ON THE VERSION THIS REPLACES:
+
+     *"the storytelling can be improved with the visuals — how it wipes across
+     and how it is presented. The design and font type and colour choice is
+     good, but it still feels like you'll be reading both sides. The less you
+     make people read and the more intuitive and contextual, the more engaging.
+     Rather than just having it show in a box of how things go."*
+
+   THREE THINGS WERE WRONG AND THEY WERE ALL THE SAME THING.
+
+   1. **You read both sides.** It was a `4fr / 8fr` split: a sticky rail with a
+      heading, a lead AND a 44-word summary on the left, and six 40-word rows
+      on the right. The summary said what the rows said. A reader had to hold
+      two columns at once to find that out.
+   2. **It was a box of how things go.** Six paragraphs stacked in a tray is a
+      list of prose wearing a diagram's clothes. Nothing about the arrangement
+      carried any of the meaning.
+   3. **A day is a line, and it was drawn as a column.** Time running
+      left-to-right is the one spatial metaphor nobody has to be taught.
+
+   So the section is a single horizontal rail with six stations, ~240 words of
+   prose became ~90, and the argument — *exactly one of these six needed a
+   person* — is now VISIBLE rather than asserted: it is the one hollow node in
+   a row of six.
+
+   ── WHY THE SPINE IS NEUTRAL AND ONLY THE NODES CARRY COLOUR ──────────────
+   `witnessed / acted / stopped` mean what happened TO A MESSAGE. A day is not
+   a message, so drawing this spine in a signal colour would be the rendering
+   law used decoratively, which is worse than not using it. The spine is
+   `--line-dim`; each node states what happened at that hour, and a fourth
+   kind — a hollow ring in plain ink, no signal colour at all — marks the hour
+   a human was involved.
+
+   ── THE SWEEP ─────────────────────────────────────────────────────────────
+   "How it wipes across" is `::after`: a second copy of the spine, in ink at
+   45%, scaled from 0 to 1 as the section enters. It is drawn OVER a `::before`
+   that is already complete, so if it never runs the line is still a line and
+   every station is still on it. Scroll-driven, transform-only, `@supports`-
+   and `prefers-reduced-motion`-gated, and decorative in the strict sense: it
+   is a pseudo-element, so it cannot hold content by construction.
+   ────────────────────────────────────────────────────────────────────────── */
+.day-track {
+  position: relative;
+  display: grid;
+  gap: 1.75rem;
+  padding-left: 1.75rem;
+}
+.day-track::before,
+.day-track::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  /* Vertical spine on a narrow page: the beats are stacked, so the day runs
+     down the left margin and the nodes hang off it. */
+  left: 5px;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 2px;
+}
+.day-track::before {
+  background: hsl(var(--line-dim));
+}
+.day-track::after {
+  background: hsl(var(--ink) / 0.45);
+  transform-origin: top center;
+}
+.day-beat {
+  position: relative;
+}
+.day-node {
+  position: absolute;
+  left: -1.75rem;
+  top: 0;
+  height: 12px;
+  width: 12px;
+  border-radius: 999px;
+  /* Every node sits ON the spine, so each one needs the ground painted behind
+     it or the line runs straight through the hollow one. */
+  box-shadow: 0 0 0 3px hsl(var(--well));
+}
+.day-node[data-kind="watched"] {
+  background: hsl(var(--witnessed));
+}
+.day-node[data-kind="acted"] {
+  background: hsl(var(--acted));
+}
+/* A person is not a message state, so this node takes no signal colour at all
+   — a hollow ring in plain ink. It is also the only hollow one in the row,
+   which is the whole argument of the section rendered rather than claimed. */
+.day-node[data-kind="person"] {
+  background: hsl(var(--well));
+  border: 2px solid hsl(var(--ink));
+}
+
+@media (min-width: 1024px) {
+  .day-track {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 0 1.5rem;
+    padding-left: 0;
+    padding-top: 1.75rem;
+  }
+  .day-track::before,
+  .day-track::after {
+    left: 6px;
+    right: 6px;
+    top: 5px;
+    bottom: auto;
+    width: auto;
+    height: 2px;
+  }
+  .day-track::after {
+    transform-origin: left center;
+  }
+  .day-node {
+    left: 0;
+    top: -1.75rem;
+  }
+}
+
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .day-track::after {
+      animation: day-sweep-y linear both;
+      animation-timeline: view();
+      animation-range: entry 25% entry 95%;
+    }
+    @media (min-width: 1024px) {
+      .day-track::after {
+        animation-name: day-sweep-x;
+      }
+    }
+  }
+}
+
+@keyframes day-sweep-x {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+@keyframes day-sweep-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
   }
 }

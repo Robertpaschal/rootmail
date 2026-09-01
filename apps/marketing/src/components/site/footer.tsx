@@ -1,6 +1,4 @@
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { CtaButton } from "./cta-button";
 
 /**
@@ -42,6 +40,19 @@ import { CtaButton } from "./cta-button";
  * four-column, 21-link corporate sitemap it replaced — the test is that every
  * entry is either a person, an identity, or a legal document.
  */
+/**
+ * The free allowance, as data rather than typed into a sentence.
+ *
+ * These are the shipping values — `FREE_TX_SENDS` (3,000) and the marketing
+ * wing's free contact ceiling (500) in `packages/core/src/constants.ts`. They
+ * are restated here rather than imported because this app is deliberately
+ * standalone with no backend dependency (CLAUDE.md, "keeps the modular
+ * boundary clean"), so this note is the pointer: **if the free allowance
+ * changes, it changes there first and this file follows.**
+ */
+const FREE_SENDS_A_MONTH = "3,000";
+const FREE_CONTACTS = "500";
+
 const LINKS = [
   { href: "/contact", label: "Talk to us" },
   { href: "/about", label: "About" },
@@ -60,22 +71,59 @@ export function Footer() {
           navigation failure a footer can actually cause. Measured on the
           references the owner pointed at: the CTA pair recurs near the end of
           the page, not only in the header. */}
-      <div className="container relative z-10 flex flex-col items-center gap-5 border-b border-rule py-14 text-center">
+      <div className="container relative z-10 flex flex-col items-center border-b border-rule py-20 text-center md:py-28">
         {/* The owner, on the old line: *"'Send one and watch the whole line' —
             what does that even mean? Is that a sensible sentence?"* It was
             house shorthand for the rendering law, which is not a sentence a
             stranger who has just met us can parse. This one asks for the
             smallest possible first step, which is what a close is for. */}
-        <p className="display-m max-w-[20ch] text-balance">Send your first email today.</p>
-        <p className="max-w-[46ch] text-[15px] text-ink-muted">
-          Free for 3,000 sends and 500 contacts a month. No card.
+        <h2 className="display-l max-w-[16ch] text-balance">Send your first email today.</h2>
+
+        {/* THE FIGURE IS THE STATEMENT — the treatment the owner pointed at:
+            *"can we have the footer of the main marketing site have this kind
+            of bold, centred [treatment] like you see in the developer site …
+            we can improve the font size, the volume and all, the same way we
+            have for the developer side, how it is very big and centred and
+            very direct and engaging. Free for 3,000 sends and 500 contacts, no
+            card — put it big and centred."*
+
+            It was a `display-m` line and a 15px sentence at `py-14`. The
+            allowance was the most persuasive thing in the band and it was set
+            in the smallest type in it. `00-PHILOSOPHY.md` §10.1 withdrew "mono
+            marks every recorded value" for exactly this failure — the most
+            important number on a page ending up the least legible thing on it
+            — and the correction is the display face AT SIZE. Presence comes
+            from size and tightness, never from weight or a new colour: brass
+            stays on the single button below, so the loudest thing in the band
+            and the thing we want pressed are not competing. */}
+        <p className="mt-10 flex flex-col items-center">
+          <span className="display-num figure-rise block text-[clamp(4.5rem,14vw,9rem)] leading-[0.85] tracking-[-0.03em]">
+            {FREE_SENDS_A_MONTH}
+          </span>
+          <span className="display-m mt-3 font-sans font-medium">sends a month, free</span>
         </p>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <CtaButton label="Start free" size="lg" arrow />
-          <Link href="/check" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
-            Check a domain
-          </Link>
-        </div>
+
+        {/* The other half of the owner's sentence, and no more than that.
+            The contact figure is the marketing wing's meter and the send
+            figure is the transactional wing's, so between them these two
+            numbers ARE the free plan — which is why neither is dropped to tidy
+            the band, and why nothing else is added to it. A draft of this line
+            read "No card, and nothing expires": true of a free tier, and still
+            a claim nobody asked for. The owner's own words are "no card". */}
+        <p className="mt-5 max-w-[42ch] text-balance text-[15px] text-ink-muted">
+          And {FREE_CONTACTS} contacts. No card.
+        </p>
+
+        {/* ONE control that reads as a button. The second route out is a text
+            link — the same rule the developer close follows, and the reason a
+            close with two large outlined buttons never feels like an arrival. */}
+        <CtaButton label="Start free" size="lg" arrow className="mt-9" />
+        <Link
+          href="/check"
+          className="mt-4 inline-flex min-h-11 items-center text-sm text-ink-muted underline-offset-4 transition-colors duration-interaction ease-interaction hover:text-foreground hover:underline"
+        >
+          Check a domain first
+        </Link>
       </div>
 
       <div className="container relative z-10 flex flex-col gap-6 py-12 sm:flex-row sm:items-end sm:justify-between">
