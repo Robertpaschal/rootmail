@@ -40,7 +40,7 @@ import { DeckScroll } from "./deck-scroll";
  * and each row also carries `.deck-card`, and inside the deck gate
  * (`globals.css`) those two class names turn the same four rows into a pile:
  * every body open, one record square-on and complete, the next one showing
- * ~42px below it, the dealt one leaving upward. Outside the gate — a phone, a
+ * ~44px below it, the dealt one leaving upward. Outside the gate — a phone, a
  * short window, reduced motion, a browser with no scroll-driven animations —
  * not one of those rules matches and this is the tab set it has always been.
  *
@@ -157,68 +157,87 @@ export function HeroDeckIndex() {
 }
 
 /**
- * The tray. Four heads always visible; one body open.
+ * The records. Four heads always visible; one body open.
  *
- * `.deck-shell` carries a brass halo as a pseudo-element (`globals.css`). It is
- * decoration, so it is `aria-hidden` by construction and cannot be given
- * information to carry. It does not MOVE: this scene is pinned, and a `view()`
- * timeline on a sticky element never advances — a drifting plate here would sit
- * perfectly still while claiming to be parallax.
+ * ── THERE IS NO TRAY (2026-09-01) ───────────────────────────────────────────
+ * The owner: *"I don't know why you are putting a box around it. I don't think
+ * we need a box around it. We should just make it be like how the 'Who is it
+ * for?' section doesn't have any box around it … We should just show the
+ * important thing — basically just that 'Who is it for?' section, but
+ * vertically made."*
+ *
+ * The `bg-well shadow-well` wrapper is gone. `who-its-for` has no wrapper — its
+ * cards ARE the objects on the section ground — and this is now the same shape
+ * turned on its side. The colour distinction the tray was carrying moved onto
+ * the records themselves (`--plate` in `globals.css`), which is also where it
+ * was needed: the records were `bg-card`, and a plain `.slab` paints ITSELF in
+ * `--card`, so every record was the section's own colour to the byte.
+ *
+ * The offered escape hatch — *"if you feel like you need to have a box so that
+ * you have a clean place to open away from the screen within that box, then
+ * expand the box"* — was not needed, because the disclosure now has somewhere
+ * to go inside its own card: the deck is sized to its tallest card in its
+ * tallest state, so opening `why hollow?` cannot push text past an edge.
+ *
+ * `.deck-shell` survives, and it is not the box that was objected to: it paints
+ * no ground, has no border and no shadow. It is the positioning context for a
+ * brass halo drawn as a pseudo-element (`globals.css`) — decoration, so it is
+ * incapable of carrying information. It does not MOVE: this scene is pinned,
+ * and a `view()` timeline on a sticky element never advances, so a drifting
+ * plate here would sit perfectly still while claiming to be parallax.
  */
 export function HeroDeck() {
   return (
-    <div className="deck-shell relative">
-      <div className="deck-tray rounded-2xl bg-well p-2 shadow-well">
-        <div className="deck-rows deck-col">
-          {HERO_RECORDS.map((r, i) => (
-            <div
-              key={r.key}
-              data-row={i}
-              style={{ "--i": i } as React.CSSProperties}
-              className={`deck-row deck-card ${RAIL[r.verdict]}`}
+    <div className="deck-shell relative min-w-0">
+      <div className="deck-rows deck-col">
+        {HERO_RECORDS.map((r, i) => (
+          <div
+            key={r.key}
+            data-row={i}
+            style={{ "--i": i } as React.CSSProperties}
+            className={`deck-row deck-card ${RAIL[r.verdict]}`}
+          >
+            {/* One row at `sm` and up; two below it, where a kind, a subject
+                and a 111px glyph on one line would leave the subject about
+                eighty pixels to be truncated into. DOM order stays
+                kind → subject → glyph, which is the reading order; only the
+                narrow layout reorders, and only visually. */}
+            <label
+              htmlFor={`rec-${i}`}
+              data-head={i}
+              className="deck-head flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 py-3 pl-5 pr-4"
             >
-              {/* One row at `sm` and up; two below it, where a kind, a subject
-                  and a 111px glyph on one line would leave the subject about
-                  eighty pixels to be truncated into. DOM order stays
-                  kind → subject → glyph, which is the reading order; only the
-                  narrow layout reorders, and only visually. */}
-              <label
-                htmlFor={`rec-${i}`}
-                data-head={i}
-                className="deck-head flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1 py-2.5 pl-4 pr-3"
-              >
-                <span className="w-[4.5rem] shrink-0 text-[13px] font-medium">{r.kind}</span>
-                <span className="deck-subject order-last w-full min-w-0 truncate text-[13px] text-ink-muted sm:order-none sm:w-auto sm:flex-1">
-                  {r.subject}
-                </span>
-                {/* The glyph that makes the closed rows worth reading: nodes
-                    only, at the law's own weights, so a severed record is
-                    recognisable as one before it is opened. */}
-                <Line
-                  stations={r.stations}
-                  scale="inline"
-                  className="deck-glyph ml-auto shrink-0 sm:ml-0"
-                />
-              </label>
+              <span className="w-[4.5rem] shrink-0 text-[13px] font-medium">{r.kind}</span>
+              <span className="deck-subject order-last w-full min-w-0 truncate text-[13px] text-ink-muted sm:order-none sm:w-auto sm:flex-1">
+                {r.subject}
+              </span>
+              {/* The glyph that makes the closed rows worth reading: nodes
+                  only, at the law's own weights, so a severed record is
+                  recognisable as one before it is opened. */}
+              <Line
+                stations={r.stations}
+                scale="inline"
+                className="deck-glyph ml-auto shrink-0 sm:ml-0"
+              />
+            </label>
 
-              <div data-rec={i} className="deck-body pb-3 pl-4 pr-3">
-                <p className="flex flex-wrap gap-x-3 border-t border-rule pt-3 font-mono text-[12.5px] text-ink-muted">
-                  <span data-fact>{r.id}</span>
-                  <span data-fact>{r.to}</span>
-                </p>
-                <div className="mt-4">
-                  <LiveLine
-                    stations={r.stations}
-                    rows={r.rows}
-                    timeline={r.timeline}
-                    scale="page"
-                    label={`What happened to this ${r.kind}`}
-                  />
-                </div>
+            <div data-rec={i} className="deck-body pb-4 pl-5 pr-4">
+              <p className="flex flex-wrap gap-x-3 border-t border-rule pt-3 font-mono text-[12.5px] text-ink-muted">
+                <span data-fact>{r.id}</span>
+                <span data-fact>{r.to}</span>
+              </p>
+              <div className="mt-4">
+                <LiveLine
+                  stations={r.stations}
+                  rows={r.rows}
+                  timeline={r.timeline}
+                  scale="page"
+                  label={`What happened to this ${r.kind}`}
+                />
               </div>
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
     </div>
   );

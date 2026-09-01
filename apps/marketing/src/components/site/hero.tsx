@@ -90,6 +90,33 @@ import { HERO_RECORDS } from "./hero-records";
  *
  * ALSO NOT HERE, and not to be restored: the `3,000 sends · 500 contacts · free
  * monthly` strip. The owner removed it on 2026-08-31.
+ *
+ * ── WHAT CHANGED (2026-09-01, later the same day) ───────────────────────────
+ * Three defects the owner found in the deck above, and the numbers that closed
+ * them. Read `hero-deck.tsx` and `globals.css` for the mechanics; this is the
+ * index.
+ *
+ * **1. The disclosure spilled out of the card.** *"It seems shorter when I
+ * click the 'why is it hollow' button. The text spurs out of the box … It
+ * happens for all of them."* It did: the card had a FIXED height and the
+ * record needed 46–67px more with its `<details>` open. The deck is sized to
+ * its tallest card now and `--deck-h` is a floor rather than a ceiling.
+ *
+ * **2. The records were the section's own colour.** *"Both of them are white
+ * … there's no difference between the brown for this and the brown for
+ * that."* Measured 1.00:1 — a plain `.slab` paints itself `--card` and the
+ * records were `bg-card`. They are `--plate` now: **1.40:1 in light, 1.32:1 in
+ * dark**, up from 1.00, and the old `bg-well` tray behind them was only 1.17.
+ *
+ * **3. There is no box around the deck.** *"I don't know why you are putting a
+ * box around it … just that 'Who is it for?' section, but vertically made."*
+ * The tray is gone; the records are the objects on the section ground, which
+ * is exactly `who-its-for`'s shape. So the paragraph above about a
+ * "sheet → pressed tray → lifted card" stack is HISTORY: there are two planes
+ * here now, the sheet and the record, and the tray is not coming back.
+ *
+ * The deck is also top-aligned with the headline rather than centred — see the
+ * comment on the grid below.
  */
 export function Hero() {
   return (
@@ -100,8 +127,20 @@ export function Hero() {
       style={
         {
           "--deck-steps": HERO_RECORDS.length - 1,
-          /* One record open is 460px. The tray is one card plus the peek. */
-          "--deck-h": "29rem",
+          /* THE FLOOR, not the ceiling (2026-09-01). `--deck-h` used to be a
+             fixed card height, and a record whose `why hollow?` disclosure was
+             open needed 531px in a 464px box — which is exactly the text the
+             owner watched spill out of the card. It is now a `min-height`, and
+             the stage's row is sized to the TALLEST card, so nothing can
+             overflow whatever it is set to.
+
+             34rem = 544px is the measured worst case (record 1, campaign, with
+             its explanation open: 531px at 1280 and 539px at 1024) plus a
+             little air. Setting it above the worst case is what keeps the deck
+             from resizing under the reader's thumb when a disclosure opens;
+             getting it wrong now costs a few pixels of empty card rather than
+             a paragraph hanging off the edge. */
+          "--deck-h": "34rem",
         } as React.CSSProperties
       }
     >
@@ -110,10 +149,25 @@ export function Hero() {
             with a sibling combinator. They are absolutely positioned and take
             no track. Reorder these and the deck stops opening — the order is
             load bearing and `globals.css` says so at the rules themselves. */}
-        <div className="deck container grid w-full gap-10 py-12 md:py-16 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-center lg:gap-14 lg:py-10">
+        {/* `lg:items-start`, not `lg:items-center` (2026-09-01). The owner:
+            *"the deck now sits lower than it should."* It did — centring a
+            deck shorter than the copy column pushed its top 72px below the
+            headline, so the two halves of the hero started at different
+            heights for no reason a reader could see. Aligned to the top they
+            begin on the same line, which is also what lets the deck be taller
+            without pushing its own bottom off a short window. */}
+        <div className="deck container grid w-full gap-10 py-12 md:py-16 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start lg:gap-14 lg:py-10">
           <HeroDeckRadios />
 
-          <div className="max-w-xl">
+          {/* `min-w-0` on both columns (2026-09-01). A grid item's automatic
+              minimum size is its MIN-CONTENT, and the record's line drawing is
+              a 276px SVG: below `lg` the single column was sized to 356px
+              inside a 301px content box, so the copy and the deck were both
+              cut off at the slab's `overflow: clip` edge at 375. Measured
+              before: 65 elements past the viewport, the copy column ending at
+              401px on a 375px screen. After: none. (`.deck-shell` carries the
+              same `min-w-0` in `hero-deck.tsx`.) */}
+          <div className="min-w-0 max-w-xl">
             {/* ONE PLAIN SENTENCE, NO METAPHOR. The owner, reading the old
                 headline pair cold: *"I am in the fourth section and I still
                 don't know what rootmail is about."* The old h1 — "Every email

@@ -697,6 +697,84 @@
   .dark {
     --seam-cast: 0 -18px 32px -20px hsl(0 0% 0% / 0.7);
   }
+
+  /* ── THE RECORD PLATE — the hero deck's own ground ─────────────────────
+     THE DEFECT, in the owner's words: *"Can we make it so that the vertical
+     box, the walkthrough, is a different colour from the left, which is 'Send
+     your company's email'? Both of them are white. The only difference when
+     you go to dark mode is that you can't even see — there's no difference
+     between the brown for this and the brown for that."*
+
+     MEASURED, and they were describing a 1.00. A plain `.slab` paints itself
+     `hsl(var(--card))` — the RAISED-CARD token — and the deck's records were
+     `bg-card` too. At 1280×900 in dark the section came back rgb(34,28,22) and
+     the open record came back rgb(34,28,22): the identical colour, not a near
+     one. The old `bg-well` tray behind them was 1.17:1 against the section,
+     which is the number this page has already had rejected twice at a seam.
+
+     ── WHY THIS IS ASYMMETRIC BY CONSTRUCTION (§11) ──────────────────────
+     Light's depth is MATERIAL and dark's is EMITTED LIGHT, and the section
+     ground sits at a different place in those two stacks:
+
+       light   the slab is `--paper-raised`, 99% — the TOP plane, the most
+               bleached surface the theme has. There is nothing above it, so
+               the plate goes DOWN and gains pigment: 84% at 38% chroma, the
+               linen family taken one step past `--well`'s 88%.
+       dark    the slab is 11% — a MIDDLE plane, and dark's way of saying
+               "nearer the reader" is to emit more light. So the plate goes UP
+               to 19% and carries a lit inner edge.
+
+     Inverting either half is the admin bug in miniature. Sinking the plate in
+     dark is what the `bg-well` tray already did and it measures 1.17; rising
+     it in light is impossible, because the section is already the top plane.
+
+     THE NUMBERS, measured against the hero slab at 1280×900:
+       light   plate 84% vs slab 99%   →  1.39:1
+       dark    plate 19% vs slab 11%   →  1.33:1
+     Dark cannot go much past that in EITHER direction and the ceiling is
+     arithmetic, not taste: WCAG's +0.05 flare term means the darkest possible
+     surface (pure black) is only 1.25:1 against an 11% ground. Above 1.3 the
+     step has to be made by rising, which is what this does. */
+  :root {
+    --plate: 30 38% 84%;
+    --plate-rule: 30 26% 76%;
+    /* A PLANE CHANGE DRAGS ITS TEXT CUTS WITH IT. `--ink-muted` at 38% is
+       tuned against 96% paper; the tokens file already records that it drops
+       to 4.63:1 on the 88% well. On an 84% plate it measures **4.25:1 — an AA
+       failure**, and half the small text in a record is muted: the id, the
+       address, every `at` and `note` in the ledger. At 34% it is 4.97:1.
+       `--line-dim` and `--rule` move for the same reason: an 86% hairline on
+       an 84% ground is not a hairline. This is the `.ground-linen` recipe
+       applied one plane down, and it is why a ground token is never changed
+       on its own. */
+    --plate-ink-muted: 30 14% 34%;
+    --plate-line-dim: 32 16% 66%;
+    /* Material: the plate is pressed into the sheet, so it takes the well's
+       inset shading and a hairline, plus a bleached inner lip along the
+       bottom where a real recess catches the room light. */
+    --plate-elev: inset 0 2px 6px -3px hsl(26 46% 14% / 0.28),
+      inset 0 -1px 0 0 hsl(46 70% 100% / 0.4), 0 0 0 1px hsl(var(--plate-rule));
+    /* The open record, lifted clear of the others. */
+    --plate-elev-open: inset 0 1px 0 0 hsl(46 80% 100% / 0.6),
+      0 2px 3px -1px hsl(26 44% 16% / 0.16), 0 18px 38px -14px hsl(28 32% 20% / 0.24),
+      0 0 0 1px hsl(var(--plate-rule));
+  }
+  .dark {
+    --plate: 32 19% 19%;
+    --plate-rule: 34 16% 28%;
+    /* Dark's plate goes UP, so its muted cut has MORE room, not less: 62% on
+       a 19% plate is 4.86:1 (it is 5.44:1 on the 11% slab). It is restated
+       anyway — a token an override leaves alone keeps its other value while
+       sitting on the opposite surface, which is the admin bug this file has
+       been bitten by twice. */
+    --plate-ink-muted: 30 12% 64%;
+    --plate-line-dim: 30 10% 38%;
+    /* Emitted light: a lit top edge and a hairline, no drop shadow — a drop
+       shadow on near-black is the invisible-`shadow-e*` bug from admin. */
+    --plate-elev: inset 0 1px 0 0 hsl(40 60% 90% / 0.09), 0 0 0 1px hsl(var(--plate-rule));
+    --plate-elev-open: inset 0 1px 0 0 hsl(40 60% 90% / 0.16),
+      0 24px 52px -24px hsl(0 0% 0% / 0.9), 0 0 0 1px hsl(var(--plate-rule));
+  }
 }
 
 @layer components {
@@ -1071,10 +1149,13 @@
     background: radial-gradient(60% 58% at 50% 42%, hsl(var(--brass) / 0.20), transparent 74%);
   }
 
+  /* The gap only does anything OUTSIDE the deck gate, where this is a stacked
+     tab set rather than a pile. Two pixels was right when the rows sat in a
+     tray that separated them; free-standing plates need a real gutter. */
   .deck-rows {
     display: flex;
     flex-direction: column;
-    gap: 0.125rem;
+    gap: 0.5rem;
   }
 
   .deck-row,
@@ -1082,12 +1163,43 @@
     border-radius: calc(var(--radius) + 0.25rem);
   }
 
+  /* ── EVERY RECORD IS A PLATE, AND THERE IS NO TRAY BEHIND THEM ────────
+     THE OWNER: *"I don't know why you are putting a box around it. I don't
+     think we need a box around it. We should just make it be like how the
+     'Who is it for?' section doesn't have any box around it … just show the
+     important thing."*
+
+     The `bg-well shadow-well` tray is gone. `who-its-for` has no wrapper — its
+     cards are the objects on the section ground — and this is now the same
+     shape. The tray's job was to be the colour distinction; that job moves
+     ONTO the records, where it also fixes the thing the tray never did: the
+     records themselves were `--card`, the same token the slab paints itself
+     with, so each record was literally the section's own colour. See
+     `--plate` in `@layer base` for the measurement and the §11 reasoning.
+
+     `--background` is re-pointed with the ground, because the line's knockout
+     ring is drawn in that token: a ring in the page's ground on a plate is a
+     visible halo around every node. */
   .deck-row {
     position: relative;
-    /* Closed rows are not bare linen any more. At 0.4 over the tray they read
-       as four separate cards lying in it, which is what makes the open one
-       read as LIFTED rather than as the only object present. */
-    background-color: hsl(var(--card) / 0.4);
+    --background: var(--plate);
+    --ink-muted: var(--plate-ink-muted);
+    --rule: var(--plate-rule);
+    --line-dim: var(--plate-line-dim);
+    /* THE SHADCN ALIASES MUST BE RESTATED, and this is not belt-and-braces —
+       it is how custom properties work and it cost a measurement. `tokens.css`
+       declares `--muted-foreground: var(--ink-muted)` on `:root`, and a custom
+       property is SUBSTITUTED WHERE IT IS DECLARED: the computed value
+       inherited down is already the literal `30 12% 38%`, not a live reference.
+       So re-cutting `--ink-muted` here moved `text-ink-muted` and left every
+       `text-muted-foreground` — which is most of the ledger — on the old cut,
+       measuring 4.24:1 on the plate while `--ink-muted` said 4.97. Same for
+       `--border`, which is what `border-rule` compiles to. */
+    --muted-foreground: var(--plate-ink-muted);
+    --border: var(--plate-rule);
+    --input: var(--plate-rule);
+    background-color: hsl(var(--plate));
+    box-shadow: var(--plate-elev);
     transition:
       background-color var(--t-interaction) var(--ease-interaction),
       box-shadow var(--t-interaction) var(--ease-interaction);
@@ -1113,26 +1225,29 @@
   .deck-head {
     transition: background-color var(--t-interaction) var(--ease-interaction);
   }
+  /* Hover is a wash in the INK, not in a ground token: on a plate that is
+     darker than the sheet in light and lighter than it in dark, a `--card`
+     wash moves the wrong way in one of the two themes. Ink over the plate
+     darkens a light one and lightens a dark one, which is "nearer" in both. */
   .deck-head:hover {
-    background-color: hsl(var(--card) / 0.55);
+    background-color: hsl(var(--ink) / 0.045);
   }
 
   .deck-body {
     display: none;
   }
 
-  /* The open record is lifted OUT of the tray, at `e3` — the top of the
-     elevation scale, because on this page it is the object everything else is
-     arranged around. `--background` is re-pointed with it, because the line's
-     knockout ring is drawn in the ground token and a ring in the page's ground
-     on a raised card is a visible halo around every node. */
+  /* The open record is the one lifted clear of the others, because on this
+     page it is the object everything else is arranged around. It is the same
+     plate — the ground does not change under a record when you open it, which
+     would read as a different KIND of thing — it is the elevation that moves.
+     In deck mode the checked record is also the square-on one, so this is what
+     marks the front of the pile. */
   .deck > #rec-0:checked ~ * [data-row="0"],
   .deck > #rec-1:checked ~ * [data-row="1"],
   .deck > #rec-2:checked ~ * [data-row="2"],
   .deck > #rec-3:checked ~ * [data-row="3"] {
-    --background: var(--card);
-    background-color: hsl(var(--card));
-    box-shadow: var(--elev-3);
+    box-shadow: var(--plate-elev-open);
   }
 
   .deck > #rec-0:checked ~ * [data-rec="0"],
@@ -1199,14 +1314,17 @@
       color var(--t-interaction) var(--ease-interaction);
   }
   .deck-tick:hover {
-    background-color: hsl(var(--well) / 0.55);
+    background-color: hsl(var(--plate) / 0.55);
   }
 
   .deck > #rec-0:checked ~ * [data-tick="0"],
   .deck > #rec-1:checked ~ * [data-tick="1"],
   .deck > #rec-2:checked ~ * [data-tick="2"],
   .deck > #rec-3:checked ~ * [data-tick="3"] {
-    background-color: hsl(var(--well));
+    --ink-muted: var(--plate-ink-muted);
+    --muted-foreground: var(--plate-ink-muted);
+    background-color: hsl(var(--plate));
+    box-shadow: var(--plate-elev);
   }
 
   .deck > #rec-0:checked ~ * [data-tick="0"] .deck-tick-note,
@@ -1224,7 +1342,7 @@
   .deck > #rec-1:checked ~ * [data-tick="1"] .deck-tick-node,
   .deck > #rec-2:checked ~ * [data-tick="2"] .deck-tick-node,
   .deck > #rec-3:checked ~ * [data-tick="3"] .deck-tick-node {
-    box-shadow: 0 0 0 3px hsl(var(--well));
+    box-shadow: 0 0 0 3px hsl(var(--plate));
   }
 }
 
@@ -1387,6 +1505,7 @@
                                                      runs, where --deck-y is
                                                      just the pile's slight lift)
        --deck-depth             how many cards deep the pile is drawn
+       --deck-scale             how much a card shrinks per step of depth
        --deck-persp/--deck-po   the camera */
   --deck-x: -9rem;
   --deck-out: calc(52vw + 24rem);
@@ -1395,6 +1514,7 @@
   --deck-tilt-x: 15deg;
   --deck-tilt-y: 0deg;
   --deck-depth: 3;
+  --deck-scale: 0.115;
   --deck-persp: 1900px;
   --deck-po: 50% 45%;
   --deck-w: 46rem;
@@ -1464,6 +1584,15 @@
   --deck-tilt-x: -13deg;
   --deck-tilt-y: 0deg;
   --deck-depth: 2;
+  /* 0.075, not 0.115 — and this is the PEEK's number, not a taste one. The
+     card behind is offset 92px and then shrinks about its own centre, so the
+     scale step eats half the shrink off the bottom of the sliver: at 0.115 a
+     464px card left 45px showing and a 544px one left 34px, which is the peek
+     getting smaller as the card gets bigger, backwards. At 0.075 the 544px
+     card is back to 45px. It is also the same argument the depth and the
+     perspective already make here: a column has centimetres to recede into,
+     so every step in it is shallower than the full-bleed runs'. */
+  --deck-scale: 0.075;
   --deck-persp: 1300px;
   --deck-po: 50% 22%;
 }
@@ -1581,7 +1710,7 @@
       transform:
         translateX(calc(var(--back) * var(--deck-x) + var(--fwd) * var(--deck-out)))
         translateY(calc(var(--back) * var(--deck-y) + var(--fwd) * var(--deck-out-y)))
-        scale(calc(1 - 0.115 * var(--back) + 0.06 * var(--fwd)))
+        scale(calc(1 - var(--deck-scale) * var(--back) + 0.06 * var(--fwd)))
         rotateX(calc(var(--back) * var(--deck-tilt-x)))
         rotateY(calc(var(--back) * var(--deck-tilt-y)));
       will-change: transform;
@@ -1603,11 +1732,17 @@
        THE PEEK IS THE POINT. Measured, not derived: `--deck-y` at 68px left
        21px of the second card showing, because the scale step and the 13° of
        rotateX each eat into it from the top. At 92px (5.75rem) it is 45px —
-       unmistakably a second object, at rest, before a pixel of scroll. That sliver is not decoration: it
-       is the only thing on a still first frame that says there is more here
-       and that scrolling will do something. If it ever disappears the deck has
-       defeated itself, so the tray's height is derived from it rather than
-       guessed:  stage = card + peek + a little air.
+       unmistakably a second object, at rest, before a pixel of scroll. That
+       sliver is not decoration: it is the only thing on a still first frame
+       that says there is more here and that scrolling will do something. If it
+       ever disappears the deck has defeated itself, so the stage's floor is
+       derived from it rather than guessed: stage = card + peek + a little air.
+
+       RE-MEASURED 2026-09-01, after the card grew from 464px to 544px to hold
+       its own open disclosure: the peek fell to 34px, because the scale step
+       eats a PROPORTION of the card and the card got bigger. `--deck-scale`
+       (0.075 in a column, 0.115 full-bleed) puts it back at 44px. The number
+       to hold is the peek, not the scale.
 
        AND NOTHING IS REVEALED. Both scenes below are radio-and-sibling tab
        sets in their degraded form — one panel open, the rest closed. In deck
@@ -1615,11 +1750,48 @@
        the deck only chooses which one is square-on. So this block OPENS the
        panels rather than hiding any, which is why it can be unlayered and win
        over the `display: none` in `@layer components` without a fight. */
+    /* ── THE CARD CONTAINS ITS OWN TALLEST STATE (2026-09-01) ────────────
+       THE DEFECT, in the owner's words: *"It seems shorter when I click the
+       'why is it hollow' button. The text spurs out of the box … It happens
+       for all of them."*
+
+       It did, and it was one declaration. `.deck-card` was `height:
+       min(var(--deck-h), 100%)` — a FIXED height — while the record inside it
+       has a `<details>` that adds 46–71px when it opens. Measured at 1280×900
+       before the fix, with the disclosure open:
+
+         record 0 (receipt)   content 510px in a 464px box  → 46px escaping
+         record 1 (campaign)  content 531px in a 464px box  → 67px escaping
+         record 2 (reply)     content 531px in a 464px box  → 67px escaping
+         record 3 (bounce)    content 458px in a 464px box  → fits
+
+       The text did not just overhang the card — `.deck-col` is `overflow:
+       clip`, so on the receding cards it was cut mid-sentence as well.
+
+       THE FIX IS STRUCTURAL, not a bigger number. The stage's single row is
+       `auto`, the cards STRETCH into it, and a grid `auto` track is sized to
+       the tallest item in it. So the deck is always as tall as its tallest
+       card in its tallest state, every frame is the same height, and a card
+       that grows takes the whole deck with it rather than spilling out of one.
+       Adding a record, or a longer explanation, cannot reintroduce this.
+
+       `--deck-h` is now a FLOOR (`min-height` on the card, and the stage's own
+       `min-height`), not a ceiling. It is set per section to the measured
+       tallest open state plus a little air, which is what keeps the deck from
+       resizing under the reader's thumb when a disclosure opens; if a narrower
+       column ever pushes past it the deck grows instead of clipping.
+
+       THE PEEK IS PAID FOR IN PADDING, not in surplus height. It used to come
+       from the gap between a short fixed-height card and a taller stage. A
+       card that fills the stage has no such gap, so the room the second card
+       shows through is reserved explicitly — and `overflow: clip` clips to the
+       PADDING box, so what sits in it is visible. Same 92px, same 45px sliver,
+       now independent of how tall the cards happen to be. */
     .deck-rig .deck-col {
       display: grid;
-      grid-template-rows: 1fr;
+      grid-template-rows: auto;
       grid-template-columns: minmax(0, 1fr);
-      align-items: start;
+      align-items: stretch;
       gap: 0;
       /* MIN-height plus `flex: 1`, not a fixed height. The floor is one card
          plus the peek, which is what the deck actually needs; the flex line is
@@ -1638,6 +1810,7 @@
          order. `.deck-col` only ever exists inside a `.deck-rig` anyway; the
          timeline it reads is declared there. */
       min-height: calc(var(--deck-h) + var(--deck-y) + 0.75rem);
+      padding-bottom: calc(var(--deck-y) + 0.75rem);
       flex: 1 1 auto;
       /* `clip`, not `hidden` — `hidden` would make this a scroll container and
          kill the `position: sticky` pin above it. */
@@ -1651,7 +1824,19 @@
 
     .deck-rig .deck-col > .deck-card {
       width: 100%;
-      height: var(--deck-h);
+      /* A FLOOR, never a ceiling — see the block comment above. */
+      min-height: var(--deck-h);
+      height: auto;
+    }
+
+    /* `the-line`'s three moments (`[data-side-panel]`) keep the raised card
+       they have always had: that section is a `.ground-ink` band, which
+       re-points `--card` for exactly this, so its cards are already a plane
+       above their ground. The hero's records are NOT — they sit on a plain
+       `.slab`, which paints itself in the very token they were using. They
+       take `--plate` instead, from `.deck-row` in `@layer components`, and
+       this rule must not reach them. */
+    .deck-rig .deck-col > .deck-card[data-side-panel] {
       /* The line's knockout ring is drawn in the ground token, so a card that
          does not re-point it draws a halo in the page's ground around every
          node. Every card here is a raised card, so every one re-points. */
