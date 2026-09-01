@@ -39,9 +39,11 @@ export function NavLinks({ links }: { links: readonly NavLink[] }) {
             aria-current={current ? "page" : undefined}
             className={cn(
               "inline-flex h-9 items-center rounded-full px-3.5 text-sm font-medium transition-colors duration-interaction ease-interaction",
+              // Inverted, not a lighter chip — see the note in the marketing
+              // navbar: `bg-card` on a `--card`-filled bar measured 1.00:1.
               current
-                ? "bg-card text-foreground shadow-e1"
-                : "text-ink-muted hover:bg-card/60 hover:text-foreground",
+                ? "bg-foreground text-background shadow-e1"
+                : "text-ink-muted hover:bg-foreground/10 hover:text-foreground",
             )}
           >
             {l.label}

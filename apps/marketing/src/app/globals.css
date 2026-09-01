@@ -963,102 +963,76 @@
        Right lever: leave the glass alone and cut the text for the surface it is
        on. These hold 4.5:1 against the WORST band at 70%, so the bar can stay
        glass. */
-    --ink-muted: 30 12% 28%;
-    --muted-foreground: 30 12% 28%;
+    --ink-muted: 30 12% 16%;
+    --muted-foreground: 30 12% 16%;
   }
 
-  /* ─── THE GLASS IS BRASS-TINTED, LIKE THE BETA STRIP ────────────────────
-     The owner: *"the closed beta [callout] is also translucent, but it has
-     this colour on the inside — it does this yellow tint of colour, which
-     makes it feel like glassmorphism… that iOS 26 button design. The nav bar
-     when translucent is kind of grey, but it should be the same colour choice
-     as [the] closed [beta]."*
+  /* Dark inverts the swing: this bar's ground LIGHTENS over the inverted
+     bands, so its label text goes lighter, not darker. Same rule, other
+     direction — 4.72:1 at the worst band.
 
-     Exactly right, and the cause is one token. The beta strip is
-     `bg-primary/10` over a blur — `--primary` is `--brass`, so its glass is
-     warm and you can see the tint sitting IN it. The island was
-     `hsl(var(--card) / 0.7)`: `--card` is the neutral paper token, so its
-     glass had no colour of its own and read as grey frost. Both were
-     translucent; only one looked like glass.
-
-     THREE LAYERS, AND EACH DOES A DIFFERENT JOB. Real glass is not one flat
-     wash — it has a tint, it has depth through it, and it has a lit edge where
-     the light catches:
-
-       1. the TINT, brass at 12% → 6% top-to-bottom. The falloff is what makes
-          it read as a curved solid rather than a coloured film: more of the
-          tint gathers at the top edge, the way it does in a thick pane.
-       2. the BASE, `--card` at 55%, purely for legibility. It is what stops
-          the section scrolling underneath from showing through as text-shaped
-          noise.
-       3. the SPECULAR EDGE, an inset white hairline along the top plus a warm
-          inner rim. This is the iOS-26 part: the highlight is what tells the
-          eye the surface has thickness and is catching light, and without it
-          any amount of blur still reads as flat frosted plastic.
-
-     Composited, the layers come to ~63% effective opacity — MORE transparent
-     than the 70% flat wash they replace, and warmer. The border matches the
-     beta strip's `border-primary/25` for the same reason the tint does: two
-     translucent bars stacked at the top of the same page should be made of the
-     same material. */
-  .nav-island[data-stuck="true"] {
-    background-color: transparent;
-    background-image:
-      linear-gradient(to bottom, hsl(var(--brass) / 0.12), hsl(var(--brass) / 0.06)),
-      linear-gradient(hsl(var(--card) / 0.55), hsl(var(--card) / 0.55));
-    backdrop-filter: blur(20px) saturate(1.8);
-    -webkit-backdrop-filter: blur(20px) saturate(1.8);
-    border-color: hsl(var(--brass) / 0.25);
-    box-shadow:
-      inset 0 1px 0 0 hsl(46 90% 100% / 0.55),
-      inset 0 0 0 1px hsl(var(--brass) / 0.14),
-      var(--elev-2);
-  }
-
-  /* Dark wants a stronger specular — a 55% white hairline vanishes on a
-     near-black bar, and the lit edge is the whole reason the surface reads as
-     glass rather than as a dark panel. The tint carries further here too,
-     because brass against near-black is a bigger step than brass against
-     paper. */
-  .dark .nav-island[data-stuck="true"] {
-    /* THE BASE IS DENSER IN DARK — 55% → 74% — and the reason is the inverted
-       bands. `.dark .ground-ink` flips to a 97% LIGHT band, four of them on the
-       home page, and brass sits at mid-lightness: over a light backdrop the
-       tint LIFTS the glass instead of deepening it, straight into the range
-       where near-white label text dies. Measured at 55%: the wordmark and
-       `Sign in` came out at **3.05:1**, and only while the bar happened to be
-       over one of those bands.
-
-       Light theme has no equivalent problem — there the inverted band is
-       near-black, the tint deepens the glass, and dark text only gains. So the
-       two halves genuinely disagree, which is §11 working as intended rather
-       than an inconsistency to tidy away.
-
-       At 74% with a 15% tint the worst case is 5.21:1, and 26% of the section
-       plus the blur still come through. */
-    background-image:
-      linear-gradient(to bottom, hsl(var(--brass) / 0.15), hsl(var(--brass) / 0.07)),
-      linear-gradient(hsl(var(--card) / 0.74), hsl(var(--card) / 0.74));
-    box-shadow:
-      inset 0 1px 0 0 hsl(46 90% 90% / 0.16),
-      inset 0 0 0 1px hsl(var(--brass) / 0.18),
-      var(--elev-2);
-  }
-
-  /* Dark inverts the swing: this bar's ground LIGHTENS over the inverted bands,
-     so its light text needs to go lighter, not darker. Same rule, other
-     direction. */
+     KEPT DIRECTLY BENEATH THE RULE IT MIRRORS, deliberately. It used to live
+     further down, next to the stuck-state block, and a rewrite of that block
+     deleted it along with everything else in the range. Nothing failed: dark
+     simply inherited the LIGHT cut, so `Developers` rendered near-black on a
+     near-black bar at **1.14:1** and the page still built, typechecked and
+     passed the audit. A paired rule belongs next to its pair. */
   .dark .nav-island {
-    --ink-muted: 34 16% 85%;
-    --muted-foreground: 34 16% 85%;
+    --ink-muted: 34 16% 90%;
+    --muted-foreground: 34 16% 90%;
+  }
+
+  /* ─── THE GLASS: COLOUR FROM THE BASE, NOT FROM AN OUTLINE ─────────────
+     The owner, on the brass-tinted version: *"Remove the yellow outline. Let
+     the colour come from the translucency of the base colour, not from you
+     adding a yellow outline. Use background colour at 50, 70, 90% to get
+     translucency. Don't use grey for it, and don't use white for it either,
+     because it makes it look grey when you reduce the opacity."*
+
+     The diagnosis was exactly right and it is measurable. `--card` is
+     `44 46% 99%` — 99% lightness, which is white for all practical purposes,
+     and fading white gives you grey no matter what its nominal hue says. That
+     is why the bar read as grey frost, and why the previous pass reached for a
+     brass overlay to put the warmth back: it was compensating for the wrong
+     base instead of changing it.
+
+     `--background` is `30 30% 96%` — the page's own paper, four points darker
+     and genuinely warm. Faded, it stays warm, because there is colour in it to
+     begin with. So the tint layers and the brass rim are gone and the fill is
+     one honest colour at one alpha. The border is `--rule`, which is not grey
+     either — it is a 32° warm hairline; it just is not YELLOW.
+
+     ALPHA IS PER THEME AND MEASURED, and both are lower than what they
+     replace (60% light, 78% dark):
+
+       light 55%  — link cut 4.80:1, wordmark 5.63:1
+       dark  65%  — link cut 4.72:1, wordmark 5.00:1
+
+     WHY NOT THE BETA STRIP'S 10%, WHICH IS WHAT WAS ASKED FOR. Because that
+     strip does not survive its own transparency: measured over the ink band,
+     its "7 places left in this round" and "Ask for an invite" come out at
+     **1.22:1** — invisible text, two of its fifteen checks. It looks right only
+     because it is usually seen against the top of a light page. Copying its
+     alpha would copy the defect into a bar that sits over five different
+     grounds all day. These are as low as the numbers allow. */
+  .nav-island[data-stuck="true"] {
+    background-color: hsl(var(--background) / 0.55);
+    backdrop-filter: blur(22px) saturate(1.9);
+    -webkit-backdrop-filter: blur(22px) saturate(1.9);
+    border-color: hsl(var(--rule) / 0.7);
+    box-shadow: var(--elev-2);
+  }
+
+  .dark .nav-island[data-stuck="true"] {
+    background-color: hsl(var(--background) / 0.65);
   }
 
   /* Browsers without `backdrop-filter` get the opaque ground rather than a
      see-through bar with unreadable text over it. */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .nav-island[data-stuck="true"] {
-      background-image: none;
-      background-color: hsl(var(--card));
+    .nav-island[data-stuck="true"],
+    .dark .nav-island[data-stuck="true"] {
+      background-color: hsl(var(--background));
     }
   }
 

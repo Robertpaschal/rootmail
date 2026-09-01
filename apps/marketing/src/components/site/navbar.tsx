@@ -108,9 +108,24 @@ export function Navbar() {
                   aria-current={current ? "page" : undefined}
                   className={cn(
                     "inline-flex h-9 items-center rounded-full px-3.5 text-sm font-medium transition-colors duration-interaction ease-interaction",
+                  // THE CURRENT PAGE IS THE INVERTED CHIP, and the reason is
+                  // a measurement rather than a preference. The owner: *"when
+                  // I'm in Pricing, the contrast is not allowing me to see
+                  // that I've clicked it."* The chip was `bg-card` on a bar
+                  // filled from `--card`, so against the glass it measured
+                  // **1.00:1 in dark and 1.04:1 in light** — the same colour,
+                  // exactly as it looked. Inverting it measures 5.63 light and
+                  // 5.00 dark against the same bar, and it cannot wash out on
+                  // any band because it is opaque.
+                  //
+                  // It reads as a selected segment rather than as a button:
+                  // ink, not brass. Brass in this system means "you can act on
+                  // this", and it is already spent on `Start sending` two
+                  // items to the right — a second brass object in the same bar
+                  // would make the first one mean less.
                     current
-                      ? "bg-card text-foreground shadow-e1"
-                      : "text-ink-muted hover:bg-card/60 hover:text-foreground",
+                      ? "bg-foreground text-background shadow-e1"
+                      : "text-ink-muted hover:bg-foreground/10 hover:text-foreground",
                   )}
                 >
                   {l.label}
@@ -169,8 +184,8 @@ export function Navbar() {
                   className={cn(
                     "inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors duration-interaction ease-interaction",
                     current
-                      ? "bg-card text-foreground shadow-e1"
-                      : "text-ink-muted hover:bg-well hover:text-foreground",
+                      ? "bg-foreground text-background shadow-e1"
+                      : "text-ink-muted hover:bg-foreground/10 hover:text-foreground",
                   )}
                 >
                   {l.label}
