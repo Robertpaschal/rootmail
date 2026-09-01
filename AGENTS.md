@@ -64,7 +64,8 @@ the industry's founding lie, in our own product.
 
 ## Where things stand (2026-09-01)
 
-- Branch `main`, HEAD **`d11ac66`**. CI and `Build & push images` both green on it.
+- Branch `main`, HEAD **`2083b36`**. `Build & push images` green; all four web
+  apps deployed from it.
 - **Production runs this code.** `rootmail.io` and `developers.rootmail.io`
   return 200; `app.rootmail.io` and `internal.rootmail.io` return 307 to their
   login, which is correct for an unauthenticated request.
@@ -90,12 +91,31 @@ looked up an element by an id that element did not have, so one scene never
 advanced, silently; and the developer site's sub-tenancy tabs governed one of
 four panels, leaving the code sample on a different customer's domain.
 
+### The nav is an island now (2026-09-01)
+Both public sites' headers are inset plates aligned to the section edges below
+them (`.nav-island` / `.nav-group` in each app's `globals.css`), keeping the
+frosted glass at a **measured** 90% opacity. Two constraints if you touch it:
+
+1. **The marketing header's total height must stay 4rem.** Three scroll rigs pin
+   with `calc(var(--beta-notice-h, 0px) + 4rem)`. The island is 3.25rem with
+   0.375rem of air above and below. Break it and the scroll scenes start their
+   travel in the wrong place, silently, only on long pages.
+2. **A sticky translucent bar's contrast must be checked against every band it
+   floats over, not against the page default.** Its ground moves as you scroll.
+   Composite label → group glass → island glass → band; 82% failed AA on the nav
+   links in light theme only, and only while over an inverted band.
+
 ### Known open items
 1. ~12 lower-traffic dashboard routes still generic tables (`/analytics`,
    `/sequences` are the best candidates). **Restyle only — see rule 1.**
 2. Admin's authed pages (`/our-workspace`, `/orgs/[id]`, `/staff`) are built and
    typechecked but were never walked in a browser.
 3. `/changelog` is the densest page on the site (337 words per 1,000px).
+4. `DocShell` (`apps/developers/src/components/site/doc-shell.tsx`) is imported
+   by nothing — dead since the docs moved to `app/docs/layout.tsx`.
+5. The developer site still has the STORY problem the homepage was fixed for in
+   `f6c3ca7`/`202b438`: its visuals are current, its argument was never reordered
+   around what a stranger asks first.
 
 ---
 
