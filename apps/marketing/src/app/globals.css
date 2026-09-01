@@ -159,6 +159,30 @@
     --muted-foreground: var(--ink-muted);
     --secondary: 27 24% 18%;
     --secondary-foreground: var(--ink);
+    /* THE PLATE, RESTATED — §11.2, and this one is a landmine cleared rather
+       than a bug fixed. Nothing in an ink band uses `.deck-row` TODAY. The
+       reason it is here is that I put one in, for about ten minutes, and got a
+       near-black card painted on a light band with no error anywhere: this
+       block re-points `--background`, `--card` and `--well` and said nothing
+       about `--plate`, so a plate inside the band kept the cut tuned for the
+       page outside it. Typecheck cannot see it and the audit does not scan for
+       it; the only signal is looking at the page.
+
+       Values: the band's ground is 12%, so the plate RISES to 21% — below ~1.3
+       there is no room left going darker (WCAG's +0.05 flare term caps
+       pure-black-on-12% at about 1.3), so the step has to be made by lifting,
+       which is the same reason the dark theme's plate rises. 1.38:1, matching
+       the plate step everywhere else. Its text cuts rise with it. */
+    --plate: 27 30% 21%;
+    --plate-rule: 30 20% 31%;
+    --plate-ink-muted: 34 16% 72%;
+    --plate-line-dim: 30 14% 42%;
+    /* The plate's own elevation has to flip with it. `--plate-elev` on the page
+       outside is a LIGHT-page recipe — an inset dark shade plus a white top
+       hairline — and it is invisible on a 12% ground. This is the dark recipe. */
+    --plate-elev: inset 0 1px 0 0 hsl(40 60% 90% / 0.09), 0 0 0 1px hsl(var(--plate-rule));
+    --plate-elev-open: inset 0 1px 0 0 hsl(40 60% 90% / 0.16),
+      0 24px 52px -24px hsl(0 0% 0% / 0.9), 0 0 0 1px hsl(var(--plate-rule));
     --brass-tint: 34 42% 21%;
     --brass-rule: 36 46% 42%;
     --border: var(--rule);
@@ -189,16 +213,51 @@
      invisible on a near-white surface. */
   .dark .ground-ink {
     --background: 42 40% 97%;
-    --well: 30 36% 88%;
+    /* THE WELL IS DEEPER HERE THAN ON THE LIGHT PAGE, ON PURPOSE — 88% → 80%.
+       `the-line`'s three records are a `bg-card` plane sitting INSIDE this
+       tray, so what the eye compares them against is the well, not the band.
+       At 88% that step measured **1.27:1** — the owner has twice rejected a
+       step of about that size with the words "it seems to be the same colour".
+       At 80% the record stands off its tray at 1.53 and the tray sits in the
+       band at 1.48, so the recess reads as a recess.
+
+       Measured against the ink band's own two steps (band 12% → well 8% →
+       card 17%), which were already right; this half had simply never been
+       checked with something in it. */
+    --well: 30 36% 80%;
     --foreground: 28 32% 11%;
     --ink: 28 32% 11%;
-    --ink-muted: 30 12% 38%;
+    /* A PLANE CHANGE DRAGS ITS TEXT CUTS WITH IT — the rule `:root` already
+       records for the plate, applied here for the well. Deepening the tray to
+       80% (above) dropped `text-ink-muted` sitting DIRECTLY on it to 3.87:1,
+       an AA failure, and the text on a well is not decoration: it is the
+       figcaption that prints the message id and the "one email, at three
+       moments" line, plus the caption under the features figure. At 34% it is
+       4.53:1 on the well, 6.70 on the band and 6.96 on a card. */
+    --ink-muted: 30 12% 34%;
     --rule: 32 24% 86%;
     --line-dim: 34 16% 76%;
     --paper-raised: 44 46% 99%;
     --card: 44 46% 99%;
     --muted: 32 32% 92%;
     --secondary: 32 32% 92%;
+    /* THE PLATE, AGAIN — and this half is the one that actually bit.
+       `.dark .ground-ink` INVERTS: on a dark page this band is the LIGHT one.
+       So every plate token has to come back to its light cut, or it inherits
+       the near-black plate declared in `.ground-ink` above and paints a dark
+       card on a 97% ground — which is exactly what I watched it do. These are
+       the root light values verbatim, and that is the point: inside this band
+       a plate should look like a plate on the light page, because that is
+       what this band is. */
+    --plate: 30 38% 84%;
+    --plate-rule: 30 26% 76%;
+    --plate-ink-muted: 30 14% 34%;
+    --plate-line-dim: 32 16% 66%;
+    --plate-elev: inset 0 2px 6px -3px hsl(26 46% 14% / 0.28),
+      inset 0 -1px 0 0 hsl(46 70% 100% / 0.4), 0 0 0 1px hsl(var(--plate-rule));
+    --plate-elev-open: inset 0 1px 0 0 hsl(46 80% 100% / 0.6),
+      0 26px 54px -28px hsl(26 40% 20% / 0.34),
+      0 0 0 1px hsl(var(--plate-rule));
     --brass-tint: 40 76% 91%;
     --brass-rule: 38 62% 72%;
     --primary-foreground: 44 46% 99%;
@@ -514,14 +573,23 @@
   body .ground-ink .text-stopped {
     color: hsl(2 82% 70%);
   }
+  /* These three are a hair darker than the light PAGE's cuts above, and the
+     extra step is not decoration. This band is light-on-dark-page, and its
+     well was deepened to 80% so the records inside it stop reading as the
+     same colour as their tray — which pushed all three signal cuts under AA
+     for the small text that sits DIRECTLY on that well: witnessed 4.28,
+     acted 4.24, stopped 4.47. The failing one on this page today is the
+     `stopped` caption in the reputation figure, but the other two are one
+     edit away from the same fault, so all three move together. Now 4.52,
+     4.72 and 4.64 on the well, and 6.7–7.1 on the band itself. */
   .dark body .ground-ink .text-witnessed {
-    color: hsl(152 58% 26%);
+    color: hsl(152 58% 25%);
   }
   .dark body .ground-ink .text-acted {
-    color: hsl(35 96% 27%);
+    color: hsl(35 96% 25%);
   }
   .dark body .ground-ink .text-stopped {
-    color: hsl(2 76% 39%);
+    color: hsl(2 76% 38%);
   }
   /* A ruled row. Records are flat: separation is a hairline and a ground
      shift, never elevation. 62 bordered cards is what a page builds when it
