@@ -136,6 +136,11 @@
   /* Section-scale curve. A slab needs more than a card or it reads as a
      big card rather than as a sheet. */
   --radius-slab: 2rem;
+  /* Bar-scale curve, for the nav island. It steps DOWN from the slab it
+     floats above rather than matching it: at the slab's 2rem, a 3.25rem-tall
+     bar's corners meet in the middle and it becomes a capsule — which is a
+     different object, and a more app-like one, than the sheets below it. */
+  --radius-nav: 1.25rem;
 
   /* ---- Elevation, LIGHT: three sources, not one -----------------------
      The dark theme's depth is one glow. The light theme's is a lit room, and

@@ -58,9 +58,19 @@ export async function DevNavbar() {
   // returning devs get a straight shot to their console instead of a Sign-in wall.
   const signedIn = (await cookies()).get("rm_signed_in")?.value === "1";
   return (
-    <header className="sticky top-0 z-40 border-b border-rule bg-background/85 backdrop-blur">
-      <div className="container flex h-16 items-center justify-between gap-4">
-        <Link href="/" aria-label="rootmail developers" className="flex items-center gap-2">
+    /* THE ISLAND — the same move as the marketing nav, for the same measured
+       reason: this site's `<main>` is also a stack of inset rounded slabs and
+       this header was also full-bleed and square, so it was the one element
+       here not built out of the page's own material. Nothing about WHAT is in
+       the nav changes. See `.nav-island` in `globals.css`.
+
+       No `--beta-notice-h` offset and no 4rem constant on this site: nothing
+       here pins a scroll rig to the header height, so the island simply floats
+       at the top with air around it. */
+    <header className="sticky top-0 z-40 w-full">
+      <div className="px-3 py-1.5 sm:px-5">
+        <div className="nav-island flex h-[3.25rem] items-center justify-between gap-3 pl-3 pr-2 sm:pl-4 sm:pr-3">
+        <Link href="/" aria-label="rootmail developers" className="flex shrink-0 items-center gap-2">
           <Logo />
           <span className="hidden font-mono text-[12.5px] text-ink-muted sm:inline" data-fact>
             developers
@@ -68,13 +78,17 @@ export async function DevNavbar() {
         </Link>
         {/* `sm:flex`, not `lg:flex`. Two links fit next to the mark and the
             buttons at 640px; the old five did not, which is why they used to
-            vanish entirely on every phone and tablet. */}
-        <nav className="hidden items-center gap-1 sm:flex">
+            vanish entirely on every phone and tablet.
+
+            In a recess, like the marketing nav: one lift per object, and what
+            is inside the well takes you somewhere while what is outside it
+            does something. */}
+        <nav className="nav-group hidden items-center gap-0.5 p-1 sm:flex">
           {links.map((l) => (
             <Link
               key={l.href}
               href={l.href}
-              className="inline-flex min-h-11 items-center rounded px-3 text-sm font-medium text-ink-muted transition-colors duration-interaction ease-interaction hover:text-foreground"
+              className="inline-flex h-9 items-center rounded-full px-3.5 text-sm font-medium text-ink-muted transition-colors duration-interaction ease-interaction hover:bg-card/70 hover:text-foreground"
             >
               {l.label}
             </Link>
@@ -96,6 +110,7 @@ export async function DevNavbar() {
               </Link>
             </>
           )}
+        </div>
         </div>
       </div>
     </header>

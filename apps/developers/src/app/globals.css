@@ -457,6 +457,93 @@
     box-shadow: var(--elev-2);
   }
 
+  /* ─── THE NAV ISLAND ───────────────────────────────────────────────────
+     THE OWNER, 2026-09-01: *"the navbar feels disconnected from the rest of
+     the page. The rest of the page I've been wild on, but the navbar is kind
+     of doing its own thing. Can we have that kind of Wispr Flow navbar?"* —
+     and then, on the first draft of this: *"the translucency of the navbar is
+     actually okay… I feel like there's something we can learn from Wispr
+     Flow, but I kind of like the translucency."*
+
+     Both notes are right, and together they say exactly what was wrong. The
+     glass was never the problem. On a 1280px viewport this page is a stack of
+     plates: every `.slab` is x=20, w=1225, radius 32px, with a 1px rule and a
+     real shadow. The header was x=0, w=1265, radius 0, no shadow, one hairline
+     along the bottom. **Full-bleed and square, on a page of inset rounded
+     plates** — it was the only element on the site not shaped like the site.
+
+     Measured on the reference (wisprflow.ai, same viewport): their bar is
+     x=177 w=912 — INSET, not full-bleed — floating 16px down from the top on
+     a rounded ground, and it does not change on scroll. What transfers is not
+     their pixels or their opacity; it is that the bar is POSITIONED IN the
+     page rather than laid across it.
+
+     So the geometry changes and the material stays. The connective move is the
+     EDGES: `px-3 sm:px-5` on the wrapper is the same padding `<main>` gives
+     the slabs, so the island's left and right edges land exactly on the
+     section edges below it. That alignment is the whole trick.
+
+     KEEPING THE GLASS EARNS SOMETHING HERE THAT IT COULD NOT BEFORE. A
+     full-bleed frosted bar just tints the top of the screen. An island floats
+     with the page ground visible in the gutters on both sides of it, and the
+     band scrolling underneath shows THROUGH it — so the bar takes a little of
+     each section's colour as you travel down the page. It is tied to the page
+     by the thing that used to make it look detached.
+
+     OPACITY IS 90%, AND THE NUMBER IS MEASURED RATHER THAN CHOSEN. A sticky
+     bar over a page of five differently-grounded bands has a ground that MOVES
+     while you scroll, so its text contrast has to be checked against the worst
+     band, not against the page default. Composited properly — label over the
+     group's glass over the island's glass over the band — the nav links land
+     at:
+
+       65% (what shipped before)   unstable; ground swings >30 points of L
+       82%   4.39:1   ← FAILS AA, light theme, island over the ink band
+       86%   4.56:1
+       90%   4.73:1   ← here
+       96%   5.00:1   diminishing, and it stops looking like glass
+
+     The failing case was light theme only, on `Pricing` and `Developers`,
+     while the island happened to be over an inverted band — which is to say
+     it appeared and disappeared as you scrolled. At 90% every cut in the bar
+     clears AA over every band in both themes, and 10% of the section plus the
+     blur and the saturate still come through.
+
+     Radius is `--radius-nav` (1.25rem), not the slab's 32px, for the reason
+     nested radii always step down: at 32px on a 52px-tall bar the corners
+     would meet and it would be a capsule — a different, more app-like object
+     than the plates it sits above. */
+  .nav-island {
+    border-radius: var(--radius-nav);
+    background: hsl(var(--card) / 0.9);
+    backdrop-filter: blur(14px) saturate(1.4);
+    -webkit-backdrop-filter: blur(14px) saturate(1.4);
+    border: 1px solid hsl(var(--rule) / 0.7);
+    box-shadow: var(--elev-2);
+  }
+
+  /* Browsers without `backdrop-filter` get the opaque ground instead of a
+     see-through bar with unreadable text over it. */
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .nav-island {
+      background: hsl(var(--card));
+    }
+  }
+
+  /* The links, grouped into a recess. One lift per object: the island is the
+     raised plane, so the group inside it is pressed IN rather than raised
+     again — the same material rule the persona cards follow, where the icon
+     box is a well cut into the card rather than a second card on top of it.
+     It also separates navigation from action without needing a divider: what
+     sits in the recess takes you somewhere, what sits outside it does
+     something. Kept translucent so the island stays one piece of glass rather
+     than glass with an opaque chip set into it. */
+  .nav-group {
+    border-radius: 9999px;
+    background: hsl(var(--well) / 0.55);
+    box-shadow: var(--elev-well);
+  }
+
   /* A hairline of light along the top edge — the "lit from above" read that an
      inset highlight gives a card, at section scale. Decoration, so it is a
      pseudo-element and therefore out of the accessibility tree by
