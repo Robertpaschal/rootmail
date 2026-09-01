@@ -50,7 +50,7 @@ export function AwsEmailPreview() {
               shape without pretending to be clickable. */}
           <p className="break-all font-mono text-[12px] text-primary/70">
             https://email-verification.us-east-1.amazonaws.com/?Context=…&amp;Identity.IdentityName=
-            <span className="text-foreground">you@yourcompany.com</span>&amp;X-Amz-Signature=…
+            <span className="text-foreground">you@yourbusiness.com</span>&amp;X-Amz-Signature=…
           </p>
           <p>This link expires 24 hours after your original verification request.</p>
         </div>

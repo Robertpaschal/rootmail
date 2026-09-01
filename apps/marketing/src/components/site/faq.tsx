@@ -50,7 +50,7 @@ const faqs = [
   },
   {
     q: "Do I need my own domain?",
-    a: "You can start sending right away while you get set up. To send from your own address (you@yourcompany.com), you add a few DNS records we generate for you — copy, paste into your domain provider, and we verify them for you. The dashboard walks you through it and tells you the moment everything checks out. You never click 'verify' twice: we do the waiting.",
+    a: "You can start sending right away while you get set up. To send from your own address (you@yourbusiness.com), you add a few DNS records we generate for you — copy, paste into your domain provider, and we verify them for you. The dashboard walks you through it and tells you the moment everything checks out. You never click 'verify' twice: we do the waiting.",
   },
   {
     q: "Is my data safe?",
