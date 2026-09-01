@@ -43,10 +43,16 @@ export function BetaNotice() {
   if (!closed) return null;
 
   return (
-    <div className="sticky top-0 z-[60] border-b border-primary/25 bg-primary/10 backdrop-blur supports-[backdrop-filter]:bg-primary/10">
+    <div className="beta-strip sticky top-0 z-[60] backdrop-blur">
       <style>{":root{--beta-notice-h:37px}"}</style>
       <div className="container flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2 text-center text-sm">
-        <span className="rounded bg-secondary px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+        {/* `text-brass-text`, not `text-primary` — the same correction the
+            marketing strip already carries, which this copy never got. The
+            brass FILL is the colour of things you press; as WORDS it measured
+            2.00:1 here. `--brass-text` is the darker cut that exists for
+            exactly this, and the badge sits on opaque `--secondary` so it
+            never composites against the page scrolling underneath. */}
+        <span className="rounded bg-secondary px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-brass-text">
           Closed beta
         </span>
         <span className="text-muted-foreground">
@@ -54,9 +60,15 @@ export function BetaNotice() {
           {cap !== null ? ` and every account is capped at ${cap} sends a day` : ""} while we finish
           it.
         </span>
+        {/* `text-foreground`, not brass in any cut. This one sits DIRECTLY on
+            the strip's glass with the page scrolling under it, so its ground
+            moves: `text-primary` measured **1.17:1** over the inverted band,
+            and even `--brass-text` only reaches 2.87 there. Ink holds at 4.67.
+            The underline is what marks it as a link, which is what the
+            marketing strip does too. */}
         <a
           href={`${MARKETING_URL}/beta`}
-          className="font-medium text-primary underline-offset-2 hover:underline"
+          className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-4"
         >
           Ask for an invite
         </a>

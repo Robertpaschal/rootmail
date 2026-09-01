@@ -526,6 +526,57 @@
      everywhere. (The card decks in this file DO use `view()`, and that is a
      different trade: there the fallback is a static card that still reads
      correctly, so Chrome-only enhancement is free.) */
+  /* ─── THE BETA STRIP ───────────────────────────────────────────────────
+     Found while measuring the nav against it, and fixed on the owner's
+     instruction once reported. The strip was `bg-primary/10` — brass at TEN
+     PERCENT — and it is `sticky top-0`, so the whole page scrolls underneath
+     it. Over the inverted band that composites to near-black, and its own dark
+     text went with it: `7 places left in this round` and `Ask for an invite`
+     measured **1.22:1**. Invisible, on the one strip every visitor sees on
+     every page, and only during the part of the scroll where a dark section
+     happened to be behind it.
+
+     It looked fine because it is normally photographed at the top of a light
+     page, which is the only place its ground is what it was designed against.
+
+     THE FIX IS THE SAME SHAPE AS THE NAV'S, and deliberately so — this is now
+     the house answer for any sticky translucent surface. Two parts:
+
+       1. FILL FROM A SURFACE TOKEN, NOT A FILL TOKEN. `--brass` is the colour
+          of things you press; at 10% it has no covering power and the strip
+          was really just a tinted window. `--brass-tint` is the token that
+          already exists for brass AS A SURFACE — a pale warm yellow in light,
+          a deep warm brown in dark — so the strip keeps the yellow character
+          the owner likes and gains a ground that stays put.
+
+       2. ITS OWN TEXT CUTS. Even at this alpha the ground still moves a little,
+          so `--muted-foreground` is re-cut for this surface rather than
+          inherited from the page. Same rule as `.nav-island`.
+
+     Alpha is 0.72: 28% of the section still comes through, and every cut on it
+     clears AA against every band in both themes. The badge is unaffected — it
+     sits on opaque `--secondary` and never composited against anything. */
+  .beta-strip {
+    background-color: hsl(var(--brass-tint) / 0.72);
+    border-bottom: 1px solid hsl(var(--brass-rule) / 0.45);
+    --ink-muted: 30 14% 24%;
+    --muted-foreground: 30 14% 24%;
+  }
+
+  /* Dark's cut is lighter than the page's for the usual reason: over the
+     inverted bands this strip's ground LIGHTENS, and 82% measured 3.92:1
+     there. 90% holds at 4.73 without spending any of the transparency. */
+  .dark .beta-strip {
+    --ink-muted: 36 20% 90%;
+    --muted-foreground: 36 20% 90%;
+  }
+
+  @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+    .beta-strip {
+      background-color: hsl(var(--brass-tint));
+    }
+  }
+
   .nav-island {
     border-radius: var(--radius-nav);
     /* `--nav-rest` is set at runtime to whatever is actually painted beneath the

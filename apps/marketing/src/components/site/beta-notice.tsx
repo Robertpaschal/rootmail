@@ -56,7 +56,7 @@ export function BetaNotice() {
   const full = seats !== null && seats.total > 0 && seats.left < 1;
 
   return (
-    <div className="sticky top-0 z-[60] border-b border-primary/25 bg-primary/10 backdrop-blur supports-[backdrop-filter]:bg-primary/10">
+    <div className="beta-strip sticky top-0 z-[60] backdrop-blur">
       {/* The nav sticks BELOW this strip rather than under it. Declaring the
           height here means an open beta — where nothing renders — leaves the
           nav flush at the top, with no constant to remember to remove. */}
