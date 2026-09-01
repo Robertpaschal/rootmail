@@ -314,6 +314,22 @@ Gotchas learned building it:
   shadows, invisible on near-black, so `shadow-e*` did nothing in that app.
   **When you add a token to the `.dark` half of `packages/design/tokens.css`,
   restate it in `apps/admin/src/app/globals.css` too.**
+- **A ground override must restate every SUB-surface too, and their text cuts.**
+  §11.2 says a band that re-points `--background` must restate what depends on
+  it. The half that keeps getting missed is that this reaches *below* the card:
+  `.ground-ink` re-points `--background`, `--card` and `--well` but said nothing
+  about `--plate`, so a plate dropped into an inverted band silently kept the cut
+  tuned for the page outside it — and because `.dark .ground-ink` INVERTS (on a
+  dark page that band is the light one), the wrong cut is a near-black card on a
+  97% ground. Then: **moving a plane moves the AA maths for everything sitting on
+  it.** Deepening that band's well 88% → 80% so its records stopped reading as
+  the same colour as their tray pushed `text-ink-muted` on the well to 3.87:1 and
+  all three signal cuts under 4.5 — the figcaption printing the message id, in an
+  inverted band, in one theme only. Nothing type-checks this and `design-audit`
+  does not scan for it; the only way to know is to open the page in **both**
+  themes and measure computed colour against the element actually painted behind
+  it (walk up for the first non-transparent ancestor — comparing against the
+  `<section>` gives a number that is not what anyone sees).
 - **admin has no light mode, on purpose.** Its stated reason to exist is that
   staff can tell at a glance they are not in a customer's dashboard, and its old
   light ground was the same cold grey the dashboard used — so in light mode the

@@ -62,12 +62,12 @@ the industry's founding lie, in our own product.
 
 ---
 
-## Where things stand (2026-08-31)
+## Where things stand (2026-09-01)
 
-- Branch `main`, HEAD **`35afa58`** plus this doc commit.
-- **Production runs this code** on all five services. All four public surfaces
-  return 200: `rootmail.io`, `app.rootmail.io`, `developers.rootmail.io`,
-  `internal.rootmail.io`. API `/health` 200, 0 restarts.
+- Branch `main`, HEAD **`d11ac66`**. CI and `Build & push images` both green on it.
+- **Production runs this code.** `rootmail.io` and `developers.rootmail.io`
+  return 200; `app.rootmail.io` and `internal.rootmail.io` return 307 to their
+  login, which is correct for an unauthenticated request.
 - Gates green: `pnpm typecheck` 13/13 · `pnpm test` 4/4 suites (30 API incl.
   tenant isolation, 27 db) · `pnpm build` 6/6 · `design-audit` exits 0.
 - `apps/worker` is intentionally **not** on this SHA — no worker code changed, and
@@ -106,6 +106,12 @@ pnpm infra:up                            # Docker Postgres :5435 + Redis :6380
 pnpm typecheck && pnpm test && pnpm build
 pnpm exec tsx scripts/design-audit.ts    # must exit 0
 ```
+
+**The audit does not measure contrast.** It scans source text, so it cannot see
+what a token computes to once a band has re-pointed it — and that is where this
+codebase's design bugs actually live (see `d11ac66`, `fb0137d`). If you touch a
+ground, a well or a card token, open the page in both themes and measure. There
+is no substitute and no rule that will catch it for you.
 
 `scripts/design-audit.ts` scans all four apps for twelve rules and exits non-zero
 on a blocking violation. Two of them — `inferred-as-witnessed` and
