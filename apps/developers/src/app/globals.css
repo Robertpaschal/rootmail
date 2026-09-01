@@ -490,43 +490,97 @@
      each section's colour as you travel down the page. It is tied to the page
      by the thing that used to make it look detached.
 
-     OPACITY IS 90%, AND THE NUMBER IS MEASURED RATHER THAN CHOSEN. A sticky
-     bar over a page of five differently-grounded bands has a ground that MOVES
-     while you scroll, so its text contrast has to be checked against the worst
-     band, not against the page default. Composited properly — label over the
-     group's glass over the island's glass over the band — the nav links land
-     at:
-
-       65% (what shipped before)   unstable; ground swings >30 points of L
-       82%   4.39:1   ← FAILS AA, light theme, island over the ink band
-       86%   4.56:1
-       90%   4.73:1   ← here
-       96%   5.00:1   diminishing, and it stops looking like glass
-
-     The failing case was light theme only, on `Pricing` and `Developers`,
-     while the island happened to be over an inverted band — which is to say
-     it appeared and disappeared as you scrolled. At 90% every cut in the bar
-     clears AA over every band in both themes, and 10% of the section plus the
-     blur and the saturate still come through.
+     OPACITY IS 70% AND THE GLASS IS THE POINT — see the note on the text cuts
+     below for why it is not higher. Blur is 20px so the bar reads as frosted
+     rather than merely faded: at this alpha nearly a third of the section
+     below shows through, which is what ties the bar to the page.
 
      Radius is `--radius-nav` (1.25rem), not the slab's 32px, for the reason
      nested radii always step down: at 32px on a 52px-tall bar the corners
      would meet and it would be a capsule — a different, more app-like object
      than the plates it sits above. */
+  /* ─── THE BAR SETTLES INTO THE PAGE AT REST, AND BECOMES GLASS ONCE IT FLOATS ──
+     The owner: *"it should feel like glass. When it's not scrolling it can be the
+     corresponding colour as the topmost section beneath it, and when scrolling,
+     glassmorphism when it fixes."*
+
+     That resolves a tension the two earlier passes were stuck between. At the top
+     of a page the bar is not floating over anything — there is nothing behind it
+     to see through, so frosting it is a texture with no cause, and an object that
+     announces itself before it has separated from the page is exactly the "doing
+     its own thing" complaint that started all of this. Once you scroll it IS
+     floating, and then the glass is telling the truth: a section is moving
+     underneath and you can see it.
+
+     AT REST it paints `hsl(var(--card))` flat — the same token the first slab on
+     every page paints itself with, so it is literally the colour of the section
+     below it — and gives up its border and its lift.
+
+     STUCK it takes the 70% glass, the 20px blur, its rule and its shadow.
+
+     WHY A `data-stuck` ATTRIBUTE AND NOT `animation-timeline: scroll()`. The
+     scroll-driven version is written and was rejected on evidence. It is
+     Chrome-only — Safari and Firefox have no scroll timelines, so the majority of
+     people looking at this site would never see the effect at all, and the whole
+     point of it is what it looks like. A 12-line scroll listener works
+     everywhere. (The card decks in this file DO use `view()`, and that is a
+     different trade: there the fallback is a static card that still reads
+     correctly, so Chrome-only enhancement is free.) */
   .nav-island {
     border-radius: var(--radius-nav);
-    background: hsl(var(--card) / 0.9);
-    backdrop-filter: blur(14px) saturate(1.4);
-    -webkit-backdrop-filter: blur(14px) saturate(1.4);
-    border: 1px solid hsl(var(--rule) / 0.7);
+    /* `--nav-rest` is set at runtime to whatever is actually painted beneath the
+       bar — see `nav-island.tsx`. `--card` is the fallback because it is what
+       the first section paints on most pages, so a browser that never runs the
+       script still lands on the right colour nearly everywhere. */
+    background-color: var(--nav-rest, hsl(var(--card)));
+    border: 1px solid transparent;
+    box-shadow: none;
+    transition:
+      background-color var(--t-interaction) var(--ease-interaction),
+      border-color var(--t-interaction) var(--ease-interaction),
+      box-shadow var(--t-interaction) var(--ease-interaction),
+      backdrop-filter var(--t-interaction) var(--ease-interaction);
+    /* THE BAR'S OWN TEXT CUTS, because its ground MOVES.
+       A sticky translucent bar composites over whatever band is under it, so the
+       effective ground swings toward the middle of the range — in light theme it
+       darkens over an inverted band, in dark it lightens over one. Text tuned for
+       the page's ground is therefore not tuned for this surface: `--ink-muted` at
+       38% measured 4.39:1 here, an AA failure that appeared and vanished as you
+       scrolled.
+
+       The first fix raised the opacity to 90% until the ground stopped moving.
+       That passed and was WRONG — it bought contrast by spending the one property
+       the owner had asked to keep, and they said so immediately: *"it's no longer
+       translucent… it should be translucent as well."*
+
+       Right lever: leave the glass alone and cut the text for the surface it is
+       on. These hold 4.5:1 against the WORST band at 70%, so the bar can stay
+       glass. */
+    --ink-muted: 30 12% 28%;
+    --muted-foreground: 30 12% 28%;
+  }
+
+  .nav-island[data-stuck="true"] {
+    background-color: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(20px) saturate(1.5);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5);
+    border-color: hsl(var(--rule) / 0.7);
     box-shadow: var(--elev-2);
   }
 
-  /* Browsers without `backdrop-filter` get the opaque ground instead of a
+  /* Dark inverts the swing: this bar's ground LIGHTENS over the inverted bands,
+     so its light text needs to go lighter, not darker. Same rule, other
+     direction. */
+  .dark .nav-island {
+    --ink-muted: 34 16% 85%;
+    --muted-foreground: 34 16% 85%;
+  }
+
+  /* Browsers without `backdrop-filter` get the opaque ground rather than a
      see-through bar with unreadable text over it. */
   @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-    .nav-island {
-      background: hsl(var(--card));
+    .nav-island[data-stuck="true"] {
+      background-color: hsl(var(--card));
     }
   }
 

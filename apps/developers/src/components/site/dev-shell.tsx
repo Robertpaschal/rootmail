@@ -4,6 +4,8 @@ import { buttonVariants } from "@/components/ui/button";
 import { dashboardUrl, loginUrl, signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
+import { NavLinks } from "./nav-links";
+import { NavIsland } from "./nav-island";
 import { ThemeToggle } from "./theme-toggle";
 
 const MAIN_SITE = "https://rootmail.io";
@@ -49,9 +51,10 @@ const MAIN_SITE = "https://rootmail.io";
  * marketing nav is being cut to (Pricing · Developers · Sign in · CTA).
  */
 const links = [
-  { href: "/docs", label: "Docs" },
+  // `prefix` because /docs is really /docs/<slug> — see `nav-links.tsx`.
+  { href: "/docs", label: "Docs", prefix: true },
   { href: `${MAIN_SITE}/pricing`, label: "Pricing" },
-];
+] as const;
 
 export async function DevNavbar() {
   // Reflect the signed-in state (the dashboard drops a cross-subdomain hint) so
@@ -69,7 +72,7 @@ export async function DevNavbar() {
        at the top with air around it. */
     <header className="sticky top-0 z-40 w-full">
       <div className="px-3 py-1.5 sm:px-5">
-        <div className="nav-island flex h-[3.25rem] items-center justify-between gap-3 pl-3 pr-2 sm:pl-4 sm:pr-3">
+        <NavIsland className="flex h-[3.25rem] items-center justify-between gap-3 pl-3 pr-2 sm:pl-4 sm:pr-3">
         <Link href="/" aria-label="rootmail developers" className="flex shrink-0 items-center gap-2">
           <Logo />
           <span className="hidden font-mono text-[12.5px] text-ink-muted sm:inline" data-fact>
@@ -82,18 +85,9 @@ export async function DevNavbar() {
 
             In a recess, like the marketing nav: one lift per object, and what
             is inside the well takes you somewhere while what is outside it
-            does something. */}
-        <nav className="nav-group hidden items-center gap-0.5 p-1 sm:flex">
-          {links.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="inline-flex h-9 items-center rounded-full px-3.5 text-sm font-medium text-ink-muted transition-colors duration-interaction ease-interaction hover:bg-card/70 hover:text-foreground"
-            >
-              {l.label}
-            </Link>
-          ))}
-        </nav>
+            does something. A client island because marking the current page
+            needs `usePathname()` and this navbar reads `cookies()`. */}
+        <NavLinks links={links} />
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
           {signedIn ? (
@@ -111,7 +105,7 @@ export async function DevNavbar() {
             </>
           )}
         </div>
-        </div>
+        </NavIsland>
       </div>
     </header>
   );

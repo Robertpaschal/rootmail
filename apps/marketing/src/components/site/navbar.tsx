@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { LayoutDashboard, Menu, X } from "lucide-react";
 import { Logo } from "./logo";
+import { NavIsland } from "./nav-island";
 import { ThemeToggle } from "./theme-toggle";
 import { buttonVariants } from "@/components/ui/button";
 import { dashboardUrl, loginUrl, readSignedInHint, signupUrl } from "@/lib/links";
@@ -43,6 +45,27 @@ import { cn } from "@/lib/utils";
  * slabs, and its left and right edges land on theirs. See `.nav-island` in
  * `globals.css` for the material and why the glass stayed.
  *
+ * ── WHERE AM I? (2026-09-01) ───────────────────────────────────────────────
+ * The owner: *"when I navigate to my page, it should show that I've navigated
+ * to that page. Right now, even if I navigate, it's not updating… I'm not sure
+ * that I'm in Pricing."* They were right and it was a plain omission: this nav
+ * has never marked the current page, on any version of it. A reader on
+ * /pricing saw the same bar as a reader on the homepage.
+ *
+ * The recess is what makes the answer obvious. `.nav-group` is a well, so the
+ * current page is the one tab RAISED OUT of it — an opaque chip with its own
+ * lift, which is the segmented-control idiom and is also materially honest
+ * here: one lift per object, and the thing you are looking at is the thing on
+ * top. It is opaque on purpose, so the label you most need to read is the one
+ * cut that never composites against a moving band.
+ *
+ * `aria-current="page"` carries the same fact to a screen reader, which is not
+ * decoration — without it the state is a colour change and nothing else.
+ *
+ * Matching is exact for `/pricing` rather than a prefix, because a prefix would
+ * light `Pricing` up on any future `/pricing-*` route. The developer link is an
+ * absolute URL to another origin and can never be current here.
+ *
  * THE HEIGHT IS LOAD-BEARING AND MUST STAY 4rem. Three scroll rigs pin
  * themselves with `calc(var(--beta-notice-h, 0px) + 4rem)` — the hero deck, the
  * two card decks. That constant IS this header. The island is 3.25rem with
@@ -57,6 +80,7 @@ const links = [
 ];
 
 export function Navbar() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // Reflect the signed-in state so we drop the "Sign in" wall for people who
   // already have an account — read on mount (SSR can't see the client cookie).
@@ -67,7 +91,7 @@ export function Navbar() {
     <header className="sticky top-[var(--beta-notice-h,0px)] z-50 w-full">
       {/* 0.375rem + 3.25rem + 0.375rem = 4rem. See the file note. */}
       <div className="px-3 py-1.5 sm:px-5">
-        <div className="nav-island flex h-[3.25rem] items-center justify-between gap-3 pl-3 pr-2 sm:pl-4 sm:pr-3">
+        <NavIsland className="flex h-[3.25rem] items-center justify-between gap-3 pl-3 pr-2 sm:pl-4 sm:pr-3">
           <Link href="/" aria-label="rootmail home" className="shrink-0">
             <Logo />
           </Link>
@@ -75,15 +99,24 @@ export function Navbar() {
           {/* The destinations, in a recess. `nav-group` is a well cut into the
               island rather than a second raised plane — one lift per object. */}
           <nav className="nav-group hidden items-center gap-0.5 p-1 md:flex">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                className="inline-flex h-9 items-center rounded-full px-3.5 text-sm font-medium text-ink-muted transition-colors duration-interaction ease-interaction hover:bg-card/70 hover:text-foreground"
-              >
-                {l.label}
-              </Link>
-            ))}
+            {links.map((l) => {
+              const current = l.href === pathname;
+              return (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  aria-current={current ? "page" : undefined}
+                  className={cn(
+                    "inline-flex h-9 items-center rounded-full px-3.5 text-sm font-medium transition-colors duration-interaction ease-interaction",
+                    current
+                      ? "bg-card text-foreground shadow-e1"
+                      : "text-ink-muted hover:bg-card/60 hover:text-foreground",
+                  )}
+                >
+                  {l.label}
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="hidden items-center gap-1 md:flex">
@@ -116,7 +149,7 @@ export function Navbar() {
               {open ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
           </div>
-        </div>
+        </NavIsland>
       </div>
 
       {/* The mobile panel is its own island below the bar, positioned OUT of
@@ -124,17 +157,26 @@ export function Navbar() {
           the three scroll rigs with it — on a phone, mid-scroll, invisibly. */}
       {open && (
         <div className="absolute inset-x-0 top-full px-3 pb-2 sm:px-5 md:hidden">
-          <div className="nav-island flex flex-col gap-1 p-2">
-            {links.map((l) => (
-              <Link
-                key={l.href}
-                href={l.href}
-                onClick={() => setOpen(false)}
-                className="inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium text-ink-muted transition-colors duration-interaction ease-interaction hover:bg-well hover:text-foreground"
-              >
-                {l.label}
-              </Link>
-            ))}
+          <div className="nav-island flex flex-col gap-1 p-2" data-stuck="true">
+            {links.map((l) => {
+              const current = l.href === pathname;
+              return (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  onClick={() => setOpen(false)}
+                  aria-current={current ? "page" : undefined}
+                  className={cn(
+                    "inline-flex min-h-11 items-center rounded-lg px-3 text-sm font-medium transition-colors duration-interaction ease-interaction",
+                    current
+                      ? "bg-card text-foreground shadow-e1"
+                      : "text-ink-muted hover:bg-well hover:text-foreground",
+                  )}
+                >
+                  {l.label}
+                </Link>
+              );
+            })}
             {signedIn ? (
               <Link
                 href={dashboardUrl}
