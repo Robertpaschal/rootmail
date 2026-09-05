@@ -305,11 +305,12 @@ export async function ensureTesterIdentity(email: string): Promise<ProvisionResu
 }
 
 /** Has the tester clicked the link yet? Drives when their invite may be sent. */
-export async function isTesterVerified(email: string): Promise<boolean> {
+export async function isTesterVerified(email: string, options: { throwOnUnavailable?: boolean } = {}): Promise<boolean> {
   try {
     const got = await sesv2().send(new GetEmailIdentityCommand({ EmailIdentity: email.trim().toLowerCase() }));
     return Boolean(got.VerifiedForSendingStatus);
-  } catch {
+  } catch (err) {
+    if (options.throwOnUnavailable && (err as { name?: string }).name !== "NotFoundException") throw err;
     // Unknown or unreadable ⇒ treat as not verified. Sending to an address SES
     // will refuse is worse than making someone wait.
     return false;

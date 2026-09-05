@@ -93,7 +93,7 @@ export default async function SettingsHubPage() {
         {
           id: "senders",
           label: "Sending addresses",
-          blurb: "Send as hello@yourcompany.com instead of a rootmail address.",
+          blurb: "Verify an address your recipients recognise to enable dashboard sending.",
           href: "/settings/sender",
           value:
             verified.length > 0

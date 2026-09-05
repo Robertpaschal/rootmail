@@ -1,5 +1,7 @@
 import { Line } from "@rootmail/design";
+import Link from "next/link";
 import { PageHeader } from "@/components/app/page-header";
+import { SendingAccessNote } from "@/components/app/sending-access-note";
 import { SEND_HALT_REASON } from "@/lib/home";
 import { api } from "@/lib/rootmail";
 import type { SubTenant, TestRecipient } from "@/lib/types";
@@ -59,6 +61,7 @@ export default async function NewMessagePage({
         backHref="/messages"
         backLabel="Mail"
       />
+      <SendingAccessNote />
       {senders.length === 0 ? (
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <Line
@@ -68,6 +71,7 @@ export default async function NewMessagePage({
             ]}
           />
           <p className="text-sm text-ink-muted">{SEND_HALT_REASON}</p>
+          <Link href="/settings/sender" className="text-sm font-medium underline underline-offset-4">Set up your sending address →</Link>
         </div>
       ) : null}
       <SendForm

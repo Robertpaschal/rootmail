@@ -141,14 +141,14 @@ export function WorkspaceSwitcher({
   if (!active) return null;
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="static min-w-0 sm:relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn(
-          "inline-flex max-w-[14rem] items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent",
+          "inline-flex max-w-[8rem] items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent sm:max-w-[14rem]",
           inSandbox && "border-acted/50 bg-acted/10",
         )}
         title={inSandbox ? "You're in the sandbox" : "Switch workspace"}
@@ -166,7 +166,7 @@ export function WorkspaceSwitcher({
       {open ? (
         <div
           role="menu"
-          className="absolute left-0 z-50 mt-1.5 w-64 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
+          className="absolute left-4 right-4 top-full z-50 mt-1.5 w-auto overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg sm:left-0 sm:right-auto sm:w-64"
         >
           {inSandbox && firstLive ? (
             <button

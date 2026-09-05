@@ -198,8 +198,8 @@ export function Scenarios({ recipients }: { recipients: TestRecipient[] }) {
       </div>
 
       <p className="pt-1 text-xs text-muted-foreground">
-        Every run is a real send: it uses a transactional send from your plan, is signed with your DKIM key, and
-        fires your webhooks.{" "}
+        Runs follow this workspace&apos;s sending route. Check the message record for provider events
+        and your webhook log for notifications received.{" "}
         <Link href="/webhooks" className="font-medium text-foreground hover:underline">
           Watch it arrive <ArrowRight className="inline size-3" />
         </Link>

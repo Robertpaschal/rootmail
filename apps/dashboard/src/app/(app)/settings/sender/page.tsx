@@ -67,7 +67,7 @@ export default async function SenderSettingsPage() {
       {/* A collection, not a setting — it gets room to be a list. */}
       <SettingsSection
         title="Your sending addresses"
-        hint="Send as hello@yourcompany.com instead of a rootmail address. We email that inbox a confirmation link; once it's clicked, the address appears in the From menu when you compose."
+        hint="Set up an address your recipients recognise, such as hello@yourcompany.com. We email that inbox a confirmation link; once it's clicked, the address appears in the From menu when you compose."
       >
         <div className="p-4">
           <SendersManager senders={senders} />
@@ -133,7 +133,7 @@ export default async function SenderSettingsPage() {
       <p className="text-xs text-muted-foreground">
         {verified > 0
           ? `${verified} address${verified === 1 ? "" : "es"} verified${pending ? ` · ${pending} still awaiting confirmation` : ""}.`
-          : "Until an address is verified, your mail goes out from a rootmail address."}
+          : "Dashboard sending is paused until you verify a sending address. You can prepare templates and campaign drafts in the meantime."}
       </p>
     </div>
   );

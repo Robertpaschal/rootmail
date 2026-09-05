@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { FeatureLocked, type FeatureLockedInfo, asFeatureLocked } from "@/components/app/feature-locked";
 import { PageHeader } from "@/components/app/page-header";
+import { SendingAccessNote } from "@/components/app/sending-access-note";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import { CampaignComposer, type ComposerList, type ComposerTemplate } from "../composer";
 import { CampaignJourney } from "../[id]/launch";
@@ -70,6 +71,7 @@ export default async function NewCampaignPage() {
           FIRST leg of one journey, not a separate form that happens to redirect
           into a flow that had already started without you. */}
       <CampaignJourney phase="Build" />
+      <SendingAccessNote />
       <CampaignComposer lists={lists} templates={templates} sendsFrom={sendsFrom} />
     </>
   );

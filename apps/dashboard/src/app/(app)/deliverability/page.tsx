@@ -460,7 +460,7 @@ export default async function DeliverabilityPage({
               </div>
               {d.domains.unverified > 0 ? (
                 <Link
-                  href="/settings/sender"
+                  href="/sub-tenants"
                   className="flex items-start gap-1.5 text-xs text-acted hover:underline"
                 >
                   <Info className="mt-0.5 size-3.5 shrink-0" />
@@ -489,7 +489,7 @@ export default async function DeliverabilityPage({
                     ? "No sending domain yet"
                     : `${d.domains.verified} of ${d.domains.total} domains verified`,
                 stateTone: d.domains.total > 0 && d.domains.unverified === 0 ? "good" : "warn",
-                href: "/settings/sender",
+                href: "/sub-tenants",
                 cta: d.domains.unverified > 0 || d.domains.total === 0 ? "Finish verification" : "Manage sending",
               }}
             />

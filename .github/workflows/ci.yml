@@ -79,9 +79,12 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Migrate, seed, run the smoke
+      - name: Migrate database
+        run: pnpm db:migrate
+      - name: Unit and isolation tests
+        run: pnpm exec turbo run test --env-mode=loose
+      - name: Quota and end-to-end smoke
         run: |
-          pnpm db:migrate
           pnpm --filter @rootmail/api test:quota
           SEED=$(pnpm db:seed 2>&1)
           KEY=$(printf '%s' "$SEED" | grep -oE 'rm_live_[A-Za-z0-9_-]+' | head -1)

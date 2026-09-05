@@ -2,14 +2,45 @@
 
 import { revalidatePath } from "next/cache";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
+import type { SendingAccess } from "@/lib/types";
+
+type InboxResult = { access: SendingAccess; message?: string } | { error: string };
+
+export async function refreshTestInboxes(): Promise<InboxResult> {
+  try { return { access: await api.sendingAccess() }; }
+  catch (err) { return { error: err instanceof Error ? err.message : "Could not check your test inboxes." }; }
+}
+
+export async function addTestInbox(email: string): Promise<InboxResult> {
+  try {
+    await api.addTestInbox(email.trim());
+    return { access: await api.sendingAccess(), message: "Inbox added. If confirmation is pending, open the Amazon Web Services email and follow its link, then check status here." };
+  } catch (err) { return { error: err instanceof Error ? err.message : "Could not add this inbox." }; }
+}
+
+export async function removeTestInbox(id: string): Promise<InboxResult> {
+  try {
+    await api.removeTestInbox(id);
+    return { access: await api.sendingAccess(), message: "Removed from this workspace's test inboxes. Your contacts and message history are kept." };
+  } catch (err) { return { error: err instanceof Error ? err.message : "Could not remove this inbox." }; }
+}
+
+export async function prepareBetaAudience(): Promise<{ list_id: string } | { error: string }> {
+  try {
+    const result = await api.prepareBetaAudience();
+    revalidatePath("/contacts");
+    revalidatePath("/campaigns/new");
+    return { list_id: result.list_id };
+  } catch (err) { return { error: err instanceof Error ? err.message : "Could not prepare your beta audience." }; }
+}
 
 /** A believable sample email, so what you see under test is what you'd ship. */
 function sampleHtml(scenario: string): string {
   return `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;font-size:15px;line-height:1.6;color:#1a1a1a;padding:8px 4px;">
   <p>Hi there,</p>
-  <p>This is a rootmail test email. It travelled the same path your real mail takes: signed with your DKIM key, handed to your sending provider, and tracked all the way to its outcome.</p>
+  <p>This is a rootmail test email. Open its message record in Rootmail to see the events reported by your sending provider.</p>
   <p><strong>Scenario:</strong> ${scenario}</p>
-  <p>If you can read this, rendering, signing and delivery all work.</p>
+  <p>Simulator outcomes test event handling. They do not prove inbox placement, authentication or how a real recipient will engage.</p>
   <p>— The rootmail team</p>
 </div>`;
 }

@@ -41,8 +41,8 @@ import {
   subTenants,
   type SubTenant,
   type Workspace,
-  verifiedRecipients,
-  orgSendingProviders,
+  unverifiedSendRecipients,
+  RECIPIENT_VERIFICATION_REQUIRED,
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
 import {
@@ -460,37 +460,8 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // would defeat the entire point of letting them bring their own account.
     // Same mistake as gating sub-tenant verification on SES a few days ago:
     // an SES constraint is only a constraint when SES is doing the sending.
-    const usesPlatformSes = env.MAIL_PROVIDER === "ses" && env.SES_SANDBOX_MODE !== "false";
-    const [ownProvider] = usesPlatformSes
-      ? await db
-          .select({ id: orgSendingProviders.id })
-          .from(orgSendingProviders)
-          .where(
-            and(
-              eq(orgSendingProviders.organizationId, workspace.organizationId),
-              eq(orgSendingProviders.status, "active"),
-            ),
-          )
-          .limit(1)
-      : [undefined];
-
-    if (usesPlatformSes && !ownProvider && mode === "live" && !testRecipientFor(toEmail)) {
-      const [ok] = await db
-        .select({ status: verifiedRecipients.status })
-        .from(verifiedRecipients)
-        .where(
-          and(
-            eq(verifiedRecipients.workspaceId, workspace.id),
-            eq(verifiedRecipients.email, toEmail),
-            eq(verifiedRecipients.status, "verified"),
-          ),
-        )
-        .limit(1);
-      if (!ok) {
-        throw Errors.badRequest(
-          `While rootmail is in its provider's sandbox we can only deliver to addresses that have confirmed they want mail from us. ${toEmail} hasn't yet. Add them under Testing & sandbox and they'll get one confirmation email — after they click it, this send will work. Sandbox-mode sends and our reserved test addresses are unaffected.`,
-        );
-      }
+    if (mode === "live" && (await unverifiedSendRecipients(workspace.id, [toEmail])).length) {
+      throw Errors.badRequest(`${toEmail} is not confirmed. ${RECIPIENT_VERIFICATION_REQUIRED}`);
     }
 
     const suppressed = await isSuppressed(workspace.id, subTenantId, toEmail, body.type);

@@ -101,7 +101,7 @@ export default async function CampaignsPage() {
           <EmptyState
             icon={<Megaphone className="size-6" />}
             title="Your first campaign starts here"
-            description="One flow takes you from audience to designed message to send — nothing to configure first."
+            description="One flow takes you from audience to designed message to send. Start here; if you do not have an audience yet, the next step helps you create one."
             action={
               <Link
                 href="/campaigns/new"

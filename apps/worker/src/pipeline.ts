@@ -18,6 +18,7 @@ import {
 } from "@rootmail/core";
 import { activeReplyDomain, auditEntries, db, threadReplyParent, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
 import { providerForMessage } from "./providers/for-org";
+import { unverifiedSendRecipients, RECIPIENT_VERIFICATION_REQUIRED } from "@rootmail/db";
 import type { OutboundAttachment } from "./providers/types";
 
 /** Fetch each attachment's bytes from its public asset URL (host-independent). */
@@ -227,6 +228,16 @@ export async function processSend(data: SendJobData): Promise<void> {
   }
   // Idempotent: only process a message that's still queued/sending.
   if (message.status !== "queued" && message.status !== "sending") {
+    return;
+  }
+
+  // Campaigns, sequences and scheduled mail must observe the same restriction
+  // as the composer, including recipients removed after the mail was queued.
+  if (!message.sandbox && (await unverifiedSendRecipients(message.workspaceId, [message.toEmail])).length) {
+    const reason = `${message.toEmail} is not confirmed. ${RECIPIENT_VERIFICATION_REQUIRED}`;
+    await db.update(messages).set({ status: "failed", error: reason, updatedAt: new Date() })
+      .where(eq(messages.id, message.id));
+    await audit(message, "failed", { metadata: { reason } });
     return;
   }
 

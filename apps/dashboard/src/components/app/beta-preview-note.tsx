@@ -1,4 +1,6 @@
 import { FlaskConical } from "lucide-react";
+import Link from "next/link";
+import { api } from "@/lib/rootmail";
 
 /**
  * "You can see this, but it isn't what governs you."
@@ -47,22 +49,20 @@ export function BetaPreviewNote({
  * have 12 sends can plan a test; one told "limits are different in beta" will
  * discover the number by hitting it.
  */
-export function BetaQuotaNote({ dailyCap }: { dailyCap: number }) {
+export async function BetaQuotaNote({ dailyCap: _legacyDailyCap }: { dailyCap?: number }) {
+  const billing = await api.getBilling().catch(() => null);
   return (
     <BetaPreviewNote title="How your sending is actually counted right now">
       <p>
-        While you&apos;re a beta tester, none of the allowances or prices below
-        apply to you. Everything is unlocked, nothing is billed, and your only
-        real limit is{" "}
-        <span className="font-medium text-foreground">{dailyCap} sends a day</span> — because our
-        email provider hasn&apos;t yet lifted the launch cap every new sending
-        account starts under, and all testers share it. It resets at midnight UTC.
+        Beta access includes daily sending allowances. {billing ? (
+          <span className="font-medium text-foreground">Today: {billing.usage.used_today} / {billing.usage.daily_limit === -1 ? "unlimited" : billing.usage.daily_limit} transactional sends; {billing.usage.marketing_sent_today} / {billing.usage.marketing_daily_limit === -1 ? "unlimited" : billing.usage.marketing_daily_limit} marketing sends.</span>
+        ) : "Your current allowances could not be loaded."} Daily counters reset at midnight UTC.
+        These are Rootmail account allowances; provider restrictions apply separately.
       </p>
       <p className="mt-2">
-        The plans and prices here are our current <em>proposal</em> for how the
-        finished product should work — not a decision. If the shape of it looks
-        wrong for a business like yours, that is one of the most useful things
-        you can tell us. Just reply to any email we send.
+        On Rootmail&apos;s SES sandbox route, real recipients must confirm their inboxes before
+        receiving mail. <Link href="/testing#test-inboxes" className="font-medium text-foreground underline underline-offset-4 hover:no-underline">Check your sending access and test inboxes</Link>.
+        Templates and drafts stay in your workspace as access expands.
       </p>
     </BetaPreviewNote>
   );

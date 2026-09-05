@@ -71,7 +71,7 @@ export function ClientSwitcher({
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="static min-w-0 sm:relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -93,7 +93,7 @@ export function ClientSwitcher({
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-1.5 w-72 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
+          className="absolute left-4 right-4 top-full z-50 mt-1.5 w-auto overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg sm:left-auto sm:right-0 sm:w-72"
         >
           <div className="px-3 py-2 text-[12.5px] font-medium uppercase tracking-wide text-muted-foreground">
             View as

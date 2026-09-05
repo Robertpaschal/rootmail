@@ -241,3 +241,22 @@ brief has been burned by exactly this.
 header-based idempotency. I did not add one because a send test on this machine
 runs against `MAIL_PROVIDER=ses` and I will not put mail on the wire from local.
 It should be added against the mock provider before this ships.
+
+## 2026-09-05 — closed-beta workflow repairs (local, not deployed)
+
+The dashboard now exposes recipient confirmation under Testing, explains SES
+restrictions before composing/launching a campaign, and leads beta testers through
+a reusable template, their own confirmed inbox, and a message/reply record. New
+and older beta audiences use recognised simulator aliases. OAuth and password
+admission share provisioning. Confirmation is recorded for our beta-invite
+sequence before the same worker-level send guard runs.
+
+What changed moved to the top-bar bell and command menu, not out of the product.
+Mobile utility menus no longer clip, new action links have measured contrast in
+both themes, and sender setup no longer promises a fallback that the dashboard
+does not permit. Beta quota notes show separate real account counters.
+
+Claim boundary: simulator traffic is event-handling evidence, not inbox placement,
+human engagement, or an argument that AWS must grant production access. Local
+tests intercept AWS. Actual delivery/replies remain a deployed, authorised-inbox
+release check. See `docs/beta-readiness.md` for the gate and test procedure.

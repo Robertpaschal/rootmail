@@ -31,6 +31,8 @@ export async function OnboardingChecklist() {
   let templates = 0;
   let messages = 0;
   let replyDecided = false;
+  let needsRecipient = false;
+  let hasRecipient = false;
   let org: { postal_address?: string | null; reply_mode?: string } | null = null;
   try {
     const [me, snd, l, t, m, organization, threads] = await Promise.all([
@@ -43,6 +45,9 @@ export async function OnboardingChecklist() {
       api.listThreads().catch(() => ({ data: [] })),
     ]);
     emailVerified = me.user.email_verified;
+    const access = await api.sendingAccess().catch(() => null);
+    needsRecipient = access?.required ?? false;
+    hasRecipient = access?.data.some(r => r.status === "verified") ?? false;
     onboarded = me.onboarding_completed ?? true; // undefined (older API) → don't nag
     hasVerifiedSender = snd.data.some((s) => s.status === "verified");
     lists = l.data.length;
@@ -88,13 +93,14 @@ export async function OnboardingChecklist() {
       href: null,
       minutes: 1,
     },
-    {
-      done: messages > 0,
-      label: "Send one real email and watch it land",
-      desc: "To yourself, on the real path — real provider, real record. Sending is paused until this workspace has a sending identity.",
-      href: "/messages/new",
+    ...(needsRecipient ? [{
+      done: hasRecipient,
+      label: "Confirm an inbox to test with",
+      desc: "While our SES account is in sandbox, AWS needs each recipient to confirm their inbox. This is separate from your Rootmail login.",
+      href: "/testing#test-inboxes",
       minutes: 2,
-    },
+      crucial: true,
+    }] : []),
     {
       done: hasVerifiedSender,
       label: "Send from your own address",
@@ -106,6 +112,13 @@ export async function OnboardingChecklist() {
         "Add your address under Settings → Sending",
         "Click the confirmation link we email to it",
       ],
+    },
+    {
+      done: messages > 0,
+      label: "Send an email and follow its record",
+      desc: "Use a confirmed test inbox. Open the message record to see what your sending provider reports, then check the inbox yourself.",
+      href: "/messages/new",
+      minutes: 2,
     },
     {
       done: onboarded && Boolean(org?.postal_address?.trim()),

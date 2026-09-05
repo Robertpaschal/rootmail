@@ -11,6 +11,7 @@ import { relativeTime } from "@/lib/format";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Message, MessageStatus, TestRecipient } from "@/lib/types";
 import { Scenarios } from "./scenarios";
+import { TestInboxes } from "./test-inboxes";
 
 export const metadata: Metadata = { title: "Testing" };
 
@@ -40,6 +41,8 @@ function verdict(expected: TestRecipient["outcome"] | undefined, status: Message
 }
 
 export default async function TestingPage() {
+  const [identity, access] = await Promise.allSettled([api.me(), api.sendingAccess()]);
+  const me = identity.status === "fulfilled" ? identity.value : null;
   let recipients: TestRecipient[] = [];
   let runs: Message[] = [];
   let sandboxMail: Message[] = [];
@@ -81,8 +84,24 @@ export default async function TestingPage() {
     <>
       <PageHeader
         title="Testing"
-        description="Prove your email works — for real — before a single customer is involved."
+        description="Prepare an email you will actually use. Check it in an inbox, follow its delivery record, and rehearse what happens when a send fails."
       />
+
+      <div className="mb-8 space-y-6">
+        {me?.beta ? (
+          <section className="rounded-lg border bg-card p-5 shadow-e1">
+            <h2 className="text-xl font-semibold">Build your first reusable email workflow</h2>
+            <p className="mt-2 max-w-3xl text-sm text-muted-foreground">Choose a welcome email, receipt or update your business needs. Your templates, audience structure and sequence drafts stay in this workspace as sending access expands.</p>
+            <ol className="mt-5 grid gap-5 md:grid-cols-3">
+              <li><p className="text-sm font-semibold">1. Set up your sending address</p><p className="mt-1 text-sm text-muted-foreground">Verify the address your recipients should recognise. Check where replies will go.</p><Link className="mt-2 inline-block text-sm font-medium text-foreground underline underline-offset-4 hover:no-underline" href="/settings/sender">Set up sending →</Link></li>
+              <li><p className="text-sm font-semibold">2. Make an email worth keeping</p><p className="mt-1 text-sm text-muted-foreground">Adapt the starter template to your brand. Reuse it in individual emails, campaigns and sequences.</p><Link className="mt-2 inline-block text-sm font-medium text-foreground underline underline-offset-4 hover:no-underline" href="/templates">Open templates →</Link></li>
+              <li><p className="text-sm font-semibold">3. Check it with a real person</p><p className="mt-1 text-sm text-muted-foreground">Confirm an inbox below, send your template from the composer, then inspect the delivery record and replies.</p><Link className="mt-2 inline-block text-sm font-medium text-foreground underline underline-offset-4 hover:no-underline" href="/messages">Follow your messages →</Link></li>
+            </ol>
+            <p className="mt-5 border-t pt-3 text-sm text-muted-foreground">Already sending with your own provider? <Link href="/settings/sender" className="text-foreground underline underline-offset-4 hover:no-underline">Connect an approved SES or active Mailgun account</Link> to use its sending access. Tell us where this workflow slows you down through the <Link href="/assistant?pane=support" className="text-foreground underline underline-offset-4 hover:no-underline">support team</Link>.</p>
+          </section>
+        ) : null}
+        <TestInboxes initial={access.status === "fulfilled" ? access.value : null} email={me?.user.email ?? ""} beta={Boolean(me?.beta)} error={access.status === "rejected" ? "We could not load your test inboxes. Try checking status again." : undefined} />
+      </div>
 
       {failed ? (
         <ConnectionErrorCard message={failed} status={errStatus} />
@@ -92,16 +111,15 @@ export default async function TestingPage() {
           <section className="space-y-4">
             <div className="rounded-lg border border-witnessed/30 bg-witnessed/[0.06] p-4">
               <p className="flex items-center gap-2 text-sm font-semibold">
-                <Radio className="size-4 text-witnessed" /> These are real sends
+                <Radio className="size-4 text-witnessed" /> Delivery scenarios
               </p>
               <p className="mt-1.5 max-w-3xl text-sm leading-relaxed text-muted-foreground">
-                Each address below is a scenario. Mail to one is signed with your DKIM key, handed to your
-                sending provider, and reported back through your webhooks — exactly like customer mail. It lands
-                on the provider&apos;s mailbox simulator, so no person receives it and your sending reputation is
-                untouched, even when you deliberately trigger a hard bounce.
+                With SES, these addresses route to Amazon&apos;s mailbox simulator to exercise delivery,
+                bounce and complaint events. No person reads the email. Simulator results test event handling;
+                they do not measure inbox placement or whether a person read your message.
               </p>
               <p className="mt-2 text-xs font-medium text-witnessed">
-                Proves: delivery, DKIM signing, bounce &amp; complaint handling, auto-suppression, webhooks.
+                Inspect each run&apos;s provider and audit trail for the events actually received.
               </p>
             </div>
 

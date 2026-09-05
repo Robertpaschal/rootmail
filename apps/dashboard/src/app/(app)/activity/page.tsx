@@ -71,8 +71,6 @@ export default async function ActivityPage() {
           <Rule
             term="Suppression"
             def="Every bounce, complaint and unsubscribe is written to the suppression list at the moment it is reported, and the send pipeline checks that list before it renders anything."
-            href="/deliverability"
-            hrefLabel="Suppression list"
           />
           <Rule
             term="The record"
@@ -94,17 +92,19 @@ function Rule({
 }: {
   term: string;
   def: string;
-  href: string;
-  hrefLabel: string;
+  href?: string;
+  hrefLabel?: string;
 }) {
   return (
     <div>
       <dt className="text-sm font-medium">{term}</dt>
       <dd className="mt-1 text-sm leading-relaxed text-muted-foreground">
         {def}{" "}
-        <Link href={href} className="whitespace-nowrap font-medium text-foreground hover:underline">
-          {hrefLabel} <ArrowRight className="inline size-3" />
-        </Link>
+        {href && hrefLabel ? (
+          <Link href={href} className="whitespace-nowrap font-medium text-foreground hover:underline">
+            {hrefLabel} <ArrowRight className="inline size-3" />
+          </Link>
+        ) : null}
       </dd>
     </div>
   );

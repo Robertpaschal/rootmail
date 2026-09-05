@@ -293,6 +293,23 @@ export interface MeResult {
   onboarding_completed?: boolean;
 }
 
+export interface TestInbox {
+  id: string;
+  email: string;
+  label: string | null;
+  status: "pending" | "verified";
+  verified_at: string | null;
+}
+
+export interface SendingAccess {
+  verification_unavailable?: boolean;
+  required: boolean;
+  sandbox: boolean;
+  provider: string;
+  own_provider: boolean;
+  data: TestInbox[];
+}
+
 /** An org-owned from-address, verified through SES email-identity confirmation. */
 export interface SenderIdentity {
   object: "sender_identity";
