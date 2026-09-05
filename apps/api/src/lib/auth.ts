@@ -1,5 +1,6 @@
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { defaultTierId, generateSessionToken, newId, sha256Hex } from "@rootmail/core";
+import { seedBetaTestKit } from "./beta-test-kit";
 import {
   STARTER_TEMPLATE,
   db,
@@ -104,7 +105,7 @@ export async function provisionAccount(params: {
   const orgName =
     params.organizationName?.trim() || params.name?.trim() || params.email.split("@")[0];
 
-  return db.transaction(async (tx) => {
+  const account = await db.transaction(async (tx) => {
     const [user] = await tx
       .insert(users)
       .values({
@@ -181,6 +182,13 @@ export async function provisionAccount(params: {
       sandbox,
     };
   });
+  // Both password and OAuth admission receive the same starter workspace.
+  if (params.betaInviteId) {
+    await seedBetaTestKit(account.production.id, params.email).catch(err => {
+      console.error("[beta] starter audience needs repair in Testing", err);
+    });
+  }
+  return account;
 }
 
 /** Find-or-create a user from a verified social-login identity (no password). */

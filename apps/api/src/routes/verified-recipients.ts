@@ -1,8 +1,10 @@
 import { and, asc, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { Errors, env, newId } from "@rootmail/core";
-import { db, verifiedRecipients } from "@rootmail/db";
+import { Errors, newId } from "@rootmail/core";
+import { db, verifiedRecipients, sendingAccess } from "@rootmail/db";
+import { loadOrg } from "../lib/features";
+import { seedBetaTestKit } from "../lib/beta-test-kit";
 import { requirePermission } from "../lib/permissions";
 import { ensureTesterIdentity, isTesterVerified } from "../lib/ses-provisioning";
 import { parse } from "../lib/validate";
@@ -25,6 +27,7 @@ const addBody = z.object({
 
 export async function verifiedRecipientRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/testing/recipients", async (req) => {
+    const access = await sendingAccess(req.auth.workspace.id);
     const rows = await db
       .select()
       .from(verifiedRecipients)
@@ -34,9 +37,15 @@ export async function verifiedRecipientRoutes(app: FastifyInstance): Promise<voi
     // Refresh anything still pending: the person clicks a link in THEIR inbox
     // and nothing tells us, exactly like sub-tenant DNS. Ask on read.
     const out = [];
+    let verificationUnavailable = false;
     for (const r of rows) {
       let status = r.status;
-      if (status !== "verified" && (await isTesterVerified(r.email))) {
+      let confirmed = false;
+      if (access.required && status !== "verified") {
+        try { confirmed = await isTesterVerified(r.email, { throwOnUnavailable: true }); }
+        catch { verificationUnavailable = true; }
+      }
+      if (confirmed) {
         status = "verified";
         await db
           .update(verifiedRecipients)
@@ -56,13 +65,16 @@ export async function verifiedRecipientRoutes(app: FastifyInstance): Promise<voi
       object: "list",
       // Says WHY this list exists, so the dashboard never has to invent the
       // explanation and can never contradict the API.
-      required: env.SES_SANDBOX_MODE !== "false",
+      ...access,
+      verification_unavailable: verificationUnavailable,
       data: out,
     };
   });
 
   app.post("/v1/testing/recipients", async (req) => {
     await requirePermission(req, "messages.send");
+    const access = await sendingAccess(req.auth.workspace.id);
+    if (!access.required) throw Errors.badRequest("Recipient verification is not required for this workspace's sending route.");
     const body = parse(addBody, req.body);
     const email = body.email.trim().toLowerCase();
 
@@ -96,7 +108,7 @@ export async function verifiedRecipientRoutes(app: FastifyInstance): Promise<voi
         })
         .where(eq(verifiedRecipients.id, existing.id))
         .returning();
-      return { object: "verified_recipient", ...updated, resent: true };
+      return { object: "verified_recipient", ...updated };
     }
 
     const [row] = await db
@@ -119,6 +131,18 @@ export async function verifiedRecipientRoutes(app: FastifyInstance): Promise<voi
           ? "Already confirmed — you can send to them now."
           : `We've asked ${email} to confirm. They'll get one email from our sending provider; once they click the link you can send to them.`,
     };
+  });
+
+  // Explicit repair for older beta workspaces. Does not send verification mail,
+  // reset an opt-out, or delete a contact's history.
+  app.post("/v1/testing/beta-kit", async (req) => {
+    await requirePermission(req, "content.manage");
+    const org = await loadOrg(req);
+    if (!org.isBeta || req.auth.workspace.environment !== "live" || req.auth.subTenant || !req.auth.user) {
+      throw Errors.badRequest("Prepare the beta audience in your live workspace, outside a client view.");
+    }
+    const result = await seedBetaTestKit(req.auth.workspace.id, req.auth.user.email);
+    return { list_id: result.listId, added: result.added };
   });
 
   app.delete("/v1/testing/recipients/:id", async (req) => {

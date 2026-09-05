@@ -753,7 +753,7 @@ export function InboxView({
                   <p className="truncate text-xs text-muted-foreground">
                     {contact.email} · {contact.threads.length === 1 ? "1 subject" : `${contact.threads.length} subjects`}
                     {" · "}
-                    <Link href={`/contacts?q=${encodeURIComponent(contact.email)}`} className="hover:text-foreground hover:underline">
+                    <Link href={`/contacts?email=${encodeURIComponent(contact.email)}`} className="hover:text-foreground hover:underline">
                       their record
                     </Link>
                   </p>

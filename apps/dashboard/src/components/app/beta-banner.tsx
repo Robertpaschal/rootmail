@@ -27,21 +27,21 @@ export function BetaBanner() {
           Beta
         </span>
         <span className="text-foreground">
-          You&apos;re not testing a finished product — you&apos;re here to help finish it.
+          Build your email workflow during beta.
         </span>
         <span className="text-muted-foreground">
-          Everything is unlocked. Daily send limits are ours, not the
-          product&apos;s — and your using this is how they come off.
+          Prepare reusable templates, test delivery and follow replies.
         </span>
+        <Link href="/testing#test-inboxes" className="font-medium text-foreground underline underline-offset-4 hover:no-underline">Set up test inboxes</Link>
         {/* Support lives in a pane on the assistant surface, not its own route —
             so this points where the pane actually is rather than inventing a
             URL. If that pane ever grows a deep link, this is the caller to fix. */}
         <Link
-          href="/assistant"
-          className="ml-auto inline-flex items-center gap-1.5 font-medium text-primary underline-offset-2 hover:underline"
+          href="/assistant?pane=support"
+          className="ml-auto inline-flex items-center gap-1.5 font-medium text-foreground underline underline-offset-4 hover:no-underline"
         >
           <MessageSquareHeart className="size-4" />
-          Tell us what&apos;s broken
+          Share feedback
         </Link>
       </div>
     </div>

@@ -74,7 +74,7 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="static shrink-0 sm:relative">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -93,7 +93,7 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
       {open ? (
         <div
           role="menu"
-          className="absolute right-0 z-50 mt-1.5 w-[19rem] overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg"
+          className="absolute left-4 right-4 top-full z-50 mt-1.5 w-auto overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg sm:left-auto sm:right-0 sm:w-[19rem]"
         >
           {/* Who you are right now, and where inside that account you are. */}
           <div className="flex items-center gap-3 border-b px-3 py-3">

@@ -48,6 +48,30 @@
   }
 }
 
+/* Navigation has to scroll because every learned destination stays available,
+   but native high-contrast rails should not become the loudest object in the
+   shell. Desktop retains a quiet, usable thumb; mobile uses the platform swipe. */
+.dashboard-scroll {
+  scrollbar-color: hsl(var(--border)) transparent;
+  scrollbar-width: thin;
+}
+.dashboard-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.dashboard-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dashboard-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: hsl(var(--border));
+}
+.mobile-nav-scroll {
+  scrollbar-width: none;
+}
+.mobile-nav-scroll::-webkit-scrollbar {
+  display: none;
+}
+
 /* Writing editor (TipTap) — styles for the editable surface only.
    The stored email HTML is rendered separately by lib/email-doc.ts. */
 .prose-email:focus {

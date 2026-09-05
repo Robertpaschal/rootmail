@@ -81,6 +81,7 @@ import type {
   Workspace,
   WorkspacesResult,
   SendingProvider,
+  SendingAccess,
 } from "./types";
 
 /** Where the rootmail REST API lives. The dashboard only ever calls it server-side. */
@@ -726,6 +727,10 @@ export const api = {
       { query: { limit: String(limit) } },
     ),
 
+  sendingAccess: () => rmFetch<SendingAccess>("/v1/testing/recipients"),
+  addTestInbox: (email: string) => rmFetch("/v1/testing/recipients", { method: "POST", body: { email } }),
+  removeTestInbox: (id: string) => rmFetch(`/v1/testing/recipients/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  prepareBetaAudience: () => rmFetch<{ list_id: string; added: number }>("/v1/testing/beta-kit", { method: "POST", body: {} }),
   listTestRecipients: () =>
     rmFetch<{ object: "list"; domain: string; data: TestRecipient[] }>("/v1/test-recipients"),
   resetTestRecipients: () =>

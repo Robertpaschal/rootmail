@@ -20,6 +20,7 @@ const SHARED: Item[] = [
   { label: "Mail", href: "/messages", kw: "home messages sends log history every email one-to-one transactional" },
   { label: "Settings", href: "/settings", kw: "account workspace preferences profile security" },
   { label: "Overview", href: "/overview", kw: "setup checklist dashboard furniture" },
+  { label: "What changed", href: "/activity", kw: "activity interventions alerts reputation dns drift history" },
   { label: "Assistant", href: "/assistant", kw: "ai help chat copilot diagnose" },
 ];
 

@@ -37,7 +37,6 @@ import { betaInviteRequired, redeemBetaInvite } from "../lib/beta";
 import { signupAllowed } from "../lib/signup-limit";
 import { serializeUser, serializeWorkspace } from "../lib/serialize";
 import { storage } from "../lib/storage";
-import { seedBetaTestKit } from "../lib/beta-test-kit";
 import { parse } from "../lib/validate";
 
 // Avatar image sniffing (magic bytes). Mirrors the image subset of assets.ts's
@@ -184,16 +183,6 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       organizationName: body.organization_name,
       betaInviteId,
     });
-
-    // A sandboxed beta tester cannot email their own customers — every send
-    // runs through our SES account and inherits the restriction. So give them
-    // four addresses they CAN send to, and the whole product becomes
-    // exercisable: a real campaign, a real delivery, a real bounce, a real spam
-    // complaint, and auto-suppression catching the last two. Best-effort;
-    // signup must never fail on a convenience.
-    if (betaInviteId) {
-      void seedBetaTestKit(account.production.id, email).catch(() => undefined);
-    }
 
     const { token, session } = await createSession(account.user.id, account.production.id);
 

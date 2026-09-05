@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 // through sections. Complements ⌘K (search) with a mouse-first path.
 const ACTIONS = [
   { href: "/messages/new", label: "Send an email", hint: "Transactional", icon: Send },
-  { href: "/campaigns", label: "New campaign", hint: "Marketing", icon: Megaphone },
+  { href: "/campaigns/new", label: "New campaign", hint: "Marketing", icon: Megaphone },
   { href: "/templates/new", label: "New template", hint: "Design studio", icon: FileText },
   { href: "/contacts?add=import", label: "Import contacts", hint: "CSV or paste", icon: Upload },
   { href: "/members", label: "Invite a teammate", hint: "Team", icon: Users },
@@ -39,9 +39,18 @@ export function QuickCreate() {
   }, [open]);
 
   return (
-    <div ref={ref} className="relative">
-      <Button size="sm" variant="outline" onClick={() => setOpen((o) => !o)} aria-expanded={open} aria-haspopup="menu">
-        <Plus className={`size-4 transition-transform ${open ? "rotate-45" : ""}`} /> New
+    <div ref={ref} className="static shrink-0 sm:relative">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Create new"
+        className="px-2 sm:px-3"
+      >
+        <Plus className={`size-4 transition-transform ${open ? "rotate-45" : ""}`} />
+        <span className="hidden sm:inline">New</span>
       </Button>
       <AnimatePresence>
         {open ? (
@@ -50,7 +59,7 @@ export function QuickCreate() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 6, scale: 0.98 }}
             transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-lg border bg-popover p-1.5 shadow-lg"
+            className="absolute left-4 right-4 top-full z-50 mt-2 w-auto overflow-hidden rounded-lg border bg-popover p-1.5 shadow-lg sm:left-auto sm:right-0 sm:w-64"
             role="menu"
           >
             {ACTIONS.map((a, i) => (

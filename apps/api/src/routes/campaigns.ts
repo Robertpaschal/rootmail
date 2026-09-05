@@ -9,6 +9,7 @@ import { loadOrg, requireFeature } from "../lib/features";
 import { messageFunnel } from "../lib/funnel";
 import { requirePermission } from "../lib/permissions";
 import { parse } from "../lib/validate";
+import { unverifiedSendRecipients, RECIPIENT_VERIFICATION_REQUIRED } from "@rootmail/db";
 
 /** Validate that referenced list/template(s) belong to the workspace — so a bad
  * id returns a clean 404 instead of a raw foreign-key error. */
@@ -562,23 +563,18 @@ export async function campaignRoutes(app: FastifyInstance): Promise<void> {
       throw Errors.conflict(`Campaign is already ${c.status}.`);
     }
 
-    // Segmented campaigns only count members carrying the tag (jsonb containment).
-    const [cnt] = c.segmentTag
-      ? await db
-          .select({ n: sql<number>`count(*)::int` })
-          .from(listContacts)
-          .innerJoin(contacts, eq(contacts.id, listContacts.contactId))
-          .where(
-            and(
-              eq(listContacts.listId, c.listId),
-              sql`${contacts.tags} @> ${JSON.stringify([c.segmentTag])}::jsonb`,
-            ),
-          )
-      : await db
-          .select({ n: sql<number>`count(*)::int` })
-          .from(listContacts)
-          .where(eq(listContacts.listId, c.listId));
-    const recipients = cnt?.n ?? 0;
+    const [audience] = await db.select().from(lists).where(eq(lists.id, c.listId)).limit(1);
+    const members = audience ? await audienceMembers(audience) : [];
+    const selected = c.segmentTag ? members.filter(m => m.tags?.includes(c.segmentTag!)) : members;
+    const unconfirmed = req.auth.mode === "live"
+      ? await unverifiedSendRecipients(c.workspaceId, selected.map(m => m.email)) : [];
+    if (unconfirmed.length) {
+      throw Errors.badRequest(`${unconfirmed.length} audience inbox(es) are not confirmed, including ${unconfirmed.slice(0, 3).join(", ")}. ${RECIPIENT_VERIFICATION_REQUIRED}`);
+    }
+
+    // Use the same resolved audience for verification and capacity, including
+    // rules-based audiences that have no explicit listContacts membership.
+    const recipients = selected.length;
 
     // The whole batch must fit the marketing send allowance (monthly + today).
     if (liveOrg) await assertMarketingSendCapacity(liveOrg, recipients);

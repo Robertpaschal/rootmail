@@ -1,6 +1,6 @@
 import { and, count, eq, gt, isNull, like, or, sql } from "drizzle-orm";
 import { env, newId } from "@rootmail/core";
-import { betaInvites, contacts, db, ensureInternalAccount, evaluateTriggers, lists } from "@rootmail/db";
+import { betaInvites, contacts, db, ensureInternalAccount, evaluateTriggers, lists, verifiedRecipients } from "@rootmail/db";
 import { isTesterVerified } from "./ses-provisioning";
 
 /**
@@ -171,16 +171,30 @@ export async function promoteVerifiedTesters(): Promise<number> {
   const { workspaceId } = await betaWaitlistAudience();
 
   const waiting = await db
-    .select({ id: contacts.id, email: contacts.email, tags: contacts.tags })
+    .select({ id: contacts.id, email: contacts.email, tags: contacts.tags, recipientStatus: verifiedRecipients.status })
     .from(contacts)
+    .leftJoin(verifiedRecipients, and(eq(verifiedRecipients.workspaceId, contacts.workspaceId), eq(verifiedRecipients.email, contacts.email)))
     .where(and(eq(contacts.workspaceId, workspaceId), isNull(contacts.subTenantId)))
     .limit(500);
 
   let promoted = 0;
   for (const c of waiting) {
     const tags = c.tags ?? [];
-    if (!tags.includes(BETA_WAITLIST_TAG) || tags.includes(BETA_READY_TAG)) continue;
+    if (!tags.includes(BETA_WAITLIST_TAG)) continue;
+    if (tags.includes(BETA_READY_TAG) && c.recipientStatus === "verified") continue;
     if (!(await isTesterVerified(c.email))) continue;
+
+    // The invite sequence uses the same sending guard as customer workflows.
+    // Record observed SES confirmation before evaluating its trigger. Also
+    // repair older ready contacts without firing their invite a second time.
+    await db.insert(verifiedRecipients).values({
+      id: newId("verifiedRecipient"), workspaceId, email: c.email,
+      status: "verified", verifiedAt: new Date(),
+    }).onConflictDoUpdate({
+      target: [verifiedRecipients.workspaceId, verifiedRecipients.email],
+      set: { status: "verified", verifiedAt: new Date(), updatedAt: new Date() },
+    });
+    if (tags.includes(BETA_READY_TAG)) continue;
 
     const next = [...tags, BETA_READY_TAG];
     await db.update(contacts).set({ tags: next, updatedAt: new Date() }).where(eq(contacts.id, c.id));

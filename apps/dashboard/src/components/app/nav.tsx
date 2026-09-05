@@ -21,7 +21,6 @@ import {
   Network,
   Send,
   Settings,
-  Radar,
   Sparkles,
   UserCog,
   Users,
@@ -64,11 +63,6 @@ function buildGroups(opts: { sandbox: boolean; workspaceName: string | null }): 
         // `/` redirects to the signed-in home (Mail), so Overview is linked at its
         // real path. Restoring the full nav without this made "Overview" open Mail.
         { href: "/overview", label: "Overview", icon: LayoutDashboard },
-        // The one destination in here that is not an object type. Thirteen of
-        // the fifteen others are a noun you can list; this is what the system
-        // NOTICED and what it DID — throttles, pauses, DNS drift, the
-        // reputation sweep. All of it already happens; none of it had a door.
-        { href: "/activity", label: "What changed", icon: Radar },
         { href: "/assistant", label: "Assistant", icon: Sparkles },
       ],
     },
@@ -309,7 +303,7 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
           </Link>
         </div>
 
-        <nav className="flex-1 space-y-4 overflow-y-auto px-3 pb-4">
+        <nav className="dashboard-scroll flex-1 space-y-4 overflow-y-auto px-3 pb-4">
           {groups.map((g, i) =>
             g.collapsible ? (
               <CollapsibleGroup
@@ -353,7 +347,7 @@ export function MobileNav({ workspaceName = null, sandbox = false }: NavContext)
 
   return (
     <div className="border-b bg-card md:hidden">
-      <nav className="flex gap-1 overflow-x-auto px-3 py-2">
+      <nav className="mobile-nav-scroll flex gap-1 overflow-x-auto px-3 py-2">
         {shown.map((it) => (
           <Link
             key={it.href}

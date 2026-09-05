@@ -11,23 +11,12 @@ import {
 } from "@rootmail/db";
 import { generateChatTitle, type PriorTurn, runAssistant } from "../lib/assistant";
 import { getAiUsage, recordAiUse, tryConsumeAiCredit } from "../lib/billing";
-import { aiCreditsForOrg, getAddon } from "../lib/plans";
+import { aiCreditsForOrg } from "../lib/plans";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { addonQuantity } from "../lib/seats";
 import { parse } from "../lib/validate";
 
 const DEFAULT_TITLE = "New chat";
-
-/**
- * Resolve the AI-credit allowance for an org (tier allocation + bought packs).
- * -1 means unlimited. Shared by the single-shot and the per-chat message path.
- */
-async function aiAllowance(orgId: string, base: number): Promise<number> {
-  if (base === -1) return -1;
-  const packs = await addonQuantity(orgId, "ai_credit_pack");
-  return base + packs * getAddon("ai_credit_pack").grant;
-}
 
 /** Atomically reserve one AI credit, or throw 402 (with the upgrade path) when the
  * org is at its monthly cap. Returns the reserved usage count (-1 when unlimited). */
@@ -117,7 +106,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
   // and nudge proactively (not only after a send). allowance -1 = unlimited.
   app.get("/v1/assistant/credits", async (req) => {
     const org = await loadOrg(req);
-    const allowance = await aiAllowance(org.id, await aiCreditsForOrg(org));
+    const allowance = await aiCreditsForOrg(org);
     const used = await getAiUsage(org.id);
     return {
       object: "ai_credits" as const,
@@ -137,7 +126,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       const { prompt } = parse(z.object({ prompt: z.string().min(1).max(2000) }), req.body);
       const org = await loadOrg(req);
 
-      const allowance = await aiAllowance(org.id, await aiCreditsForOrg(org));
+      const allowance = await aiCreditsForOrg(org);
       const reserved = await reserveAiCreditOrThrow(org.id, allowance);
 
       // Charge 1 credit per model call the assistant actually made (1 for a quick
@@ -232,7 +221,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       const chat = await getOwnedChat(req, org.id, id);
       const { prompt } = parse(z.object({ prompt: z.string().min(1).max(2000) }), req.body);
 
-      const allowance = await aiAllowance(org.id, await aiCreditsForOrg(org));
+      const allowance = await aiCreditsForOrg(org);
       const reserved = await reserveAiCreditOrThrow(org.id, allowance);
 
       // Replay this chat's prior text turns for context.
@@ -311,7 +300,7 @@ export async function assistantRoutes(app: FastifyInstance): Promise<void> {
       const chat = await getOwnedChat(req, org.id, id);
       const { prompt } = parse(z.object({ prompt: z.string().min(1).max(2000) }), req.body);
 
-      const allowance = await aiAllowance(org.id, await aiCreditsForOrg(org));
+      const allowance = await aiCreditsForOrg(org);
       const reserved = await reserveAiCreditOrThrow(org.id, allowance);
 
       const priors = await db

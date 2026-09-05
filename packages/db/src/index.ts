@@ -10,6 +10,7 @@ export * from "./starter-template";
 export * from "./real-sends";
 export * from "./reputation";
 export * from "./suppression";
+export * from "./sending-access";
 
 import * as schema from "./schema";
 export { schema };

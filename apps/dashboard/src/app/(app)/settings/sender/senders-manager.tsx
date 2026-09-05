@@ -117,8 +117,8 @@ export function SendersManager({ senders }: { senders: SenderIdentity[] }) {
         <div className="rounded-lg border border-dashed px-4 py-8 text-center">
           <p className="text-sm font-medium">No sending address yet</p>
           <p className="mx-auto mt-1 max-w-sm text-xs text-muted-foreground">
-            Until you add one, your mail goes out from a rootmail address. Add yours and recipients see
-            your name — and their replies reach your real inbox.
+            Add and verify an address to enable dashboard sending. Recipients see your name;
+            replies follow the reply destination you choose below.
           </p>
           <Button type="button" size="sm" className="mt-4" onClick={() => setAdding(true)}>
             <MailPlus className="size-4" /> Add your first address
