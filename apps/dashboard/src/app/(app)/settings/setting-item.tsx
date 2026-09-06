@@ -85,8 +85,8 @@ export function SettingsItem({
           ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center gap-3">
-          {value ? <div className="text-right text-xs">{value}</div> : null}
+        <div className="flex max-w-full flex-wrap items-center gap-3">
+          {value ? <div className="min-w-0 break-words text-right text-xs">{value}</div> : null}
           {control}
           {expandable ? (
             <button
