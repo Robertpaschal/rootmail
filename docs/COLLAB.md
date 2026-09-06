@@ -277,3 +277,12 @@ Conversation recording now treats API admission, worker processing and retries a
 observations of one message, not multiple emails. Historic duplicate entries are
 collapsed only in presentation; stored records are preserved. The next live gate
 is a fresh authenticated send, observed Gmail placement and one captured reply.
+
+### Live result
+
+PR #8 shipped at 1f1d8ac. The authorised test on 6 September arrived in Gmail
+Inbox without reclassification, signed by rootmail.io and mailed by mail.rootmail.io.
+Its reply was captured in the same thread, with exactly two entries and Needs reply.
+This is a successful single-mailbox observation, not an inbox-rate promise. A
+mobile deep-link bug was found and repaired in a dashboard-only follow-up: opening
+a specific conversation must select that subject, not another one needing attention.
