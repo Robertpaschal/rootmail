@@ -48,6 +48,7 @@ export default async function NewMessagePage({
     }));
     senders = sn.data
       .filter((s) => s.status === "verified")
+      .sort((a, b) => Number(b.is_default) - Number(a.is_default))
       .map((s) => ({ email: s.email, display_name: s.display_name }));
   } catch {
     /* compose still works without either list */

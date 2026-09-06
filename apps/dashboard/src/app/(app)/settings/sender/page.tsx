@@ -21,17 +21,20 @@ export default async function SenderSettingsPage() {
   let org: Organization;
   let senders: SenderIdentity[] = [];
   let sendingProvider: SendingProvider | null = null;
+  let betaAvailable = false;
   try {
-    const [o, sn, sp] = await Promise.all([
+    const [o, sn, sp, access] = await Promise.all([
       api.getOrganization(),
       api.listSenders().catch(() => ({ data: [] as SenderIdentity[] })),
       // Never fatal: not having connected an account is the common case, and a
       // failure to READ that fact should not take down the whole page.
       api.getSendingProvider().catch(() => null),
+      api.sendingAccess().catch(() => null),
     ]);
     org = o;
     senders = sn.data;
     sendingProvider = sp;
+    betaAvailable = Boolean(o.is_beta && access && !access.sandbox && !access.own_provider && access.provider === "ses");
   } catch (err) {
     return (
       <ConnectionErrorCard
@@ -70,7 +73,7 @@ export default async function SenderSettingsPage() {
         hint="Set up an address your recipients recognise, such as hello@yourcompany.com. We email that inbox a confirmation link; once it's clicked, the address appears in the From menu when you compose."
       >
         <div className="p-4">
-          <SendersManager senders={senders} />
+          <SendersManager senders={senders} betaAvailable={betaAvailable} />
         </div>
       </SettingsSection>
 
@@ -80,7 +83,7 @@ export default async function SenderSettingsPage() {
       >
         <SettingsItem
           label="Where replies land"
-          description="Into your Replies inbox here, where each person is one thread you can answer in-app — or straight to your own mailbox."
+          description="Into your Replies inbox here — or straight to your own mailbox. Rootmail beta addresses always capture replies here because they are not personal mailboxes."
           value={
             <StateBadge tone="ok">
               {org.reply_mode === "own_mailbox" ? "Your own mailbox" : "Replies inbox"}

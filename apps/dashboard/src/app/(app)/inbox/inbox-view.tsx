@@ -173,7 +173,7 @@ function EmailCard({
           <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium", outbound ? "border border-rule text-ink-muted" : "border border-ink text-foreground")}>
             <meta.Icon className="size-3" /> {meta.label}
           </span>
-          <span className="min-w-0 flex-1 truncate font-medium">{m.subject ?? "(no subject)"}</span>
+          <span className="min-w-0 flex-1 truncate font-medium">{m.subject ?? (m.direction === "inbound" ? "Reply in this conversation" : "(no subject)")}</span>
           <span className="shrink-0 text-muted-foreground">
             <LocalTime iso={m.created_at} />
           </span>

@@ -126,7 +126,7 @@ img{max-width:100%;height:auto}a{color:${dark ? "#8ab4ff" : "#2563eb"}}</style><
             <span className="text-xs text-muted-foreground">
               Previewing as{" "}
               <span className="font-medium text-foreground">{person.name ?? person.email}</span>
-              {person.real ? "" : " (a stand-in — your audience is empty)"}
+              {person.real ? "" : " (no matching contact record — check any sample details below)"}
             </span>
           )}
         </div>

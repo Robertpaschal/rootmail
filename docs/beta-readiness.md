@@ -1,4 +1,4 @@
-# Closed-beta readiness — 5 September 2026
+# Closed-beta readiness — 6 September 2026
 
 ## What testers can use
 
@@ -11,6 +11,15 @@ On Rootmail's SES sandbox route, each real recipient must be registered in
 **Testing → Test inboxes** and confirmed by AWS. Rootmail login verification and
 sending-address verification are separate checks. The composer links directly to
 both setup steps. A verified sending address alone does not unlock arbitrary recipients.
+
+The follow-up release adds **Settings → Sending → Use beta address** for beta
+accounts using Rootmail's SES route in Production. It assigns an org-owned address
+on Rootmail's authenticated domain after checking live SES verification and DKIM
+signing. It becomes the default; existing senders and drafts remain. Its replies
+always route into Rootmail (unless an API caller explicitly supplies Reply-To).
+This removes the DNS setup requirement for a first useful test without pretending
+that a Gmail/Outlook sender verified by email has authenticated that public domain.
+Personal-mailbox From addresses carry a warning in setup and the composer.
 
 The beta audience combines the tester's inbox with recognised delivery, bounce,
 and complaint scenario aliases. Keep that audience separate from customers.
@@ -27,7 +36,7 @@ scenarios use the configured provider path.
 
 ## Local verification
 
-- 183 tests pass (115 core, 27 database, 41 API), including 11 focused beta checks;
+- 190 tests pass (115 core, 27 database, 48 API), including 18 focused beta checks;
   typecheck, build, design audit and placeholder-link check pass.
 - Actual beta provisioning, including OAuth; pending is never assumed verified.
 - AWS requests intercepted in tests; no real verification or delivery messages sent.
@@ -37,6 +46,10 @@ scenarios use the configured provider path.
   older ready testers are repaired without triggering their invite again.
 - Starter audience repair preserves contacts and opt-outs; AI credit allowance
   agrees between Billing and Assistant.
+- Managed sender activation checks actual DKIM signing, eligibility and inbound
+  configuration; concurrent activation is idempotent and cross-org use is refused.
+- Concurrent API/worker observations produce one outbound entry, later inbound
+  replies retain Needs reply, and old duplicate rows are preserved but not repeated.
 - Browser: confirmation request → pending → mocked confirmed → pre-addressed
   composer; audience repair; sender-setup recovery link; mobile create, workspace,
   and account menus; desktop and 320/390px layouts in both themes.
@@ -58,9 +71,17 @@ dashboard development/preview server before building into the same `.next` direc
 
 ## Release gate — not established by local tests
 
-This change has not been merged or deployed. Review and deploy API, worker, and
-dashboard together; see `deploy-runbook.md`. Do not deploy only the dashboard.
-No schema migration is required by this change.
+The original repairs shipped in PR #7 at d802c55. A live authorised Gmail test
+confirmed recipient setup, one send, a provider delivery event and reply ingestion.
+Gmail put that message in Spam: From was gmail.com while Gmail showed amazonses.com
+signing. This observation does not prove the exact filtering cause.
+
+The follow-up on `codex/beta-invitation-readiness` is not yet deployed. It adds the
+authenticated beta sender, corrects the false inbox-placement statement, prevents
+duplicate outbound conversation entries, collapses historic duplicate entries on
+read without deleting stored history, and labels inbound context honestly. Review
+and deploy API, worker and dashboard together; see `deploy-runbook.md`. No schema
+migration is required. A fresh domain-aligned Gmail round trip remains a release gate.
 
 Before inviting the cohort, use an authorised tester inbox to verify the deployed
 AWS confirmation email, actual send, provider event, message record, and reply

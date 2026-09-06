@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { isPublicMailboxSender, PUBLIC_MAILBOX_SENDER_WARNING } from "@rootmail/core/constants";
 import { AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -91,7 +92,7 @@ export function SendForm({
   const [state, formAction, pending] = useActionState<SendState | null, FormData>(sendMessage, null);
   const router = useRouter();
 
-  const [from, setFrom] = useState("");
+  const [from, setFrom] = useState(senders[0] ? `id:${senders[0].email}` : "");
   const [to, setTo] = useState(initialTo);
   const [subject, setSubject] = useState(initialSubject);
   const [startFrom, setStartFrom] = useState(""); // "" = blank, else template slug
@@ -230,6 +231,9 @@ export function SendForm({
   return (
     <div className="pb-24">
       <StageRail stages={stages} current={phase} furthest={phase} onJump={(i) => (i === 0 ? goWrite() : goReview())} />
+      {isPublicMailboxSender(from.startsWith("id:") ? from.slice(3) : from === "" ? senders[0]?.email ?? "" : "") ? (
+        <p role="note" className="mb-4 rounded-lg border p-3 text-sm">{PUBLIC_MAILBOX_SENDER_WARNING} <Link href="/settings/sender" className="underline underline-offset-4">Change sender setup →</Link></p>
+      ) : null}
 
       <form action={formAction}>
         {/* Internalized: a generated idempotency key (no field to fill). */}

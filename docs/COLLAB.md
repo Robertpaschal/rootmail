@@ -260,3 +260,20 @@ Claim boundary: simulator traffic is event-handling evidence, not inbox placemen
 human engagement, or an argument that AWS must grant production access. Local
 tests intercept AWS. Actual delivery/replies remain a deployed, authorised-inbox
 release check. See `docs/beta-readiness.md` for the gate and test procedure.
+
+## 2026-09-06 — authenticated beta entry point (implementation, not yet deployed)
+
+PR #7 is live. The authorised Gmail round trip worked, but Gmail placed the
+Gmail-From/SES-signed message in Spam. Provider delivery is not inbox placement;
+the message-detail copy claiming otherwise is corrected in this follow-up.
+
+Beta accounts can activate an org-owned Rootmail-domain sender after a live SES
+DKIM check. Replies stay in Rootmail. This enables a useful first test without
+asking testers to configure DNS or impersonate a public mailbox domain. Shared
+SES sandbox recipient/rate limits remain. Templates, audiences, drafts and history
+are reusable after beta; the beta address does not promise permanent branded sending.
+
+Conversation recording now treats API admission, worker processing and retries as
+observations of one message, not multiple emails. Historic duplicate entries are
+collapsed only in presentation; stored records are preserved. The next live gate
+is a fresh authenticated send, observed Gmail placement and one captured reply.

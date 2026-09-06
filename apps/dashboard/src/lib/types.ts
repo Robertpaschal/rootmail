@@ -375,6 +375,7 @@ export interface Organization {
   object: "organization";
   id: string;
   name: string;
+  is_beta?: boolean;
   plan: PlanId;
   postal_address: string | null;
   data_region: string;

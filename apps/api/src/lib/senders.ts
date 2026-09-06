@@ -39,6 +39,13 @@ export async function identityVerified(email: string): Promise<boolean> {
   }
 }
 
+/** A managed beta sender inherits the platform domain's actual DKIM identity. */
+export async function betaSendingDomainReady(): Promise<boolean> {
+  if (env.DNS_VERIFY_MODE === "mock") return true;
+  const identity = await ses.send(new GetEmailIdentityCommand({ EmailIdentity: env.ROOTMAIL_DOMAIN }));
+  return identity.VerifiedForSendingStatus === true && identity.DkimAttributes?.Status === "SUCCESS" && identity.DkimAttributes?.SigningEnabled === true;
+}
+
 /** Remove the identity from SES (best-effort — the row is the source of truth). */
 export async function removeIdentity(email: string): Promise<void> {
   if (MOCK) return;
@@ -124,7 +131,7 @@ export async function assertSenderAllowed(opts: {
 }): Promise<void> {
   const fromDomain = opts.fromEmail.split("@")[1]?.toLowerCase() ?? "";
   if (opts.subTenantDomain && fromDomain === opts.subTenantDomain.toLowerCase()) return;
-  if (fromDomain === env.ROOTMAIL_DOMAIN.toLowerCase()) return;
+  if (opts.fromEmail.toLowerCase() === `no-reply@${env.ROOTMAIL_DOMAIN.toLowerCase()}`) return;
   if (opts.organizationId && (await verifiedSenderFor(opts.organizationId, opts.fromEmail))) return;
   throw Errors.validation(
     `"${opts.fromEmail}" isn't a verified sender for this organization. Verify it under Settings → Sending, or leave From empty to use your workspace address.`,

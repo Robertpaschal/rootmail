@@ -2,13 +2,15 @@ import assert from "node:assert/strict";
 import { after, before, describe, it, mock } from "node:test";
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { and, eq, inArray } from "drizzle-orm";
-import { closeQueues, closeRedis, env, newId, testRecipientAddress } from "@rootmail/core";
+import { betaSenderAddress, closeQueues, closeRedis, env, isPublicMailboxSender, newId, testRecipientAddress } from "@rootmail/core";
 import { closeDb, contacts, db, listContacts, lists, messages, organizations, orgSendingProviders, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
 import { provisionAccount, createSession, upsertOAuthUser } from "../lib/auth";
 import { seedBetaTestKit } from "../lib/beta-test-kit";
 import { betaWaitlistAudience, promoteVerifiedTesters, BETA_WAITLIST_TAG, BETA_READY_TAG } from "../lib/beta-waitlist";
 import { buildServer } from "../server";
 import { processSend } from "../../../worker/src/pipeline";
+import { appendInbound, appendOutbound, openConversationForSend, resolveReplyTo, senderIdentities, threadMessages, threads } from "@rootmail/db";
+import { assertSenderAllowed } from "../lib/senders";
 
 // Exercise actual beta flags and SES policy, but intercept every AWS operation.
 // No worker runs and no network delivery or verification email can occur.
@@ -18,6 +20,7 @@ const inviteEmails = [`invite-${stamp}@example.test`, `ready-${stamp}@example.te
 const states = new Map<string, boolean>();
 let verificationRequests = 0;
 let verificationUnavailable = false;
+let dkimReady = true;
 let account: Awaited<ReturnType<typeof provisionAccount>>;
 let app: Awaited<ReturnType<typeof buildServer>>;
 let auth: { authorization: string };
@@ -25,14 +28,18 @@ let oauthOrg: string | undefined;
 let oauthUser: string | undefined;
 const previousProvider = env.MAIL_PROVIDER;
 const previousSandbox = env.SES_SANDBOX_MODE;
+const previousInbound = env.INBOUND_DOMAIN;
+const previousDns = env.DNS_VERIFY_MODE;
 
 before(async () => {
   env.MAIL_PROVIDER = "ses";
   env.SES_SANDBOX_MODE = "true";
+  env.INBOUND_DOMAIN = "reply.example.test";
   mock.method(SESv2Client.prototype, "send", async (command: { constructor: { name: string }; input: { EmailIdentity: string } }) => {
     const email = command.input.EmailIdentity;
     if (command.constructor.name === "GetEmailIdentityCommand") {
       if (verificationUnavailable) throw Object.assign(new Error("Unavailable"), { name: "ServiceUnavailableException" });
+      if (email === env.ROOTMAIL_DOMAIN) return { VerifiedForSendingStatus: true, DkimAttributes: { Status: "SUCCESS", SigningEnabled: dkimReady } };
       if (!states.has(email)) throw Object.assign(new Error("Not found"), { name: "NotFoundException" });
       return { VerifiedForSendingStatus: states.get(email) };
     }
@@ -58,6 +65,7 @@ after(async () => {
   await db.delete(contacts).where(inArray(contacts.email, [ownerEmail, `oauth-beta-${stamp}@example.test`, ...inviteEmails]));
   await db.delete(verifiedRecipients).where(inArray(verifiedRecipients.email, inviteEmails));
   mock.restoreAll(); env.MAIL_PROVIDER = previousProvider; env.SES_SANDBOX_MODE = previousSandbox;
+  env.INBOUND_DOMAIN = previousInbound; env.DNS_VERIFY_MODE = previousDns;
   await closeDb();
 });
 
@@ -180,11 +188,95 @@ describe("closed beta — a verified inbox, a reusable audience and honest sendi
     assert.ok(credits.json().allowance > 20);
   });
 
+  it("records one outbound entry across simultaneous API/worker observations and retries", async () => {
+    const queued = await send(testRecipientAddress("delivered"));
+    assert.equal(queued.statusCode, 202, queued.body);
+    const [m] = await db.select().from(messages).where(eq(messages.id, queued.json().id));
+    const input = { workspaceId: m.workspaceId, subTenantId: m.subTenantId, contactEmail: m.toEmail, subject: m.subject, fromEmail: m.fromEmail, messageId: m.id };
+    const results = await Promise.all(Array.from({ length: 6 }, () => openConversationForSend(input)));
+    assert.equal(new Set(results.map(t => t.id)).size, 1);
+    assert.equal((await db.select().from(threadMessages).where(eq(threadMessages.messageId, m.id))).length, 1);
+    await appendInbound(results[0], { fromEmail: m.toEmail, toEmail: m.fromEmail, bodyText: "A real reply" });
+    await openConversationForSend(input);
+    const [thread] = await db.select().from(threads).where(eq(threads.id, results[0].id));
+    assert.equal(thread.status, "needs_reply", "a worker retry must not clear a later reply");
+    await appendOutbound(thread, { fromEmail: m.fromEmail, toEmail: m.toEmail, messageId: m.id });
+    assert.equal((await db.select().from(threadMessages).where(eq(threadMessages.messageId, m.id))).length, 1);
+  });
+
+  it("collapses historical duplicates on read without removing history or inbound replies", async () => {
+    const queued = await send(testRecipientAddress("delivered"));
+    const [entry] = await db.select().from(threadMessages).where(eq(threadMessages.messageId, queued.json().id));
+    await db.insert(threadMessages).values({ ...entry, id: newId("threadMessage") });
+    const result = await request("GET", `/v1/threads/${entry.threadId}`);
+    assert.equal(result.statusCode, 200, result.body);
+    assert.equal(result.json().messages.filter((m: { message_id: string }) => m.message_id === entry.messageId).length, 1);
+    assert.ok(result.json().messages.some((m: { direction: string }) => m.direction === "inbound"));
+    assert.equal((await db.select().from(threadMessages).where(eq(threadMessages.messageId, entry.messageId!))).length, 2);
+  });
+
+  it("clears Needs reply once when a fast worker has already recorded our genuine reply", async () => {
+    const queued = await send(testRecipientAddress("delivered"));
+    const [entry] = await db.select().from(threadMessages).where(eq(threadMessages.messageId, queued.json().id));
+    const [thread] = await db.select().from(threads).where(eq(threads.id, entry.threadId));
+    await appendOutbound(thread, { fromEmail: entry.fromEmail, toEmail: entry.toEmail, messageId: entry.messageId });
+    const [updated] = await db.select().from(threads).where(eq(threads.id, thread.id));
+    assert.equal(updated.status, "open");
+    assert.equal((await db.select().from(threadMessages).where(eq(threadMessages.messageId, entry.messageId!))).length, 1);
+  });
+
+  it("restricts beta activation to eligible live accounts with working reply configuration", async () => {
+    const sandboxAuth = { authorization: `Bearer ${(await createSession(account.user.id, account.sandbox.id)).token}` };
+    assert.equal((await app.inject({ method: "POST", url: "/v1/senders/beta", headers: sandboxAuth, payload: {} })).statusCode, 403);
+    await db.update(organizations).set({ isBeta: false }).where(eq(organizations.id, account.organizationId));
+    try { assert.equal((await request("POST", "/v1/senders/beta", {})).statusCode, 403); }
+    finally { await db.update(organizations).set({ isBeta: true }).where(eq(organizations.id, account.organizationId)); }
+    env.INBOUND_DOMAIN = "not-a-hostname";
+    try { assert.equal((await request("POST", "/v1/senders/beta", {})).statusCode, 422); }
+    finally { env.INBOUND_DOMAIN = "reply.example.test"; }
+  });
+
+  it("refuses beta activation before DKIM is signing and preserves existing senders", async () => {
+    env.DNS_VERIFY_MODE = "live"; dkimReady = false;
+    try {
+      const result = await request("POST", "/v1/senders/beta", {});
+      assert.equal(result.statusCode, 422, result.body);
+      assert.match(result.body, /not ready/);
+      assert.equal((await db.select().from(senderIdentities).where(eq(senderIdentities.organizationId, account.organizationId))).length, 0);
+    } finally { dkimReady = true; }
+  });
+
+  it("activates one org-owned authenticated beta default without a mailbox verification email", async () => {
+    const count = verificationRequests;
+    const [first, second] = await Promise.all([request("POST", "/v1/senders/beta", {}), request("POST", "/v1/senders/beta", {})]);
+    assert.equal(first.statusCode, 200, first.body); assert.equal(second.statusCode, 200, second.body);
+    assert.equal(first.json().id, second.json().id);
+    assert.equal(first.json().email, betaSenderAddress(account.organizationId, env.ROOTMAIL_DOMAIN));
+    assert.equal(first.json().is_default, true); assert.equal(first.json().status, "verified");
+    assert.equal(verificationRequests, count);
+    assert.equal((await db.select().from(senderIdentities).where(eq(senderIdentities.organizationId, account.organizationId))).length, 1);
+    await assertSenderAllowed({ organizationId: account.organizationId, fromEmail: first.json().email });
+    await assert.rejects(assertSenderAllowed({ organizationId: oauthOrg!, fromEmail: first.json().email }));
+    assert.equal((await request("POST", "/v1/senders", { email: betaSenderAddress("org_someone_else", env.ROOTMAIL_DOMAIN) })).statusCode, 422);
+    const denied = await request("POST", "/v1/messages", { to: testRecipientAddress("delivered"), subject: "No impersonation", html: "<p>test</p>", from: { email: betaSenderAddress("org_someone_else", env.ROOTMAIL_DOMAIN) } });
+    assert.equal(denied.statusCode, 422, denied.body);
+  });
+
+  it("keeps managed replies captured and warns about personal mailbox senders", () => {
+    const managed = betaSenderAddress(account.organizationId, env.ROOTMAIL_DOMAIN);
+    assert.equal(resolveReplyTo({ fromEmail: managed, conversationId: "thr_beta", replyMode: "own_mailbox" }), "reply+thr_beta@reply.example.test");
+    assert.equal(resolveReplyTo({ fromEmail: managed, conversationId: "thr_beta", replyMode: "inbox", explicit: "support@example.test" }), "support@example.test");
+    for (const email of ["Person@GMAIL.COM", "person@outlook.com", "person@yahoo.co.uk"]) assert.equal(isPublicMailboxSender(email), true);
+    assert.equal(isPublicMailboxSender(managed), false);
+    assert.equal(isPublicMailboxSender("hello@brand.example"), false);
+  });
+
   it("does not impose platform SES verification on a connected provider or application sandbox", async () => {
     assert.deepEqual(await unverifiedSendRecipients(account.sandbox.id, ["any@example.test"]), []);
     await db.insert(orgSendingProviders).values({ id: newId("sendingProvider"), organizationId: account.organizationId, provider: "mailgun", status: "active", credentials: "unused-test-value" });
     assert.equal((await request("GET", "/v1/testing/recipients")).json().required, false);
     assert.deepEqual(await unverifiedSendRecipients(account.production.id, ["any@example.test"]), []);
     assert.equal((await request("POST", "/v1/testing/recipients", { email: "any@example.test" })).statusCode, 400);
+    assert.equal((await request("POST", "/v1/senders/beta", {})).statusCode, 403);
   });
 });

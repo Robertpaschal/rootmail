@@ -43,7 +43,7 @@ const STATUS_META: Record<string, { label: string; tone: Tone; blurb: string }> 
   queued: { label: "Queued", tone: "progress", blurb: "Your email is in line to send." },
   sending: { label: "Sending", tone: "progress", blurb: "Handing your email to the mail servers…" },
   sent: { label: "Sent", tone: "progress", blurb: "Accepted by the mail provider — we'll show delivery here once it confirms." },
-  delivered: { label: "Delivered", tone: "success", blurb: "It landed in the recipient's inbox." },
+  delivered: { label: "Delivered", tone: "success", blurb: "The recipient's mail server accepted it. Inbox or spam placement is not reported to us." },
   opened: {
     label: "Opened",
     tone: "inferred",

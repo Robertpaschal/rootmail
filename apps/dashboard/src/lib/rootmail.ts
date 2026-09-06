@@ -671,6 +671,7 @@ export const api = {
 
   // Own from-addresses (SES email-identity verification).
   listSenders: () => rmFetch<ListResponse<SenderIdentity>>("/v1/senders"),
+  activateBetaSender: () => rmFetch<SenderIdentity>("/v1/senders/beta", { method: "POST" }),
   addSender: (body: { email: string; display_name?: string }) =>
     rmFetch<SenderIdentity>("/v1/senders", { method: "POST", body }),
   checkSender: (id: string) =>
