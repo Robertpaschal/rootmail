@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { env, newId } from "@rootmail/core";
 import { db } from "./client";
 import { type Thread, threadMessages, threads } from "./schema";
@@ -51,6 +51,11 @@ export function resolveReplyTo(opts: {
   replyDomain?: string | null;
 }): string | null {
   if (opts.explicit) return opts.explicit;
+  // Managed beta addresses are sending identities, not mailboxes. Even if the
+  // workspace later chooses own_mailbox, replies must not disappear there.
+  if (opts.fromEmail.toLowerCase().startsWith("beta+") && opts.fromEmail.toLowerCase().endsWith(`@${env.ROOTMAIL_DOMAIN.toLowerCase()}`)) {
+    return threadReplyAddress(opts.conversationId, opts.replyDomain);
+  }
   const ownMailbox = isRootmailNoReply(opts.fromEmail) ? null : opts.fromEmail;
   if (opts.replyMode === "own_mailbox") return ownMailbox;
   return threadReplyAddress(opts.conversationId, opts.replyDomain) ?? ownMailbox;
@@ -108,55 +113,68 @@ export interface ConversationSend {
  * Best-effort by contract: callers wrap this so threading never fails a send.
  */
 export async function openConversationForSend(m: ConversationSend): Promise<Thread> {
-  const email = m.contactEmail.toLowerCase();
-  const scope = m.subTenantId ? eq(threads.subTenantId, m.subTenantId) : isNull(threads.subTenantId);
-  const key = baseSubject(m.subject);
-  const existingRows = await db
-    .select()
-    .from(threads)
-    .where(and(eq(threads.workspaceId, m.workspaceId), scope, eq(threads.contactEmail, email)))
-    .orderBy(desc(threads.lastMessageAt));
-  const existing = existingRows.find((t) => baseSubject(t.subject) === key);
+  return db.transaction(async (tx) => {
+    // API admission, the worker and retries can all observe the SAME message.
+    // Serialize them across processes; do not create a second conversation entry.
+    if (m.messageId) {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`outbound:${m.messageId}`}, 0))`);
+      const [recorded] = await tx.select({ thread: threads }).from(threadMessages)
+        .innerJoin(threads, eq(threads.id, threadMessages.threadId))
+        .where(and(eq(threadMessages.messageId, m.messageId), eq(threadMessages.direction, "outbound"), eq(threads.workspaceId, m.workspaceId)))
+        .limit(1);
+      if (recorded) return recorded.thread;
+    }
+    const email = m.contactEmail.toLowerCase();
+    const scope = m.subTenantId ? eq(threads.subTenantId, m.subTenantId) : isNull(threads.subTenantId);
+    const key = baseSubject(m.subject);
+    await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${JSON.stringify([m.workspaceId, m.subTenantId, email, key])}, 0))`);
+    const existingRows = await tx
+      .select()
+      .from(threads)
+      .where(and(eq(threads.workspaceId, m.workspaceId), scope, eq(threads.contactEmail, email)))
+      .orderBy(desc(threads.lastMessageAt));
+    const existing = existingRows.find((t) => baseSubject(t.subject) === key);
 
-  let thread = existing;
-  if (!thread) {
-    [thread] = await db
-      .insert(threads)
-      .values({
-        id: newId("thread"),
-        workspaceId: m.workspaceId,
-        subTenantId: m.subTenantId,
-        contactEmail: email,
-        subject: displaySubject(m.subject),
-        status: "open",
-        lastMessageAt: new Date(),
-      })
-      .returning();
-  } else {
-    // An outbound send doesn't itself need a reply — keep an open conversation
-    // open, but never quietly clear a "needs_reply" flag the recipient raised.
-    await db
-      .update(threads)
-      .set({
-        status: thread.status === "needs_reply" ? "needs_reply" : "open",
-        lastMessageAt: new Date(),
-        updatedAt: new Date(),
-      })
-      .where(eq(threads.id, thread.id));
-  }
+    let thread = existing;
+    if (!thread) {
+      [thread] = await tx
+        .insert(threads)
+        .values({
+          id: newId("thread"),
+          workspaceId: m.workspaceId,
+          subTenantId: m.subTenantId,
+          contactEmail: email,
+          subject: displaySubject(m.subject),
+          status: "open",
+          lastMessageAt: new Date(),
+        })
+        .returning();
+    } else {
+      // An outbound send doesn't itself need a reply — keep an open conversation
+      // open, but never quietly clear a "needs_reply" flag the recipient raised.
+      await tx
+        .update(threads)
+        .set({
+          status: thread.status === "needs_reply" ? "needs_reply" : "open",
+          lastMessageAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .where(eq(threads.id, thread.id));
+    }
 
-  await db.insert(threadMessages).values({
-    id: newId("threadMessage"),
-    threadId: thread.id,
-    direction: "outbound",
-    messageId: m.messageId ?? null,
-    fromEmail: m.fromEmail,
-    toEmail: email,
-    bodyHtml: m.bodyHtml ?? null,
-    bodyText: m.bodyText ?? null,
+    await tx.insert(threadMessages).values({
+      id: newId("threadMessage"),
+      threadId: thread.id,
+      direction: "outbound",
+      messageId: m.messageId ?? null,
+      fromEmail: m.fromEmail,
+      toEmail: email,
+      bodyHtml: m.bodyHtml ?? null,
+      bodyText: m.bodyText ?? null,
+    });
+
+    return thread;
   });
-
-  return thread;
 }
 
 /** Resolve the conversation a reply belongs to. `inReplyTo` may be a message id
@@ -220,20 +238,48 @@ export async function appendOutbound(
     messageId?: string | null;
   },
 ): Promise<void> {
-  await db.insert(threadMessages).values({
-    id: newId("threadMessage"),
-    threadId: thread.id,
-    direction: "outbound",
-    messageId: msg.messageId ?? null,
-    fromEmail: msg.fromEmail,
-    toEmail: msg.toEmail,
-    bodyHtml: msg.bodyHtml ?? null,
-    bodyText: msg.bodyText ?? null,
+  await db.transaction(async (tx) => {
+    if (msg.messageId) {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`outbound:${msg.messageId}`}, 0))`);
+      const [recorded] = await tx.select({ id: threadMessages.id, createdAt: threadMessages.createdAt }).from(threadMessages)
+        .where(and(eq(threadMessages.threadId, thread.id), eq(threadMessages.messageId, msg.messageId), eq(threadMessages.direction, "outbound"))).limit(1);
+      if (recorded) {
+        // A fast worker may record the reply before the reply route gets here.
+        // Acknowledge that reply, but never clear a newer incoming message.
+        await tx.update(threads).set({ status: "open", updatedAt: new Date() }).where(and(
+          eq(threads.id, thread.id),
+          sql`not exists (select 1 from ${threadMessages} where ${threadMessages.threadId} = ${thread.id} and ${threadMessages.direction} = 'inbound' and ${threadMessages.createdAt} > ${recorded.createdAt.toISOString()}::timestamptz)`,
+        ));
+        return;
+      }
+    }
+    await tx.insert(threadMessages).values({
+      id: newId("threadMessage"),
+      threadId: thread.id,
+      direction: "outbound",
+      messageId: msg.messageId ?? null,
+      fromEmail: msg.fromEmail,
+      toEmail: msg.toEmail,
+      bodyHtml: msg.bodyHtml ?? null,
+      bodyText: msg.bodyText ?? null,
+    });
+    await tx
+      .update(threads)
+      .set({ status: "open", lastMessageAt: new Date(), updatedAt: new Date() })
+      .where(eq(threads.id, thread.id));
   });
-  await db
-    .update(threads)
-    .set({ status: "open", lastMessageAt: new Date(), updatedAt: new Date() })
-    .where(eq(threads.id, thread.id));
+}
+
+/** Read-time repair of historic duplicate outbound records. Keep stored history;
+ * two real sends with different message ids and all inbound replies stay distinct. */
+export function distinctConversationMessages<T extends { direction: string; messageId: string | null }>(rows: T[]): T[] {
+  const seen = new Set<string>();
+  return rows.filter(row => {
+    if (row.direction !== "outbound" || !row.messageId) return true;
+    if (seen.has(row.messageId)) return false;
+    seen.add(row.messageId);
+    return true;
+  });
 }
 
 /** The "from" identity to reply with inside a conversation (the address the

@@ -2,9 +2,20 @@
 
 import { revalidatePath } from "next/cache";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
-import type { Organization, ReplyDomainCheck } from "@/lib/types";
+import type { Organization, ReplyDomainCheck, SenderIdentity } from "@/lib/types";
 
 export type SenderState = { ok?: boolean; error?: string };
+
+export async function activateBetaSenderAction(): Promise<SenderState & { sender?: SenderIdentity }> {
+  try {
+    const sender = await api.activateBetaSender();
+    revalidatePath("/testing");
+    revalidatePath("/messages/new");
+    return { ok: true, sender };
+  } catch (err) {
+    return { error: err instanceof ApiError || err instanceof ConnectionError ? err.message : "Couldn't activate the beta address. Please try again." };
+  }
+}
 
 /** Set (or clear) the branded reply subdomain. Returns the updated org. billing.manage. */
 export async function setReplyDomainAction(domain: string | null): Promise<{ org?: Organization; error?: string }> {

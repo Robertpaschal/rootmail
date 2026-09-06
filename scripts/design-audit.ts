@@ -92,7 +92,7 @@ const RULES: Rule[] = [
     id: "delivery-overclaim",
     blocking: true,
     why: "Nobody can guarantee inbox placement. Say what we do (authenticate, throttle, report), never what a mailbox provider will decide.",
-    test: /guarantee[ds]?\s+(?:delivery|the\s+inbox|inbox\s+placement)|never\s+lands?\s+in\s+spam|100%\s+deliver|inbox\s+guaranteed/i,
+    test: /guarantee[ds]?\s+(?:delivery|the\s+inbox|inbox\s+placement)|never\s+lands?\s+in\s+spam|100%\s+deliver|inbox\s+guaranteed|landed in the recipient.s inbox/i,
   },
   {
     id: "decorative-blur",

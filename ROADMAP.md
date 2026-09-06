@@ -39,12 +39,14 @@ add-ons with a live total, pay without leaving the site); rootmail **dogfooding 
 own email** for lifecycle (welcome/invite/dunning/trial) + admin broadcast; full
 **dark mode**. A code scan shows **no TODOs or stubs**.
 
-> **Testing, honestly:** `pnpm test` runs **183 tests** (`node:test` via `tsx`, no new
+> **Testing, honestly:** `pnpm test` runs **190 tests** (`node:test` via `tsx`, no new
 > dependencies) across `core`, `db` and `api`. They are deliberately NARROW — they
 > cover only the paths where a silent regression is a customer-facing breach:
 > tenant read isolation (message / audit trail / signed proof bundle / event
 > recording, plus the compliance export), suppression scoping, rule-audience
 > validation and resolution, and the reputation threshold state machine. The
+> beta checks also cover SES-recipient policy, authenticated beta sender ownership,
+> and idempotent conversation recording with history-preserving display repair. The
 > isolation suite is an integration test: it builds the real server and drives real
 > HTTP against a real database, because the bug it guards was one helper shared by
 > four routes. CI runs the full suite on every pull request and every push to `main`.

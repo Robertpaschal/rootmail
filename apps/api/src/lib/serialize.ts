@@ -1,4 +1,5 @@
 import { buildDnsRecords, testRecipientFor } from "@rootmail/core";
+import { distinctConversationMessages } from "@rootmail/db";
 import type {
   ApiKey,
   AuditEntry,
@@ -66,7 +67,7 @@ export function serializeThread(t: Thread, msgs?: ThreadMessage[], extra?: Threa
     sub_tenant_id: t.subTenantId,
     last_message_at: t.lastMessageAt,
     created_at: t.createdAt,
-    ...(msgs ? { messages: msgs.map((m) => serializeThreadMessage(m, extra?.source?.(m))) } : {}),
+    ...(msgs ? { messages: distinctConversationMessages(msgs).map((m) => serializeThreadMessage(m, extra?.source?.(m))) } : {}),
   };
 }
 

@@ -1,11 +1,11 @@
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { Errors, newId } from "@rootmail/core";
-import { db, senderIdentities, type SenderIdentity } from "@rootmail/db";
+import { betaSenderAddress, env, Errors, newId } from "@rootmail/core";
+import { db, senderIdentities, sendingAccess, threadReplyAddress, type SenderIdentity } from "@rootmail/db";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { ensureDefaultSender, identityVerified, removeIdentity, setDefaultSender, startIdentityVerification } from "../lib/senders";
+import { betaSendingDomainReady, ensureDefaultSender, identityVerified, removeIdentity, setDefaultSender, startIdentityVerification } from "../lib/senders";
 import { parse } from "../lib/validate";
 
 // The org's own from-addresses. Adding one triggers SES's confirmation email to
@@ -31,6 +31,33 @@ const createBody = z.object({
 });
 
 export async function senderRoutes(app: FastifyInstance): Promise<void> {
+  app.post("/v1/senders/beta", async (req) => {
+    await requirePermission(req, "billing.manage");
+    const org = await loadOrg(req);
+    const access = await sendingAccess(req.auth.workspace.id);
+    if (!org.isBeta || access.own_provider || access.provider !== "ses" || access.sandbox) {
+      throw Errors.forbidden("The beta address is available in a beta account's Production workspace using Rootmail's SES sending account.");
+    }
+    if (!threadReplyAddress("beta-readiness")) {
+      throw Errors.validation("Rootmail's beta reply service is not configured. Contact support; no address was activated.");
+    }
+    if (!(await betaSendingDomainReady())) {
+      throw Errors.validation("Rootmail's beta sending domain is not ready. Contact support; no address was activated.");
+    }
+    const email = betaSenderAddress(org.id, env.ROOTMAIL_DOMAIN);
+    const row = await db.transaction(async tx => {
+      await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`beta-sender:${org.id}`}, 0))`);
+      const [existing] = await tx.select().from(senderIdentities).where(eq(senderIdentities.email, email)).limit(1);
+      if (existing && existing.organizationId !== org.id) throw Errors.conflict("This beta address needs support to resolve its ownership.");
+      await tx.update(senderIdentities).set({ isDefault: false }).where(eq(senderIdentities.organizationId, org.id));
+      const [sender] = await tx.insert(senderIdentities).values({
+        id: newId("senderIdentity"), organizationId: org.id, email,
+        displayName: `${org.name || "Your workspace"} · Rootmail beta`, status: "verified", verifiedAt: new Date(), isDefault: true,
+      }).onConflictDoUpdate({ target: senderIdentities.email, set: { isDefault: true, status: "verified", verifiedAt: new Date() } }).returning();
+      return sender;
+    });
+    return serialize(row);
+  });
   app.get("/v1/senders", async (req) => {
     const org = await loadOrg(req);
     const rows = await db
@@ -45,6 +72,9 @@ export async function senderRoutes(app: FastifyInstance): Promise<void> {
     await requirePermission(req, "billing.manage");
     const org = await loadOrg(req);
     const b = parse(createBody, req.body);
+    if (b.email.startsWith("beta+") && b.email.endsWith(`@${env.ROOTMAIL_DOMAIN.toLowerCase()}`)) {
+      throw Errors.validation("Use the beta address setup instead of adding a managed address manually.");
+    }
 
     const [existing] = await db
       .select({ orgId: senderIdentities.organizationId })

@@ -1248,3 +1248,16 @@ export function traitLabel(key: string): string {
   const words = key.replace(/^_/, "").replace(/[_-]+/g, " ").trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+/** Public inbox ownership is not authorization to authenticate that provider's domain. */
+export function isPublicMailboxSender(email: string): boolean {
+  const domain = email.trim().toLowerCase().split("@")[1] ?? "";
+  return /^(gmail|googlemail|yahoo|ymail|rocketmail|hotmail|outlook|live|msn|icloud|me|mac|aol|proton|protonmail|pm|gmx|mail|yandex)\.(com|net|me|co\.uk|de|fr)$/.test(domain);
+}
+
+export const PUBLIC_MAILBOX_SENDER_WARNING = "Gmail, Outlook and other personal inbox addresses cannot authenticate their domain through Rootmail. Mail sent as these addresses may go to spam. Use a Rootmail beta address or authenticate a domain you own before testing delivery.";
+
+/** One stable, org-specific address; never a shared house support identity. */
+export function betaSenderAddress(organizationId: string, domain: string): string {
+  return `beta+${organizationId.toLowerCase()}@${domain.toLowerCase()}`;
+}
