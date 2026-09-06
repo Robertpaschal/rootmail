@@ -252,11 +252,14 @@ export function InboxView({
   threads: initialThreads,
   initialDetails,
   initialContact,
+  initialThreadId = null,
   sandbox = false,
 }: {
   threads: Thread[];
   initialDetails: Thread[];
   initialContact: string | null;
+  /** A conversation deep link must open that subject, including on mobile. */
+  initialThreadId?: string | null;
   /** Sandbox workspaces get demo tools (simulate a reply); live stays truly live. */
   sandbox?: boolean;
 }) {
@@ -267,9 +270,9 @@ export function InboxView({
   const contacts = useMemo(() => groupByContact(threads), [threads]);
 
   const [selectedEmail, setSelectedEmail] = useState<string | null>(initialContact ?? contacts[0]?.email ?? null);
-  const [expandedThread, setExpandedThread] = useState<string | null>(null);
+  const [expandedThread, setExpandedThread] = useState<string | null>(initialThreadId);
   const [openEmails, setOpenEmails] = useState<Set<string>>(new Set());
-  const [showList, setShowList] = useState(true);
+  const [showList, setShowList] = useState(!initialThreadId);
   // The people rail folds to a strip of avatars so ONE conversation can have the
   // whole width — reading a long exchange shouldn't cost you 320px of names you
   // aren't looking at. Collapsed still lets you switch person in one click.
@@ -287,7 +290,7 @@ export function InboxView({
   const threadPaneRef = useRef<HTMLDivElement>(null);
   /** Set when a thread is opened FROM the outline — the signal to land at the
    * reply box once its emails have loaded, rather than at the top. */
-  const landAtReplyFor = useRef<string | null>(null);
+  const landAtReplyFor = useRef<string | null>(initialThreadId);
   const landTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const desktop = useDesktop();
   // Switching person should animate; ARRIVING at the page should not — the first

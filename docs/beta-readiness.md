@@ -76,12 +76,41 @@ confirmed recipient setup, one send, a provider delivery event and reply ingesti
 Gmail put that message in Spam: From was gmail.com while Gmail showed amazonses.com
 signing. This observation does not prove the exact filtering cause.
 
-The follow-up on `codex/beta-invitation-readiness` is not yet deployed. It adds the
+PR #8 is deployed at `1f1d8ac35a3696b5aa0d02c7c1ae9f3900d3da1c`. It adds the
 authenticated beta sender, corrects the false inbox-placement statement, prevents
 duplicate outbound conversation entries, collapses historic duplicate entries on
 read without deleting stored history, and labels inbound context honestly. Review
 and deploy API, worker and dashboard together; see `deploy-runbook.md`. No schema
-migration is required. A fresh domain-aligned Gmail round trip remains a release gate.
+migration is required.
+
+### Observed production result — 6 September
+
+The authorised [authenticated test](https://app.rootmail.io/messages/msg_4weober38vommxmvyxxpq1g4)
+was accepted at 04:53 UTC. Gmail labelled it **Inbox**, without manual movement or
+spam reclassification. Gmail details show **signed-by rootmail.io** and
+**mailed-by mail.rootmail.io**, with the expected conversation Reply-To. A labelled
+Gmail reply appears in the [same thread](https://app.rootmail.io/inbox/thr_c9e85hi2a9mj4gzn57e9gc56):
+exactly one outbound and one inbound entry, with Needs reply. The old test thread
+also displays its two genuine emails without deleting the historic duplicate row.
+
+This proves one authenticated Gmail round trip, not a general inbox-placement rate.
+The signed-in sender/composer screens were walked at desktop and mobile sizes;
+sender setup was checked in both themes. A mobile deep-link issue found during
+the walkthrough is repaired in the follow-up: open the requested subject directly,
+not the contact list or another subject needing attention. Deploy that dashboard
+follow-up and verify both the old and new thread links before closing the gate.
+
+### Cohort operating boundary
+
+Start with a small, individually onboarded cohort (for example five testers), not
+a public launch. Each tester should activate a beta address, confirm their own
+inbox, save a reusable template, send one email and reply to it. They can then
+organise test audiences and draft campaigns/sequences. Do not upload or send to
+unconfirmed customer lists on the shared SES route. Account-wide AWS limits are
+200 messages per 24 hours and 1 per second, including all organisations and system
+mail; Rootmail allowances are separate. Stop expanding the cohort if activation,
+confirmation, sending or reply capture fails, and collect feedback through the
+dashboard support entry. No cohort invitations were sent during verification.
 
 Before inviting the cohort, use an authorised tester inbox to verify the deployed
 AWS confirmation email, actual send, provider event, message record, and reply
