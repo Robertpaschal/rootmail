@@ -100,7 +100,7 @@ const EVENT_META: Record<string, { label: string; Icon: typeof Mail; tone: strin
   imported: { label: "Imported", Icon: UserPlus, tone: "text-muted-foreground", dot: "bg-muted-foreground" },
   waitlisted: { label: "Waitlisted (no contact room)", Icon: Ban, tone: "text-acted", dot: "bg-acted" },
   admitted: { label: "Admitted from the waitlist", Icon: UserCheck, tone: "text-witnessed", dot: "bg-witnessed" },
-  stage_changed: { label: "Stage changed", Icon: UserCheck, tone: "text-primary", dot: "bg-primary" },
+  stage_changed: { label: "Stage changed", Icon: UserCheck, tone: "text-brass-text", dot: "bg-primary" },
 };
 
 /** A conversation with this contact, as passed down from the server page. */
@@ -402,7 +402,7 @@ export function ContactCrm({
               exit={{ opacity: 0, y: -4 }}
               className="flex flex-wrap items-center gap-2 rounded-lg border border-primary/40 bg-primary/5 px-3 py-2 text-sm"
             >
-              <Sparkles className="size-4 shrink-0 text-primary" />
+              <Sparkles className="size-4 shrink-0 text-brass-text" />
               <span className="min-w-0">
                 Looks like <span className="font-medium">{STAGE_META[suggestion.to].label}</span>
                 <span className="text-muted-foreground"> — {suggestion.reason}.</span>

@@ -32,6 +32,7 @@ export function WorkspaceSwitcher({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const active = workspaces.find((w) => w.id === activeId) ?? workspaces[0] ?? null;
@@ -49,7 +50,10 @@ export function WorkspaceSwitcher({
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
@@ -143,12 +147,13 @@ export function WorkspaceSwitcher({
   return (
     <div ref={rootRef} className="static min-w-0 sm:relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
         className={cn(
-          "inline-flex max-w-[8rem] items-center gap-1.5 rounded-md border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent sm:max-w-[14rem]",
+          "topbar-control topbar-workspace",
           inSandbox && "border-acted/50 bg-acted/10",
         )}
         title={inSandbox ? "You're in the sandbox" : "Switch workspace"}
@@ -166,7 +171,7 @@ export function WorkspaceSwitcher({
       {open ? (
         <div
           role="menu"
-          className="absolute left-4 right-4 top-full z-50 mt-1.5 w-auto overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg sm:left-0 sm:right-auto sm:w-64"
+          className="ui-menu-enter absolute left-4 right-4 top-full z-50 mt-1.5 w-auto overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg sm:left-0 sm:right-auto sm:w-64"
         >
           {inSandbox && firstLive ? (
             <button
@@ -251,7 +256,7 @@ export function WorkspaceSwitcher({
                           </span>
                         ) : null}
                       </span>
-                      {w.id === active.id ? <Check className="size-4 shrink-0 text-primary" /> : null}
+                      {w.id === active.id ? <Check className="size-4 shrink-0 text-brass-text" /> : null}
                     </button>
                     <button
                       type="button"

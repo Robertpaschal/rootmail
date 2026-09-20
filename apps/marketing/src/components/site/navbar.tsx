@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Menu, X } from "lucide-react";
@@ -82,13 +82,23 @@ const links = [
 export function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  const header = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const closeOutside = (event: PointerEvent) => {
+      if (!header.current?.contains(event.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOutside);
+    return () => document.removeEventListener("pointerdown", closeOutside);
+  }, [open]);
   // Reflect the signed-in state so we drop the "Sign in" wall for people who
   // already have an account — read on mount (SSR can't see the client cookie).
   const [signedIn, setSignedIn] = useState(false);
   useEffect(() => setSignedIn(readSignedInHint()), []);
 
   return (
-    <header className="sticky top-[var(--beta-notice-h,0px)] z-50 w-full">
+    <header ref={header} onKeyDown={(event) => { if (event.key === "Escape" && open) { setOpen(false); toggle.current?.focus(); } }} className="sticky top-[var(--beta-notice-h,0px)] z-50 w-full">
       {/* 0.375rem + 3.25rem + 0.375rem = 4rem. See the file note. */}
       <div className="px-3 py-1.5 sm:px-5">
         <NavIsland className="flex h-[3.25rem] items-center justify-between gap-3 pl-3 pr-2 sm:pl-4 sm:pr-3">
@@ -98,7 +108,7 @@ export function Navbar() {
 
           {/* The destinations, in a recess. `nav-group` is a well cut into the
               island rather than a second raised plane — one lift per object. */}
-          <nav className="nav-group hidden items-center gap-0.5 p-1 md:flex">
+          <nav aria-label="Main navigation" className="nav-group hidden items-center gap-0.5 p-1 md:flex">
             {links.map((l) => {
               const current = l.href === pathname;
               return (
@@ -155,11 +165,13 @@ export function Navbar() {
           <div className="flex items-center gap-0.5 md:hidden">
             <ThemeToggle />
             <button
+              ref={toggle}
               type="button"
               className="inline-flex size-10 items-center justify-center rounded-full text-foreground"
               onClick={() => setOpen((v) => !v)}
               aria-label="Toggle menu"
               aria-expanded={open}
+              aria-controls="mobile-site-menu"
             >
               {open ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
@@ -171,7 +183,7 @@ export function Navbar() {
           flow. In flow it would grow the header past 4rem while open and drag
           the three scroll rigs with it — on a phone, mid-scroll, invisibly. */}
       {open && (
-        <div className="absolute inset-x-0 top-full px-3 pb-2 sm:px-5 md:hidden">
+        <nav id="mobile-site-menu" aria-label="Mobile navigation" className="absolute inset-x-0 top-full px-3 pb-2 sm:px-5 md:hidden">
           <div className="nav-island flex flex-col gap-1 p-2" data-stuck="true">
             {links.map((l) => {
               const current = l.href === pathname;
@@ -219,7 +231,7 @@ export function Navbar() {
               </>
             )}
           </div>
-        </div>
+        </nav>
       )}
     </header>
   );

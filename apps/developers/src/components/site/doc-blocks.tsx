@@ -117,7 +117,7 @@ export function DocBlockView({ block }: { block: DocBlock }) {
           >
             {block.method}
           </span>
-          <code className="shrink-0 font-mono text-[13px] text-foreground" data-fact>
+          <code className="min-w-0 break-all font-mono text-sm text-foreground" data-fact>
             {block.path}
           </code>
           <span className="ml-auto hidden truncate text-xs text-ink-muted sm:block">
@@ -127,13 +127,13 @@ export function DocBlockView({ block }: { block: DocBlock }) {
       );
     case "params":
       return (
-        <div className="overflow-hidden rounded-lg border border-rule">
+        <div className="overflow-x-auto rounded-lg border border-rule">
           {block.title ? (
             <p className="border-b border-rule bg-muted px-3 py-2 text-[13px] text-ink-muted">
               {block.title}
             </p>
           ) : null}
-          <table className="w-full text-sm">
+          <table className="w-full min-w-[30rem] text-sm">
             <tbody className="ruled">
               {block.rows.map((r) => (
                 <tr key={r.name} className="align-top">

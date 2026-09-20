@@ -38,6 +38,8 @@ import {
   readDrift,
 } from "./reputation";
 import { api } from "./rootmail";
+import { getClientScopeId } from "./client-scope";
+import { cache } from "react";
 import type { Deliverability, Message, ReputationEvent, SubTenant } from "./types";
 
 export type ChangeTone = "acted" | "stopped" | "witnessed" | "unknown";
@@ -99,8 +101,8 @@ function fromReputationEvent(st: SubTenant, e: ReputationEvent): Change | null {
   // A resume performed by a person is THEIR action, not ours. Saying "rootmail
   // lifted the restrictions" about a button the operator pressed themselves is
   // the same class of error as the passive voice we are trying to kill.
-  const byUs = e.actor === "system" || e.actor === "worker" || !e.actor;
-  const actor = byUs ? "rootmail" : e.actor;
+  const byUs = e.actor === "system" || e.actor === "worker";
+  const actor = byUs ? "rootmail" : e.actor || "An unrecorded actor";
 
   const metric: ChangeMetric | undefined =
     typeof e.rate === "number" && e.metric
@@ -340,7 +342,7 @@ export interface ChangesResult {
  * sub-tenant listing is refused by the plan gate must still get its quota and
  * deliverability entries.
  */
-export async function loadChanges(limit = 12): Promise<ChangesResult> {
+export const loadChanges = cache(async (limit = 12): Promise<ChangesResult> => {
   const [subsR, delR, billR, msgR] = await Promise.allSettled([
     api.listSubTenants(),
     api.getDeliverability({ window_days: 30 }),
@@ -349,7 +351,8 @@ export async function loadChanges(limit = 12): Promise<ChangesResult> {
   ]);
   const ok = <T,>(r: PromiseSettledResult<T>) => (r.status === "fulfilled" ? r.value : null);
 
-  const subs = ok(subsR)?.data ?? [];
+  const clientId = await getClientScopeId();
+  const subs = (ok(subsR)?.data ?? []).filter((s) => !clientId || s.id === clientId);
   const deliver = ok(delR);
   const billing = ok(billR);
   const messages = ok(msgR)?.data ?? [];
@@ -404,7 +407,7 @@ export async function loadChanges(limit = 12): Promise<ChangesResult> {
     unreachable: false,
     clientsAvailable: subsR.status === "fulfilled",
   };
-}
+});
 
 /**
  * What the feed says when it has nothing to say — which is the good outcome, and

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import * as Dialog from "@radix-ui/react-dialog";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, LayoutGroup, motion, useReducedMotion } from "framer-motion";
+import { LayoutGroup, motion, useReducedMotion } from "framer-motion";
 import {
   BarChart3,
   BookOpen,
@@ -17,6 +18,7 @@ import {
   KeyRound,
   LayoutDashboard,
   Mail,
+  Menu,
   Megaphone,
   Network,
   Send,
@@ -26,6 +28,7 @@ import {
   Users,
   Webhook,
   Workflow,
+  X,
 } from "lucide-react";
 import { Logo } from "./logo";
 import { useSidebar } from "./sidebar-shell";
@@ -33,7 +36,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 /** The sidebar's width in px — shared by the slide animation and the shell inset. */
-export const SIDEBAR_W = 288;
+export const SIDEBAR_W = 256;
 
 type NavItem = { href: string; label: string; icon: typeof Mail; exact?: boolean };
 type NavGroup = {
@@ -144,23 +147,27 @@ function NavLink({
   onNavigate?: () => void;
 }) {
   const active = isActive(item.href, item.exact);
+  const reduce = useReducedMotion();
   return (
     <Link
       href={item.href}
       onClick={onNavigate}
+      aria-current={active ? "page" : undefined}
       className={cn(
-        "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
-        active ? "text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
+        "ui-nav-link relative flex min-h-10 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+        active ? "bg-secondary text-foreground" : "text-muted-foreground hover:bg-secondary/60 hover:text-foreground",
       )}
     >
       {active ? (
         <motion.span
+          aria-hidden="true"
+          initial={false}
           layoutId={indicatorId}
-          className="absolute inset-0 rounded-md bg-secondary"
-          transition={{ type: "spring", stiffness: 420, damping: 34 }}
+          className="pointer-events-none absolute inset-0 rounded-md ring-1 ring-inset ring-brass/20"
+          transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 380, damping: 38, mass: 0.8 }}
         />
       ) : null}
-      <span className="relative z-10 flex items-center gap-3">
+      <span className="ui-nav-label relative z-10 flex items-center gap-3">
         <item.icon className="size-4" /> {item.label}
       </span>
     </Link>
@@ -209,40 +216,25 @@ function CollapsibleGroup({
         type="button"
         onClick={toggle}
         aria-expanded={open}
-        className="flex w-full items-center gap-1.5 rounded-md px-3 pb-1 pt-2 text-left text-[12.5px] font-semibold uppercase tracking-wider text-muted-foreground/70 transition-colors hover:text-foreground"
+        className="flex min-h-10 w-full items-center gap-1.5 rounded-md px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
       >
-        <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.15 }} className="flex">
+        <span className={cn("flex transition-transform duration-interaction motion-reduce:transition-none", open && "rotate-90")}>
           <ChevronRight className="size-3" />
-        </motion.span>
+        </span>
         <span className="truncate">{group.label}</span>
       </button>
 
-      <AnimatePresence initial={false}>
         {open ? (
-          <motion.div
-            key="items"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.18, ease: "easeOut" }}
-            className="space-y-1 overflow-hidden"
-          >
+          <div className="ui-content-enter space-y-1">
             {group.items.map((it) => (
               <NavLink key={it.href} item={it} isActive={isActive} indicatorId="nav-active" onNavigate={onNavigate} />
             ))}
-          </motion.div>
+          </div>
         ) : group.hint ? (
-          <motion.p
-            key="hint"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="px-3 pb-1 text-[12.5px] leading-snug text-muted-foreground/60"
-          >
+          <p className="ui-content-enter px-3 pb-1 text-xs leading-relaxed text-muted-foreground">
             {group.hint}
-          </motion.p>
+          </p>
         ) : null}
-      </AnimatePresence>
     </div>
   );
 }
@@ -258,33 +250,27 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
   const isActive = useIsActive();
   const groups = buildGroups({ sandbox, workspaceName });
   const { collapsed, overlay, closePeek } = useSidebar();
-  const reduce = useReducedMotion();
-
   return (
-    // w-72 so long labels ("Proof & compliance") render in full — no ellipsis.
+    // Labels remain in full on the compact navigation plane — no icon-only rail.
     // Hidden, it parks just off-screen and slides back on the edge reveal; it is
     // never unmounted, so scroll position and the folded Developers group
     // survive a peek.
-    <motion.aside
-      initial={false}
-      // Pixels, not "-100%": animating a percentage to a unitless 0 is a unit
-      // mismatch framer can't interpolate, and the panel sticks off-screen.
-      animate={{ x: collapsed && !overlay ? -SIDEBAR_W : 0 }}
-      transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 40 }}
+    <aside
+      style={{ translate: collapsed && !overlay ? `-${SIDEBAR_W}px 0` : "0 0" }}
       // Parked off-screen it must be unreachable, not merely invisible —
       // otherwise Tab walks into a sidebar the user can't see.
       aria-hidden={collapsed && !overlay}
       inert={collapsed && !overlay}
       className={cn(
-        "fixed inset-y-0 left-0 z-40 hidden w-72 flex-col border-r md:flex",
+        "console-nav fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r transition-[translate] duration-narrative ease-narrative motion-reduce:transition-none md:flex",
         overlay
-          ? "bg-card/80 shadow-2xl backdrop-blur-xl supports-[backdrop-filter]:bg-card/70"
+          ? "bg-card shadow-e3"
           : "bg-card",
       )}
     >
       {/* Just the brand. Hiding and showing live on ONE control in the top bar
           (plus ⌘\) — a second pair in here was the same job twice. */}
-      <div className="flex h-16 items-center border-b px-5">
+      <div className="flex h-20 shrink-0 items-center border-b px-5">
         <Link href="/" aria-label="rootmail" onClick={overlay ? () => closePeek(true) : undefined}>
           <Logo />
         </Link>
@@ -297,13 +283,13 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
           <Link
             href="/messages/new"
             onClick={overlay ? () => closePeek(true) : undefined}
-            className={cn(buttonVariants({ size: "sm" }), "w-full gap-2")}
+            className={cn(buttonVariants({ size: "sm" }), "min-h-11 w-full gap-2 shadow-none")}
           >
             <Send className="size-4" /> Compose
           </Link>
         </div>
 
-        <nav className="dashboard-scroll flex-1 space-y-4 overflow-y-auto px-3 pb-4">
+        <nav aria-label="Main navigation" className="dashboard-scroll flex-1 space-y-4 overflow-y-auto px-3 pb-4">
           {groups.map((g, i) =>
             g.collapsible ? (
               <CollapsibleGroup
@@ -316,7 +302,7 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
             ) : (
               <div key={g.label ?? `top-${i}`} className="space-y-1">
                 {g.label ? (
-                  <p className="truncate px-3 pb-1 pt-2 text-[12.5px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                  <p className="truncate px-3 pb-1 pt-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                     {g.label}
                   </p>
                 ) : null}
@@ -337,23 +323,64 @@ export function Sidebar({ workspaceName = null, sandbox = false }: NavContext) {
 
       {/* No fixed footer: help (assistant + contact support) rides in the
           floating Ask-AI launcher, in context on every page. */}
-    </motion.aside>
+    </aside>
   );
 }
 
 export function MobileNav({ workspaceName = null, sandbox = false }: NavContext) {
   const isActive = useIsActive();
-  const shown = buildGroups({ sandbox, workspaceName }).flatMap((g) => g.items);
+  const pathname = usePathname();
+  const groups = buildGroups({ sandbox, workspaceName });
+  const shown = groups.flatMap((g) => g.items);
+  const [open, setOpen] = useState(false);
+  const rail = useRef<HTMLElement>(null);
+  const previousPath = useRef(pathname);
+
+  useEffect(() => {
+    const nav = rail.current;
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (nav && active) nav.scrollLeft = active.offsetLeft - nav.offsetLeft - (nav.clientWidth - active.clientWidth) / 2;
+    if (previousPath.current !== pathname) setOpen(false);
+    previousPath.current = pathname;
+  }, [pathname]);
 
   return (
-    <div className="border-b bg-card md:hidden">
-      <nav className="mobile-nav-scroll flex gap-1 overflow-x-auto px-3 py-2">
+    <div className="flex min-w-0 items-center border-b bg-card md:hidden">
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Trigger asChild>
+          <button type="button" aria-label="Open all pages" className="ml-2 inline-flex min-h-11 shrink-0 items-center gap-2 rounded-md border px-3 text-sm font-medium">
+            <Menu aria-hidden="true" className="size-4" /> Menu
+          </button>
+        </Dialog.Trigger>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+          <Dialog.Content className="ui-panel-enter console-nav fixed inset-y-0 left-0 z-50 flex w-80 max-w-[calc(100vw-2rem)] flex-col border-r shadow-e3">
+            <div className="flex items-center justify-between gap-3 border-b p-4">
+              <Dialog.Title className="text-lg font-semibold">All pages</Dialog.Title>
+              <Dialog.Close asChild>
+                <button type="button" aria-label="Close menu" className="inline-flex size-11 items-center justify-center rounded-md hover:bg-accent"><X className="size-5" /></button>
+              </Dialog.Close>
+            </div>
+            <Dialog.Description className="sr-only">Navigate your {workspaceName ?? "Rootmail"} workspace.</Dialog.Description>
+            <nav aria-label="All dashboard pages" className="dashboard-scroll space-y-5 overflow-y-auto p-4">
+              {groups.map((g, i) => (
+                <div key={g.label ?? i} className="space-y-1">
+                  {g.label ? <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">{g.label}</p> : null}
+                  {g.items.map((it) => <NavLink key={it.href} item={it} isActive={isActive} indicatorId="mobile-menu-active" onNavigate={() => setOpen(false)} />)}
+                </div>
+              ))}
+            </nav>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+      <nav ref={rail} aria-label="Quick navigation" className="mobile-nav-scroll relative flex min-w-0 flex-1 gap-1 overflow-x-auto px-2 py-2">
         {shown.map((it) => (
           <Link
             key={it.href}
             href={it.href}
+            aria-current={isActive(it.href, it.exact) ? "page" : undefined}
             className={cn(
-              "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              "flex min-h-11 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",
               isActive(it.href, it.exact)
                 ? "bg-secondary text-foreground"
                 : "text-muted-foreground hover:text-foreground",

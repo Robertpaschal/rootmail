@@ -266,7 +266,7 @@ function Signal({ label, value }: { label: string; value: string | null }) {
   return (
     <div className="rounded-lg border bg-card p-4">
       <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className={cn("mt-1 text-sm", value ? "font-medium" : "text-muted-foreground/50")}>
+      <div className={cn("mt-1 text-sm", value ? "font-medium" : "text-muted-foreground")}>
         {value || "Not provided"}
       </div>
     </div>

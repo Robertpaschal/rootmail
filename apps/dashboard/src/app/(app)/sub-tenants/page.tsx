@@ -138,7 +138,7 @@ export default async function SubTenantsPage() {
             <Link href="/sub-tenants/new" className={cn(buttonVariants({ size: "lg" }))}>
               Set up your first client domain <ArrowRight className="size-4" />
             </Link>
-            <Link href="/docs/client-domains" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+            <Link href="/docs/client-domains" className="inline-flex items-center gap-1 text-sm text-brass-text hover:underline">
               <Sparkles className="size-3.5" /> How client domains work in the docs
             </Link>
           </div>
@@ -249,7 +249,7 @@ export default async function SubTenantsPage() {
                               them without calling the API by hand. This is the door
                               into their mail, audience and numbers. */}
                           {acting ? (
-                            <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-brass-text">
                               <Eye className="size-3.5" /> Viewing now
                             </span>
                           ) : (

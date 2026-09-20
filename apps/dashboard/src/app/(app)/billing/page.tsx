@@ -165,7 +165,7 @@ export default async function BillingPage({
               {txBlocks > 0 ? `${num(txBlocks)} block${txBlocks === 1 ? "" : "s"}` : "Free allowance"}
               {usage.over_limit && txBlocks > 0 ? ` · ${num(usage.overage)} over (~${money(usage.overage_cost)})` : ""}
             </p>
-            <Link href="/billing/transactional" className="inline-flex items-center text-xs font-medium text-primary hover:underline">
+            <Link href="/billing/transactional" className="inline-flex items-center text-xs font-medium text-brass-text hover:underline">
               Manage <ArrowRight className="ml-0.5 size-3" />
             </Link>
           </CardContent>
@@ -223,7 +223,7 @@ export default async function BillingPage({
               {usage.contacts_limit === -1 ? "" : ` of ${num(usage.contacts_limit)}`} contacts. Both caps grow
               with it.
             </p>
-            <Link href="/billing/marketing" className="inline-flex items-center text-xs font-medium text-primary hover:underline">
+            <Link href="/billing/marketing" className="inline-flex items-center text-xs font-medium text-brass-text hover:underline">
               Manage <ArrowRight className="ml-0.5 size-3" />
             </Link>
           </CardContent>
@@ -243,7 +243,7 @@ export default async function BillingPage({
             </div>
             <Meter pct={usage.ai_credits === -1 ? 4 : aiPct} tone={aiPct > 80 ? "bg-acted" : "bg-primary"} />
             <p className="text-xs text-muted-foreground">Shared across both wings — top up with AI credit packs.</p>
-            <Link href="/billing/addons?focus=ai_credit_pack" className="inline-flex items-center text-xs font-medium text-primary hover:underline">
+            <Link href="/billing/addons?focus=ai_credit_pack" className="inline-flex items-center text-xs font-medium text-brass-text hover:underline">
               Add credits <ArrowRight className="ml-0.5 size-3" />
             </Link>
           </CardContent>
@@ -256,7 +256,7 @@ export default async function BillingPage({
           <CardTitle className="flex items-center gap-2 text-base">
             <Package className="size-4 text-muted-foreground" /> Your add-ons
           </CardTitle>
-          <Link href="/billing/addons" className="inline-flex items-center text-sm font-medium text-primary hover:underline">
+          <Link href="/billing/addons" className="inline-flex items-center text-sm font-medium text-brass-text hover:underline">
             Manage <ArrowRight className="ml-0.5 size-3.5" />
           </Link>
         </CardHeader>
@@ -264,7 +264,7 @@ export default async function BillingPage({
           {summary.add_ons.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No add-ons yet. Seats, roles, SSO, proof exports, AI credits and more live on the{" "}
-              <Link href="/billing/addons" className="font-medium text-primary hover:underline">
+              <Link href="/billing/addons" className="font-medium text-brass-text hover:underline">
                 Add-ons page
               </Link>
               .
@@ -348,7 +348,7 @@ export default async function BillingPage({
                           className={cn(
                             "rounded-full px-2 py-0.5 text-[12.5px] font-medium",
                             inv.status === "paid"
-                              ? "bg-witnessed/15 text-witnessed"
+                              ? "bg-witnessed-tint text-witnessed"
                               : inv.status === "open"
                                 ? "bg-acted/15 text-acted"
                                 : "bg-muted text-muted-foreground",
@@ -360,7 +360,7 @@ export default async function BillingPage({
                       <td className="py-2 text-right">
                         <span className="inline-flex items-center justify-end gap-2">
                           {inv.invoice_pdf ? (
-                            <a href={inv.invoice_pdf} className="inline-flex items-center text-primary hover:underline" title="Download PDF">
+                            <a href={inv.invoice_pdf} className="inline-flex items-center text-brass-text hover:underline" title="Download PDF">
                               <Download className="size-4" />
                             </a>
                           ) : null}
@@ -410,7 +410,7 @@ export default async function BillingPage({
             "An AI assistant that builds, sends and explains",
           ].map((f) => (
             <li key={f} className="flex items-start gap-2">
-              <Check className="mt-0.5 size-3.5 shrink-0 text-primary" />
+              <Check className="mt-0.5 size-3.5 shrink-0 text-brass-text" />
               {f}
             </li>
           ))}
@@ -418,7 +418,7 @@ export default async function BillingPage({
         <p className="mt-3 border-t pt-3 text-xs text-muted-foreground">
           Rather wire it up yourself? The REST API, official SDKs, webhooks and a free test sandbox are on
           every plan too —{" "}
-          <Link href="/docs" className="font-medium text-primary hover:underline">
+          <Link href="/docs" className="font-medium text-brass-text hover:underline">
             read the developer docs
           </Link>
           .
@@ -426,7 +426,7 @@ export default async function BillingPage({
       </div>
 
       <div className="flex items-center justify-center gap-2 rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
-        <Tag className="size-4 shrink-0 text-primary" />
+        <Tag className="size-4 shrink-0 text-brass-text" />
         <span>Have a promo code? Enter it at checkout — your discount applies to the first invoice.</span>
       </div>
     </div>

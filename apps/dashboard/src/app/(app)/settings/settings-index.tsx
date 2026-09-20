@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { AlertTriangle, ArrowUpRight, ChevronRight, Search, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,7 +64,7 @@ function matches(r: SettingRow, q: string): boolean {
 function Row({ r, reduce }: { r: SettingRow; reduce: boolean | null }) {
   const external = Boolean(r.where);
   return (
-    <motion.div layout={reduce ? false : "position"} transition={reduce ? { duration: 0 } : { duration: 0.2 }}>
+    <motion.div layout={reduce ? false : "position"} transition={reduce ? { duration: 0 } : { duration: 0.7, ease: [0.32, 0.72, 0, 1] }}>
       <Link
         href={r.href}
         className="group flex items-start gap-3 border-b px-4 py-3.5 transition-colors last:border-b-0 hover:bg-accent/50"
@@ -141,15 +141,8 @@ export function SettingsIndex({ groups }: { groups: SettingGroup[] }) {
 
       {/* Anything unfinished, lifted out of its group so it can't hide in the
           middle of a list. Only ever shown when there IS something. */}
-      <AnimatePresence initial={false}>
         {attention.length > 0 ? (
-          <motion.section
-            key="attention"
-            initial={reduce ? false : { opacity: 0, y: -6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: reduce ? 0 : 0.2 }}
-          >
+          <section className="ui-content-enter">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-acted">
               Worth finishing
             </h2>
@@ -158,9 +151,8 @@ export function SettingsIndex({ groups }: { groups: SettingGroup[] }) {
                 <Row key={`att-${r.id}`} r={r} reduce={reduce} />
               ))}
             </div>
-          </motion.section>
+          </section>
         ) : null}
-      </AnimatePresence>
 
       {total === 0 ? (
         <p className="rounded-lg border border-dashed px-4 py-10 text-center text-sm text-muted-foreground">

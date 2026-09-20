@@ -95,7 +95,7 @@ export function WebhookConsole({ initial }: { initial: WebhookEndpoint[] }) {
               </CardContent></Card>
             ))}
           </div>
-          <Link href="/docs/webhooks" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+          <Link href="/docs/webhooks" className="inline-flex items-center gap-1 text-sm text-brass-text hover:underline">
             The full webhooks reference — payloads + signature verification <ArrowRight className="size-3.5" />
           </Link>
         </div>

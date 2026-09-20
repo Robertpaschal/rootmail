@@ -63,11 +63,11 @@ export function ReplySettings({ initial }: { initial: Mode }) {
               )}
             >
               <span className="flex items-center gap-2">
-                <span className={cn("grid size-8 place-items-center rounded-md", active ? "bg-primary/15 text-primary" : "bg-muted text-muted-foreground")}>
+                <span className={cn("grid size-8 place-items-center rounded-md", active ? "bg-primary/15 text-brass-text" : "bg-muted text-muted-foreground")}>
                   <o.Icon className="size-4" />
                 </span>
                 <span className="text-sm font-medium">{o.title}</span>
-                {active ? <Check className="ml-auto size-4 text-primary" /> : null}
+                {active ? <Check className="ml-auto size-4 text-brass-text" /> : null}
               </span>
               <span className="text-xs leading-relaxed text-muted-foreground">{o.desc}</span>
             </button>

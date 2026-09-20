@@ -30,6 +30,7 @@ import { processRetentionSweep } from "./retention";
 import { processSequenceTick } from "./sequences";
 import { processSystemMail } from "./system-mail";
 import { processWebhookJob } from "./webhooks";
+import { startWorkerHealth } from "./health";
 
 const connection = createRedis() as unknown as ConnectionOptions;
 
@@ -155,7 +156,13 @@ reputationWorker.on("ready", () => {
 });
 reputationWorker.on("error", (err) => console.error("reputation worker error:", err.message));
 
+const stopHealth = startWorkerHealth([
+  worker, webhookWorker, sequenceWorker, campaignWorker, systemMailWorker,
+  retentionWorker, lifecycleWorker, reputationWorker,
+]);
+
 const shutdown = async (signal: string) => {
+  await stopHealth();
   console.log(`${signal} received — closing worker`);
   await worker.close();
   await webhookWorker.close();

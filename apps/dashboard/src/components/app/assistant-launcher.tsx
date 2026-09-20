@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { AnimatePresence, motion, useDragControls } from "framer-motion";
+import { motion, useDragControls, useMotionValue } from "framer-motion";
 import { ArrowLeft, ArrowUpRight, GripHorizontal, Headset, Loader2, MessagesSquare, PanelRight, PictureInPicture2, Plus, Search, Send, Sparkles, Square, Trash2, X } from "lucide-react";
 import {
   createChat,
@@ -27,6 +27,8 @@ import { AssistantWorking } from "./assistant-working";
 import { friendlyAction } from "@/lib/assistant-actions";
 import { streamAssistant } from "@/lib/assistant-stream";
 import { cn } from "@/lib/utils";
+import { animateSurface, type SurfaceRect } from "@/lib/ui-motion";
+import { SegmentedControl } from "./segmented-control";
 
 // Context-aware starters: what the assistant can do RIGHT HERE, keyed by the
 // section the user is in — so the same launcher feels native on every page.
@@ -80,6 +82,8 @@ export function AssistantLauncher() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pane, setPane] = useState<Pane>("assistant");
+  const [supportVisited, setSupportVisited] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [unread, setUnread] = useState(false);
   const [mode, setMode] = useState<Mode>("float");
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
@@ -94,19 +98,41 @@ export function AssistantLauncher() {
   const [pending, start] = useTransition();
   const abortRef = useRef<AbortController | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const followLatest = useRef(true);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const seenRef = useRef<string | null>(null);
   const dragControls = useDragControls();
   const constraintsRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const dragX = useMotionValue(0);
+  const dragY = useMotionValue(0);
+  const previousPanel = useRef<SurfaceRect | null>(null);
+  const panelAnimation = useRef<Animation | null>(null);
+  const [dragBounds, setDragBounds] = useState({ left: 0, right: 0, top: 0, bottom: 0 });
+
+  const measureDragBounds = useCallback(() => {
+    const dialog = dialogRef.current;
+    const container = constraintsRef.current;
+    if (!dialog?.open || !container) return;
+    const box = dialog.getBoundingClientRect();
+    const limit = container.getBoundingClientRect();
+    const left = box.left - dragX.get();
+    const top = box.top - dragY.get();
+    const bounds = { left: limit.left - left, right: limit.right - left - box.width, top: limit.top - top, bottom: limit.bottom - top - box.height };
+    setDragBounds(bounds);
+    dragX.set(Math.max(bounds.left, Math.min(bounds.right, dragX.get())));
+    dragY.set(Math.max(bounds.top, Math.min(bounds.bottom, dragY.get())));
+  }, [dragX, dragY]);
 
   const ctx = CONTEXT.find((c) => c.match(pathname)) ?? DEFAULT_CTX;
   const hidden = pathname.startsWith("/assistant"); // full page owns this real estate
 
   // Restore the remembered presentation.
   useEffect(() => {
-    const saved = typeof window !== "undefined" ? window.localStorage.getItem(MODE_KEY) : null;
-    if (saved === "drawer" || saved === "float") setMode(saved);
     try {
+      const saved = window.localStorage.getItem(MODE_KEY);
+      if (saved === "drawer" || saved === "float") setMode(saved);
       seenRef.current = window.localStorage.getItem(SEEN_KEY);
     } catch {
       /* private mode */
@@ -140,22 +166,57 @@ export function AssistantLauncher() {
     };
   }, [hidden, open, pane]);
   const switchMode = (m: Mode) => {
+    previousPanel.current = dialogRef.current?.getBoundingClientRect() ?? null;
     setMode(m);
     try { window.localStorage.setItem(MODE_KEY, m); } catch { /* private mode */ }
   };
 
+  useEffect(() => { if (pane === "support") setSupportVisited(true); }, [pane]);
+
+  // One persistent native dialog: docking changes focus isolation, not the
+  // conversation tree. Browser modal behavior provides focus trapping/inertness.
+  useLayoutEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    panelAnimation.current?.cancel();
+    const wasOpen = dialog.open;
+    if (dialog.open) dialog.close();
+    dragX.set(0); dragY.set(0);
+    // Motion values paint on the next frame. Measure the undragged destination
+    // now; the observed source rect above already includes the previous drag.
+    dialog.style.transform = "none";
+    if (open && !hidden) {
+      if (mode === "drawer") dialog.showModal();
+      else dialog.show();
+      if (mode === "float") measureDragBounds();
+      panelAnimation.current = animateSurface(dialog, previousPanel.current);
+    } else if (!hidden && wasOpen) triggerRef.current?.focus();
+    previousPanel.current = null;
+    return () => { panelAnimation.current?.cancel(); };
+  }, [open, hidden, mode, dragX, dragY, measureDragBounds]);
+
+  useEffect(() => {
+    if (!open || mode !== "float") return;
+    const onResize = () => {
+      panelAnimation.current?.cancel();
+      measureDragBounds();
+    };
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [open, mode, measureDragBounds]);
+
   const scrollEnd = useCallback(() => {
-    requestAnimationFrame(() => {
-      const el = scrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
+    const el = scrollRef.current;
+    if (el && followLatest.current) el.scrollTop = el.scrollHeight;
   }, []);
-  useEffect(() => { if (open) scrollEnd(); }, [messages, pending, open, mode, scrollEnd]);
+  useEffect(() => {
+    if (open && messages.length > 0) scrollEnd();
+    else if (scrollRef.current) scrollRef.current.scrollTop = 0;
+  }, [messages, pending, open, mode, scrollEnd]);
 
   // Pull the balance when the panel opens (proactive nudges, not just post-send).
   useEffect(() => {
     if (open && !credits) void getAiCredits().then((c) => c && setCredits(c));
-    if (open) requestAnimationFrame(() => inputRef.current?.focus());
   }, [open, credits]);
 
   const rememberChat = useCallback((id: string | null) => {
@@ -183,6 +244,7 @@ export function AssistantLauncher() {
     void loadChat(saved).then((r) => {
       setResuming(false);
       if (r.chat) {
+        followLatest.current = true;
         setChatId(r.chat.id);
         setMessages(r.chat.messages);
       } else {
@@ -198,6 +260,7 @@ export function AssistantLauncher() {
     const r = await listChats();
     setChatsLoading(false);
     if (r.chats) setChats(r.chats);
+    else setError(r.error ?? "Couldn't load conversations.");
   }, []);
 
   // The list is also where the bar gets the current conversation's NAME, so it
@@ -218,6 +281,8 @@ export function AssistantLauncher() {
 
   const openChat = useCallback(
     async (id: string) => {
+      if (pending || resuming) return;
+      setError(null);
       setView("chat");
       setResuming(true);
       const r = await loadChat(id);
@@ -226,12 +291,13 @@ export function AssistantLauncher() {
         setChatId(r.chat.id);
         setMessages(r.chat.messages);
         rememberChat(r.chat.id);
-      }
+      } else setError(r.error ?? "Couldn't open this conversation.");
     },
-    [rememberChat],
+    [rememberChat, pending, resuming],
   );
 
   const startNewChat = useCallback(() => {
+    if (pending || resuming) return;
     // No round-trip: the chat row is created on the first message, exactly as it
     // always was. This just clears the desk.
     setChatId(null);
@@ -239,29 +305,23 @@ export function AssistantLauncher() {
     rememberChat(null);
     setView("chat");
     requestAnimationFrame(() => inputRef.current?.focus());
-  }, [rememberChat]);
+  }, [rememberChat, pending, resuming]);
 
   const removeChat = useCallback(
     async (id: string) => {
-      setChats((c) => c.filter((x) => x.id !== id)); // optimistic — it's a list
+      if (pending || resuming) return;
+      const title = chats.find((c) => c.id === id)?.title ?? "this conversation";
+      if (!window.confirm(`Delete “${title}”? The conversation can't be recovered.`)) return;
       const r = await deleteChat(id);
       if (!r.ok) {
-        void refreshChats();
+        setError(r.error ?? "Couldn't delete this conversation.");
         return;
       }
+      setChats((c) => c.filter((x) => x.id !== id));
       if (id === chatId) startNewChat();
     },
-    [chatId, refreshChats, startNewChat],
+    [chatId, chats, pending, resuming, startNewChat],
   );
-
-  // Esc closes — but only the docked drawer (which dims the page); the floating
-  // box shouldn't steal Escape from whatever the user is doing on the page.
-  useEffect(() => {
-    if (!open || mode !== "drawer") return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, mode]);
 
   /** Stops the stream, not the run — see the page's note. */
   const stopRun = useCallback(() => {
@@ -286,8 +346,9 @@ export function AssistantLauncher() {
   const submit = useCallback(
     (prompt: string) => {
       const text = prompt.trim();
-      if (!text || pending) return;
+      if (!text || pending || resuming) return;
       if (credits && isOutOfCredits(credits)) return;
+      followLatest.current = true;
       setInput("");
       setMessages((m) => [...m, { object: "assistant_message", id: tempId(), role: "user", content: text, actions: [], created_at: new Date().toISOString() }]);
       start(async () => {
@@ -330,7 +391,7 @@ export function AssistantLauncher() {
         abortRef.current = null;
       });
     },
-    [chatId, pending, credits, rememberChat, refreshChats],
+    [chatId, pending, resuming, credits, rememberChat, refreshChats],
   );
 
   if (hidden) return null;
@@ -344,45 +405,41 @@ export function AssistantLauncher() {
   const out = credits ? isOutOfCredits(credits) : false;
   const floating = mode === "float";
 
-  // Shared header. In float mode it doubles as the drag handle.
+  // Shared header; only the explicit grip starts a drag.
   const header = (
     <div
-      className={cn(
-        "flex items-center justify-between gap-2 border-b px-3 py-2.5",
-        floating && "cursor-grab select-none active:cursor-grabbing",
-      )}
-      onPointerDown={floating ? (e) => dragControls.start(e) : undefined}
+      className="shrink-0 border-b bg-background px-3 py-3"
     >
-      <div className="flex min-w-0 items-center gap-2">
-        {floating ? <GripHorizontal className="size-4 shrink-0 text-muted-foreground/40" /> : null}
+      <div className="flex min-w-0 items-center gap-3">
         {/* WHO you're talking to — the AI or a person — never ambiguous. */}
         <span
           className={cn(
-            "grid size-7 shrink-0 place-items-center rounded-lg",
+            "grid size-10 shrink-0 place-items-center rounded-xl",
             pane === "assistant"
-              ? "border border-ink text-foreground"
+              ? "border border-brass-rule bg-brass-tint text-brass-text"
               : "border border-rule text-ink-muted",
           )}
         >
           {pane === "assistant" ? <Sparkles className="size-4" /> : <Headset className="size-4" />}
         </span>
         <div className="min-w-0 leading-tight">
-          <p className="truncate text-sm font-semibold">
+          <p id="help-panel-title" className="text-base font-semibold">
             {pane === "assistant" ? "AI assistant" : "Support team"}
           </p>
           {pane === "assistant" ? (
             credits ? (
-              <CreditMeter credits={credits} />
+              <span className="flex flex-wrap items-center gap-1 text-sm text-muted-foreground">AI credits <CreditMeter credits={credits} /></span>
             ) : (
               <span className="text-[12.5px] text-muted-foreground">Here to help with {ctx.hint}</span>
             )
           ) : (
-            <span className="text-[12.5px] text-muted-foreground">You&apos;re talking to a real person</span>
+            <span className="text-sm text-muted-foreground">Messages with the Rootmail team</span>
           )}
         </div>
       </div>
       {/* Controls must not start a drag. */}
-      <div className="flex shrink-0 items-center gap-0.5" onPointerDown={(e) => e.stopPropagation()}>
+      <div className="mt-2 flex items-center justify-end gap-1">
+        {floating ? <span className="mr-auto inline-flex min-h-11 touch-none cursor-grab items-center gap-2 px-2 text-sm text-muted-foreground" onPointerDown={(e) => dragControls.start(e)} title="Drag to move this window"><GripHorizontal className="size-4" /> Move</span> : <span className="mr-auto pl-2 text-sm text-muted-foreground">Docked panel</span>}
         {floating ? (
           <button type="button" onClick={() => switchMode("drawer")} title="Dock to the side" aria-label="Dock to the side" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
             <PanelRight className="size-4" />
@@ -392,7 +449,7 @@ export function AssistantLauncher() {
             <PictureInPicture2 className="size-4" />
           </button>
         )}
-        <Link href="/assistant" onClick={() => setOpen(false)} className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground" title="Open the full assistant" aria-label="Open the full assistant">
+        <Link href={pane === "support" ? "/assistant?pane=support" : chatId ? `/assistant?chat=${encodeURIComponent(chatId)}` : "/assistant"} onClick={() => setOpen(false)} className="inline-flex items-center justify-center rounded-full p-2 text-muted-foreground hover:bg-accent hover:text-foreground" title="Open full page" aria-label="Open full page">
           <ArrowUpRight className="size-4" />
         </Link>
         <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground">
@@ -405,33 +462,7 @@ export function AssistantLauncher() {
   // The pane switch — two tabs, like every chat product: talk to the AI, or talk
   // to a person, without losing either conversation.
   const paneTabs = (
-    <div className="flex shrink-0 gap-1 border-b px-3 py-2">
-      {([
-        { id: "assistant" as const, label: "AI assistant", Icon: Sparkles },
-        { id: "support" as const, label: "Support", Icon: Headset },
-      ]).map((t) => {
-        const on = pane === t.id;
-        return (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => setPane(t.id)}
-            aria-pressed={on}
-            className={cn(
-              "relative inline-flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
-              on ? "text-foreground" : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {on ? (
-              <motion.span layoutId="help-pane-tab" className="absolute inset-0 rounded-md bg-secondary" transition={{ type: "spring", stiffness: 400, damping: 32 }} />
-            ) : null}
-            <span className="relative z-10 flex items-center gap-1.5">
-              <t.Icon className="size-3.5" /> {t.label}
-            </span>
-          </button>
-        );
-      })}
-    </div>
+    <SegmentedControl label="Help pane" value={pane} onChange={setPane} options={[{ value: "assistant", label: "AI assistant" }, { value: "support", label: "Support" }]} className="mx-3 my-3 shrink-0 border" />
   );
 
   const activeChat = chats.find((c) => c.id === chatId) ?? null;
@@ -450,7 +481,7 @@ export function AssistantLauncher() {
       <button
         type="button"
         onClick={showChats}
-        className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        className="inline-flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1.5 py-1 text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         title="Your conversations"
       >
         <MessagesSquare className="size-3.5 shrink-0" />
@@ -461,7 +492,7 @@ export function AssistantLauncher() {
       <button
         type="button"
         onClick={startNewChat}
-        disabled={!chatId && messages.length === 0}
+        disabled={pending || resuming || (!chatId && messages.length === 0)}
         title="Start a new conversation"
         aria-label="Start a new conversation"
         className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:pointer-events-none disabled:opacity-40"
@@ -482,11 +513,11 @@ export function AssistantLauncher() {
         <button
           type="button"
           onClick={() => setView("chat")}
-          className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          className="inline-flex items-center gap-1.5 rounded-md px-1.5 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
         >
           <ArrowLeft className="size-3.5" /> Back
         </button>
-        <span className="min-w-0 flex-1 truncate px-1 text-xs font-medium">
+        <span className="min-w-0 flex-1 truncate px-1 text-sm font-medium">
           {chats.length > 0 ? `${chats.length} conversation${chats.length === 1 ? "" : "s"}` : "Conversations"}
         </span>
         <button
@@ -508,7 +539,7 @@ export function AssistantLauncher() {
             onChange={(e) => setChatQuery(e.target.value)}
             placeholder="Filter conversations"
             aria-label="Filter conversations"
-            className="h-7 w-full rounded-md border bg-background pl-7 pr-2 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-7 w-full rounded-md border bg-background pl-7 pr-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
         </div>
       ) : null}
@@ -519,11 +550,11 @@ export function AssistantLauncher() {
             <Loader2 className="size-4 animate-spin" />
           </div>
         ) : chats.length === 0 ? (
-          <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+          <p className="px-2 py-6 text-center text-sm text-muted-foreground">
             No conversations yet. Ask the assistant something and it&apos;ll keep the thread.
           </p>
         ) : filteredChats.length === 0 ? (
-          <p className="px-2 py-6 text-center text-xs text-muted-foreground">Nothing matches “{chatQuery}”.</p>
+          <p className="px-2 py-6 text-center text-sm text-muted-foreground">Nothing matches “{chatQuery}”.</p>
         ) : (
           groupByDay(filteredChats, (c) => c.updated_at).map((g) => (
             <div key={g.bucket} className="space-y-0.5">
@@ -540,23 +571,25 @@ export function AssistantLauncher() {
                 >
                   <button
                     type="button"
+                    disabled={pending || resuming}
                     onClick={() => void openChat(c.id)}
                     className="min-w-0 flex-1 px-1 py-1.5 text-left"
                   >
                     {/* Not truncated. A list whose only job is telling
                         conversations apart must show enough to tell them apart —
                         the full page learned this the hard way. */}
-                    <span className="block break-words text-xs font-medium leading-snug">{c.title}</span>
+                    <span className="block break-words text-sm font-medium leading-snug">{c.title}</span>
                     <span className="mt-0.5 block text-[12px] text-muted-foreground">
                       {relativeTime(c.updated_at)}
                     </span>
                   </button>
                   <button
                     type="button"
+                    disabled={pending || resuming}
                     onClick={() => void removeChat(c.id)}
                     title="Delete this conversation"
                     aria-label={`Delete ${c.title}`}
-                    className="shrink-0 rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+                    className="shrink-0 rounded p-1 text-muted-foreground hover:text-destructive"
                   >
                     <Trash2 className="size-3" />
                   </button>
@@ -571,18 +604,18 @@ export function AssistantLauncher() {
 
   const conversationBody = (
     <>
-      <div ref={scrollRef} className="flex-1 space-y-3 overflow-y-auto p-4">
-        {messages.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
+      <div ref={scrollRef} onScroll={(event) => { const el = event.currentTarget; followLatest.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }} className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+        {resuming ? <p role="status" className="py-6 text-center text-sm text-muted-foreground">Opening conversation…</p> : messages.length === 0 ? (
+          <div className="flex min-h-full flex-col items-center justify-center gap-4 py-3 text-center">
             <span className="grid size-11 place-items-center rounded border border-rule text-ink-muted">
               <Sparkles className="size-5" />
             </span>
-            <p className="max-w-xs text-sm text-muted-foreground">
-              I can build, run, and diagnose your email — right here, without leaving this page. Try one of these for {ctx.hint}:
+            <p className="max-w-xs text-base leading-relaxed text-muted-foreground">
+              Get help with {ctx.hint}, without leaving this page. Ask a question or start here:
             </p>
             <div className="flex flex-col gap-1.5">
               {ctx.prompts.map((p) => (
-                <button key={p} type="button" onClick={() => submit(p)} className="rounded-full border px-3 py-1.5 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground">
+                <button key={p} type="button" disabled={pending || resuming || out} onClick={() => submit(p)} className="rounded-xl border bg-background px-3 py-2 text-sm text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50">
                   {p}
                 </button>
               ))}
@@ -591,7 +624,8 @@ export function AssistantLauncher() {
         ) : (
           messages.map((t) => (
             <div key={t.id} className={cn("flex", t.role === "user" ? "justify-end" : "justify-start")}>
-              <div className={cn("max-w-[88%] rounded-lg px-3 py-2 text-sm", t.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary")}>
+              <div className={cn("help-message min-w-0 max-w-[92%] rounded-2xl border px-4 py-3 text-base", t.role === "user" ? "border-brass-rule bg-brass-tint text-foreground" : "bg-background")}>
+                <p className="mb-1 text-sm font-semibold text-muted-foreground">{t.role === "user" ? "You" : "AI assistant"}</p>
                 {t.role === "user" ? <p className="whitespace-pre-wrap">{t.content}</p> : <Markdown>{t.content}</Markdown>}
                 {t.role !== "user" && t.actions && t.actions.length > 0 ? (
                   <div className="mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[12.5px] text-muted-foreground">
@@ -619,6 +653,7 @@ export function AssistantLauncher() {
           className="flex items-end gap-2 rounded-lg border bg-background p-1.5 shadow-sm focus-within:border-ring focus-within:ring-1 focus-within:ring-ring"
         >
           <Textarea
+            aria-label="Message the AI assistant"
             ref={inputRef}
             rows={1}
             value={input}
@@ -636,18 +671,18 @@ export function AssistantLauncher() {
                   ? "Ask the assistant…"
                   : "Ask the assistant to do something…"
             }
-            disabled={out}
+            disabled={out || resuming}
             className="max-h-32 min-h-0 resize-none border-0 bg-transparent px-2 py-1.5 shadow-none focus-visible:ring-0"
             onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); submit(input); }
+              if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); submit(input); }
             }}
           />
           {pending ? (
-            <Button type="button" size="icon" variant="outline" onClick={stopRun} aria-label="Stop" title="Stop watching this answer (it still finishes and is saved)" className="shrink-0">
+            <Button type="button" size="icon" variant="outline" onClick={stopRun} aria-label="Stop watching answer" title="Stop watching this answer (it still finishes and is saved)" className="shrink-0">
               <Square className="size-3.5 fill-current" />
             </Button>
           ) : (
-            <Button type="submit" size="icon" disabled={!input.trim() || out} aria-label="Send" className="shrink-0">
+            <Button type="submit" size="icon" disabled={!input.trim() || out || resuming} aria-label="Send to AI assistant" className="shrink-0">
               <Send className="size-4" />
             </Button>
           )}
@@ -669,14 +704,14 @@ export function AssistantLauncher() {
   // One panel, two things it can be showing. The list REPLACES the transcript
   // rather than sitting beside it — see the note on `View`.
   const assistantBody =
-    view === "list" ? (
+    <div key={view} className="ui-scene-enter flex min-h-0 flex-1 flex-col" style={{ "--ui-scene-x": view === "list" ? "-12px" : "12px" } as React.CSSProperties}>{view === "list" ? (
       chatListView
     ) : (
       <>
         {chatBar}
         {conversationBody}
       </>
-    );
+    )}</div>;
 
   // The handoff transcript — the last few turns, so the team sees the context.
   const handoff =
@@ -690,10 +725,12 @@ export function AssistantLauncher() {
   const body = (
     <>
       {paneTabs}
-      {pane === "assistant" ? (
-        assistantBody
-      ) : (
+      {error ? <p role="alert" className="mx-4 mb-2 text-sm text-destructive">{error}</p> : null}
+      <div className={cn("min-h-0 flex-1 flex-col", pane === "assistant" ? "ui-content-enter flex" : "hidden")}>{assistantBody}</div>
+      <div className={cn("min-h-0 flex-1 flex-col", pane === "support" ? "ui-content-enter flex" : "hidden")}>
+      {supportVisited || pane === "support" ? (
         <SupportPane
+          visible={open && pane === "support"}
           handoffContext={handoff}
           onSeen={(at) => {
             seenRef.current = at;
@@ -705,101 +742,54 @@ export function AssistantLauncher() {
             setUnread(false);
           }}
         />
-      )}
+      ) : null}
+      </div>
     </>
   );
 
   return (
     <>
-      {/* Floating trigger — present on every page */}
-      <AnimatePresence>
-        {!open ? (
-          <motion.button
-            type="button"
-            onClick={() => {
-              // If the team is waiting on them, open straight into that reply.
-              if (unread) setPane("support");
-              setOpen(true);
-            }}
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 500, damping: 30 }}
-            whileHover={{ y: -2 }}
-            whileTap={{ scale: 0.95 }}
-            className="fixed bottom-5 right-5 z-40 inline-flex items-center gap-2 rounded-full bg-primary py-3 pl-3.5 pr-4 text-sm font-medium text-primary-foreground shadow-lg shadow-primary/25 hover:bg-primary/90"
-            aria-label="Get help — AI assistant or the support team"
-          >
-            {/* ONE door to both conversations, so the label can't imply only one. */}
-            <MessagesSquare className="size-4" /> Chat
-            {/* The team wrote back — findable without opening anything. */}
-            {unread ? (
-              <span className="absolute -right-0.5 -top-0.5 grid size-3.5 place-items-center">
-                <span className="absolute size-3.5 animate-ping rounded-full bg-witnessed/70" />
-                <span className="size-2.5 rounded-full bg-witnessed ring-2 ring-primary" />
-              </span>
-            ) : null}
-          </motion.button>
-        ) : null}
-      </AnimatePresence>
-
-      <AnimatePresence>
-        {open && !floating ? (
-          /* DOCKED drawer — focused; dims + captures the page */
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setOpen(false)}
-              className="fixed inset-0 z-40 bg-background/60"
-            />
-            <motion.aside
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", stiffness: 380, damping: 38 }}
-              className="fixed inset-y-0 right-0 z-50 flex w-full max-w-md flex-col border-l bg-card shadow-2xl"
-              role="dialog"
-              aria-label="Assistant"
-            >
-              {header}
-              {body}
-            </motion.aside>
-          </>
-        ) : null}
-
-        {open && floating ? (
-          /* FLOATING box — draggable, NO backdrop; the page stays fully usable */
-          <>
-            <div ref={constraintsRef} aria-hidden className="pointer-events-none fixed inset-3 z-40" />
-            <motion.div
-              key="float"
-              drag
-              dragControls={dragControls}
-              dragListener={false}
-              dragMomentum={false}
-              dragConstraints={constraintsRef}
-              dragElastic={0.03}
-              initial={{ opacity: 0, scale: 0.92, y: 24 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.92, y: 24 }}
-              transition={{ type: "spring", stiffness: 420, damping: 32 }}
-              // 23rem was a column: 368px carrying a header, two tabs, a chat
-              // bar, message bubbles and a composer, all of it cramped against
-              // a 34rem height. 27rem gives the content room to sit properly
-              // and brings the box nearer the docked drawer's proportions
-              // without it stopping being a floating box.
-              className="pointer-events-auto fixed bottom-5 right-5 z-50 flex h-[min(34rem,78vh)] w-[27rem] max-w-[calc(100vw-1.5rem)] flex-col overflow-hidden rounded-lg border bg-card shadow-2xl"
-              role="dialog"
-              aria-label="Assistant"
-            >
-              {header}
-              {body}
-            </motion.div>
-          </>
-        ) : null}
-      </AnimatePresence>
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => { if (unread) setPane("support"); setOpen(true); }}
+        className={cn("ui-help-trigger fixed bottom-5 right-5 z-40 inline-flex min-h-12 items-center gap-2 rounded-full border border-brass-rule bg-primary px-5 text-sm font-semibold text-primary-foreground shadow-e2 hover:brightness-110", open && "invisible")}
+        aria-label="Get help — AI assistant or the support team"
+        aria-expanded={open}
+      >
+        <MessagesSquare className="size-4" /> Help & chat
+        {unread ? <span className="size-2 rounded-full bg-primary-foreground" aria-label="Unread support activity" /> : null}
+      </button>
+      <div ref={constraintsRef} aria-hidden className="pointer-events-none fixed inset-3" />
+      <motion.dialog
+        ref={dialogRef}
+        drag={floating}
+        dragControls={dragControls}
+        dragListener={false}
+        dragMomentum={false}
+        // Ref constraints observe the panel's animated size and reposition it
+        // on every frame. Numeric bounds change only with the real viewport.
+        dragConstraints={dragBounds}
+        dragElastic={0}
+        style={{ x: dragX, y: dragY }}
+        aria-labelledby="help-panel-title"
+        onCancel={(event) => { event.preventDefault(); setOpen(false); }}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && floating && !event.defaultPrevented) { event.preventDefault(); setOpen(false); }
+        }}
+        onClick={(event) => {
+          if (floating || event.target !== event.currentTarget) return;
+          const bounds = event.currentTarget.getBoundingClientRect();
+          if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) setOpen(false);
+        }}
+        className={cn(
+          "help-dialog help-surface fixed inset-auto m-0 flex max-h-[calc(100dvh-1.5rem)] max-w-[calc(100%_-_1.5rem)] flex-col overflow-hidden rounded-2xl border bg-card p-0 text-foreground shadow-e3",
+          floating ? "bottom-3 right-3 z-50 h-[min(44rem,calc(100dvh-1.5rem))] w-[28rem] sm:bottom-5 sm:right-5" : "bottom-3 right-3 top-3 h-[calc(100dvh-1.5rem)] w-[30rem]",
+        )}
+      >
+        {header}
+        {body}
+      </motion.dialog>
     </>
   );
 }

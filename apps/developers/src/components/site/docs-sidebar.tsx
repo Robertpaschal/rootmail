@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 export function DocsSidebar() {
   const pathname = usePathname();
   return (
-    <nav className="space-y-6">
+    <nav aria-label="Documentation" className="space-y-6">
       {DOCS.map((section) => (
         <div key={section.label}>
           <p className="mb-1.5 px-2 font-mono text-[12.5px] uppercase tracking-wider text-ink-muted">
@@ -31,8 +31,9 @@ export function DocsSidebar() {
                 <li key={page.slug}>
                   <Link
                     href={href}
+                    aria-current={active ? "page" : undefined}
                     className={cn(
-                      "block rounded-md px-2 py-1.5 text-sm transition-colors duration-interaction ease-interaction",
+                      "flex min-h-10 items-center rounded-md px-2 py-2 text-sm transition-colors duration-interaction ease-interaction",
                       active
                         ? "bg-muted font-medium text-foreground"
                         : "text-ink-muted hover:bg-muted/60 hover:text-foreground",

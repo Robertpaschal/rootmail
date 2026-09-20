@@ -24,7 +24,7 @@ export function ContactForm({
   if (state.ok) {
     return (
       <div className="py-6 text-center">
-        <CheckCircle2 className="mx-auto size-10 text-primary" />
+        <CheckCircle2 className="mx-auto size-10 text-brass-text" />
         <h2 className="mt-3 text-lg font-semibold">Thanks — message sent.</h2>
         <p className="mx-auto mt-1.5 max-w-sm text-sm text-muted-foreground">
           Our team will get back to you, usually within one business day.

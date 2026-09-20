@@ -47,7 +47,7 @@ export default function DocsIndex() {
 
         <p className="text-sm text-muted-foreground">
           Want the assistant to wire something up?{" "}
-          <Link href="/assistant" className="inline-flex items-center gap-1 text-primary hover:underline">
+          <Link href="/assistant" className="inline-flex items-center gap-1 text-brass-text hover:underline">
             Ask it to build or debug a send <ArrowRight className="size-3.5" />
           </Link>
         </p>

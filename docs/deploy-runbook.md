@@ -1,5 +1,35 @@
 # Deploy runbook
 
+## Verified release path (prepared September 2026)
+
+CI must pass on the exact current main revision before publishing. Native amd64
+and ARM64 builds are assembled into a single immutable multi-platform image tag.
+Hosts do not auto-update; neither the CI run nor image publishing is a deployment.
+The ARM runtime acceptance job runs PostgreSQL 18 + Valkey 7.2 with mock mail only.
+
+After syncing the release's compose file and deployment script to a host, use:
+
+```bash
+cd /home/ubuntu/rootmail
+TAG=sha-<full40> ./scripts/deploy-host.sh <service>
+```
+
+The script pulls before replacement, pins the previous image with a never-started
+container, verifies dependency/readiness health and the exact image, and restores
+the old image if validation fails. A failed release remains a failure even after
+successful rollback. Do not prune containers carrying `rootmail.rollback.service`
+labels: they protect the rollback image. No database migrations run by default;
+review backward compatibility before opting into a migration.
+
+The worker heartbeat is new. An older worker image cannot satisfy the new worker
+healthcheck; retain the old compose file with its image during the first transition
+and perform that first rollback with both artifacts, not only the new script.
+
+The consolidated ARM host and managed-service resizes are **not deployed yet**.
+The existing hosts below remain authoritative until cutover is verified.
+
+## Historical manual procedure (not the new guarded release path)
+
 ```bash
 cd /home/ubuntu/rootmail
 docker pull -q pachal/rootmail-<svc>:sha-<full40>
@@ -34,7 +64,7 @@ part of the deploy rather than after the outage.
 | host | instance | runs |
 |---|---|---|
 | api | `i-00fc3899bf560fefb` | api, caddy |
-| worker | `i-07f1f375578886933` | worker (compose builds by image name `rootmail-worker`) |
+| worker | `i-07f1f375578886933` | worker (registry SHA image; verified September 2026) |
 | web | `i-05b681a056fa42fc3` | marketing, dashboard, admin, developers |
 
 The admin console is at **internal.rootmail.io** — there is no

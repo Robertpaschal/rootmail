@@ -106,7 +106,7 @@ export function ChangelogEditor({ entry }: { entry: AdminChangelogEntry | null }
           onChange={(e) => setTitle(e.target.value)}
           required
           placeholder="Untitled release"
-          className="w-full border-0 bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/40"
+          className="w-full border-0 bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground"
         />
         <label className="mt-3 flex items-center gap-2 text-xs text-muted-foreground">
           <span>Date</span>
@@ -117,7 +117,7 @@ export function ChangelogEditor({ entry }: { entry: AdminChangelogEntry | null }
             onChange={(e) => setDate(e.target.value)}
             className="rounded-md border border-transparent bg-transparent px-2 py-1 text-sm outline-none transition-colors hover:border-border focus:border-ring"
           />
-          <span className="text-muted-foreground/60">blank = today</span>
+          <span className="text-muted-foreground">blank = today</span>
         </label>
 
         <div className="mt-8 space-y-2">
@@ -147,7 +147,7 @@ export function ChangelogEditor({ entry }: { entry: AdminChangelogEntry | null }
                 type="button"
                 onClick={() => removeRow(i)}
                 aria-label="Remove change"
-                className="shrink-0 rounded-md p-1.5 text-muted-foreground/50 transition-colors hover:bg-accent hover:text-foreground"
+                className="shrink-0 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
                 <X className="size-4" />
               </button>

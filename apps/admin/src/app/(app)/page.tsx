@@ -63,7 +63,7 @@ export default async function OverviewPage() {
         }
       />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6">
         <StatCard label="organizations" value={formatNumber(orgs.length)} window="all time" method={`orgs table · ${paid} paid`} icon={Building2} href="/orgs" />
         <StatCard label="est. recurring" value={formatMoney(mrr * 100)} window="this period" method="wings + add-ons" caveat="estimate from what each org holds" icon={CreditCard} href="/pricing" />
         <StatCard label="emails" value={formatNumber(usage)} window="this period" method="api+worker" icon={Mail} />

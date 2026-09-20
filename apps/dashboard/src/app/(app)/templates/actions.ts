@@ -9,6 +9,7 @@ import type { Asset, TemplateType } from "@/lib/types";
 export interface TemplateFormState {
   error?: string;
   saved?: boolean;
+  version?: number;
 }
 
 const SLUG_RE = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/;
@@ -107,8 +108,9 @@ export async function updateTemplate(
   const invalid = validate(f);
   if (invalid) return { error: invalid };
 
+  let version: number;
   try {
-    await api.updateTemplate(id, {
+    const updated = await api.updateTemplate(id, {
       name: f.name,
       slug: f.slug,
       type: f.type,
@@ -117,14 +119,15 @@ export async function updateTemplate(
       text: f.text || null,
       blocks: f.blocks,
     });
+    version = updated.current_version;
   } catch (err) {
     if (err instanceof ConnectionError || err instanceof ApiError) return { error: err.message };
     return { error: "Failed to save the template." };
   }
 
   revalidatePath("/templates");
-  revalidatePath(`/templates/${id}`);
-  return { saved: true };
+  // Keep this studio's client draft and selection mounted after a save.
+  return { saved: true, version };
 }
 
 /** Upload an image/file to the API and return its public URL (for the editor). */
@@ -189,8 +192,8 @@ export async function deleteTemplate(
   if (!id) return { error: "Missing id." };
   try {
     await api.deleteTemplate(id);
-  } catch {
-    // Best-effort; the list reflects the current state.
+  } catch (err) {
+    return { error: err instanceof ApiError || err instanceof ConnectionError ? err.message : "Couldn't delete the template. Try again." };
   }
   revalidatePath("/templates");
   redirect("/templates");

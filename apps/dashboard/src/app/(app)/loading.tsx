@@ -1,20 +1,12 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 
 // Route-group loading fallback — shown via Suspense while any (app) page's data
 // loads (unless a segment provides its own loading.tsx).
 export default function Loading() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <Skeleton className="h-7 w-48" />
-        <Skeleton className="h-4 w-72" />
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-28 rounded-lg" />
-        ))}
-      </div>
-      <Skeleton className="h-64 rounded-lg" />
+    <div role="status" className="flex min-h-40 items-center justify-center gap-3 rounded-xl border bg-card p-6 text-base text-muted-foreground">
+      <Loader2 aria-hidden="true" className="size-5 animate-spin motion-reduce:animate-none" />
+      Loading your workspace…
     </div>
   );
 }

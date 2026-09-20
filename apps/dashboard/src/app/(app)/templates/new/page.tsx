@@ -7,8 +7,7 @@ export default async function NewTemplatePage() {
   return (
     <>
       <PageHeader
-        title="New template"
-        description="Pick a starting point, make it yours, then see exactly what lands in their inbox."
+        title="Template studio"
         backHref="/templates"
         backLabel="Templates"
       />

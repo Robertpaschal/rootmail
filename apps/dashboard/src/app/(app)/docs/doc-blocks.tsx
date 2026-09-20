@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 // In-app renderer for the shared docs content. Internal doc links stay inside the
 // dashboard (/docs/…); external links (pricing, dashboard deep-links) open out.
 const METHOD_TONE: Record<HttpMethod, string> = {
-  GET: "bg-witnessed/15 text-witnessed",
+  GET: "bg-witnessed-tint text-witnessed",
   POST: "bg-ink/15 text-muted-foreground",
   PATCH: "bg-acted/15 text-acted",
   PUT: "bg-ink/15 text-muted-foreground",
@@ -37,7 +37,7 @@ function Run({ run }: { run: Inline }) {
   if ("strong" in run) return <strong className="font-semibold text-foreground">{run.strong}</strong>;
   const external = run.href.startsWith("http");
   return (
-    <Link href={hrefFor(run.href)} className="font-medium text-primary underline-offset-4 hover:underline" {...(external ? { target: "_blank", rel: "noreferrer" } : {})}>
+    <Link href={hrefFor(run.href)} className="font-medium text-brass-text underline-offset-4 hover:underline" {...(external ? { target: "_blank", rel: "noreferrer" } : {})}>
       {run.link}
     </Link>
   );

@@ -192,17 +192,17 @@ export default async function ListDetailPage({
             </p>
             <div className="mx-auto mt-5 grid max-w-2xl gap-3 sm:grid-cols-3">
               <a href="#grow" className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50">
-                <TrendingUp className="size-5 text-primary" />
+                <TrendingUp className="size-5 text-brass-text" />
                 <p className="mt-2 text-sm font-semibold">Grow</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">Turn on signup — share the page or embed the form.</p>
               </a>
               <Link href="/contacts?add=import" className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50">
-                <Upload className="size-5 text-primary" />
+                <Upload className="size-5 text-brass-text" />
                 <p className="mt-2 text-sm font-semibold">Import</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">Bring a CSV, then group them into this audience.</p>
               </Link>
               <div className="rounded-lg border p-4 text-left">
-                <UserPlus className="size-5 text-primary" />
+                <UserPlus className="size-5 text-brass-text" />
                 <p className="mt-2 text-sm font-semibold">Add by hand</p>
                 <div className="mt-2">{addForm}</div>
               </div>

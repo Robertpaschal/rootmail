@@ -36,11 +36,10 @@
 
 :root {
   /* ---- Type: THREE roles, not two ------------------------------------ */
-  /* Display carries headlines AND figures. Measured off the references: the
-     big numbers on a page belong in the display face at size, not squeezed
-     into a mono — that made the most important numbers the hardest to read. */
+  /* §12: display carries public narrative headlines; sans carries UI and
+     console figures. Neither role is squeezed into a recorded-value mono. */
   --font-display: var(--font-fraunces), Georgia, "Times New Roman", serif;
-  --font-sans: var(--font-schibsted), ui-sans-serif, system-ui, -apple-system,
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, -apple-system,
     "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   /* Mono now marks ids, timestamps and sourcing lines only — still "this is a
      value we recorded", just no longer at the expense of legibility. */
@@ -111,7 +110,7 @@
 
   /* ---- State: what happened to a message ----------------------------- */
   --witnessed: 145 45% 32%;
-  --acted: 36 78% 36%;
+  --acted: 36 78% 32%;
   --stopped: 9 68% 43%;
   --witnessed-tint: 145 40% 92%;
   --acted-tint: 38 70% 92%;
@@ -272,5 +271,89 @@
 .tabular,
 time,
 [data-fact] {
-  font-variant-numeric: tabular-nums lining;
+  font-variant-numeric: tabular-nums lining-nums;
+}
+
+/* The customer console inherits the marketing palette above unchanged.
+   Typography is console-specific; warm paper, espresso, brass and the two
+   independent depth systems are shared. Do not add a second cool-grey palette. */
+
+/* An opaque navigation plane in both themes. It never borrows light-theme
+   text/tint values, even when the workspace beside it is a white sheet. */
+.console-nav {
+  --paper: 28 32% 11%;
+  --paper-raised: 30 20% 14%;
+  --paper-lift: 34 16% 18%;
+  --well: 26 24% 4%;
+  --ink: 34 40% 92%;
+  --ink-muted: 30 12% 70%;
+  --rule: 30 14% 25%;
+  --brass: 38 72% 58%;
+  --brass-text: 38 78% 64%;
+  --brass-ink: 30 60% 8%;
+  --brass-tint: 36 32% 18%;
+  --brass-rule: 38 40% 38%;
+  --witnessed: 145 42% 64%;
+  --acted: 38 80% 68%;
+  --stopped: 9 72% 70%;
+  --witnessed-tint: 145 35% 16%;
+  --acted-tint: 38 55% 16%;
+  --stopped-tint: 9 45% 18%;
+  --line-dim: 32 10% 36%;
+  --secondary: 32 14% 20%;
+  --muted: 32 14% 20%;
+  --accent: 32 14% 23%;
+  --elev-1: inset 0 1px 0 hsl(0 0% 100% / 0.04);
+  --elev-2: 0 12px 32px hsl(0 0% 0% / 0.22);
+  --elev-3: 12px 0 48px hsl(0 0% 0% / 0.28);
+  --elev-well: inset 0 2px 6px hsl(0 0% 0% / 0.3);
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--paper-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--paper-raised);
+  --popover-foreground: var(--ink);
+  --primary: var(--brass);
+  --primary-foreground: var(--brass-ink);
+  --secondary-foreground: var(--ink);
+  --muted-foreground: var(--ink-muted);
+  --accent-foreground: var(--ink);
+  --destructive: var(--stopped);
+  --destructive-foreground: var(--paper);
+  --border: var(--rule);
+  --input: var(--rule);
+  --ring: var(--brass-text);
+  color: hsl(var(--ink));
+  background: hsl(var(--paper));
+}
+
+/* Keyboard focus is an action signal, not message state. An opaque outline
+   remains visible across cards, wells and sticky surfaces in either theme. */
+:where(a, button, input, select, textarea, summary, [tabindex], [contenteditable="true"]):focus-visible {
+  outline: 2px solid hsl(var(--brass-text));
+  outline-offset: 3px;
+}
+
+.skip-link {
+  position: fixed;
+  z-index: 100;
+  top: 0.75rem;
+  left: 0.75rem;
+  transform: translateY(-200%);
+  border: 1px solid hsl(var(--brass-text));
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: hsl(var(--card));
+  color: hsl(var(--ink));
+  font: 500 1rem/1.5 var(--font-sans);
+}
+.skip-link:focus { transform: translateY(0); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

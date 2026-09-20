@@ -40,11 +40,11 @@ export function ActionForm({
   className?: string;
   errorClassName?: string;
 }) {
-  const [state, formAction] = useActionState<ActionState | null, FormData>(action, null);
+  const [state, formAction, pending] = useActionState<ActionState | null, FormData>(action, null);
 
   return (
     <div className={cn("inline-block", className)}>
-      <form action={formAction}>{children}</form>
+      <form action={formAction} aria-busy={pending}>{children}</form>
       {state?.error ? (
         <p
           role="alert"

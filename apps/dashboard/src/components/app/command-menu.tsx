@@ -17,7 +17,7 @@ interface Item {
 }
 
 const SHARED: Item[] = [
-  { label: "Mail", href: "/messages", kw: "home messages sends log history every email one-to-one transactional" },
+  { label: "Messages", href: "/messages", kw: "home mail sends log history every email one-to-one transactional" },
   { label: "Settings", href: "/settings", kw: "account workspace preferences profile security" },
   { label: "Overview", href: "/overview", kw: "setup checklist dashboard furniture" },
   { label: "What changed", href: "/activity", kw: "activity interventions alerts reputation dns drift history" },
@@ -76,11 +76,11 @@ export function CommandTrigger() {
     <button
       type="button"
       onClick={() => window.dispatchEvent(new Event(OPEN_EVENT))}
-      className="hidden items-center gap-2 rounded-md border bg-background px-2.5 py-1.5 text-xs text-muted-foreground hover:bg-accent sm:inline-flex"
+      className="topbar-control topbar-search"
       aria-label="Search rootmail"
     >
-      <Search className="size-3.5" /> Search
-      <kbd className="rounded border bg-muted px-1 font-mono text-[12px]">⌘K</kbd>
+      <Search className="size-4" /> <span className="hidden xl:inline">Search</span>
+      <kbd className="ml-auto hidden rounded-md bg-secondary px-1.5 font-mono text-xs xl:inline">⌘K</kbd>
     </button>
   );
 }
@@ -141,7 +141,7 @@ export function CommandMenu() {
       onOpenChange={setOpen}
       label="Command menu"
       overlayClassName="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-      contentClassName="fixed left-1/2 top-[15%] z-50 w-[92%] max-w-lg -translate-x-1/2 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-2xl"
+      contentClassName="ui-menu-enter fixed left-1/2 top-[15%] z-50 w-[92%] max-w-lg -translate-x-1/2 overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-2xl"
     >
       <Command.Input
         placeholder="Search pages and actions…"

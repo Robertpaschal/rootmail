@@ -100,7 +100,7 @@ export function PreFlight({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <p className="flex items-center gap-2 text-sm font-semibold">
-              <CheckCircle2 className="size-4 text-primary" /> Check it before it goes
+              <CheckCircle2 className="size-4 text-brass-text" /> Check it before it goes
             </p>
             <p className="mt-0.5 text-xs text-muted-foreground">
               Their actual copy — name, custom fields and A/B variant resolved exactly as the send will. Not
@@ -110,7 +110,7 @@ export function PreFlight({
           </div>
           <div className="flex items-center gap-1.5">
             {editedCount > 0 ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-2.5 py-1 text-[12.5px] font-medium text-primary">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/40 bg-primary/5 px-2.5 py-1 text-[12.5px] font-medium text-brass-text">
                 <PenLine className="size-3" /> {editedCount} edited
               </span>
             ) : null}
@@ -134,7 +134,7 @@ export function PreFlight({
                 idx === i ? "border-ink bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
               )}
             >
-              {r.edited ? <PenLine className="size-3 text-primary" /> : null}
+              {r.edited ? <PenLine className="size-3 text-brass-text" /> : null}
               {r.name ?? r.email}
               {r.variant_tag ? (
                 <span className="rounded bg-muted px-1 py-0.5 text-[9px] uppercase tracking-wide">
@@ -157,7 +157,7 @@ export function PreFlight({
               <p className="text-xs text-muted-foreground">
                 {current.edited ? (
                   <>
-                    <span className="font-medium text-primary">Edited for them</span> — this exact copy is what
+                    <span className="font-medium text-brass-text">Edited for them</span> — this exact copy is what
                     they receive.
                   </>
                 ) : (

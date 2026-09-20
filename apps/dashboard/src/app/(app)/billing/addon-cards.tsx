@@ -134,7 +134,7 @@ export function AddonCards({
                       <Icon className="size-5" />
                     </span>
                     {owned ? (
-                      <span className="rounded-full bg-witnessed/15 px-2 py-0.5 text-[12.5px] font-medium text-witnessed">
+                      <span className="rounded-full bg-witnessed-tint px-2 py-0.5 text-[12.5px] font-medium text-witnessed">
                         You have {isToggle ? "this" : h}
                       </span>
                     ) : null}
@@ -256,7 +256,7 @@ export function AddonCards({
                 className="flex min-w-0 items-center gap-2 text-sm"
                 aria-expanded={expanded}
               >
-                <ShoppingCart className="size-4 shrink-0 text-primary" />
+                <ShoppingCart className="size-4 shrink-0 text-brass-text" />
                 <span className="truncate">
                   Adding <span className="font-semibold">{money(deltaTotal)}</span>
                   <span className="text-xs text-muted-foreground"> · {changedItems.length} add-on{changedItems.length === 1 ? "" : "s"}</span>

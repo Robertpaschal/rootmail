@@ -24,12 +24,13 @@ export function SortHead<K extends string>({
 }) {
   const active = sort.key === k;
   return (
-    <TableHead className={align === "right" ? "text-right" : undefined}>
+    <TableHead scope="col" aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"} className={align === "right" ? "text-right" : undefined}>
       <button
         type="button"
         onClick={() => onSort(k)}
+        aria-label={`Sort by ${label}${active ? `, currently ${sort.dir === "asc" ? "ascending" : "descending"}` : ""}`}
         className={cn(
-          "inline-flex items-center gap-1 transition-colors hover:text-foreground",
+          "inline-flex min-h-10 items-center gap-1.5 rounded-sm text-sm normal-case tracking-normal transition-colors hover:text-foreground",
           align === "right" && "flex-row-reverse",
           active ? "text-foreground" : "text-muted-foreground",
         )}
@@ -67,8 +68,8 @@ export function Pager({
 }) {
   if (total <= pageSize) return null;
   return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">
+    <nav aria-label="Table pagination" className="flex flex-wrap items-center justify-between gap-3 text-sm">
+      <span aria-live="polite" className="text-muted-foreground">
         {start + 1}–{Math.min(start + pageSize, total)} of {total}
       </span>
       <div className="flex items-center gap-2">
@@ -76,7 +77,7 @@ export function Pager({
           type="button"
           disabled={page <= 1}
           onClick={() => onPage(page - 1)}
-          className="rounded-md border px-2.5 py-1 font-medium transition-colors hover:bg-accent disabled:opacity-40"
+          className="min-h-10 rounded-md border px-3 py-2 font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
           Previous
         </button>
@@ -87,11 +88,11 @@ export function Pager({
           type="button"
           disabled={page >= pageCount}
           onClick={() => onPage(page + 1)}
-          className="rounded-md border px-2.5 py-1 font-medium transition-colors hover:bg-accent disabled:opacity-40"
+          className="min-h-10 rounded-md border px-3 py-2 font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
         >
           Next
         </button>
       </div>
-    </div>
+    </nav>
   );
 }

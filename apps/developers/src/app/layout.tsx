@@ -1,22 +1,20 @@
 import type { Metadata } from "next";
-import { Fraunces, Schibsted_Grotesk, JetBrains_Mono } from "next/font/google";
+import { Fraunces, Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { BetaNotice } from "@/components/site/beta-notice";
 
-// Three roles, not two. Fraunces carries headlines AND figures — the big
-// numbers on a page belong in the display face at size, which is what makes
-// them legible; squeezing them into a mono made the most important numbers on
-// the screen the hardest to read. Mono keeps ids, timestamps and sourcing
-// lines. See docs/design/00-PHILOSOPHY.md §9.
+// §12: Manrope carries UI and console figures; Fraunces keeps the public
+// narrative voice. JetBrains Mono marks ids, timestamps and recorded values.
+// See docs/design/00-PHILOSOPHY.md for the owner-approved type roles.
 const display = Fraunces({
   subsets: ["latin"],
   axes: ["SOFT", "WONK", "opsz"],
   variable: "--font-fraunces",
   display: "swap",
 });
-const sans = Schibsted_Grotesk({
+const sans = Manrope({
   subsets: ["latin"],
-  variable: "--font-schibsted",
+  variable: "--font-manrope",
   display: "swap",
 });
 const mono = JetBrains_Mono({
@@ -81,6 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           on" was documenting something that had never happened. Matches the fix
           on the marketing site. */}
       <body className="min-h-screen font-sans antialiased">
+        <a className="skip-link" href="#main-content">Skip to content</a>
         <BetaNotice />
         {children}
       </body>

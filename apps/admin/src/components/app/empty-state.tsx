@@ -33,7 +33,7 @@ export function EmptyState({
       <div className="space-y-1">
         <p className="text-[0.95rem] font-medium tracking-heading">{title}</p>
         {description ? (
-          <p className="mx-auto max-w-sm text-sm text-muted-foreground">{description}</p>
+          <p className="mx-auto max-w-prose text-base leading-relaxed text-muted-foreground">{description}</p>
         ) : null}
       </div>
       <span aria-hidden className="block h-px w-10 bg-rule" />

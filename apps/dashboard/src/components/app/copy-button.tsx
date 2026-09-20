@@ -20,12 +20,12 @@ export function CopyButton({ value, className }: { value: string; className?: st
         }
       }}
       className={cn(
-        "inline-flex items-center gap-1 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
+        "ui-button inline-flex items-center gap-1 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground",
         className,
       )}
-      aria-label="Copy to clipboard"
+      aria-label={copied ? "Copied to clipboard" : "Copy to clipboard"}
     >
-      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+      {copied ? <Check className="ui-confirm-icon size-3.5" /> : <Copy className="size-3.5" />}
     </button>
   );
 }

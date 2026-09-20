@@ -572,3 +572,67 @@ in `--card`, the token it re-points for the cards it carries, at a measured
 contrast of **1.00** against its own panels. It is `.slab.ground-ink` now: two
 classes beat one in either order, so it cannot come back when somebody moves a
 block.
+
+## 12. Console readability (owner-approved, September 2026)
+
+The owner requested a dashboard-first usability pass across all four apps and
+explicitly allowed the visual identity, including fonts, to change. The supplied
+dashboard references inform visual hierarchy, spacing and restrained motion;
+they do not authorize copying their navigation or changing Rootmail's product.
+This section supersedes §10's font assignments for working surfaces. The
+information-architecture rule and the four-state rendering law remain binding.
+
+**12.1 — Working type differs from narrative type.** Manrope carries UI across
+all four apps and titles/figures in the customer and internal consoles. Fraunces
+remains the public narrative face. JetBrains Mono continues to identify recorded
+values, ids and timestamps. Metric labels, windows, methods and inferred caveats
+stay visible; neither a font nor colour change can upgrade an inference.
+
+**12.2 — The console has a stable navigation plane.** The customer sidebar is
+opaque espresso brown in both themes. Following the owner's September revision,
+the canvas inherits the marketing site's light and dark tokens, not a separate
+cool-grey console palette. The approved Manrope type stays unchanged.
+All destinations, groups, table sorting, filters and pagination stay available.
+The mobile all-pages drawer supplements, not replaces, the existing navigation
+rail. Internal admin remains dark-only and explicitly labelled as internal.
+Ground overrides must still restate dependent surfaces, text and elevations (§11).
+
+**12.3 — Readability is checked where the content actually lands.** Main
+descriptions and text-entry fields use 16px type; table headings and key labels
+use 14px. Small metadata is secondary, not a substitute for a legible label.
+Text uses `--brass-text`, not the decorative brass fill. Semantic badges use
+semantic tint tokens instead of blending their foreground colour into their
+own background. Long addresses wrap; genuinely two-dimensional tables scroll
+inside their own container without widening the whole page.
+
+**12.4 — Keyboard and mobile behavior are part of the visual pass.** Preserve
+visible focus, labelled controls, skip links, current-page/step/sort semantics,
+Escape dismissal and focus return for navigation dialogs. Honour reduced motion.
+Completed setup steps remain available in an expandable summary. A trip from
+writing to review and back must retain the draft, including after a preview error.
+
+**12.5 — Sticky offsets come from observed height.** Both public beta notices
+measure their wrapped height. Marketing's header remains exactly 4rem; docs
+navigation and reading rails account for the notice. Check translucent navigation
+against every underlying band in both themes, including its scrolled state.
+Source-only audits cannot establish contrast or prove the absence of clipping.
+
+**12.6 — Overview is personal; the bell is the notification channel.** The owner
+requested contained Overview cards and consistent 44px pill-shaped topbar controls.
+Generic activity and product release notes belong behind the bell. Overview may
+show recent, dated actions explicitly attributed to the system for this workspace;
+scores, estimates and unattributed/manual actions cannot masquerade as work we did.
+The bell separates needs-attention, activity and published product updates. Seen
+status is browser-local and does not answer or close a conversation.
+
+**12.7 — The template studio is a working surface.** The owner explicitly requested
+a clearer end-user studio. Keep starting layouts, visual blocks, HTML, email styles,
+block settings, personalization, device previews, test sends and saving available.
+Use plain labels, visibly separate email metadata from the canvas, expose preview
+at the top, and keep editing tools reachable on small screens. Preview/back retains
+the draft; switching from hand-edited HTML must warn that it cannot be imported
+into blocks. Do not claim the preview is an exact rendering in every mail client.
+
+Validation scope and limitations are recorded in
+`docs/design/06-CONSOLE-UX-QA.md`. These are local changes until explicitly deployed;
+historical production-state entries elsewhere are not evidence of their release.

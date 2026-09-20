@@ -178,7 +178,7 @@ export function MessageCard({
                   {origin.href ? (
                     <>
                       {" · "}
-                      <Link href={origin.href} className="text-primary hover:underline">
+                      <Link href={origin.href} className="text-brass-text hover:underline">
                         {origin.value}
                       </Link>
                     </>
@@ -234,7 +234,7 @@ export function MessageCard({
                           ) : null}
                           {message.sub_tenant_id ? (
                             <Field label="client">
-                              <Link href={`/sub-tenants/${message.sub_tenant_id}`} className="text-primary hover:underline">
+                              <Link href={`/sub-tenants/${message.sub_tenant_id}`} className="text-brass-text hover:underline">
                                 {message.sub_tenant_id}
                               </Link>
                             </Field>
@@ -243,7 +243,7 @@ export function MessageCard({
                         </div>
                         <div className="mt-2 flex flex-wrap items-center gap-3 font-sans">
                           <DownloadProof messageId={message.id} />
-                          <Link href="/docs" className="text-xs text-primary hover:underline">
+                          <Link href="/docs" className="text-xs text-brass-text hover:underline">
                             Developer docs
                           </Link>
                         </div>
@@ -285,14 +285,14 @@ export function MessageCard({
           {conversationId ? (
             <Link
               href={`/inbox/${conversationId}`}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-brass-text hover:underline"
             >
               <MessageSquare className="size-4" /> Open conversation
             </Link>
           ) : (
             <Link
               href={`/messages/new?to=${encodeURIComponent(message.to)}`}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-primary hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-brass-text hover:underline"
             >
               <Send className="size-4" /> Email them again
             </Link>
@@ -318,7 +318,7 @@ export function MessageCard({
               </p>
               <Link
                 href={`/contacts/${contact.id}`}
-                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-medium text-brass-text hover:underline"
               >
                 Their full record <ArrowRight className="size-3" />
               </Link>
@@ -345,7 +345,7 @@ export function MessageCard({
         ) : (
           <div className="border-t px-5 py-3 text-sm text-muted-foreground">
             {message.to} isn&apos;t in your audience yet —{" "}
-            <Link href="/contacts" className="text-primary hover:underline">
+            <Link href="/contacts" className="text-brass-text hover:underline">
               add them
             </Link>{" "}
             to keep their history in one place.

@@ -35,6 +35,7 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const current = view.entries.find((e) => e.active) ?? null;
   const others = view.entries.filter((e) => !e.active);
@@ -45,7 +46,10 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
@@ -76,24 +80,26 @@ export function AccountSwitcher({ view }: { view: AccountsView }) {
   return (
     <div ref={rootRef} className="static shrink-0 sm:relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
         title="Your accounts"
-        className="inline-flex max-w-[13rem] items-center gap-2 rounded-full border bg-background py-1 pl-1 pr-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        aria-label={`Your account: ${current.name || current.email}`}
+        className="topbar-control topbar-account"
       >
-        <Avatar entry={current} className="size-6 text-[12px]" />
-        <span className="hidden max-w-[8rem] truncate sm:inline">
+        <Avatar entry={current} className="size-7 text-xs" />
+        <span className="hidden min-w-0 flex-1 truncate text-left 2xl:inline">
           {current.name || current.email}
         </span>
-        <ChevronsUpDown className="size-3.5 shrink-0" />
+        <ChevronsUpDown className="hidden size-4 shrink-0 2xl:block" />
       </button>
 
       {open ? (
         <div
           role="menu"
-          className="absolute left-4 right-4 top-full z-50 mt-1.5 w-auto overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg sm:left-auto sm:right-0 sm:w-[19rem]"
+          className="ui-menu-enter absolute left-4 right-4 top-full z-50 mt-1.5 w-auto overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg sm:left-auto sm:right-0 sm:w-[19rem]"
         >
           {/* Who you are right now, and where inside that account you are. */}
           <div className="flex items-center gap-3 border-b px-3 py-3">

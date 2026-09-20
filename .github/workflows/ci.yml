@@ -24,18 +24,24 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
+      - name: Deployment rollback regression tests
+        run: node --test scripts/deploy-host.test.mjs
+      - name: Design and truthfulness audit
+        run: pnpm exec tsx scripts/design-audit.ts
       # Cheap and fast, so it runs before the build: a placeholder link is a
       # content bug the compiler can't see.
       - name: No placeholder links
         run: ./scripts/check-dead-links.sh
       - run: pnpm build
+      - name: Public cacheability and discovery checks
+        run: node scripts/check-public-seo.mjs
 
   e2e:
     name: e2e smoke
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: rootmail
           POSTGRES_PASSWORD: rootmail
@@ -46,11 +52,11 @@ jobs:
           --health-cmd "pg_isready -U rootmail"
           --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
-        image: redis:7-alpine
+        image: valkey/valkey:7.2-alpine
         ports:
           - 6379:6379
         options: >-
-          --health-cmd "redis-cli ping"
+          --health-cmd "valkey-cli ping"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       DATABASE_URL: postgres://rootmail:rootmail@localhost:5432/rootmail
@@ -100,3 +106,27 @@ jobs:
       - name: Service logs (on failure)
         if: failure()
         run: tail -n 80 /tmp/api.log /tmp/worker.log 2>/dev/null || true
+
+  runtime:
+    name: ARM production runtime acceptance
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.1.2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build production-only backend images
+        run: |
+          docker build -f apps/api/Dockerfile -t rootmail-api:infra-test .
+          docker build -f apps/worker/Dockerfile -t rootmail-worker:infra-test .
+      - name: Start isolated local fixtures
+        run: |
+          docker run -d --name rootmail-postgres18-compat-check -p 5492:5432 -e POSTGRES_USER=rootmail -e POSTGRES_PASSWORD=rootmail -e POSTGRES_DB=rootmail postgres:18-alpine
+          docker run -d --name rootmail-valkey-compat-check -p 6392:6379 valkey/valkey:7.2-alpine
+      - name: Exercise pruned containers and queue compatibility (mock mail only)
+        run: node scripts/check-runtime-images.mjs

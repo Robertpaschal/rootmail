@@ -90,7 +90,7 @@ export default function AboutPage() {
   return (
     <>
       <Navbar />
-      <main className="px-3 pb-4 sm:px-5">
+      <main id="main-content" tabIndex={-1} className="px-3 pb-4 sm:px-5">
         {/* ── A1 · bare ground, type-led ─────────────────────────────────── */}
         <section className="container py-14 md:py-24">
           <Reveal className="max-w-3xl">

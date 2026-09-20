@@ -1,7 +1,6 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { type ReactNode, useId, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -22,8 +21,6 @@ import { cn } from "@/lib/utils";
  * Rows that are genuinely just a switch pass `control` and no children — no
  * disclosure, because there's nothing to disclose.
  */
-
-const EASE = { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.7 };
 
 export function SettingsSection({
   title,
@@ -72,7 +69,7 @@ export function SettingsItem({
   children?: ReactNode;
 }) {
   const [open, setOpen] = useState(defaultOpen);
-  const reduce = useReducedMotion();
+  const panelId = useId();
   const expandable = Boolean(children);
 
   return (
@@ -93,38 +90,27 @@ export function SettingsItem({
               type="button"
               onClick={() => setOpen((o) => !o)}
               aria-expanded={open}
+              aria-controls={panelId}
               className={cn(
-                "inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+                "ui-button inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
                 open ? "bg-accent" : "hover:bg-accent",
               )}
             >
               {open ? closeLabel : openLabel}
-              <motion.span
-                animate={{ rotate: open ? 180 : 0 }}
-                transition={reduce ? { duration: 0 } : EASE}
-                className="flex"
-              >
-                <ChevronDown className="size-3.5" />
-              </motion.span>
+              <ChevronDown className={cn("size-3.5 transition-transform duration-interaction motion-reduce:transition-none", open && "rotate-180")} />
             </button>
           ) : null}
         </div>
       </div>
 
-      <AnimatePresence initial={false}>
         {expandable && open ? (
-          <motion.div
-            key="body"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={reduce ? { duration: 0 } : { height: EASE, opacity: { duration: 0.16 } }}
-            className="overflow-hidden"
+          <div
+            id={panelId}
+            className="ui-content-enter overflow-hidden"
           >
             <div className="border-t bg-muted/20 px-4 py-4">{children}</div>
-          </motion.div>
+          </div>
         ) : null}
-      </AnimatePresence>
     </div>
   );
 }
@@ -135,7 +121,7 @@ export function StateBadge({ tone, children }: { tone: "ok" | "warn" | "muted"; 
     <span
       className={cn(
         "inline-flex items-center rounded-full px-2 py-0.5 text-[12.5px] font-semibold",
-        tone === "ok" && "bg-witnessed/15 text-witnessed",
+        tone === "ok" && "bg-witnessed-tint text-witnessed",
         tone === "warn" && "bg-acted/15 text-acted",
         tone === "muted" && "bg-muted text-muted-foreground",
       )}

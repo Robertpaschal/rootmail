@@ -41,7 +41,7 @@
   .display-num {
     font-family: var(--font-display);
     font-variation-settings: var(--display-vf-num);
-    font-variant-numeric: tabular-nums lining;
+    font-variant-numeric: tabular-nums lining-nums;
     letter-spacing: -0.02em;
   }
 }
@@ -52,7 +52,7 @@
   }
   html {
     scroll-behavior: smooth;
-    scroll-padding-top: 5rem;
+    scroll-padding-top: calc(var(--beta-notice-h, 0px) + 8rem);
     /* cv01 is the straight-sided `1`; ss03 the round quotes and commas. This
        site is denser with figures than the marketing one — status codes,
        latencies, hashes, selectors — and the default `1` with its bottom serif

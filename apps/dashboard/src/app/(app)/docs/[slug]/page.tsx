@@ -40,13 +40,13 @@ export default async function DocPageView({ params }: { params: Promise<{ slug: 
           {prev ? (
             <Link href={`/docs/${prev.slug}`} className="group rounded-lg border p-4 transition-colors hover:border-primary/40">
               <span className="flex items-center gap-1 text-xs text-muted-foreground"><ArrowLeft className="size-3" /> Previous</span>
-              <span className="mt-1 block font-medium group-hover:text-primary">{prev.title}</span>
+              <span className="mt-1 block font-medium group-hover:text-brass-text">{prev.title}</span>
             </Link>
           ) : <span />}
           {next ? (
             <Link href={`/docs/${next.slug}`} className="group rounded-lg border p-4 text-right transition-colors hover:border-primary/40">
               <span className="flex items-center justify-end gap-1 text-xs text-muted-foreground">Next <ArrowRight className="size-3" /></span>
-              <span className="mt-1 block font-medium group-hover:text-primary">{next.title}</span>
+              <span className="mt-1 block font-medium group-hover:text-brass-text">{next.title}</span>
             </Link>
           ) : <span />}
         </div>

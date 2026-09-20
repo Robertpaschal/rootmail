@@ -61,6 +61,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <SidebarProvider>
       <div className="min-h-screen">
+        <a href="#main-content" className="skip-link">Skip to content</a>
         <CommandMenu />
         {/* The scrim sits under the panel and over the page it floats above. */}
         <PeekBackdrop />
@@ -88,7 +89,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           {unverified ? <VerifyEmailBanner /> : null}
           {/* Agency mode: while acting as a client, name them on every page. */}
         <ClientScopeBanner />
-        <main className="mx-auto max-w-6xl p-4 md:p-8">{children}</main>
+        <main id="main-content" tabIndex={-1} className="dashboard-content mx-auto min-w-0 max-w-6xl p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-24">{children}</main>
         </ShellMain>
       </div>
       {/* The assistant, one tap away on every page (hides itself on /assistant). */}

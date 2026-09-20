@@ -161,7 +161,7 @@ export function TransactionalBilling({
         <AnimatePresence mode="wait">
           {yr ? (
             <motion.p key="y" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="rounded-full bg-witnessed/15 px-3 py-1 text-xs font-semibold text-witnessed">
+              className="rounded-full bg-witnessed-tint px-3 py-1 text-xs font-semibold text-witnessed">
               2 months free — you save {money(yearlySave)}/yr
             </motion.p>
           ) : (
@@ -192,7 +192,7 @@ export function TransactionalBilling({
                   </div>
                 </div>
                 {current > 0 ? (
-                  <span className="rounded-full bg-witnessed/15 px-2 py-0.5 text-[12.5px] font-medium text-witnessed">
+                  <span className="rounded-full bg-witnessed-tint px-2 py-0.5 text-[12.5px] font-medium text-witnessed">
                     You have {num(current)}
                   </span>
                 ) : null}
@@ -209,7 +209,7 @@ export function TransactionalBilling({
                 </Button>
                 <span className="text-sm text-muted-foreground">block{clamped === 1 ? "" : "s"} · {num(sends)} emails/mo</span>
                 <button type="button" onClick={() => setQuizOpen(true)}
-                  className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:border-primary/60">
+                  className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-dashed px-3 py-1.5 text-xs font-medium text-brass-text transition-colors hover:border-primary/60">
                   <Wand2 className="size-3.5" /> Not sure? Size it for me
                 </button>
               </div>
@@ -220,7 +220,7 @@ export function TransactionalBilling({
                   <motion.p key="delta" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
                     className="mt-2 overflow-hidden text-xs font-medium">
                     {num(current)} block{current === 1 ? "" : "s"} now → {num(clamped)} after checkout
-                    <span className={cn("ml-1.5", monthlyDelta >= 0 ? "text-primary" : "text-witnessed")}>
+                    <span className={cn("ml-1.5", monthlyDelta >= 0 ? "text-brass-text" : "text-witnessed")}>
                       ({monthlyDelta >= 0 ? "+" : "−"}{money(Math.abs(monthlyDelta))}/mo)
                     </span>
                   </motion.p>
@@ -279,7 +279,7 @@ export function TransactionalBilling({
                           <p className="flex items-center gap-2 text-sm font-medium">
                             {a.name}
                             {h > 0 ? (
-                              <span className="rounded-full bg-witnessed/15 px-1.5 py-0.5 text-[12px] font-medium text-witnessed">
+                              <span className="rounded-full bg-witnessed-tint px-1.5 py-0.5 text-[12px] font-medium text-witnessed">
                                 you have {h}
                               </span>
                             ) : null}
@@ -317,7 +317,7 @@ export function TransactionalBilling({
               <div className="mt-3 grid gap-2 sm:grid-cols-2">
                 {INCLUDED.map((f) => (
                   <div key={f} className="flex items-start gap-2 text-sm">
-                    <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                    <Check className="mt-0.5 size-4 shrink-0 text-brass-text" />
                     {f}
                   </div>
                 ))}
@@ -403,7 +403,7 @@ export function TransactionalBilling({
               <span className="ml-1 text-muted-foreground">— priced by audience, never your send blocks.</span>
             </span>
           </span>
-          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-brass-text" />
         </Link>
         <Link href="/billing/addons" className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">
           <span className="flex items-center gap-2 text-sm">
@@ -413,7 +413,7 @@ export function TransactionalBilling({
               <span className="ml-1 text-muted-foreground">— seats, roles, SSO &amp; more, shared across both wings.</span>
             </span>
           </span>
-          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-brass-text" />
         </Link>
       </div>
 

@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
+import { useEffect, useRef } from "react";
 import {
   AtSign,
   BarChart3,
@@ -76,12 +77,13 @@ function useIsActive() {
 
 export function Nav() {
   const isActive = useIsActive();
+  const reducedMotion = useReducedMotion();
   return (
-    <nav className="space-y-5">
+    <nav aria-label="Staff navigation" className="space-y-5">
       {groups.map((g, gi) => (
         <div key={g.label ?? gi} className="space-y-1">
           {g.label ? (
-            <p className="px-3 pb-1 text-[12.5px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            <p className="px-3 pb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
               {g.label}
             </p>
           ) : null}
@@ -91,8 +93,9 @@ export function Nav() {
               <Link
                 key={it.href}
                 href={it.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                  "relative flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                   active
                     ? "text-primary-foreground"
                     : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
@@ -101,7 +104,7 @@ export function Nav() {
                 {/* The highlight GLIDES to the section you open (shared layoutId). */}
                 {active ? (
                   <motion.span
-                    layoutId="admin-nav-active"
+                    layoutId={reducedMotion ? undefined : "admin-nav-active"}
                     className="absolute inset-0 rounded-md bg-primary"
                     transition={{ type: "spring", stiffness: 420, damping: 34 }}
                   />
@@ -120,14 +123,22 @@ export function Nav() {
 
 export function MobileNav() {
   const isActive = useIsActive();
+  const pathname = usePathname();
+  const rail = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const nav = rail.current;
+    const active = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (nav && active) nav.scrollLeft = active.offsetLeft - nav.offsetLeft - (nav.clientWidth - active.clientWidth) / 2;
+  }, [pathname]);
   return (
-    <nav className="flex gap-1 overflow-x-auto border-b bg-card px-3 py-2 md:hidden">
+    <nav ref={rail} aria-label="Staff navigation" className="relative flex min-w-0 gap-1 overflow-x-auto border-b bg-card px-3 py-2 md:hidden">
       {allItems.map((it) => (
         <Link
           key={it.href}
           href={it.href}
+          aria-current={isActive(it.href, it.exact) ? "page" : undefined}
           className={cn(
-            "flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+            "flex min-h-11 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm font-medium transition-colors",
             isActive(it.href, it.exact)
               ? "bg-primary text-primary-foreground"
               : "text-muted-foreground hover:text-foreground",

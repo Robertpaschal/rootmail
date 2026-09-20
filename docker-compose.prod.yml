@@ -1,7 +1,7 @@
-# Production stack — all five rootmail services from one file.
+# Production stack — all six rootmail services from one file.
 #
 # Two ways to run a service:
-#   • Pull prebuilt images from a registry (preferred — built by CI on amd64):
+#   • Pull prebuilt images from a registry (CI builds native amd64 and ARM64):
 #       docker compose --env-file .env.prod -f docker-compose.prod.yml pull api
 #       docker compose --env-file .env.prod -f docker-compose.prod.yml up -d api
 #   • Build locally on the host (fallback, slow on tiny boxes):
@@ -17,8 +17,24 @@
 # env they need (with .env.prod's names bridged to what each app reads).
 name: rootmail
 
+x-runtime: &runtime
+  init: true
+  logging:
+    driver: json-file
+    options:
+      max-size: "10m"
+      max-file: "3"
+
+x-web-health: &web-health
+  test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/',{redirect:'manual',signal:AbortSignal.timeout(4000)}).then(r=>process.exit(r.status>=200&&r.status<400?0:1)).catch(()=>process.exit(1))"]
+  interval: 15s
+  timeout: 5s
+  start_period: 20s
+  retries: 3
+
 services:
   api:
+    <<: *runtime
     image: ${REGISTRY:-pachal}/rootmail-api:${TAG:-latest}
     build: { context: ., dockerfile: apps/api/Dockerfile }
     restart: unless-stopped
@@ -33,20 +49,31 @@ services:
       # `localhost` resolves to ::1 first in this image and wget won't fall back to
       # IPv4 — so every probe failed with "Connection refused" and the container sat
       # permanently (unhealthy) despite serving traffic fine.
-      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4000/health"]
+      # /health returns 200 even when degraded: inspect its dependency status.
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4000/health',{signal:AbortSignal.timeout(4000)}).then(r=>r.json()).then(b=>process.exit(b.status==='ok'?0:1)).catch(()=>process.exit(1))"]
       interval: 15s
       timeout: 5s
       retries: 5
 
   worker:
+    <<: *runtime
     image: ${REGISTRY:-pachal}/rootmail-worker:${TAG:-latest}
     build: { context: ., dockerfile: apps/worker/Dockerfile }
     restart: unless-stopped
     env_file: [.env.prod] # backend: same store/queue/provider/signing env as the API
     environment:
       NODE_ENV: production
+    stop_grace_period: 2m
+    healthcheck:
+      test: ["CMD", "node", "-e", "try{const h=JSON.parse(require('fs').readFileSync('/tmp/rootmail-worker-health.json','utf8'));process.exit(h.ready&&Date.now()-h.updatedAt<30000?0:1)}catch{process.exit(1)}"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 3
 
   marketing:
+    <<: *runtime
+    healthcheck: *web-health
     image: ${REGISTRY:-pachal}/rootmail-marketing:${TAG:-latest}
     build:
       context: .
@@ -65,6 +92,8 @@ services:
   # Developer-audience marketing (developers.gateml.io) — static pitch site,
   # links back to the main site + dashboard; no backend deps.
   developers:
+    <<: *runtime
+    healthcheck: *web-health
     image: ${REGISTRY:-pachal}/rootmail-developers:${TAG:-latest}
     build:
       context: .
@@ -78,6 +107,8 @@ services:
     ports: ["3004:3000"]
 
   dashboard:
+    <<: *runtime
+    healthcheck: *web-health
     image: ${REGISTRY:-pachal}/rootmail-dashboard:${TAG:-latest}
     build: { context: ., dockerfile: apps/dashboard/Dockerfile }
     restart: unless-stopped
@@ -102,6 +133,8 @@ services:
     ports: ["3001:3000"]
 
   admin:
+    <<: *runtime
+    healthcheck: *web-health
     image: ${REGISTRY:-pachal}/rootmail-admin:${TAG:-latest}
     build: { context: ., dockerfile: apps/admin/Dockerfile }
     restart: unless-stopped

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 
@@ -32,6 +32,15 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.rootmail.io";
 export function BetaNotice() {
   const [seats, setSeats] = useState<{ left: number; total: number } | null>(null);
   const [closed, setClosed] = useState(true);
+  const strip = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!closed || !strip.current) return;
+    const update = () => document.documentElement.style.setProperty("--beta-notice-h", `${strip.current?.getBoundingClientRect().height ?? 0}px`);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(strip.current);
+    return () => { observer.disconnect(); document.documentElement.style.removeProperty("--beta-notice-h"); };
+  }, [closed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -56,7 +65,7 @@ export function BetaNotice() {
   const full = seats !== null && seats.total > 0 && seats.left < 1;
 
   return (
-    <div className="beta-strip sticky top-0 z-[60] backdrop-blur">
+    <div ref={strip} className="beta-strip sticky top-0 z-[60] backdrop-blur">
       {/* The nav sticks BELOW this strip rather than under it. Declaring the
           height here means an open beta — where nothing renders — leaves the
           nav flush at the top, with no constant to remember to remove. */}
@@ -72,12 +81,11 @@ export function BetaNotice() {
 
         {full ? (
           <span className="text-muted-foreground">
-            This round is full — new accounts are paused. Join the list and
-            you&apos;ll hear the moment the next one opens.
+            This round is full. Join the list for the next opening.
           </span>
         ) : (
           <span className="text-muted-foreground">
-            rootmail is invite-only while we finish it.{" "}
+            Invite-only access.{" "}
             {seats && seats.total > 0 ? (
               <span className="text-foreground">
                 {seats.left} {seats.left === 1 ? "place" : "places"} left in this round.

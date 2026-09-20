@@ -60,7 +60,7 @@ export default async function NewMessagePage({
         title="New email"
         description="Write it and see exactly what the recipient would get."
         backHref="/messages"
-        backLabel="Mail"
+        backLabel="Messages"
       />
       <SendingAccessNote />
       {senders.length === 0 ? (

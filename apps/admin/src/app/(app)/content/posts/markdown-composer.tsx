@@ -274,12 +274,12 @@ export function MarkdownComposer({
               e.preventDefault(); // keep the textarea's selection
               t.run();
             }}
-            className="rounded-md p-1.5 text-muted-foreground/70 transition-colors hover:bg-accent hover:text-foreground"
+            className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <t.icon className="size-4" />
           </button>
         ))}
-        <span className="ml-2 text-[12.5px] text-muted-foreground/60">
+        <span className="ml-2 text-[12.5px] text-muted-foreground">
           type <kbd className="rounded border bg-muted px-1 font-sans">/</kbd> for blocks
         </span>
       </div>
@@ -297,7 +297,7 @@ export function MarkdownComposer({
         onClick={(e) => syncMenu(e.currentTarget)}
         onBlur={() => setTimeout(() => setMenu(null), 150)}
         placeholder={placeholder}
-        className="w-full resize-none border-0 bg-transparent text-base leading-relaxed outline-none placeholder:text-muted-foreground/40"
+        className="w-full resize-none border-0 bg-transparent text-base leading-relaxed outline-none placeholder:text-muted-foreground"
       />
 
       {menu && matches.length > 0 ? (

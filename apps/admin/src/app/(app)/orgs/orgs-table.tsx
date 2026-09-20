@@ -75,6 +75,7 @@ export function OrgsTable({ orgs }: { orgs: OrgSummary[] }) {
           value={q}
           onChange={(e) => onFilterChange(setQ)(e.target.value)}
           placeholder="Search name or slug…"
+          aria-label="Search organizations by name or slug"
           className="h-9 max-w-xs"
         />
         <div className="flex items-center gap-0.5 rounded-md border p-0.5 text-sm">

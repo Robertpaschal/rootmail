@@ -83,7 +83,7 @@ export default async function BlogArticlePage({ params }: { params: Promise<Para
   return (
     <>
       <Navbar />
-      <main className="px-3 pb-4 sm:px-5">
+      <main id="main-content" tabIndex={-1} className="px-3 pb-4 sm:px-5">
         {/* ── R1 · masthead on the bare ground ───────────────────────────── */}
         <section className="container max-w-3xl py-12 md:py-16">
           <Link

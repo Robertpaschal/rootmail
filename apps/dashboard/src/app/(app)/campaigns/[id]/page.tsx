@@ -105,7 +105,7 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
           <div className="flex items-center gap-2">
             <ActionForm action={deleteCampaign}>
               <input type="hidden" name="id" value={campaign.id} />
-              <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+              <Button type="submit" variant="ghost" size="sm" aria-label={`Delete ${campaign.name}`} className="text-muted-foreground hover:text-destructive">
                 <Trash2 className="size-4" />
               </Button>
             </ActionForm>
@@ -140,11 +140,11 @@ export default async function CampaignDetailPage({ params }: { params: Promise<{
               {campaign.sent_at ? <> · sent <LocalTime iso={campaign.sent_at} /></> : null}
             </span>
           </div>
-          <dl className="grid gap-x-6 gap-y-2 sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
             {facts.map(([k, v]) => (
               <div key={k} className="flex items-baseline justify-between gap-3 border-b py-1.5 sm:border-none sm:py-0">
                 <dt className="shrink-0 text-xs text-muted-foreground">{k}</dt>
-                <dd className="min-w-0 truncate text-right text-sm font-medium" title={v}>{v}</dd>
+                <dd className="min-w-0 break-all text-right text-sm font-medium">{v}</dd>
               </div>
             ))}
           </dl>

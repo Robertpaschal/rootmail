@@ -9,22 +9,20 @@
 @tailwind utilities;
 
 @layer base {
-  /* Only h1 in the consoles: a page title is a headline, but the h2s here are
-     dense UI labels and a serif at 14px in a table header reads as a mistake. */
+  /* Task titles are interface text. Narrative display type stays on the public
+     sites; the console uses the same sans face as its controls and figures. */
   h1 {
-    font-family: var(--font-display);
-    font-variation-settings: var(--display-vf);
-    font-weight: 600;
+    font-family: var(--font-sans);
+    font-weight: 650;
     letter-spacing: var(--track-display);
-    line-height: 1.05;
+    line-height: 1.15;
   }
 }
 
 @layer components {
   .display-num {
-    font-family: var(--font-display);
-    font-variation-settings: var(--display-vf-num);
-    font-variant-numeric: tabular-nums lining;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums lining-nums;
     letter-spacing: -0.02em;
   }
 }
@@ -120,14 +118,195 @@
   font-style: italic;
 }
 .prose-email a {
-  color: #4f46e5;
+  /* The studio sheet can use its own light/dark email theme. Inherit its ink,
+     not the surrounding application's accent; underline identifies the link. */
+  color: inherit;
   text-decoration: underline;
 }
+
+/* Console readability: retain compact metadata, but give prose, fields and
+   table headings a usable rhythm. These rules do not change email output. */
+.dashboard-content { overflow-wrap: break-word; }
+.dashboard-content p { line-height: 1.6; }
+.dashboard-content th { font-size: 0.875rem; text-transform: none; letter-spacing: 0; }
+.dashboard-content :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) {
+  font-size: 1rem;
+  line-height: 1.5;
+  border-color: color-mix(in srgb, hsl(var(--ink-muted)) 80%, hsl(var(--background)));
+}
+.dashboard-content :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select) {
+  min-height: 2.75rem;
+}
+.dashboard-content textarea { min-height: 6rem; }
+.dashboard-content :is(input, textarea)::placeholder { color: hsl(var(--ink-muted)); opacity: 1; }
+.dashboard-content :is(input, textarea, select):focus-visible,
+.prose-email:focus-visible { outline: 2px solid hsl(var(--brass-text)); outline-offset: 3px; }
+.dashboard-content :is(pre, code) { overflow-wrap: normal; }
+.dashboard-content pre { max-width: 100%; overflow-x: auto; }
+
+/* One geometry for every topbar control. The island is 56px high on desktop;
+   its 12px margins align the brand and sidebar header on an 80px baseline. */
+.topbar-island {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px;
+  border: 1px solid hsl(var(--rule));
+  border-radius: 1.75rem;
+  background: hsl(var(--card));
+  box-shadow: var(--elev-1);
+}
+.topbar-brand { grid-column: 1; grid-row: 1; padding-inline: 6px; }
+.topbar-actions { grid-column: 1 / -1; grid-row: 2; display: flex; min-width: 0; align-items: center; gap: 8px; }
+.topbar-context { display: flex; min-width: 0; flex: 1; flex-wrap: wrap; align-items: center; gap: 8px; }
+.topbar-context > div { min-width: 0; flex: 1; }
+.topbar-utilities { grid-column: 3; grid-row: 1; display: flex; align-items: center; gap: 8px; }
+.topbar-control {
+  display: inline-flex;
+  height: 2.75rem;
+  min-height: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border: 1px solid hsl(var(--rule));
+  border-radius: 9999px;
+  background: hsl(var(--card));
+  color: hsl(var(--ink));
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  box-shadow: none;
+  transition: background-color var(--t-interaction) var(--ease-interaction), border-color var(--t-interaction) var(--ease-interaction), box-shadow var(--t-interaction) var(--ease-interaction), translate var(--t-interaction) var(--ease-interaction), scale var(--t-interaction) var(--ease-interaction);
+}
+.topbar-control:hover { background: hsl(var(--secondary)); border-color: hsl(var(--ink-muted) / .5); }
+.topbar-control[aria-expanded="true"] { background: hsl(var(--brass-tint)); border-color: hsl(var(--brass-rule)); }
+.topbar-icon, .topbar-create, .topbar-search, .topbar-account { width: 2.75rem; padding: 0; }
+.topbar-workspace, .topbar-client { width: 100%; min-width: 0; justify-content: space-between; }
+.topbar-control > svg { flex-shrink: 0; }
+@media (min-width: 768px) {
+  .topbar-actions { grid-column: 2; grid-row: 1; }
+  .topbar-context { justify-content: flex-end; }
+  .topbar-context > div { flex: 0 1 10rem; }
+  .topbar-island { gap: 12px; }
+}
+@media (min-width: 1280px) {
+  .topbar-create { width: 6rem; padding-inline: 14px; }
+  .topbar-search { width: 9rem; padding-inline: 14px; }
+}
+@media (min-width: 1536px) {
+  .topbar-account { width: 10.5rem; padding-left: 8px; padding-right: 12px; }
+}
+/* Studio controls have one touch target; email content keeps its own theme. */
+.template-studio button { min-height: 2.75rem; }
+.template-studio button[aria-label] { min-width: 2.75rem; }
+.template-studio button:disabled { cursor: not-allowed; }
+.template-studio [aria-label="Editor format"] button { padding-inline: 0.875rem; font-size: 0.875rem; border-radius: 0.5rem; }
+.template-studio :is(input, select, textarea) { min-width: 0; max-width: 100%; }
+.template-studio :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) { font-size: 1rem; }
+.template-studio [aria-label="Email editing tools"] button { overflow-wrap: anywhere; }
+.template-studio [aria-label="Email editing tools"] .grid-cols-2 > button { flex-direction: column; align-items: flex-start; }
 .prose-email img {
   max-width: 100%;
   height: auto;
   border-radius: 6px;
   margin: 0 0 0.6rem;
+}
+
+/* Assistant and human support share geometry, not an ambiguous identity. */
+.help-surface { min-width: 0; }
+.help-surface button, .help-surface a[aria-label] { min-height: 2.75rem; }
+.help-surface button[aria-label], .help-surface a[aria-label] { min-width: 2.75rem; }
+.help-surface :is(input, textarea, select) { min-width: 0; max-width: 100%; font-size: 1rem; }
+.help-surface :is(button, a, input, textarea):focus-visible { outline: 2px solid hsl(var(--brass-text)); outline-offset: 3px; }
+.help-surface button:disabled { cursor: not-allowed; }
+.help-message { overflow-wrap: anywhere; }
+.help-message pre { max-width: 100%; overflow-x: auto; }
+.help-message p { line-height: 1.65; }
+.help-surface .overflow-y-auto { scrollbar-width: thin; scrollbar-color: hsl(var(--ink-muted) / .45) transparent; }
+.dark .help-surface { color-scheme: dark; }
+.help-dialog:not([open]) { display: none; }
+.help-dialog::backdrop { background: hsl(var(--background) / .72); backdrop-filter: blur(4px); }
+.help-dialog button[aria-label] { display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; }
+.help-surface input { min-height: 2.75rem; }
+.help-surface textarea { min-height: 2.75rem; font-family: var(--font-sans), sans-serif; font-weight: 400; line-height: 1.6; letter-spacing: normal; }
+.help-surface :is(input, textarea)::placeholder { font-family: var(--font-sans), sans-serif; font-size: 1rem; font-weight: 400; font-style: normal; letter-spacing: normal; color: hsl(var(--ink-muted)); opacity: 1; }
+
+/* Motion follows the action, never controls whether content can be read.
+   CSS/native layout animation keeps moving when a JS animation loop is paused. */
+@keyframes ui-menu-arrive {
+  from { translate: 0 -6px; scale: .985; }
+  to { translate: 0 0; scale: 1; }
+}
+@keyframes ui-content-arrive {
+  from { translate: 0 6px; }
+  to { translate: 0 0; }
+}
+@keyframes ui-panel-arrive {
+  from { translate: -12px 0; }
+  to { translate: 0 0; }
+}
+@keyframes ui-nav-arrive {
+  from { translate: -3px 0; }
+  to { translate: 0 0; }
+}
+@keyframes ui-scene-arrive {
+  from { translate: var(--ui-scene-x, 8px) 0; }
+  to { translate: 0 0; }
+}
+@keyframes ui-send-working {
+  from { translate: 0 1px; rotate: -4deg; }
+  to { translate: 2px -1px; rotate: 3deg; }
+}
+@keyframes ui-confirm-arrive {
+  from { scale: .82; }
+  to { scale: 1; }
+}
+.ui-scene-enter { animation: ui-scene-arrive var(--t-narrative) var(--ease-narrative); }
+.ui-segment-slider { transition: transform var(--t-narrative) var(--ease-narrative), width var(--t-narrative) var(--ease-narrative), height var(--t-narrative) var(--ease-narrative); }
+.ui-conversation-rail { transition: width var(--t-narrative) var(--ease-narrative); }
+.ui-send-working { animation: ui-send-working var(--t-narrative) ease-in-out infinite alternate; }
+.ui-confirm-icon { animation: ui-confirm-arrive var(--t-narrative) var(--ease-narrative); }
+.ui-stage-fill { transition: scale var(--t-narrative) var(--ease-narrative), background-color var(--t-interaction) var(--ease-interaction); }
+.ui-button { transition-property: color, background-color, border-color, transform, filter, box-shadow, scale; transition-duration: var(--t-interaction); transition-timing-function: var(--ease-interaction); }
+.ui-button:not(:disabled):active { scale: .975; }
+.ui-button[aria-busy="true"] { opacity: 1; cursor: progress; }
+.ui-stage-step:not(:disabled):active > :last-child { translate: 0 1px; }
+.ui-stage-step > :last-child { transition: color var(--t-interaction), translate var(--t-interaction); }
+.dashboard-content :is(input, textarea, select):not([type="range"]) { transition: border-color var(--t-interaction), box-shadow var(--t-interaction); }
+.dashboard-content [role="alert"], .help-surface [role="alert"] { animation: ui-content-arrive var(--t-narrative) var(--ease-narrative); }
+.ui-menu-enter { transform-origin: top center; animation: ui-menu-arrive var(--t-narrative) var(--ease-narrative); }
+.ui-menu-enter-up { transform-origin: bottom center; animation-name: ui-content-arrive; }
+.ui-content-enter { animation: ui-content-arrive var(--t-narrative) var(--ease-narrative); }
+.ui-panel-enter { animation: ui-panel-arrive var(--t-narrative) var(--ease-narrative); }
+.ui-nav-link[aria-current="page"] .ui-nav-label { animation: ui-nav-arrive var(--t-narrative) var(--ease-narrative); }
+.ui-nav-link, .help-surface button, .ui-help-trigger { transition: background-color var(--t-interaction) var(--ease-interaction), color var(--t-interaction) var(--ease-interaction), border-color var(--t-interaction) var(--ease-interaction), scale var(--t-interaction) var(--ease-interaction), translate var(--t-interaction) var(--ease-interaction); }
+.topbar-control:active, .help-surface button:not(:disabled):active, .ui-help-trigger:active { scale: .97; }
+.ui-nav-link:active { scale: .985; }
+.topbar-control > svg { transition: rotate var(--t-interaction) var(--ease-interaction); }
+.topbar-control[aria-expanded="true"] > .lucide-chevron-down { rotate: 180deg; }
+.dashboard-content details[open] > :not(summary) { animation: ui-content-arrive var(--t-narrative) var(--ease-narrative); }
+@media (hover: hover) and (pointer: fine) {
+  .topbar-control:hover, .ui-help-trigger:hover { translate: 0 -1px; box-shadow: var(--elev-1); }
+  .ui-nav-link:not([aria-current="page"]):hover .ui-nav-label { translate: 2px 0; }
+  .ui-nav-label { transition: translate var(--t-interaction) var(--ease-interaction); }
+  .ui-menu-enter :is([role="menuitem"], [cmdk-item]) { transition: background-color var(--t-interaction) var(--ease-interaction), translate var(--t-interaction) var(--ease-interaction); }
+  .ui-menu-enter :is([role="menuitem"], [cmdk-item]):hover { translate: 2px 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-segment-slider, .ui-conversation-rail { transition: none !important; }
+  .ui-scene-enter, .ui-send-working, .ui-confirm-icon,
+  .dashboard-content [role="alert"], .help-surface [role="alert"] { animation: none !important; }
+  .ui-button, .ui-stage-fill, .ui-stage-step > :last-child,
+  .dashboard-content :is(input, textarea, select) { transition: none !important; }
+  .ui-button:active, .ui-stage-step > :last-child { scale: none !important; translate: none !important; }
+  .ui-menu-enter, .ui-content-enter, .ui-panel-enter,
+  .ui-nav-link[aria-current="page"] .ui-nav-label,
+  .dashboard-content details[open] > :not(summary) { animation: none !important; }
+  .topbar-control, .ui-help-trigger, .ui-nav-link, .ui-nav-label,
+  .help-surface button, .ui-menu-enter [role="menuitem"], .ui-menu-enter [cmdk-item] { transition: none !important; translate: none !important; scale: none !important; }
 }
 .prose-email hr {
   border: none;

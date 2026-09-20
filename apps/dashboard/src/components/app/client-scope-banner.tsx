@@ -49,7 +49,7 @@ export async function ClientScopeBanner() {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-primary/25 bg-primary/[0.07] px-4 py-2 text-sm md:px-8">
       <div className="flex min-w-0 items-center gap-2.5">
-        <span className="grid size-6 shrink-0 place-items-center rounded-md bg-primary/15 text-primary">
+        <span className="grid size-6 shrink-0 place-items-center rounded-md bg-primary/15 text-brass-text">
           <Network className="size-3.5" />
         </span>
         <p className="min-w-0 truncate">
@@ -65,7 +65,7 @@ export async function ClientScopeBanner() {
       <div className="flex shrink-0 items-center gap-1.5">
         <Link
           href={`/sub-tenants/${active.id}`}
-          className="hidden items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-secondary sm:inline-flex"
+          className="hidden items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-brass-text transition-colors hover:bg-secondary sm:inline-flex"
         >
           Client page <ArrowRight className="size-3" />
         </Link>

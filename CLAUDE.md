@@ -1,5 +1,20 @@
 # CLAUDE.md — working notes for rootmail
 
+## Current UX branch (September 2026, not deployed)
+
+The owner approved changing the visual identity, including fonts, for the
+dashboard-first usability pass on `codex/dashboard-ux-polish`. Manrope carries
+UI and console figures; Fraunces retains the public narrative voice. The customer
+sidebar is opaque espresso brown in both themes; the canvas inherits the public
+marketing palette. Navigation, sorting/filtering/paging
+and the four-state rendering law remain intact. Philosophy **§12** supersedes
+older font assignments; `docs/design/06-CONSOLE-UX-QA.md` records checks and
+limitations. Historical production SHAs below do not describe this branch.
+
+Both public beta notices measure their wrapped height; sticky offsets must
+include it. Marketing's header is still 4rem. The old 90% glass note is historical,
+not a value to restore: measure current computed styles against every page band.
+
 > **`AGENTS.md` is the vendor-neutral version of this brief** — agents from other
 > tools (GPT, Gemini, Grok, Cursor, Copilot) read that one. If you change a
 > standing rule or the "where things stand" state, update BOTH.

@@ -72,7 +72,7 @@ export default async function ContactPage({
           {key === "support" ? (
             <Card>
               <CardContent className="flex items-start gap-3 p-5">
-                <Sparkles className="mt-0.5 size-5 shrink-0 text-primary" />
+                <Sparkles className="mt-0.5 size-5 shrink-0 text-brass-text" />
                 <div className="text-sm">
                   <p className="font-medium">Try the assistant first</p>
                   <p className="mt-1 text-muted-foreground">
@@ -94,7 +94,7 @@ export default async function ContactPage({
                 <ul className="mt-3 space-y-2">
                   {ENTERPRISE_PERKS.map((perk) => (
                     <li key={perk} className="flex items-start gap-2 text-sm text-muted-foreground">
-                      <Check className="mt-0.5 size-4 shrink-0 text-primary" />
+                      <Check className="mt-0.5 size-4 shrink-0 text-brass-text" />
                       {perk}
                     </li>
                   ))}

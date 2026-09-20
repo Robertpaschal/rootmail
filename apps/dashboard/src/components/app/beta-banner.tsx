@@ -23,22 +23,19 @@ export function BetaBanner() {
   return (
     <div className="border-b border-rule bg-secondary">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2 text-sm md:px-8">
-        <span className="rounded-full bg-primary/20 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-primary">
+        <span className="rounded-full border border-brass-rule bg-brass-tint px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-brass-text">
           Beta
         </span>
-        <span className="text-foreground">
-          Build your email workflow during beta.
-        </span>
         <span className="text-muted-foreground">
-          Prepare reusable templates, test delivery and follow replies.
+          Test with confirmed inboxes.
         </span>
-        <Link href="/testing#test-inboxes" className="font-medium text-foreground underline underline-offset-4 hover:no-underline">Set up test inboxes</Link>
+        <Link href="/testing#test-inboxes" className="inline-flex min-h-8 items-center font-medium text-foreground underline underline-offset-4 hover:no-underline">Set up test inboxes</Link>
         {/* Support lives in a pane on the assistant surface, not its own route —
             so this points where the pane actually is rather than inventing a
             URL. If that pane ever grows a deep link, this is the caller to fix. */}
         <Link
           href="/assistant?pane=support"
-          className="ml-auto inline-flex items-center gap-1.5 font-medium text-foreground underline underline-offset-4 hover:no-underline"
+          className="inline-flex min-h-8 items-center gap-1.5 font-medium text-foreground underline underline-offset-4 hover:no-underline sm:ml-auto"
         >
           <MessageSquareHeart className="size-4" />
           Share feedback

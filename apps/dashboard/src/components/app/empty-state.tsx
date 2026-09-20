@@ -42,7 +42,7 @@ export function EmptyState({
       </div>
       <h3 className="mt-4 max-w-xl text-xl font-medium leading-tight tracking-heading">{title}</h3>
       {description ? (
-        <p className="mt-2 max-w-xl text-sm leading-relaxed text-muted-foreground">{description}</p>
+        <p className="mt-2 max-w-prose text-base leading-relaxed text-muted-foreground">{description}</p>
       ) : null}
       {action ? <div className="mt-5">{action}</div> : null}
     </div>

@@ -5,7 +5,7 @@
 // that edits the selected block with real fields — no window.prompt anywhere. The
 // email HTML always comes from lib/email-doc.ts, so what you design is what sends.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useCallback, useEffect, useMemo, useState } from "react";
 import { Extension, Node, mergeAttributes } from "@tiptap/core";
 import { Color } from "@tiptap/extension-color";
 import { Image } from "@tiptap/extension-image";
@@ -37,11 +37,13 @@ import {
   PanelTop,
   Plus,
   Quote,
+  Redo2,
   Sparkles,
   Strikethrough,
   Timer,
   Trash2,
   Type,
+  Undo2,
   Video,
   Wand2,
   X,
@@ -344,7 +346,7 @@ export function useEmailEditor(initialDoc: DocNode, onChange: (doc: DocNode) => 
       EmailImage,
       EmailTextAlign,
       Placeholder.configure({
-        placeholder: "Write your email… or press '/' for blocks, or add them from the palette on the left.",
+        placeholder: "Start writing here… Use Add content for headings, images and buttons.",
       }),
       EmailButton,
       EmailHeader,
@@ -356,6 +358,9 @@ export function useEmailEditor(initialDoc: DocNode, onChange: (doc: DocNode) => 
     content: initialDoc,
     editorProps: {
       attributes: {
+        role: "textbox",
+        "aria-label": "Email template body",
+        "aria-multiline": "true",
         // The canvas is the email itself — always readable "paper".
         class: "prose-email min-h-[420px] px-6 py-5 focus:outline-none",
       },
@@ -407,7 +412,14 @@ export function EmailCanvas({ editor, theme }: { editor: Editor | null; theme: E
   if (!editor) return <div className="min-h-[480px] rounded-lg border bg-muted/30" />;
   const font = FONT_STACKS[theme.font].stack;
   return (
-    <div className="overflow-hidden rounded-lg border bg-muted/40 shadow-sm">
+    <div className="min-w-0 overflow-hidden rounded-2xl border bg-card shadow-e1">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b bg-card px-4 py-3">
+        <div><h2 className="text-sm font-semibold">Email body</h2><p className="mt-1 text-sm text-muted-foreground">Click text to write. Select a block to change its settings.</p></div>
+        <div role="group" aria-label="Edit history" className="flex gap-1">
+          <Tool label="Undo" disabled={!editor.can().undo()} onClick={() => editor.chain().focus().undo().run()}><Undo2 className="size-4" /></Tool>
+          <Tool label="Redo" disabled={!editor.can().redo()} onClick={() => editor.chain().focus().redo().run()}><Redo2 className="size-4" /></Tool>
+        </div>
+      </div>
       <FormattingToolbar editor={editor} />
       {/* A framed "sheet" that mimics the themed email so design choices are visible while editing. */}
       <div className="flex justify-center p-4 sm:p-6" style={{ background: theme.bg }}>
@@ -453,7 +465,7 @@ function FormattingToolbar({ editor }: { editor: Editor }) {
       <Tool active={editor.isActive("link")} onClick={promptLink} label="Link"><Link2 className="size-4" /></Tool>
       <label className="ml-0.5 flex size-8 cursor-pointer items-center justify-center" title="Text color">
         <span className="size-4 rounded-full border" style={{ background: (editor.getAttributes("textStyle").color as string) || "#111827" }} />
-        <input type="color" className="sr-only" value={(editor.getAttributes("textStyle").color as string) || "#111827"} onChange={(e) => editor.chain().focus().setColor(e.target.value).run()} />
+        <input type="color" aria-label="Text color" className="sr-only" value={(editor.getAttributes("textStyle").color as string) || "#111827"} onChange={(e) => editor.chain().focus().setColor(e.target.value).run()} />
       </label>
       <Sep />
       <Tool active={editor.isActive("bulletList")} onClick={() => editor.chain().focus().toggleBulletList().run()} label="Bullet list"><List className="size-4" /></Tool>
@@ -467,9 +479,9 @@ function FormattingToolbar({ editor }: { editor: Editor }) {
   );
 }
 
-function Tool({ active, onClick, label, children }: { active?: boolean; onClick: () => void; label: string; children: React.ReactNode }) {
+function Tool({ active, disabled, onClick, label, children }: { active?: boolean; disabled?: boolean; onClick: () => void; label: string; children: React.ReactNode }) {
   return (
-    <button type="button" aria-label={label} aria-pressed={active} title={label} onClick={onClick}
+    <button type="button" disabled={disabled} aria-label={label} aria-pressed={active} title={label} onClick={onClick}
       className={cn("flex size-8 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground", active && "bg-secondary text-foreground")}>
       {children}
     </button>
@@ -590,21 +602,21 @@ export function StudioPanel({
   onAiSubject?: (subject: string) => void;
 }) {
   const TABS: { id: StudioTab; label: string }[] = [
-    { id: "blocks", label: "Blocks" },
-    { id: "design", label: "Design" },
-    { id: "inspect", label: "Inspect" },
+    { id: "blocks", label: "Add content" },
+    { id: "design", label: "Email style" },
+    { id: "inspect", label: "Edit block" },
   ];
   return (
-    <div className="rounded-lg border bg-card">
-      <div className="flex gap-1 border-b p-1">
+    <div className="overflow-hidden rounded-2xl border bg-card shadow-e1">
+      <div role="group" aria-label="Editing tools" className="grid grid-cols-3 gap-1 border-b p-1.5">
         {TABS.map((t) => (
-          <button key={t.id} type="button" onClick={() => setTab(t.id)}
-            className={cn("flex-1 rounded-md px-2 py-1.5 text-sm font-medium transition-colors", tab === t.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground")}>
+          <button key={t.id} type="button" aria-pressed={tab === t.id} onClick={() => setTab(t.id)}
+            className={cn("ui-button flex-1 rounded-md px-2 py-1.5 text-sm font-medium transition-colors", tab === t.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground")}>
             {t.label}
           </button>
         ))}
       </div>
-      <div className="max-h-[560px] overflow-y-auto p-3">
+      <div key={tab} className="ui-content-enter p-3">
         {!editor ? null : tab === "blocks" ? (
           <BlocksPalette editor={editor} onInserted={() => setTab("inspect")} onAiSubject={onAiSubject} />
         ) : tab === "design" ? (
@@ -673,15 +685,15 @@ function BlocksPalette({ editor, onInserted, onAiSubject }: { editor: Editor; on
 
   return (
     <div className="space-y-3">
-      <p className="text-xs text-muted-foreground">Click to add a block. It drops in below the block you&apos;re on — then tweak it under <span className="font-medium text-foreground">Inspect</span>.</p>
+      <p className="text-sm text-muted-foreground">Choose a block to add it below your current selection.</p>
       <div className="grid grid-cols-2 gap-2">
         {PALETTE.map((b) => (
           <button key={b.key} type="button" onClick={() => add(b.key)}
             className="group flex items-center gap-2.5 rounded-lg border bg-background p-2.5 text-left transition-colors hover:border-primary/50 hover:bg-primary/5">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-secondary text-muted-foreground group-hover:text-primary"><b.icon className="size-4" /></span>
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-secondary text-muted-foreground group-hover:text-brass-text"><b.icon className="size-4" /></span>
             <span className="min-w-0">
               <span className="block text-sm font-medium leading-tight">{b.label}</span>
-              <span className="block truncate text-[12.5px] text-muted-foreground">{b.hint}</span>
+              <span className="mt-1 block text-[12.5px] leading-snug text-muted-foreground">{b.hint}</span>
             </span>
           </button>
         ))}
@@ -690,7 +702,7 @@ function BlocksPalette({ editor, onInserted, onAiSubject }: { editor: Editor; on
       <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
         {aiOpen ? (
           <div className="space-y-2">
-            <Label className="flex items-center gap-1.5 text-xs"><Wand2 className="size-3.5 text-primary" /> Describe the email</Label>
+            <Label className="flex items-center gap-1.5 text-xs"><Wand2 className="size-3.5 text-brass-text" /> Describe the email</Label>
             <textarea value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)} rows={3} autoFocus
               placeholder="A friendly welcome for new users of my running-shoe store, with a discount button."
               className="w-full resize-none rounded-md border bg-background p-2 text-sm outline-none focus:ring-1 focus:ring-primary" />
@@ -703,7 +715,7 @@ function BlocksPalette({ editor, onInserted, onAiSubject }: { editor: Editor; on
           </div>
         ) : (
           <button type="button" onClick={() => setAiOpen(true)} className="flex w-full items-center gap-2 text-left">
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15 text-primary"><Sparkles className="size-4" /></span>
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/15 text-brass-text"><Sparkles className="size-4" /></span>
             <span className="min-w-0">
               <span className="block text-sm font-medium leading-tight">Ask AI to write it</span>
               <span className="block text-[12.5px] text-muted-foreground">Describe it — get a full draft</span>
@@ -721,7 +733,7 @@ function DesignPanel({ theme, setTheme }: { theme: EmailTheme; setTheme: (t: Ema
   const set = (patch: Partial<EmailTheme>) => setTheme({ ...theme, ...patch });
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">Set the look of the whole email — it applies everywhere and is baked into what sends.</p>
+      <p className="text-sm text-muted-foreground">Colors, typography and spacing for this email. These settings don’t change your dashboard.</p>
       <Swatch label="Brand & buttons" value={theme.brand} onChange={(v) => set({ brand: v })} />
       <Swatch label="Page background" value={theme.bg} onChange={(v) => set({ bg: v })} />
       <Swatch label="Card background" value={theme.canvas} onChange={(v) => set({ canvas: v })} />
@@ -786,7 +798,7 @@ function Swatch({ label, value, onChange }: { label: string; value: string; onCh
       <label className="flex cursor-pointer items-center gap-2 rounded-md border bg-background px-2 py-1">
         <span className="size-5 rounded border" style={{ background: value }} />
         <span className="font-mono text-[12.5px] uppercase text-muted-foreground">{value}</span>
-        <input type="color" className="sr-only" value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#4f46e5"} onChange={(e) => onChange(e.target.value)} />
+        <input type="color" aria-label={label} className="sr-only" value={/^#[0-9a-f]{6}$/i.test(value) ? value : "#4f46e5"} onChange={(e) => onChange(e.target.value)} />
       </label>
     </div>
   );
@@ -799,7 +811,7 @@ function Slider({ label, value, min, max, unit, onChange }: { label: string; val
         <Label className="text-xs">{label}</Label>
         <span className="font-mono text-[12.5px] text-muted-foreground">{value}{unit}</span>
       </div>
-      <input type="range" min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-primary" />
+      <input type="range" aria-label={label} min={min} max={max} value={value} onChange={(e) => onChange(Number(e.target.value))} className="w-full accent-primary" />
     </div>
   );
 }
@@ -811,7 +823,7 @@ function Inspector({ editor, selected, onSwitchToBlocks }: { editor: Editor; sel
     return (
       <div className="rounded-lg border border-dashed p-4 text-center text-sm text-muted-foreground">
         <p>Click a block in the email to edit it here.</p>
-        <button type="button" onClick={onSwitchToBlocks} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+        <button type="button" onClick={onSwitchToBlocks} className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-brass-text hover:underline">
           <Plus className="size-3.5" /> Or add a new block
         </button>
       </div>
@@ -864,18 +876,22 @@ function IconBtn({ label, onClick, danger, children }: { label: string; onClick:
 
 // Small field primitives -----------------------------------------------------
 
+const FieldLabel = createContext<string | undefined>(undefined);
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <Label className="text-xs">{label}</Label>
+    <FieldLabel.Provider value={label}>
+    <fieldset className="min-w-0 space-y-2 text-sm">
+      <legend className="font-medium">{label}</legend>
       {children}
-    </div>
+    </fieldset>
+    </FieldLabel.Provider>
   );
 }
 const inputCls = "w-full rounded-md border bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-1 focus:ring-primary";
 
 function TextInput({ value, onChange, placeholder, mono }: { value: string; onChange: (v: string) => void; placeholder?: string; mono?: boolean }) {
-  return <input value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cn(inputCls, mono && "font-mono text-xs")} />;
+  const label = useContext(FieldLabel);
+  return <input aria-label={label} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className={cn(inputCls, mono && "font-mono text-xs")} />;
 }
 
 function AlignPicker({ value, onChange }: { value: string; onChange: (v: "left" | "center" | "right") => void }) {
@@ -885,7 +901,7 @@ function AlignPicker({ value, onChange }: { value: string; onChange: (v: "left" 
   return (
     <div className="inline-flex rounded-md border p-0.5">
       {opts.map((o) => (
-        <button key={o.id} type="button" onClick={() => onChange(o.id)} aria-pressed={value === o.id}
+        <button key={o.id} type="button" aria-label={`Block alignment: ${o.id}`} onClick={() => onChange(o.id)} aria-pressed={value === o.id}
           className={cn("flex size-7 items-center justify-center rounded", value === o.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground")}>
           <o.icon className="size-4" />
         </button>
@@ -901,7 +917,7 @@ function ColorField({ label, value, fallback, onChange, clearable }: { label: st
         <label className="flex flex-1 cursor-pointer items-center gap-2 rounded-md border bg-background px-2 py-1.5">
           <span className="size-5 rounded border" style={{ background: value || "transparent" }} />
           <span className="font-mono text-[12.5px] uppercase text-muted-foreground">{value || "none"}</span>
-          <input type="color" className="sr-only" value={/^#[0-9a-f]{6}$/i.test(value) ? value : fallback} onChange={(e) => onChange(e.target.value)} />
+          <input type="color" aria-label={label} className="sr-only" value={/^#[0-9a-f]{6}$/i.test(value) ? value : fallback} onChange={(e) => onChange(e.target.value)} />
         </label>
         {clearable && value ? <button type="button" onClick={() => onChange("")} className="text-muted-foreground hover:text-foreground" title="Clear"><X className="size-4" /></button> : null}
       </div>
@@ -967,16 +983,16 @@ function FooterFields({ attrs, patch }: { attrs: Record<string, unknown>; patch:
         <Label className="text-xs">Social links</Label>
         {social.map((s, i) => (
           <div key={i} className="flex items-center gap-1.5">
-            <select value={s.platform ?? "website"} onChange={(e) => setSocial(social.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)))}
+            <select aria-label={`Social platform ${i + 1}`} value={s.platform ?? "website"} onChange={(e) => setSocial(social.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)))}
               className="rounded-md border bg-background px-1.5 py-1.5 text-xs capitalize outline-none">
               {PLATFORMS.map((p) => <option key={p} value={p}>{p}</option>)}
             </select>
-            <input value={s.url ?? ""} onChange={(e) => setSocial(social.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} placeholder="https://…"
+            <input aria-label={`Social link ${i + 1}`} value={s.url ?? ""} onChange={(e) => setSocial(social.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)))} placeholder="https://…"
               className={cn(inputCls, "flex-1 font-mono text-xs")} />
-            <button type="button" onClick={() => setSocial(social.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive"><X className="size-4" /></button>
+            <button type="button" aria-label={`Remove social link ${i + 1}`} onClick={() => setSocial(social.filter((_, j) => j !== i))} className="text-muted-foreground hover:text-destructive"><X className="size-4" /></button>
           </div>
         ))}
-        <button type="button" onClick={() => setSocial([...social, { platform: "website", url: "" }])} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"><Plus className="size-3.5" /> Add link</button>
+        <button type="button" onClick={() => setSocial([...social, { platform: "website", url: "" }])} className="inline-flex items-center gap-1 text-xs font-medium text-brass-text hover:underline"><Plus className="size-3.5" /> Add link</button>
       </div>
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" checked={attrs.showUnsubscribe !== false} onChange={(e) => patch({ showUnsubscribe: e.target.checked })} className="accent-primary" />
@@ -1003,7 +1019,7 @@ function EmbedFields({ attrs, patch }: { attrs: Record<string, unknown>; patch: 
     <div className="space-y-3">
       <Field label="Video or link URL">
         <div className="flex gap-1.5">
-          <input value={raw} onChange={(e) => setRaw(e.target.value)} onBlur={apply} placeholder="https://youtube.com/watch?v=…" className={cn(inputCls, "flex-1 font-mono text-xs")} />
+          <input aria-label="Video or link URL" value={raw} onChange={(e) => setRaw(e.target.value)} onBlur={apply} placeholder="https://youtube.com/watch?v=…" className={cn(inputCls, "flex-1 font-mono text-xs")} />
           <button type="button" onClick={apply} className="rounded-md border px-2.5 text-sm hover:bg-secondary">Set</button>
         </div>
       </Field>
@@ -1059,6 +1075,7 @@ function LiveFields({ attrs, patch }: { attrs: Record<string, unknown>; patch: (
       <Field label="Counts down to">
         <input
           type="datetime-local"
+          aria-label="Counts down to"
           value={localValue}
           onChange={(e) => {
             const v = e.target.value;

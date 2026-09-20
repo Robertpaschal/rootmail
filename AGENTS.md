@@ -62,7 +62,24 @@ the industry's founding lie, in our own product.
 
 ---
 
-## Where things stand (2026-09-01)
+## Current UX branch (September 2026, not deployed)
+
+The owner explicitly approved a new visual direction, including fonts, for a
+dashboard-first usability pass. `codex/dashboard-ux-polish` uses Manrope for UI
+and console figures, retains Fraunces for public narrative, and adds an opaque
+espresso-brown customer sidebar in both themes, with the canvas using the public
+marketing palette. Navigation destinations, table controls
+and the four-state rendering law are preserved. Read design philosophy **§12**
+for the updated type roles and `docs/design/06-CONSOLE-UX-QA.md` for verification
+and limitations. The historical production snapshot below does not describe this
+unreleased branch.
+
+Public beta notices now measure their wrapped height. Keep marketing's 4rem
+header contract, and include the measured notice in sticky offsets. Glass opacity
+has changed since the historical 90% note below: use current computed styles and
+measure over every band, rather than restoring an old alpha from this brief.
+
+## Historical production snapshot (2026-09-01)
 
 - Branch `main`, HEAD **`2083b36`**. `Build & push images` green; all four web
   apps deployed from it.

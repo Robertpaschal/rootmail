@@ -23,7 +23,7 @@ export function AnnouncementPreview({ body }: { body: string }) {
         ))
       )}
       <p className="mt-5 text-[13px] text-muted-foreground">— The rootmail team</p>
-      <p className="mt-2 text-xs text-muted-foreground/70">
+      <p className="mt-2 text-xs text-muted-foreground">
         You&apos;re receiving this because you own a rootmail account. ·{" "}
         <span className="underline">Unsubscribe from announcements</span>
       </p>

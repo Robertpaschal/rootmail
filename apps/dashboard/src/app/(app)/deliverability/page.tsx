@@ -173,7 +173,7 @@ function PillarCard({
         {p.href && p.cta ? (
           <Link
             href={p.href}
-            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-brass-text hover:underline"
           >
             {p.cta} <ArrowRight className="size-3" />
           </Link>
@@ -390,7 +390,7 @@ export default async function DeliverabilityPage({
           <Card className="h-full">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base">
-                <Lightbulb className="size-4 text-primary" />
+                <Lightbulb className="size-4 text-brass-text" />
                 Recommendations
               </CardTitle>
             </CardHeader>
@@ -401,7 +401,7 @@ export default async function DeliverabilityPage({
                 <ul className="space-y-2 text-sm text-muted-foreground">
                   {d.recommendations.map((r, i) => (
                     <li key={i} className="flex gap-2">
-                      <span className="text-primary">•</span>
+                      <span className="text-brass-text">•</span>
                       <span>{r}</span>
                     </li>
                   ))}

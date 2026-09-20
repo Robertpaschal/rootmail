@@ -77,7 +77,7 @@ export function StatCard({
   );
 
   const box = cn(
-    "relative rounded-lg border bg-card p-4",
+    "relative min-w-0 rounded-lg border bg-card p-5",
     href && "transition-colors duration-interaction ease-interaction hover:border-ink/40",
     className,
   );

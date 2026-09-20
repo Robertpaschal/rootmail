@@ -69,7 +69,7 @@ export function StarterGallery({
           className="group flex items-center gap-4 rounded-lg border bg-card p-5 text-left transition-colors hover:border-primary/50 hover:bg-primary/5">
           <span className="flex size-11 shrink-0 items-center justify-center rounded border border-rule text-ink-muted"><FilePlus2 className="size-5" /></span>
           <span>
-            <span className="block font-medium group-hover:text-primary">Start from scratch</span>
+            <span className="block font-medium group-hover:text-brass-text">Start from scratch</span>
             <span className="mt-0.5 block text-xs text-muted-foreground">A blank canvas. Add blocks and design it your way — no code.</span>
           </span>
         </button>
@@ -77,7 +77,7 @@ export function StarterGallery({
           className="group flex items-center gap-4 rounded-lg border bg-card p-5 text-left transition-colors hover:border-primary/50 hover:bg-primary/5">
           <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-secondary text-muted-foreground group-hover:text-foreground"><Code2 className="size-5" /></span>
           <span>
-            <span className="block font-medium group-hover:text-primary">Paste your own HTML</span>
+            <span className="block font-medium group-hover:text-brass-text">Paste your own HTML</span>
             <span className="mt-0.5 block text-xs text-muted-foreground">Already have a design? Drop in raw HTML — sent exactly as written.</span>
           </span>
         </button>
@@ -95,7 +95,7 @@ export function StarterGallery({
               className="group flex flex-col overflow-hidden rounded-lg border bg-card text-left transition-colors hover:border-primary/50 hover:ring-1 hover:ring-primary/20">
               <Thumb html={basicHtml[b.id]} />
               <div className="p-3">
-                <p className="text-sm font-medium group-hover:text-primary">{b.title}</p>
+                <p className="text-sm font-medium group-hover:text-brass-text">{b.title}</p>
                 <p className="mt-0.5 text-[12.5px] leading-snug text-muted-foreground">{b.blurb}</p>
               </div>
             </button>
@@ -115,7 +115,7 @@ export function StarterGallery({
               className="group flex flex-col overflow-hidden rounded-lg border bg-card text-left transition-colors hover:border-primary/50 hover:ring-1 hover:ring-primary/20">
               <Thumb html={starterHtml[s.id]} tall />
               <div className="p-4">
-                <p className="font-medium group-hover:text-primary">{s.title}</p>
+                <p className="font-medium group-hover:text-brass-text">{s.title}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{s.blurb}</p>
               </div>
             </button>
@@ -124,7 +124,7 @@ export function StarterGallery({
       </section>
 
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Sparkles className="size-3.5 text-primary" /> Prefer to describe it? Start blank, then use <span className="font-medium text-foreground">Ask AI</span> in the studio to draft the whole email.
+        <Sparkles className="size-3.5 text-brass-text" /> Prefer to describe it? Start blank, then use <span className="font-medium text-foreground">Ask AI</span> in the studio to draft the whole email.
       </p>
     </div>
   );

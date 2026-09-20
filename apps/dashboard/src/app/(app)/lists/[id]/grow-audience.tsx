@@ -161,7 +161,7 @@ export function GrowAudience({
       <CardHeader className="flex-row items-start justify-between space-y-0">
         <div>
           <CardTitle className="flex items-center gap-2 text-base">
-            <TrendingUp className="size-4 text-primary" /> Grow this audience
+            <TrendingUp className="size-4 text-brass-text" /> Grow this audience
           </CardTitle>
           <CardDescription>
             Let people subscribe themselves — share a page or embed the form. New subscribers can kick off a welcome
@@ -288,7 +288,7 @@ export function GrowAudience({
               {/* Integration: the tag → its welcome sequence, live + entitlement-aware.
                   Never link a free org into the locked composer — offer the upgrade. */}
               <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-muted/50 px-2.5 py-2 text-xs">
-                <Workflow className="size-3.5 shrink-0 text-primary" />
+                <Workflow className="size-3.5 shrink-0 text-brass-text" />
                 {welcome ? (
                   <span className="min-w-0 flex-1">
                     New subscribers start{" "}
@@ -304,7 +304,7 @@ export function GrowAudience({
                         ? `No welcome sequence runs on “${tag.trim()}” yet.`
                         : "Set a tag, then a sequence triggered by it greets subscribers automatically."}
                     </span>
-                    <Link href="/sequences/new" className="inline-flex shrink-0 items-center gap-1 font-medium text-primary hover:underline">
+                    <Link href="/sequences/new" className="inline-flex shrink-0 items-center gap-1 font-medium text-brass-text hover:underline">
                       Create welcome sequence <ArrowRight className="size-3" />
                     </Link>
                   </>
@@ -313,7 +313,7 @@ export function GrowAudience({
                     <span className="min-w-0 flex-1 text-muted-foreground">
                       Automatic welcome sequences are a <span className="font-medium text-foreground">Growth</span> feature.
                     </span>
-                    <Link href="/billing/marketing" className="inline-flex shrink-0 items-center gap-1 font-medium text-primary hover:underline">
+                    <Link href="/billing/marketing" className="inline-flex shrink-0 items-center gap-1 font-medium text-brass-text hover:underline">
                       Upgrade <ArrowRight className="size-3" />
                     </Link>
                   </>
@@ -339,7 +339,7 @@ export function GrowAudience({
       ) : (
         <CardContent className="space-y-3">
           <p className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Sparkles className="size-4 shrink-0 text-primary" /> Turn it on to get a shareable signup page, an embeddable
+            <Sparkles className="size-4 shrink-0 text-brass-text" /> Turn it on to get a shareable signup page, an embeddable
             form, subscribe/unsubscribe tracking, and automatic welcome sequences for new subscribers.
           </p>
           {error ? <p className="text-sm text-destructive">{error}</p> : null}

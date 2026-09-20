@@ -98,7 +98,7 @@ export default function CheckPage() {
           each section was `border-b border-rule`, which is precisely the flat
           composition the home page was rebuilt out of; this page never got the
           pass. See `.slab` in `globals.css`. */}
-      <main className="px-3 pb-4 sm:px-5">
+      <main id="main-content" tabIndex={-1} className="px-3 pb-4 sm:px-5">
         <section className="slab settle lit">
           <div className="container py-14 md:py-20">
             <div className="max-w-2xl">
