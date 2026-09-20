@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useState, useTransition} from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import * as Dialog from "@radix-ui/react-dialog";
 import {
   ArrowLeft,
   ArrowRight,
@@ -11,14 +11,11 @@ import {
   Code2,
   Eye,
   Loader2,
-  Palette,
-  PanelRightClose,
-  PanelRightOpen,
   PenLine,
   Save,
   Settings2,
-  SlidersHorizontal,
   Trash2,
+  X,
 } from "lucide-react";
 import { createTemplate, deleteTemplate, updateTemplate, type TemplateFormState } from "./actions";
 import { StarterGallery } from "./starter-gallery";
@@ -27,7 +24,7 @@ import { EmailCanvas, StudioPanel, useEmailEditor, useSelectedBlock } from "./em
 import { MediaLibraryHost } from "./media-library";
 import { EmailPreview } from "@/components/app/email-preview";
 import { SendTest } from "@/components/app/send-test";
-import { StageRail, StageScene, type Stage } from "@/components/app/stage-rail";
+import { StageRail, type Stage } from "@/components/app/stage-rail";
 import { sendTestMessage } from "../messages/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -100,7 +97,13 @@ export function TemplateEditor({
 }) {
   const editing = template != null;
   const action = editing ? updateTemplate : createTemplate;
-  const [state, formAction, pending] = useActionState<TemplateFormState | null, FormData>(action, null);
+  const [savedContent, setSavedContent] = useState<string | null>(null);
+  const [state, formAction, pending] = useActionState<TemplateFormState | null, FormData>(async (previous, fields) => {
+    const snapshot = JSON.stringify(["name", "subject", "slug", "type", "html", "blocks"].map((key) => fields.get(key)));
+    const result = await action(previous, fields);
+    if (result.saved) setSavedContent(snapshot);
+    return result;
+  }, null);
 
   const initialDoc: DocNode = isDoc(template?.blocks) ? (template!.blocks as unknown as DocNode) : emptyDoc();
 
@@ -120,23 +123,32 @@ export function TemplateEditor({
   // The rail folds to the edge so the email itself is the object on screen —
   // a design tool's canvas should never be the smallest thing in the window.
   const [railOpen, setRailOpen] = useState(true);
+  const [wideStudio, setWideStudio] = useState(false);
+  const [mobileToolsOpen, setMobileToolsOpen] = useState(false);
   useEffect(() => {
-    const stored = window.localStorage.getItem(RAIL_KEY);
-    if (stored != null) setRailOpen(stored === "1");
+    const query = window.matchMedia("(min-width: 1280px)");
+    const update = () => { setWideStudio(query.matches); if (query.matches) setMobileToolsOpen(false); };
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(RAIL_KEY);
+      if (stored != null) setRailOpen(stored === "1");
+    } catch { /* Editing still works when storage is unavailable. */ }
   }, []);
   const toggleRail = (next: boolean) => {
     setRailOpen(next);
-    window.localStorage.setItem(RAIL_KEY, next ? "1" : "0");
+    try { window.localStorage.setItem(RAIL_KEY, next ? "1" : "0"); } catch { /* Optional preference. */ }
   };
 
   // --- the journey -----------------------------------------------------------
   // Editing an existing template starts on Design (there's nothing to choose).
   const [phase, setPhase] = useState<0 | 1 | 2>(editing ? 1 : 0);
   const [furthest, setFurthest] = useState<0 | 1 | 2>(editing ? 1 : 0);
-  const [dir, setDir] = useState(1);
 
   const goto = (next: 0 | 1 | 2) => {
-    setDir(next > phase ? 1 : -1);
     setPhase(next);
     if (next > furthest) setFurthest(next);
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -147,7 +159,6 @@ export function TemplateEditor({
   const [slugEdited, setSlugEdited] = useState(editing);
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [type, setType] = useState<TemplateType>(template?.type ?? "transactional");
-  const [typeOpen, setTypeOpen] = useState(false);
 
   const [subject, setSubject] = useState(template?.subject ?? "");
   const [html, setHtml] = useState(template?.html ?? NEW_HTML);
@@ -217,21 +228,21 @@ export function TemplateEditor({
   // Editing has nothing to choose, so it doesn't get a "Start" stage at all —
   // the rail should never offer a step that would throw your work away.
   const ALL_STAGES: Stage[] = [
-    { id: "start", label: "Start", hint: "Pick something close to what you want — every piece of it is editable." },
-    { id: "design", label: "Design", hint: "Write it and lay it out. Nothing is sent or saved yet." },
+    { id: "start", label: "Choose a starting point" },
+    { id: "design", label: "Edit email" },
     {
       id: "review",
-      label: "Review & save",
-      hint: "Exactly what your recipient receives, filled in with your real details. Send it to yourself before you commit.",
+      label: "Preview & save",
     },
   ];
   const stages = editing ? ALL_STAGES.slice(1) : ALL_STAGES;
   const railOffset = editing ? 1 : 0;
 
   const readyToReview = name.trim().length > 0 && subject.trim().length > 0;
+  const savedCurrentContent = savedContent === JSON.stringify([name, subject, effectiveSlug, type, effectiveHtml, mode === "write" ? JSON.stringify(themedDoc) : ""]);
 
   return (
-    <form action={formAction} className="pb-24">
+    <form action={formAction} className="template-studio min-w-0 pb-12">
       {editing ? <input type="hidden" name="id" value={template.id} /> : null}
       <input type="hidden" name="type" value={type} />
       <input type="hidden" name="name" value={name} />
@@ -241,167 +252,146 @@ export function TemplateEditor({
       <input type="hidden" name="html" value={effectiveHtml} />
       <input type="hidden" name="blocks" value={mode === "write" ? JSON.stringify(themedDoc) : ""} />
 
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-4 rounded-2xl border bg-card p-4 shadow-e1">
       <StageRail
+        className="mb-0 min-w-0 flex-1 basis-72"
         stages={stages}
         current={phase - railOffset}
         furthest={furthest - railOffset}
         onJump={(i) => goto((i + railOffset) as 0 | 1 | 2)}
       />
+      {phase !== 0 ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span role="status" className="mr-1 text-sm text-muted-foreground">{savedCurrentContent ? "Changes saved" : "Save when you’re ready"}</span>
+          {phase === 1 ? (
+            <Button type="button" disabled={!readyToReview} onClick={() => goto(2)}>
+              <Eye className="size-4" /> Preview & save
+            </Button>
+          ) : (
+            <>
+              <Button type="button" variant="outline" onClick={() => goto(1)}><PenLine className="size-4" /> Edit email</Button>
+              <Button type="submit" aria-busy={pending} disabled={pending || !readyToReview}>
+                {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+                {pending ? "Saving…" : editing ? "Save changes" : "Save template"}
+              </Button>
+            </>
+          )}
+        </div>
+      ) : null}
+      </div>
+      {state?.error ? <p role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{state.error}</p> : null}
 
       <MediaLibraryHost />
 
-      <AnimatePresence mode="wait" initial={false}>
+      <div>
         {/* ── 1. Start ─────────────────────────────────────────────────── */}
         {phase === 0 ? (
-          <StageScene keyId="start" direction={dir}>
+          <div key="start" className="ui-content-enter">
             <StarterGallery key={wing} defaultWing={wing} onPick={applyStarter} onBasic={applyBasic} onBlank={applyBlank} onHtml={applyHtml} />
-          </StageScene>
+          </div>
         ) : phase === 1 ? (
           /* ── 2. Design ──────────────────────────────────────────────── */
-          <StageScene keyId="design" direction={dir}>
+          <div key="design" className="ui-content-enter">
             <div className="space-y-4">
-              {/* One slim bar: what it's called, what it says, what it is. */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-3 rounded-lg border bg-card px-4 py-3">
-                <input
+              <section aria-label="Email details" className="grid gap-4 rounded-2xl border bg-card p-4 shadow-e1 sm:grid-cols-2 xl:grid-cols-[1fr_2fr_12rem]">
+                <div className="min-w-0 space-y-2">
+                <Label htmlFor="template-name">Template name <span className="font-normal text-muted-foreground">· only you see this</span></Label>
+                <Input
+                  id="template-name"
                   value={name}
                   onChange={(e) => onName(e.target.value)}
                   placeholder="Untitled template"
                   aria-label="Template name"
-                  className="min-w-[8rem] max-w-[14rem] flex-1 border-0 bg-transparent p-0 text-sm font-semibold outline-none placeholder:font-normal placeholder:text-muted-foreground"
                 />
-                <span className="hidden h-5 w-px bg-border sm:block" />
-                <label className="flex min-w-[12rem] flex-[2] items-center gap-2 text-sm">
-                  <span className="shrink-0 text-muted-foreground">Subject</span>
-                  <input
+                </div>
+                <div className="min-w-0 space-y-2 sm:col-span-2 sm:row-start-2 xl:col-span-1 xl:row-start-auto">
+                  <Label htmlFor="template-subject">Subject line <span className="font-normal text-muted-foreground">· appears in the inbox</span></Label>
+                  <Input
+                    id="template-subject"
                     value={subject}
                     onChange={(e) => setSubject(e.target.value)}
                     placeholder="What lands in their inbox"
-                    className="w-full border-0 bg-transparent p-0 outline-none placeholder:text-muted-foreground"
                   />
-                </label>
-
-                {/* The type as a stated fact, changeable — not a question. */}
-                <div className="relative shrink-0">
-                  <button
-                    type="button"
-                    onClick={() => setTypeOpen((v) => !v)}
-                    title={TYPE_FACT[type]}
-                    className="rounded-full border px-2.5 py-1 text-[12.5px] font-medium text-muted-foreground transition-colors hover:text-foreground"
-                  >
-                    {TYPE_LABEL[type]}
-                  </button>
-                  <AnimatePresence>
-                    {typeOpen ? (
-                      <motion.div
-                        initial={{ opacity: 0, y: -4 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -4 }}
-                        className="absolute right-0 z-30 mt-1.5 w-80 rounded-lg border bg-popover p-1 shadow-lg"
-                      >
-                        {(Object.keys(TYPE_LABEL) as TemplateType[]).map((t) => (
-                          <button
-                            key={t}
-                            type="button"
-                            onClick={() => {
-                              setType(t);
-                              setTypeOpen(false);
-                            }}
-                            className={cn(
-                              "flex w-full flex-col items-start gap-0.5 rounded-md p-2 text-left transition-colors hover:bg-accent",
-                              t === type && "bg-accent/60",
-                            )}
-                          >
-                            <span className="text-sm font-medium">{TYPE_LABEL[t]}</span>
-                            <span className="text-[12.5px] leading-snug text-muted-foreground">{TYPE_FACT[t]}</span>
-                          </button>
-                        ))}
-                      </motion.div>
-                    ) : null}
-                  </AnimatePresence>
                 </div>
+                <div className="min-w-0 space-y-2">
+                  <Label htmlFor="template-kind">Email type</Label>
+                  <select id="template-kind" value={type} onChange={(e) => setType(e.target.value as TemplateType)} aria-describedby="template-type-help" className="min-h-11 w-full rounded-lg border bg-background px-3 text-base">
+                    {(Object.keys(TYPE_LABEL) as TemplateType[]).map((t) => <option key={t} value={t}>{TYPE_LABEL[t]}</option>)}
+                  </select>
+                </div>
+                <p id="template-type-help" className="text-sm text-muted-foreground sm:col-span-2 xl:col-span-3">{TYPE_FACT[type]}</p>
+              </section>
 
-                <div className="flex shrink-0 gap-0.5 rounded-md border p-0.5 text-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div role="group" aria-label="Editor format" className="flex shrink-0 gap-1 rounded-xl border bg-card p-1 text-sm">
                   <button
                     type="button"
-                    onClick={() => setMode("write")}
+                    onClick={() => {
+                      if (mode === "code" && html !== docToHtml(themedDoc) && !window.confirm("The visual editor cannot import your HTML edits. Switch to the block draft instead? Your HTML edits will not be included when saving in visual mode.")) return;
+                      setMode("write");
+                    }}
+                    aria-pressed={mode === "write"}
                     className={cn("flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-colors", mode === "write" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground")}
                   >
-                    <PenLine className="size-3.5" /> Design
+                    <PenLine className="size-4" /> Visual editor
                   </button>
                   <button
                     type="button"
+                    aria-pressed={mode === "code"}
                     onClick={() => {
                       if (mode === "write") setHtml(docToHtml(themedDoc));
                       setMode("code");
                     }}
                     className={cn("flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium transition-colors", mode === "code" ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground")}
                   >
-                    <Code2 className="size-3.5" /> HTML
+                    <Code2 className="size-4" /> HTML code
                   </button>
                 </div>
+                {mode === "write" ? wideStudio ? (
+                  <Button type="button" variant="outline" aria-expanded={railOpen} aria-controls="studio-panel" onClick={() => toggleRail(!railOpen)}><Blocks className="size-4" /> {railOpen ? "Hide editing tools" : "Show editing tools"}</Button>
+                ) : (
+                  <Dialog.Root open={mobileToolsOpen} onOpenChange={setMobileToolsOpen}>
+                    <Dialog.Trigger asChild><Button type="button" variant="outline"><Blocks className="size-4" /> Editing tools</Button></Dialog.Trigger>
+                    <Dialog.Portal>
+                      <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50" />
+                      <Dialog.Content className="template-studio fixed inset-x-3 top-[5svh] z-50 mx-auto flex max-h-[90svh] max-w-md flex-col rounded-2xl border bg-card p-3 shadow-e3">
+                        <div className="mb-3 flex items-start justify-between gap-3 px-1">
+                          <div><Dialog.Title className="text-lg font-semibold">Email editing tools</Dialog.Title><Dialog.Description className="mt-1 text-sm text-muted-foreground">Add content, change the email style or edit your selected block.</Dialog.Description></div>
+                          <Dialog.Close asChild><Button type="button" variant="ghost" size="icon" aria-label="Close editing tools"><X className="size-4" /></Button></Dialog.Close>
+                        </div>
+                        <div className="min-h-0 overflow-y-auto">
+                          <StudioPanel editor={editor} theme={theme} setTheme={setTheme} selected={selected} tab={studioTab} setTab={setStudioTab} onAiSubject={setSubject} />
+                        </div>
+                      </Dialog.Content>
+                    </Dialog.Portal>
+                  </Dialog.Root>
+                ) : null}
               </div>
 
               {/* Canvas centre stage; the rail folds to the edge. */}
               {mode === "write" ? (
-                <div className={cn("grid gap-4", railOpen ? "lg:grid-cols-[minmax(0,1fr)_340px]" : "lg:grid-cols-[minmax(0,1fr)_44px]")}>
+                <div className={cn("grid items-start gap-4", railOpen && wideStudio && "xl:grid-cols-[minmax(0,1fr)_300px]")}>
                   <div className="min-w-0 space-y-2">
                     <EmailCanvas editor={editor} theme={theme} />
                     <p className="text-xs text-muted-foreground">
-                      Click a block to edit it · type <span className="font-mono">/</span> for the block menu ·{" "}
+                      Click the email to write. Add content with the tools or type <span className="font-mono">/</span>.{" "}
                       <span className="font-mono">{"{{variables}}"}</span> fill in per recipient.
                     </p>
                   </div>
 
-                  {railOpen ? (
-                    <motion.div layout className="space-y-2">
-                      <button
-                        type="button"
-                        onClick={() => toggleRail(false)}
-                        className="ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      >
-                        <PanelRightClose className="size-3.5" /> Hide panel
-                      </button>
+                  {railOpen && wideStudio ? (
+                    <aside id="studio-panel" aria-label="Email editing tools" className="min-w-0">
                       <StudioPanel editor={editor} theme={theme} setTheme={setTheme} selected={selected} tab={studioTab} setTab={setStudioTab} onAiSubject={setSubject} />
-                    </motion.div>
-                  ) : (
-                    <motion.div layout className="hidden lg:flex lg:flex-col lg:items-center lg:gap-1 lg:rounded-lg lg:border lg:bg-card lg:p-1.5">
-                      <button
-                        type="button"
-                        onClick={() => toggleRail(true)}
-                        title="Show panel"
-                        className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                      >
-                        <PanelRightOpen className="size-4" />
-                      </button>
-                      <span className="my-1 h-px w-6 bg-border" />
-                      {([
-                        { id: "blocks", icon: Blocks, label: "Blocks" },
-                        { id: "design", icon: Palette, label: "Design" },
-                        { id: "inspect", icon: SlidersHorizontal, label: "Inspect" },
-                      ] as const).map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          title={t.label}
-                          onClick={() => {
-                            setStudioTab(t.id);
-                            toggleRail(true);
-                          }}
-                          className="rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                        >
-                          <t.icon className="size-4" />
-                        </button>
-                      ))}
-                    </motion.div>
-                  )}
+                    </aside>
+                  ) : null}
                 </div>
               ) : (
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-base">HTML</CardTitle>
+                    <CardTitle className="text-base"><Label htmlFor="template-html">Email HTML</Label></CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <Textarea rows={22} value={html} onChange={(e) => setHtml(e.target.value)} className="font-mono text-xs" placeholder="<p>Your HTML…</p>" />
+                    <Textarea id="template-html" rows={22} value={html} onChange={(e) => setHtml(e.target.value)} className="font-mono text-sm" placeholder="<p>Your HTML…</p>" />
                     <p className="text-xs text-muted-foreground">
                       Sent exactly as written. Use <span className="font-mono">{"{{variables}}"}</span> for per-recipient values.
                     </p>
@@ -416,7 +406,7 @@ export function TemplateEditor({
                   </button>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    Version {template.current_version} · editing the subject or body bumps it.
+                    Version {state?.version ?? template.current_version} · saving a changed subject or body creates a new version.
                   </p>
                 )}
                 <div className="flex items-center gap-3">
@@ -429,11 +419,12 @@ export function TemplateEditor({
                 </div>
               </div>
             </div>
-          </StageScene>
+          </div>
         ) : (
           /* ── 3. Review & save ────────────────────────────────────────── */
-          <StageScene keyId="review" direction={dir}>
+          <div key="review" className="ui-content-enter">
             <div className="space-y-5">
+              <p className="rounded-xl border bg-card p-4 text-sm text-muted-foreground">Preview uses sample values for personalization. Actual appearance can vary by email app. Saving this template does not send an email.</p>
               <EmailPreview
                 html={effectiveHtml}
                 text={effectiveText}
@@ -491,14 +482,13 @@ export function TemplateEditor({
                 </div>
               </div>
 
-              {state?.error ? <p className="text-sm text-destructive">{state.error}</p> : null}
 
               <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
                 <Button type="button" variant="ghost" onClick={() => goto(1)}>
-                  <ArrowLeft className="size-4" /> Back to design
+                  <ArrowLeft className="size-4" /> Back to editing
                 </Button>
                 <div className="flex items-center gap-3">
-                  {state?.saved ? (
+                  {savedCurrentContent ? (
                     <span className="flex items-center gap-1.5 text-sm text-witnessed">
                       <Check className="size-4" /> Saved
                     </span>
@@ -511,7 +501,7 @@ export function TemplateEditor({
                       sendTestMessage({ to: dest, subject: subject || name || "Template test", html: effectiveHtml })
                     }
                   />
-                  <Button type="submit" disabled={pending}>
+                  <Button type="submit" aria-busy={pending} disabled={pending}>
                     {pending ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
                     {pending ? "Saving…" : editing ? "Save changes" : "Save template"}
                   </Button>
@@ -525,9 +515,9 @@ export function TemplateEditor({
                 </div>
               ) : null}
             </div>
-          </StageScene>
+          </div>
         )}
-      </AnimatePresence>
+      </div>
     </form>
   );
 }

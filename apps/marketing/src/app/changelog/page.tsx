@@ -56,7 +56,7 @@ export default async function ChangelogPage() {
   return (
     <>
       <Navbar />
-      <main className="px-3 pb-4 sm:px-5">
+      <main id="main-content" tabIndex={-1} className="px-3 pb-4 sm:px-5">
         {/* ── L1 · bare ground, type-led ─────────────────────────────────── */}
         <section className="container py-14 md:py-20">
           <div className="max-w-3xl">
@@ -106,7 +106,7 @@ export default async function ChangelogPage() {
                       {/* The spine itself: a 1px rule down the left of the
                           content column, with one filled node on it. Both are
                           static CSS — nothing here needs a frame to exist. */}
-                      <div className="relative border-l border-rule pb-10 pl-6">
+                      <div className="relative min-w-0 border-l border-rule pb-14 pl-6">
                         <span
                           aria-hidden="true"
                           className="absolute -left-[3.5px] top-[0.45rem] size-[7px] rounded-full bg-witnessed"
@@ -116,7 +116,7 @@ export default async function ChangelogPage() {
                           {entry.changes.map((c, j) => (
                             <li
                               key={j}
-                              className="grid gap-x-4 gap-y-1 py-3 sm:grid-cols-[4.5rem_1fr]"
+                              className="grid gap-x-4 gap-y-2 py-4 sm:grid-cols-[4.5rem_1fr]"
                             >
                               <span
                                 className="font-mono text-[12.5px] uppercase tracking-wide text-ink-muted"
@@ -124,7 +124,7 @@ export default async function ChangelogPage() {
                               >
                                 {c.kind}
                               </span>
-                              <span className="text-[0.9375rem] leading-relaxed text-ink-muted">
+                              <span className="max-w-prose text-base leading-relaxed text-ink-muted">
                                 {c.text}
                               </span>
                             </li>

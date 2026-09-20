@@ -175,7 +175,7 @@ export function SequenceWorkbench({
                         className={cn(
                           "absolute -left-[30px] top-2 grid size-5 place-items-center rounded-full ring-4 ring-card transition-colors",
                           r.kind === "send"
-                            ? "bg-primary/15 text-primary"
+                            ? "bg-primary/15 text-brass-text"
                             : "bg-muted text-muted-foreground",
                           isSelected && "bg-primary text-primary-foreground",
                         )}
@@ -265,7 +265,7 @@ export function SequenceWorkbench({
                     outcomes.failed > 0
                       ? "bg-destructive/15 text-destructive"
                       : outcomes.completed > 0
-                        ? "bg-witnessed/15 text-witnessed"
+                        ? "bg-witnessed-tint text-witnessed"
                         : "bg-muted text-muted-foreground",
                     selected === "done" && "bg-primary text-primary-foreground",
                   )}
@@ -338,7 +338,7 @@ export function SequenceWorkbench({
               {/* The filter is stated in words, not just implied by a
                   highlight halfway up the other column. */}
               {selectedLabel ? (
-                <p className="mt-0.5 text-xs text-primary">
+                <p className="mt-0.5 text-xs text-brass-text">
                   Showing {shown.length} {shown.length === 1 ? "person" : "people"} {selectedLabel}
                 </p>
               ) : null}

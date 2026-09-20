@@ -90,7 +90,7 @@ export default async function AddonsPage({
               <span className="ml-1 text-muted-foreground">— the mail your product owes someone, priced by how much you send.</span>
             </span>
           </span>
-          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-brass-text" />
         </Link>
         <Link href="/billing/marketing" className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">
           <span className="flex items-center gap-2 text-sm">
@@ -100,7 +100,7 @@ export default async function AddonsPage({
               <span className="ml-1 text-muted-foreground">— campaigns to an audience, priced by how many contacts you keep.</span>
             </span>
           </span>
-          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-brass-text" />
         </Link>
       </div>
     </>

@@ -34,7 +34,17 @@ export async function generateMetadata({
   const { slug } = await params;
   const page = getPage(slug);
   if (!page) return {};
-  return { title: page.title, description: page.summary };
+  return {
+    title: page.title,
+    description: page.summary,
+    alternates: { canonical: `/docs/${page.slug}` },
+    openGraph: {
+      title: page.title,
+      description: page.summary,
+      url: `/docs/${page.slug}`,
+      type: "website",
+    },
+  };
 }
 
 export default async function DocPageView({ params }: { params: Promise<{ slug: string }> }) {
@@ -101,7 +111,7 @@ export default async function DocPageView({ params }: { params: Promise<{ slug: 
 
         {/* On-page table of contents */}
         {toc.length > 1 ? (
-          <aside className="sticky top-24 hidden h-fit w-44 shrink-0 xl:block">
+          <aside className="sticky top-[calc(var(--beta-notice-h,0px)+5.5rem)] hidden h-fit w-44 shrink-0 xl:block">
             <p className="mb-2 font-mono text-[12.5px] uppercase tracking-wider text-ink-muted">
               on this page
             </p>

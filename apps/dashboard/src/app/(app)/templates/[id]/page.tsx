@@ -35,8 +35,7 @@ export default async function EditTemplatePage({ params }: { params: Promise<{ i
   return (
     <>
       <PageHeader
-        title={template.name}
-        description={`Slug: ${template.slug}`}
+        title="Template studio"
         backHref="/templates"
         backLabel="Templates"
       />

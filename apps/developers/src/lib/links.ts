@@ -7,3 +7,8 @@ export const signupUrl = `${DASHBOARD_URL}/signup`;
 export const loginUrl = `${DASHBOARD_URL}/login`;
 /** Where a signed-in visitor goes (root redirects to their overview). */
 export const dashboardUrl = DASHBOARD_URL;
+
+/** Non-authoritative navigation hint only; never use this for authorization. */
+export function readSignedInHint(): boolean {
+  return typeof document !== "undefined" && document.cookie.split(";").some((cookie) => cookie.trim() === "rm_signed_in=1");
+}

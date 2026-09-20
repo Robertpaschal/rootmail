@@ -74,8 +74,8 @@ export default async function MessagesPage({
   return (
     <>
       <PageHeader
-        title="Mail"
-        description="Every email that leaves your account — one-to-one sends, campaign mail, sequence steps — each with its recipient and full delivery story."
+        title="Messages"
+        description="Track one-to-one emails, campaigns and sequence sends. Open a message for its delivery record."
         actions={
           <Link href="/messages/new" className={cn(buttonVariants({ size: "sm" }))}>
             <Plus className="size-4" /> Write
@@ -83,7 +83,7 @@ export default async function MessagesPage({
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
+      <nav aria-label="Filter messages by status" className="mb-5 flex flex-wrap items-center gap-2">
         {STATUSES.map((s, i) => (
           <Fragment key={s}>
             {/* A rule where the meaning changes: everything to the left is mail
@@ -93,22 +93,19 @@ export default async function MessagesPage({
             ) : null}
             <Link
               href={s === "all" ? "/messages" : `/messages?status=${s}`}
+              aria-current={active === s ? "page" : undefined}
               className={cn(
-                "rounded-md border px-3 py-1 text-xs font-medium capitalize transition-colors duration-interaction ease-interaction",
+                "inline-flex min-h-10 items-center rounded-md border px-3 py-2 text-sm font-medium capitalize transition-colors duration-interaction ease-interaction",
                 active === s
-                  ? STOPPED.has(s)
-                    ? "border-stopped bg-stopped-tint text-stopped"
-                    : "border-ink bg-secondary text-foreground"
-                  : STOPPED.has(s)
-                    ? "border-stopped/30 text-stopped hover:border-stopped"
-                    : "border-border text-muted-foreground hover:text-foreground",
+                  ? "border-brass-text bg-brass-tint text-brass-text"
+                  : "border-border bg-card text-muted-foreground hover:border-ink-muted hover:text-foreground",
               )}
             >
               {s}
             </Link>
           </Fragment>
         ))}
-      </div>
+      </nav>
 
       {failed ? (
         <ConnectionErrorCard message={failed} status={errStatus} />

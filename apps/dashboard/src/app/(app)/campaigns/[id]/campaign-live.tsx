@@ -119,7 +119,7 @@ export function CampaignLive({ initial }: { initial: LiveData }) {
         <Card className="border-l-4 border-l-primary">
           <CardContent className="p-5">
             <div className="flex items-center gap-2">
-              <Loader2 className="size-4 animate-spin text-primary" />
+              <Loader2 className="size-4 animate-spin text-brass-text" />
               <p className="font-medium">Sending…</p>
               <span className="text-sm text-muted-foreground">
                 {s.sent.toLocaleString()} of {recipients_total.toLocaleString()} sent

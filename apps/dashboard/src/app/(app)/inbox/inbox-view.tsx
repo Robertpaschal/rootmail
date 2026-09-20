@@ -27,6 +27,7 @@ import { InfoHint } from "@/components/app/info-hint";
 import { LocalTime } from "@/components/app/local-time";
 import { ThreadStatusBadge } from "@/components/app/status-badge";
 import { Button } from "@/components/ui/button";
+import { SendActivity } from "@/components/app/send-activity";
 import { Textarea } from "@/components/ui/textarea";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -56,7 +57,7 @@ const KIND: Record<ThreadMessageKind, { label: string; Icon: typeof Megaphone }>
 };
 
 const STATUS_TONE: Record<string, string> = {
-  delivered: "bg-witnessed/15 text-witnessed",
+  delivered: "bg-witnessed-tint text-witnessed",
   sent: "bg-ink/15 text-muted-foreground",
   queued: "bg-muted text-muted-foreground",
   suppressed: "bg-acted/15 text-acted",
@@ -146,7 +147,6 @@ function EmailCard({
   open: boolean;
   onToggle: () => void;
 }) {
-  const reduce = useReducedMotion();
   const outbound = m.direction === "outbound";
   const meta = KIND[m.kind];
   const sender = outbound
@@ -159,16 +159,12 @@ function EmailCard({
   const snippet = textOf(m);
 
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -6 }}
-      transition={reduce ? { duration: 0 } : { duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+    <article
       data-email-card=""
-      className={cn("overflow-hidden rounded-lg border bg-card", !outbound && "border-l-2 border-l-primary")}
+      className={cn("ui-content-enter overflow-hidden rounded-lg border bg-card", !outbound && "border-l-2 border-l-primary")}
     >
       {/* Email header — who, what, when, and how it's doing out there. */}
-      <button type="button" onClick={onToggle} className="block w-full px-4 py-2.5 text-left transition-colors hover:bg-accent/40">
+      <button type="button" onClick={onToggle} aria-expanded={open} className="block w-full px-4 py-2.5 text-left transition-colors hover:bg-accent/40">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
           <span className={cn("inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium", outbound ? "border border-rule text-ink-muted" : "border border-ink text-foreground")}>
             <meta.Icon className="size-3" /> {meta.label}
@@ -211,15 +207,8 @@ function EmailCard({
 
       {/* The email body — the real rendered HTML, framed as the email it is.
           It unfolds: a mail client that snaps open loses your place. */}
-      <AnimatePresence initial={false}>
       {open ? (
-        <motion.div
-          key="body"
-          initial={{ height: 0, opacity: 0 }}
-          animate={{ height: "auto", opacity: 1 }}
-          exit={{ height: 0, opacity: 0 }}
-          transition={reduce ? { duration: 0 } : { height: EASE_OPEN, opacity: { duration: 0.16 } }}
-          className="overflow-hidden border-t">
+        <div className="ui-content-enter overflow-hidden border-t">
           {m.body_html ? (
             <EmailBodyFrame html={m.body_html} maxHeight={520} />
           ) : (
@@ -241,10 +230,9 @@ function EmailCard({
           <button type="button" onClick={onToggle} className="block w-full border-t px-4 py-1.5 text-center text-[12.5px] text-muted-foreground hover:bg-accent/40">
             Collapse email
           </button>
-        </motion.div>
+        </div>
       ) : null}
-      </AnimatePresence>
-    </motion.article>
+    </article>
   );
 }
 
@@ -293,15 +281,6 @@ export function InboxView({
   const landAtReplyFor = useRef<string | null>(initialThreadId);
   const landTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const desktop = useDesktop();
-  // Switching person should animate; ARRIVING at the page should not — the first
-  // conversation is just what's there. (Keying on the contact remounts those
-  // subtrees, so their `initial` would otherwise replay on every page load.)
-  const firstPaint = useRef(true);
-  useEffect(() => {
-    firstPaint.current = false;
-  }, []);
-  const switching = !firstPaint.current && !reduce;
-
   useEffect(() => {
     const stored = window.localStorage.getItem(RAIL_KEY);
     if (stored != null) setRailOpen(stored === "1");
@@ -438,7 +417,7 @@ export function InboxView({
   };
 
   const reply = () => {
-    if (!expandedThread || !draft.trim()) return;
+    if (sending || !expandedThread || !draft.trim()) return;
     const text = draft;
     setError(null);
     startSend(async () => {
@@ -490,7 +469,7 @@ export function InboxView({
           <p className="text-sm text-muted-foreground">
             Every email you send opens a thread under its contact — one thread per subject, every reply on the
             thread it answers. Make sure reply capture is on under{" "}
-            <a href="/settings/sender" className="font-medium text-primary hover:underline">
+            <a href="/settings/sender" className="font-medium text-brass-text hover:underline">
               Settings → Sending
             </a>
             .
@@ -504,15 +483,9 @@ export function InboxView({
     <div className="flex h-[calc(100vh-8.5rem)] overflow-hidden rounded-lg border bg-card">
       {/* Collapsed: a strip of faces. Switching person stays one click away even
           when the conversation has the width. */}
-      <AnimatePresence initial={false}>
         {!railOpen ? (
-          <motion.aside
-            key="rail-strip"
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 56, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={reduce ? { duration: 0 } : { width: EASE_OPEN, opacity: { duration: 0.15 } }}
-            className="hidden shrink-0 overflow-hidden border-r md:block"
+          <aside
+            className="ui-panel-enter hidden w-14 shrink-0 overflow-hidden border-r md:block"
           >
             <div className="flex h-full w-14 flex-col items-center gap-1 py-3">
               <button
@@ -525,21 +498,16 @@ export function InboxView({
               </button>
               <span className="my-1 h-px w-6 bg-border" />
               <div className="min-h-0 flex-1 space-y-1 overflow-y-auto">
-                {contacts.map((c, i) => (
-                  <motion.button
+                {contacts.map((c) => (
+                  <button
                     key={c.email}
-                    initial={reduce ? false : { opacity: 0, x: -8 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={reduce ? { duration: 0 } : { delay: Math.min(i, 8) * 0.02, duration: 0.2 }}
-                    whileHover={reduce ? undefined : { scale: 1.08 }}
-                    whileTap={reduce ? undefined : { scale: 0.94 }}
                     onClick={() => {
                       setSelectedEmail(c.email);
                       setError(null);
                     }}
                     title={`${c.name ?? c.email}${c.needsReply ? " · needs reply" : ""}`}
                     className={cn(
-                      "relative grid size-9 place-items-center rounded-full text-xs font-semibold transition-colors",
+                      "ui-button relative grid size-9 place-items-center rounded-full text-xs font-semibold transition-colors",
                       c.email === selectedEmail
                         ? "bg-primary text-primary-foreground"
                         : "border border-rule text-ink-muted hover:bg-secondary",
@@ -549,13 +517,12 @@ export function InboxView({
                     {c.needsReply ? (
                       <span className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full border-2 border-card bg-acted" />
                     ) : null}
-                  </motion.button>
+                  </button>
                 ))}
               </div>
             </div>
-          </motion.aside>
+          </aside>
         ) : null}
-      </AnimatePresence>
 
       {/* Left: the people you're talking to (their whole relationship in one row). */}
       <aside
@@ -623,16 +590,19 @@ export function InboxView({
                   key={f.label}
                   type="button"
                   onClick={() => setOnlyNeedsReply(f.id)}
+                  aria-pressed={onlyNeedsReply === f.id}
                   className={cn(
                     "relative rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors",
-                    onlyNeedsReply === f.id ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+                    onlyNeedsReply === f.id ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {onlyNeedsReply === f.id ? (
                     <motion.span
+                      aria-hidden="true"
+                      initial={false}
                       layoutId="inbox-filter-pill"
                       transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 420, damping: 36 }}
-                      className="absolute inset-0 rounded-full border border-ink bg-secondary"
+                      className="pointer-events-none absolute inset-0 rounded-full border border-ink"
                     />
                   ) : null}
                   <span className="relative">
@@ -646,20 +616,13 @@ export function InboxView({
         {/* relative: popLayout takes a filtered-out row out of flow so the rows
             below close the gap immediately instead of waiting for it to finish. */}
         <div className="relative min-h-0 flex-1 overflow-y-auto">
-          <AnimatePresence initial={false}>
             {visible.length === 0 ? (
-              <motion.p
-                key="rail-empty"
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: reduce ? 0 : 0.18 }}
-                className="px-4 py-6 text-center text-sm text-muted-foreground"
+              <p
+                className="ui-content-enter px-4 py-6 text-center text-sm text-muted-foreground"
               >
                 {onlyNeedsReply ? "Nobody is waiting on you." : "No one matches that."}
-              </motion.p>
+              </p>
             ) : null}
-          </AnimatePresence>
           <AnimatePresence initial={false} mode="popLayout">
           {visible.map((c) => {
             const active = c.email === selectedEmail;
@@ -667,15 +630,16 @@ export function InboxView({
               <motion.button
                 key={c.email}
                 layout={reduce ? false : "position"}
-                initial={{ opacity: 0 }}
+                initial={false}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0, scale: 0.97 }}
-                transition={reduce ? { duration: 0 } : { layout: EASE_OPEN, duration: 0.18 }}
+                transition={reduce ? { duration: 0 } : { layout: EASE_OPEN, duration: 0.1 }}
                 onClick={() => {
                   setSelectedEmail(c.email);
                   setShowList(false);
                   setError(null);
                 }}
+                aria-pressed={active}
                 className={cn(
                   "relative flex w-full items-start gap-3 border-b px-4 py-3 text-left transition-colors hover:bg-accent/60",
                   active && "bg-accent",
@@ -725,12 +689,9 @@ export function InboxView({
               </Button>
               {/* Keyed on the person, so switching reads as one identity giving
                   way to another rather than text mutating in place. */}
-              <motion.div
+              <div
                 key={contact.email}
-                initial={switching ? { opacity: 0, x: 6 } : false}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ duration: reduce ? 0 : 0.2 }}
-                className="flex min-w-0 flex-1 items-center gap-3"
+                className="ui-content-enter flex min-w-0 flex-1 items-center gap-3"
               >
                 <span className="grid size-9 shrink-0 place-items-center rounded-full border border-rule text-xs font-semibold text-ink-muted">
                   {initials(contact.name, contact.email)}
@@ -761,7 +722,7 @@ export function InboxView({
                     </Link>
                   </p>
                 </div>
-              </motion.div>
+              </div>
               {/* A brand-new subject = a brand-new thread — full composer, prefilled. */}
               <Link
                 href={`/messages/new?to=${encodeURIComponent(contact.email)}`}
@@ -779,14 +740,11 @@ export function InboxView({
                 grows with the number of threads, and a growing thing that
                 floats over email bodies only crosses more of them. */}
             <div className="flex min-h-0 flex-1">
-            <motion.div
+            <div
               key={contact.email}
               ref={threadPaneRef}
-              initial={switching ? { opacity: 0, y: 8 } : false}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: reduce ? 0 : 0.22, ease: [0.22, 1, 0.36, 1] }}
               className={cn(
-                "h-full min-w-0 flex-1 space-y-3 py-4 pl-4 pr-1",
+                "ui-content-enter h-full min-w-0 flex-1 space-y-3 py-4 pl-4 pr-1",
                 // With a thread open the BOX scrolls, not the page behind it —
                 // so this becomes a column that hands the open thread the
                 // leftover height. With none open it's an ordinary list again.
@@ -880,14 +838,12 @@ export function InboxView({
                           height — and the thread you just opened is squeezed to
                           nothing until the old one finishes leaving. Switching
                           threads flashed. Only one is ever open, so the one
-                          being closed can just go; the arriving one fades in. */}
+                          being closed can just go; the arriving one settles in
+                          fully opaque, without waiting on an exit. */}
                       {expanded ? (
-                        <motion.div
+                        <div
                           key="thread-body"
-                          initial={reduce ? false : { opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          transition={{ duration: reduce ? 0 : 0.18, ease: [0.22, 1, 0.36, 1] }}
-                          className="flex min-h-0 flex-1 flex-col"
+                          className="ui-content-enter flex min-h-0 flex-1 flex-col"
                         >
                         {/* The thread's own scroller. Marked with an attribute
                             rather than found by its Tailwind class — a class is
@@ -940,20 +896,14 @@ export function InboxView({
                                   : "A real one-to-one email — it uses your transactional sends, and a personal conversation can't be unsubscribed from."}
                               </InfoHint>
                             </p>
-                            <AnimatePresence initial={false}>
                               {error ? (
-                                <motion.p
-                                  key="reply-error"
-                                  initial={{ opacity: 0, height: 0 }}
-                                  animate={{ opacity: 1, height: "auto" }}
-                                  exit={{ opacity: 0, height: 0 }}
-                                  transition={reduce ? { duration: 0 } : { height: EASE_OPEN, opacity: { duration: 0.15 } }}
+                                <p
+                                  role="alert"
                                   className="overflow-hidden text-sm text-destructive"
                                 >
                                   <span className="mb-2 block">{error}</span>
-                                </motion.p>
+                                </p>
                               ) : null}
-                            </AnimatePresence>
                             <div className="flex items-end gap-2">
                               <Textarea
                                 ref={composerRef}
@@ -969,46 +919,40 @@ export function InboxView({
                                 placeholder="Write a quick reply…"
                                 className="min-h-0 resize-none overflow-hidden bg-background transition-shadow"
                               />
-                              <motion.div whileTap={reduce || sending ? undefined : { scale: 0.96 }} className="shrink-0">
+                              <div className="shrink-0">
                                 <Button
                                   onClick={reply}
+                                  aria-busy={sending}
                                   disabled={sending || !draft.trim()}
                                   className="w-[108px] justify-center overflow-hidden"
                                 >
-                                  {/* One button, three things to say — swapped, not redrawn. */}
-                                  <AnimatePresence mode="wait" initial={false}>
-                                    <motion.span
+                                    <span
                                       key={sending ? "sending" : justSent ? "sent" : "idle"}
-                                      initial={reduce ? false : { opacity: 0, y: 8 }}
-                                      animate={{ opacity: 1, y: 0 }}
-                                      exit={reduce ? { opacity: 0 } : { opacity: 0, y: -8 }}
-                                      transition={{ duration: reduce ? 0 : 0.14 }}
-                                      className="inline-flex items-center gap-1.5"
+                                      className="ui-content-enter inline-flex items-center gap-1.5"
                                     >
                                       {sending ? (
                                         <>
-                                          <Loader2 className="size-4 animate-spin" /> Sending
+                                          <SendActivity pending /> Sending
                                         </>
                                       ) : justSent ? (
                                         <>
-                                          <Check className="size-4" /> Sent
+                                          <Check className="ui-confirm-icon size-4" /> Queued
                                         </>
                                       ) : (
                                         <>
                                           <Send className="size-4" /> Reply
                                         </>
                                       )}
-                                    </motion.span>
-                                  </AnimatePresence>
+                                    </span>
                                 </Button>
-                              </motion.div>
+                              </div>
                             </div>
                             <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 px-1">
                               <span className="text-[12.5px] text-muted-foreground">
                                 ⌘/Ctrl + Enter · need formatting, a template, or attachments?{" "}
                                 <Link
                                   href={`/messages/new?to=${encodeURIComponent(contact.email)}&subject=${encodeURIComponent(`Re: ${t.subject}`)}`}
-                                  className="font-medium text-primary hover:underline"
+                                  className="font-medium text-brass-text hover:underline"
                                 >
                                   Open the full editor
                                 </Link>{" "}
@@ -1028,13 +972,13 @@ export function InboxView({
                             </div>
                           </div>
                         </div>
-                        </motion.div>
+                        </div>
                       ) : null}
                     </div>
                   );
                 })
               )}
-            </motion.div>
+            </div>
             <OutlineRail
               containerRef={threadPaneRef}
               activeId={expandedThread ? `thread-${expandedThread}` : null}

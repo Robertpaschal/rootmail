@@ -255,7 +255,7 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
                     animate={{ opacity: 1, scale: 1 }}
                     transition={reduce ? { duration: 0 } : { type: "spring", stiffness: 320, damping: 24 }}
                   >
-                    <span className="inline-grid size-12 place-items-center rounded-lg bg-witnessed/15 text-witnessed">
+                    <span className="inline-grid size-12 place-items-center rounded-lg bg-witnessed-tint text-witnessed">
                       <PartyPopper className="size-6" />
                     </span>
                     <h2 className="mt-3 text-lg font-semibold">{tenant.sending_domain} is live</h2>
@@ -326,7 +326,7 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
                     </div>
                     <p className="mt-4 text-xs text-muted-foreground">
                       In no rush?{" "}
-                      <Link href="/sub-tenants" className="text-primary hover:underline">
+                      <Link href="/sub-tenants" className="text-brass-text hover:underline">
                         Finish later
                       </Link>{" "}
                       — {tenant.name} is saved and will be waiting.

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
-import { Beaker, Check, ChevronDown, Loader2, Mail, ShieldCheck } from "lucide-react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import { Beaker, Check, ChevronDown, Mail, ShieldCheck } from "lucide-react";
 import type { TestRecipient } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { SendActivity } from "./send-activity";
+import { popupPlacement } from "@/lib/ui-motion";
 
 /**
  * "Send a test" — the honest replacement for a simulated sandbox.
@@ -42,60 +43,107 @@ export function SendTest({
   const [busy, setBusy] = useState<string | null>(null);
   const [sent, setSent] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const menuId = useId();
+  const [placement, setPlacement] = useState<{ up: boolean; width: number; left: number; maxHeight: number } | null>(null);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    const measure = () => {
+      if (!triggerRef.current || !rootRef.current) return;
+      const toolbar = document.querySelector(".dashboard-topbar")?.getBoundingClientRect();
+      const next = popupPlacement(triggerRef.current.getBoundingClientRect(), {
+        width: document.documentElement.clientWidth,
+        height: window.innerHeight,
+        topInset: Math.max(12, toolbar?.bottom ?? 0) + 12,
+      }, openUp);
+      setPlacement({ ...next, left: next.left - rootRef.current.getBoundingClientRect().left });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [open, openUp]);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (event: PointerEvent) => {
+      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+    };
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setOpen(false); triggerRef.current?.focus(); }
+    };
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
 
   const send = async (to: string) => {
+    if (busy || disabled) return;
     setBusy(to);
     setError(null);
-    const err = await onSend(to);
-    setBusy(null);
-    if (err) return setError(err);
-    setSent(to);
-    setTimeout(() => setSent(null), 4000);
-    setOpen(false);
+    try {
+      const err = await onSend(to);
+      if (err) return setError(err);
+      setSent(to);
+      setTimeout(() => setSent(null), 4000);
+      setOpen(false);
+      triggerRef.current?.focus();
+    } catch {
+      setError("We couldn't confirm the request. Check Messages before trying again.");
+    } finally { setBusy(null); }
   };
 
   return (
-    <div className={cn("relative", className)}>
+    <div ref={rootRef} className={cn("relative", className)}>
       <button
+        ref={triggerRef}
         type="button"
         disabled={disabled}
+        aria-expanded={open}
+        aria-controls={menuId}
         onClick={() => setOpen((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
+        className="ui-button inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent disabled:opacity-50"
       >
         <Beaker className="size-3.5" /> Send a test
         <ChevronDown className={cn("size-3 transition-transform", open && "rotate-180")} />
       </button>
 
       {sent ? (
-        <span className="ml-2 inline-flex items-center gap-1 text-xs text-witnessed">
-          <Check className="size-3.5" /> Sent to {sent}
+        <span role="status" className="ml-2 inline-flex items-center gap-1 text-xs text-witnessed">
+          <Check className="ui-confirm-icon size-3.5" /> Queued for {sent}
         </span>
       ) : null}
 
-      <AnimatePresence>
         {open ? (
-          <motion.div
-            initial={{ opacity: 0, y: openUp ? 4 : -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: openUp ? 4 : -4 }}
-            transition={{ duration: 0.12 }}
+          <div
+            id={menuId}
+            style={placement ? { left: placement.left, right: "auto", width: placement.width, maxHeight: placement.maxHeight } : undefined}
             className={cn(
-              "absolute right-0 z-30 w-80 overflow-hidden rounded-lg border bg-popover shadow-lg",
-              openUp ? "bottom-full mb-2" : "mt-2",
+              "ui-menu-enter absolute left-0 z-30 max-h-[min(32rem,70dvh)] w-80 max-w-[calc(100vw-3rem)] overflow-y-auto rounded-lg border bg-popover shadow-lg sm:left-auto sm:right-0",
+              (placement?.up ?? openUp) ? "ui-menu-enter-up bottom-full mb-2" : "top-full mt-2",
             )}
           >
             {myEmail ? (
               <button
                 type="button"
                 disabled={busy != null}
+                aria-busy={busy === myEmail}
                 onClick={() => send(myEmail)}
                 className="flex w-full items-start gap-2.5 border-b p-3 text-left transition-colors hover:bg-accent/50 disabled:opacity-60"
               >
                 <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded border border-rule text-ink-muted">
-                  {busy === myEmail ? <Loader2 className="size-3.5 animate-spin" /> : <Mail className="size-3.5" />}
+                  {busy === myEmail ? <SendActivity pending className="size-3.5" /> : <Mail className="size-3.5" />}
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium">Send it to me</span>
+                  <span className="block text-sm font-medium">{busy === myEmail ? "Queueing test…" : "Send it to me"}</span>
                   <span className="block truncate text-xs text-muted-foreground">
                     A real email to {myEmail} — see exactly how it lands.
                   </span>
@@ -113,12 +161,13 @@ export function SendTest({
                   key={r.slug}
                   type="button"
                   disabled={busy != null}
+                  aria-busy={busy === r.email}
                   onClick={() => send(r.email)}
                   className="flex w-full items-start gap-2.5 rounded-lg p-2 text-left transition-colors hover:bg-accent/50 disabled:opacity-60"
                 >
                   <span className="mt-0.5 shrink-0">
                     {busy === r.email ? (
-                      <Loader2 className="size-3.5 animate-spin text-muted-foreground" />
+                      <SendActivity pending className="size-3.5 text-muted-foreground" />
                     ) : (
                       <span
                         className={cn(
@@ -133,7 +182,7 @@ export function SendTest({
                     )}
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-sm font-medium">{r.label}</span>
+                    <span className="block text-sm font-medium">{busy === r.email ? "Queueing test…" : r.label}</span>
                     <span className="block text-[12.5px] leading-snug text-muted-foreground">{r.description}</span>
                   </span>
                 </button>
@@ -143,10 +192,9 @@ export function SendTest({
               </p>
             </div>
 
-            {error ? <p className="border-t bg-destructive/10 p-2 text-xs text-destructive">{error}</p> : null}
-          </motion.div>
+            {error ? <p role="alert" className="border-t bg-destructive/10 p-2 text-xs text-destructive">{error}</p> : null}
+          </div>
         ) : null}
-      </AnimatePresence>
     </div>
   );
 }

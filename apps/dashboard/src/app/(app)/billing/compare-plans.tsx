@@ -215,7 +215,7 @@ function WingPitch({ pitch: p, priceLine, gated }: { pitch: Pitch; priceLine: st
         </span>
         <h3 className="mt-3 text-xl font-bold">{p.title}</h3>
         <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{p.tagline}</p>
-        <p className="mt-2 text-xs font-medium uppercase tracking-wide text-primary">{p.sizedBy}</p>
+        <p className="mt-2 text-xs font-medium uppercase tracking-wide text-brass-text">{p.sizedBy}</p>
       </div>
 
       <div className="p-6">

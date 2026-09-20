@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
   ArrowRight,
@@ -45,7 +44,6 @@ function Step({
   title,
   hint,
   children,
-  delay = 0,
 }: {
   n: number;
   title: string;
@@ -54,19 +52,14 @@ function Step({
   delay?: number;
 }) {
   return (
-    <motion.section
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.24, ease: "easeOut", delay }}
-      className="space-y-3"
-    >
+    <section className="space-y-3">
       <div className="flex items-center gap-2.5">
         <span className="grid size-6 shrink-0 place-items-center rounded-full border border-rule text-xs font-bold text-ink-muted">{n}</span>
         <h2 className="text-sm font-semibold">{title}</h2>
         {hint ? <span className="hidden text-xs text-muted-foreground sm:inline">— {hint}</span> : null}
       </div>
       {children}
-    </motion.section>
+    </section>
   );
 }
 
@@ -150,12 +143,10 @@ export function CampaignComposer({
               )}
             >
               <span className="h-1 overflow-hidden rounded-full bg-secondary">
-                <motion.span
-                  initial={false}
-                  animate={{ scaleX: done || now ? 1 : 0 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 32 }}
-                  style={{ originX: 0 }}
-                  className={cn("block h-full rounded-full", done ? "bg-witnessed" : "bg-primary")}
+                <span
+                  aria-hidden="true"
+                  style={{ scale: `${done || now ? 1 : 0} 1` }}
+                  className={cn("ui-stage-fill block h-full origin-left rounded-full", done ? "bg-primary/60" : "bg-primary")}
                 />
               </span>
               <span
@@ -165,7 +156,7 @@ export function CampaignComposer({
                   reachable && !now && "group-hover:text-foreground",
                 )}
               >
-                {done ? <Check className="size-3 text-witnessed" /> : null}
+                {done ? <Check className="size-3 text-brass-text" /> : null}
                 {label}
               </span>
             </button>
@@ -182,7 +173,7 @@ export function CampaignComposer({
         value={JSON.stringify(variants.filter((v) => v.tag && v.template_id).map((v) => ({ ...v, subject: v.subject || undefined })))}
       />
 
-      <div className={cn("space-y-8", scene !== 0 && "hidden")}>
+      <div className={cn("space-y-8", scene === 0 ? "ui-content-enter" : "hidden")}>
       <Step n={1} title="Name it" hint="internal only — recipients never see it">
         <Input id="name" name="name" placeholder="July newsletter" required className="max-w-md" />
       </Step>
@@ -232,22 +223,15 @@ export function CampaignComposer({
                           : `${l.contacts.toLocaleString()} contact${l.contacts === 1 ? "" : "s"}`}
                       </span>
                     </span>
-                    {active ? <Check className="size-4 shrink-0 text-primary" /> : null}
+                    {active ? <Check className="size-4 shrink-0 text-brass-text" /> : null}
                   </button>
                 );
               })}
             </div>
 
             {/* Optional segment: only members carrying a tag. */}
-            <AnimatePresence initial={false}>
               {listId && tags && tags.length > 0 ? (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.18 }}
-                  className="overflow-hidden"
-                >
+                <div className="ui-content-enter overflow-hidden">
                   <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-3">
                     <Tag className="size-4 text-muted-foreground" />
                     <span className="text-sm">Send to</span>
@@ -265,9 +249,8 @@ export function CampaignComposer({
                       </Badge>
                     ) : null}
                   </div>
-                </motion.div>
+                </div>
               ) : null}
-            </AnimatePresence>
           </>
         )}
       </Step>
@@ -282,7 +265,7 @@ export function CampaignComposer({
       </div>
       </div>
 
-      <div className={cn("space-y-8", scene !== 1 && "hidden")}>
+      <div className={cn("space-y-8", scene === 1 ? "ui-content-enter" : "hidden")}>
       <Step n={3} title="What do they get?" hint="pick a template, or design a new one" delay={0.1}>
         {templates.length === 0 ? (
           <Card>
@@ -316,7 +299,7 @@ export function CampaignComposer({
                   >
                     <span className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-medium">{t.name}</span>
-                      {active ? <Check className="size-4 shrink-0 text-primary" /> : <Badge variant="outline" className="shrink-0 text-[12px]">{t.type}</Badge>}
+                      {active ? <Check className="size-4 shrink-0 text-brass-text" /> : <Badge variant="outline" className="shrink-0 text-[12px]">{t.type}</Badge>}
                     </span>
                     <span className="mt-0.5 block truncate text-xs text-muted-foreground">“{t.subject}”</span>
                   </button>
@@ -324,7 +307,7 @@ export function CampaignComposer({
               })}
             </div>
             <div className="flex flex-wrap items-center gap-4">
-              <Link href="/templates/new" className="inline-flex items-center gap-1 text-sm text-primary hover:underline">
+              <Link href="/templates/new" className="inline-flex items-center gap-1 text-sm text-brass-text hover:underline">
                 Design a new one in the studio <ArrowRight className="size-3.5" />
               </Link>
               {templateId ? (
@@ -344,33 +327,21 @@ export function CampaignComposer({
       </Step>
 
       {/* A/B by tags — only offered once an audience with tags + a base template exist. */}
-      <AnimatePresence initial={false}>
         {ready && tags && tags.length > 0 && templates.length > 1 ? (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
+          <div className="ui-content-enter overflow-hidden">
             <Step n={4} title="A/B by tags" hint="optional — different message for differently-tagged contacts">
               <p className="text-xs text-muted-foreground">
                 Contacts carrying a variant&apos;s tag get that variant instead of the base message (first match wins).
                 Compare how each lands in the campaign&apos;s analytics after sending.
               </p>
               <div className="space-y-2">
-                <AnimatePresence initial={false}>
                   {variants.map((v, i) => (
-                    <motion.div
+                    <div
                       key={i}
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: "auto", opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.16 }}
-                      className="overflow-hidden"
+                      className="ui-content-enter overflow-hidden"
                     >
                       <div className="flex flex-wrap items-center gap-2 rounded-lg border bg-muted/20 p-3">
-                        <Split className="size-4 shrink-0 text-primary" />
+                        <Split className="size-4 shrink-0 text-brass-text" />
                         <span className="text-sm">Tagged</span>
                         <Select value={v.tag} onChange={(e) => patchVariant(i, { tag: e.target.value })} className="h-8 w-auto text-sm">
                           <option value="" disabled>pick a tag…</option>
@@ -399,9 +370,8 @@ export function CampaignComposer({
                           <Trash2 className="size-4" />
                         </button>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
-                </AnimatePresence>
                 {variants.length < 4 ? (
                   <Button type="button" variant="outline" size="sm" onClick={addVariant}>
                     <Plus className="size-4" /> Add a variant
@@ -409,9 +379,8 @@ export function CampaignComposer({
                 ) : null}
               </div>
             </Step>
-          </motion.div>
+          </div>
         ) : null}
-      </AnimatePresence>
 
       <div className="flex items-center gap-3 border-t pt-5">
         <Button type="button" variant="outline" onClick={() => setScene(0)}>
@@ -428,7 +397,7 @@ export function CampaignComposer({
 
       {/* Scene 3 — what you've built, restated, then the one button that saves
           it. The old form put this under a 4-section scroll with no recap. */}
-      <div className={cn("space-y-5", scene !== 2 && "hidden")}>
+      <div className={cn("space-y-5", scene === 2 ? "ui-content-enter" : "hidden")}>
         <div className="rounded-lg border bg-card">
           <p className="border-b px-4 py-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             What you&apos;ve set up
@@ -451,12 +420,7 @@ export function CampaignComposer({
           </dl>
         </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.24, delay: 0.15 }}
-        className="space-y-3 border-t pt-5"
-      >
+      <div className="space-y-3 border-t pt-5">
         {/* Make the From explicit: their own verified address, or the rootmail
             fallback with a nudge to set one up. */}
         <p className="text-xs text-muted-foreground">
@@ -466,13 +430,13 @@ export function CampaignComposer({
           ) : (
             <>
               rootmail&apos;s address —{" "}
-              <Link href="/settings/sender" className="text-primary hover:underline">verify your own</Link> to send as you
+              <Link href="/settings/sender" className="text-brass-text hover:underline">verify your own</Link> to send as you
             </>
           )}
           .
         </p>
         <div className="flex flex-wrap items-center gap-3">
-          <Button type="submit" disabled={pending || !ready}>
+          <Button type="submit" aria-busy={pending} disabled={pending || !ready}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
             {pending ? "Creating…" : "Create campaign"}
           </Button>
@@ -481,11 +445,11 @@ export function CampaignComposer({
             {reach !== null && ready ? ` Reaching ${reach.toLocaleString()} recipient${reach === 1 ? "" : "s"}.` : ""}
           </p>
         </div>
-        {state?.error ? <p className="w-full text-sm text-destructive">{state.error}</p> : null}
+        {state?.error ? <p role="alert" className="w-full text-sm text-destructive">{state.error}</p> : null}
         <Button type="button" variant="ghost" size="sm" onClick={() => setScene(1)}>
           <ArrowLeft className="size-4" /> Back to the message
         </Button>
-      </motion.div>
+      </div>
       </div>
     </form>
   );

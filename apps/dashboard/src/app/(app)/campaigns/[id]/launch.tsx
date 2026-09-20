@@ -2,10 +2,11 @@
 
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { AlertTriangle, ArrowRight, CalendarClock, Check, Loader2, Send } from "lucide-react";
 import { sendCampaign } from "../actions";
 import { Button } from "@/components/ui/button";
+import { SendActivity } from "@/components/app/send-activity";
 import { cn } from "@/lib/utils";
 import { CAMPAIGN_JOURNEY, type CampaignPhase } from "../phase";
 
@@ -47,7 +48,6 @@ export function LaunchPanel({
   fromLabel: string;
   blockers: Blocker[];
 }) {
-  const reduce = useReducedMotion();
   const [confirming, setConfirming] = useState(false);
   const [scheduling, setScheduling] = useState(false);
   const [when, setWhen] = useState("");
@@ -93,21 +93,18 @@ export function LaunchPanel({
         </div>
 
         {ready ? (
-          <AnimatePresence mode="wait" initial={false}>
+          <>
             {confirming ? (
-              <motion.div
+              <div
                 key="confirm"
-                initial={reduce ? false : { opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-wrap items-center gap-2"
+                className="ui-content-enter flex flex-wrap items-center gap-2"
               >
                 <span className="text-xs text-muted-foreground">
                   Email {audienceSize.toLocaleString()} {audienceSize === 1 ? "person" : "people"}? This
                   can&apos;t be undone.
                 </span>
-                <Button size="sm" onClick={() => launch()} disabled={pending}>
-                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-3.5" />}
+                <Button size="sm" aria-busy={pending} onClick={() => launch()} disabled={pending}>
+                  <SendActivity pending={pending} />
                   {pending ? "Sending…" : "Yes, send it"}
                 </Button>
                 <button
@@ -129,14 +126,11 @@ export function LaunchPanel({
                 >
                   Not yet
                 </button>
-              </motion.div>
+              </div>
             ) : scheduling ? (
-              <motion.div
+              <div
                 key="schedule"
-                initial={reduce ? false : { opacity: 0, x: 8 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0 }}
-                className="flex flex-wrap items-center gap-2"
+                className="ui-content-enter flex flex-wrap items-center gap-2"
               >
                 <label className="text-xs text-muted-foreground" htmlFor="cmp-when">
                   Send at
@@ -148,7 +142,7 @@ export function LaunchPanel({
                   onChange={(e) => setWhen(e.target.value)}
                   className="h-9 rounded-md border border-input bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
-                <Button size="sm" onClick={() => launch(when)} disabled={pending || !when}>
+                <Button size="sm" aria-busy={pending} onClick={() => launch(when)} disabled={pending || !when}>
                   {pending ? <Loader2 className="size-4 animate-spin" /> : <CalendarClock className="size-3.5" />}
                   {pending ? "Scheduling…" : "Schedule it"}
                 </Button>
@@ -160,15 +154,15 @@ export function LaunchPanel({
                 >
                   Cancel
                 </button>
-              </motion.div>
+              </div>
             ) : (
-              <motion.div key="idle" initial={reduce ? false : { opacity: 0 }} animate={{ opacity: 1 }}>
+              <div key="idle" className="ui-content-enter">
                 <Button size="sm" onClick={() => setConfirming(true)}>
                   <Send className="size-3.5" /> Send this campaign
                 </Button>
-              </motion.div>
+              </div>
             )}
-          </AnimatePresence>
+          </>
         ) : (
           <Button size="sm" disabled title="Finish the steps below first">
             <Send className="size-3.5" /> Send this campaign
@@ -177,15 +171,9 @@ export function LaunchPanel({
       </div>
 
       {/* What's standing in the way, each with the door to fix it. */}
-      <AnimatePresence initial={false}>
         {blockers.length > 0 ? (
-          <motion.div
-            key="blockers"
-            initial={reduce ? false : { height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={reduce ? { duration: 0 } : { height: EASE, opacity: { duration: 0.16 } }}
-            className="overflow-hidden border-t bg-acted/[0.04]"
+          <div
+            className="ui-content-enter overflow-hidden border-t bg-acted/[0.04]"
           >
             <ul className="divide-y divide-acted/20">
               {blockers.map((b) => (
@@ -203,26 +191,20 @@ export function LaunchPanel({
                 </li>
               ))}
             </ul>
-          </motion.div>
+          </div>
         ) : null}
-      </AnimatePresence>
 
       {/* A send the API refused used to look exactly like one that worked. */}
-      <AnimatePresence initial={false}>
         {error ? (
-          <motion.p
-            key="err"
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: "auto", opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
+          <p
+            role="alert"
             className="overflow-hidden border-t bg-destructive/5 text-sm text-destructive"
           >
             <span className="block px-5 py-3">
               <span className="font-medium">This send didn&apos;t start.</span> {error}
             </span>
-          </motion.p>
+          </p>
         ) : null}
-      </AnimatePresence>
 
       {ready && !confirming ? (
         <p className="flex items-center gap-1.5 border-t px-5 py-2.5 text-xs text-muted-foreground">
@@ -249,12 +231,12 @@ export function CampaignJourney({ phase }: { phase: CampaignPhase }) {
   const at = CAMPAIGN_JOURNEY.indexOf(phase);
 
   return (
-    <ol className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-2 text-xs">
+    <ol aria-label="Campaign progress" className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-2 text-sm">
       {CAMPAIGN_JOURNEY.map((s, i) => {
         const done = i < at;
         const now = i === at;
         return (
-          <li key={s} className="flex items-center gap-2">
+          <li key={s} aria-current={now ? "step" : undefined} className="flex items-center gap-2">
             <motion.span
               initial={false}
               animate={{ scale: now && !reduce ? 1.04 : 1 }}
@@ -262,14 +244,14 @@ export function CampaignJourney({ phase }: { phase: CampaignPhase }) {
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 font-medium",
                 now && "bg-primary text-primary-foreground",
-                done && "bg-witnessed/15 text-witnessed",
+                done && "bg-witnessed-tint text-witnessed",
                 !now && !done && "bg-muted text-muted-foreground",
               )}
             >
               {done ? <Check className="size-3" /> : null}
               {s}
             </motion.span>
-            {i < CAMPAIGN_JOURNEY.length - 1 ? <span className="text-muted-foreground/50">→</span> : null}
+            {i < CAMPAIGN_JOURNEY.length - 1 ? <span aria-hidden="true" className="text-muted-foreground">→</span> : null}
           </li>
         );
       })}

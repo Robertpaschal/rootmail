@@ -81,6 +81,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
             setQ(e.target.value);
           }}
           placeholder="Search company, name, or email…"
+          aria-label="Search leads by company, name, or email"
           className="h-9 max-w-xs"
         />
         <span className="ml-auto text-sm text-muted-foreground">
@@ -128,7 +129,7 @@ export function LeadsTable({ leads }: { leads: Lead[] }) {
                     <Badge variant={leadStatusVariant(l.status)}>{LEAD_STATUS_LABEL[l.status]}</Badge>
                   </TableCell>
                   <TableCell className="text-muted-foreground">
-                    {l.owner_email ?? <span className="text-muted-foreground/60">Unassigned</span>}
+                    {l.owner_email ?? <span className="text-muted-foreground">Unassigned</span>}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{formatDate(l.created_at)}</TableCell>
                 </TableRow>

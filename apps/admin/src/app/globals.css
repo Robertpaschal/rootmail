@@ -10,19 +10,17 @@
   /* Only h1 in the consoles: a page title is a headline, but the h2s here are
      dense UI labels and a serif at 14px in a table header reads as a mistake. */
   h1 {
-    font-family: var(--font-display);
-    font-variation-settings: var(--display-vf);
+    font-family: var(--font-sans);
     font-weight: 600;
     letter-spacing: var(--track-display);
-    line-height: 1.05;
+    line-height: 1.15;
   }
 }
 
 @layer components {
   .display-num {
-    font-family: var(--font-display);
-    font-variation-settings: var(--display-vf-num);
-    font-variant-numeric: tabular-nums lining;
+    font-family: var(--font-sans);
+    font-variant-numeric: tabular-nums lining-nums;
     letter-spacing: -0.02em;
   }
 }
@@ -61,7 +59,9 @@
   --paper-raised: 240 7% 9%;
   --paper-lift: 240 6% 13%;
   --ink: 0 0% 96%;
-  --ink-muted: 240 5% 58%;
+  --ink-muted: 240 5% 70%;
+  --well: 240 8% 4%;
+  --elev-well: inset 0 2px 8px -2px hsl(0 0% 0% / 0.75);
   --rule: 240 6% 18%;
 
   /* Brass at its dark cut: 9.1:1 as a fill, 10.5:1 as text. */
@@ -144,3 +144,13 @@
     text-wrap: balance;
   }
 }
+
+.admin-content { overflow-wrap: break-word; }
+.admin-content p { line-height: 1.6; }
+.admin-content th { font-size: 0.875rem; text-transform: none; letter-spacing: 0; }
+.admin-content :is(input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, textarea) {
+  min-height: 2.75rem;
+  font-size: 1rem;
+  border-color: hsl(var(--ink-muted) / 0.65);
+}
+.admin-content :is(input, textarea)::placeholder { color: hsl(var(--ink-muted)); opacity: 1; }

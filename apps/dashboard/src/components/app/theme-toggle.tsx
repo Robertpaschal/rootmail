@@ -19,7 +19,7 @@ export function ThemeToggle({ className }: { className?: string }) {
         }
       }}
       className={cn(
-        "inline-flex size-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
+        "topbar-control topbar-icon",
         className,
       )}
     >

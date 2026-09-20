@@ -23,11 +23,15 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
           `.slab` uses `overflow: clip` rather than `hidden` precisely so this
           keeps working — the article carries its own sticky table of contents,
           and `hidden` would create a scroll container and kill it. */}
-      <div className="container flex gap-10 py-6 md:py-8">
-        <aside className="sticky top-24 hidden h-[calc(100vh-8rem)] w-56 shrink-0 overflow-y-auto pb-10 lg:block">
+      <div className="container flex flex-col gap-6 py-6 md:py-8 lg:flex-row lg:gap-10">
+        <details className="rounded-xl border bg-card p-4 lg:hidden">
+          <summary className="cursor-pointer text-base font-semibold">Browse documentation</summary>
+          <div className="mt-5 max-h-[60dvh] overflow-y-auto"><DocsSidebar /></div>
+        </details>
+        <aside className="sticky top-[calc(var(--beta-notice-h,0px)+5.5rem)] hidden h-[calc(100vh-var(--beta-notice-h,0px)-7rem)] w-56 shrink-0 overflow-y-auto pb-10 lg:block">
           <DocsSidebar />
         </aside>
-        <main className="slab min-w-0 flex-1 px-5 py-8 sm:px-8 md:px-10 md:py-12">{children}</main>
+        <main id="main-content" tabIndex={-1} className="slab min-w-0 flex-1 px-5 py-8 sm:px-8 md:px-10 md:py-12">{children}</main>
       </div>
       <DevFooter />
     </>

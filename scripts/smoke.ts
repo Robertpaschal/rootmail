@@ -155,7 +155,7 @@ async function main() {
 
   console.log("\n[9] Mock provider output (.maildir)");
   try {
-    const files = (await readdir(resolve(process.cwd(), ".maildir"))).filter((f) => f.endsWith(".eml"));
+    const files = (await readdir(resolve(process.env.MAILDIR ?? ".maildir"))).filter((f) => f.endsWith(".eml"));
     check(".eml files written", files.length >= 3, `${files.length} files`);
   } catch (err) {
     check(".maildir present", false, String(err));

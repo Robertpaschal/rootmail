@@ -1,4 +1,4 @@
-import { Fragment, Suspense } from "react";
+import { Suspense } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -25,7 +25,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { relativeTime } from "@/lib/format";
-import { loadChanges, quietSentence } from "@/lib/changes";
+import { loadChanges } from "@/lib/changes";
+import { recentWorkspaceActions } from "@/lib/notification-items";
 import { api } from "@/lib/rootmail";
 import { cn } from "@/lib/utils";
 
@@ -82,11 +83,10 @@ export default async function OverviewPage() {
     api.listTemplates(),
     api.listCampaigns(),
   ]);
-  // What the system NOTICED and what it DID. Fetched with everything else and
-  // rendered FIRST: §8 of the design philosophy says the day-30 default view is
-  // not a grid of metrics, it is what changed and what we did about it. The
-  // numbers keep their place, one section down.
-  const { changes } = await loadChanges(5);
+  // Owner revision: only recent, attributable work earns Overview space.
+  // Standing conditions and the full history live behind the notification bell.
+  const { changes } = await loadChanges(20);
+  const handled = recentWorkspaceActions(changes);
   const ok = <T,>(r: PromiseSettledResult<T>) => (r.status === "fulfilled" ? r.value : null);
 
   const me = ok(meR);
@@ -193,14 +193,14 @@ export default async function OverviewPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
+          <h1 className="text-3xl font-semibold tracking-tight">
             <Greeting name={firstName} />
           </h1>
           {/* "This period" is not a window, and the card below it said 30
               days while the billing meters below THAT were a calendar month —
               three periods and one undefined word. A number without a window is
               not a number. */}
-          <p className="text-sm text-muted-foreground">
+          <p className="mt-2 text-base text-muted-foreground">
             <Fact>{fmt(analytics?.funnel.sent ?? messages.length)}</Fact> messages left{" "}
             {workspace?.name ?? "your workspace"} in the last <Fact>30 days</Fact>.{" "}
             {problems > 0 ? (
@@ -221,18 +221,16 @@ export default async function OverviewPage() {
         <OnboardingChecklist />
       </Suspense>
 
-      {/* THE PRODUCT SPEAKING FIRST. Everything below this is a read-out; this
-          is the only section that tells the operator something they did not
-          already know to ask for. It leads for that reason. */}
-      <section>
+      {handled.length > 0 ? <section className="rounded-2xl border bg-card p-5 shadow-e1 sm:p-6">
         <div className="mb-1 flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-medium tracking-heading">What changed</h2>
+          <h2 className="text-lg font-semibold">Rootmail acted for {workspace?.name ?? "your workspace"}</h2>
           <Link href="/activity" className="inline-flex items-center gap-1 text-sm hover:underline">
-            Everything we did <ArrowRight className="size-3.5" />
+            Activity log <ArrowRight className="size-3.5" />
           </Link>
         </div>
-        <ChangeFeed changes={changes} quiet={quietSentence(messages.length > 0)} />
-      </section>
+        <p className="mb-4 text-sm text-muted-foreground">Recorded actions on your senders in the last 24 hours.</p>
+        <ChangeFeed changes={handled} quiet="" />
+      </section> : null}
 
       {/* Shared sending health — reputation + the whole funnel belong to the
           workspace, not a wing, so they lead. */}
@@ -242,10 +240,10 @@ export default async function OverviewPage() {
           journey those sends took, then the share that ended badly. Two Cards
           made them look like two unrelated readings you have to reconcile. */}
       <Reveal delay={0.03}>
-        <section>
+        <section className="rounded-2xl border bg-card p-5 shadow-e1 sm:p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-ink/20 pb-2">
-            <h2 className="text-sm font-medium uppercase tracking-wide">Everything you send · 30 days</h2>
-            <span className="flex items-center gap-4">
+            <h2 className="text-lg font-semibold">Sending overview <span className="text-sm font-normal text-muted-foreground">· 30 days</span></h2>
+            <span className="flex flex-wrap items-center gap-x-4 gap-y-2">
               <Link
                 href="/messages?status=bounced"
                 className={cn(
@@ -260,23 +258,23 @@ export default async function OverviewPage() {
               >
                 <TriangleAlert className="size-3.5" /> {pct(bounceRate)} bounced / spam
               </Link>
-              <Link href="/deliverability" className="text-sm text-primary hover:underline">
+              <Link href="/deliverability" className="text-sm text-brass-text hover:underline">
                 Deliverability <ArrowRight className="inline size-3.5" />
               </Link>
-              <Link href="/analytics?scope=all" className="text-sm text-primary hover:underline">
+              <Link href="/analytics?scope=all" className="text-sm text-brass-text hover:underline">
                 Analytics <ArrowRight className="inline size-3.5" />
               </Link>
             </span>
           </div>
 
-          <div className="space-y-6 pt-5">
+          <div className="grid grid-cols-1 gap-3 pt-5 sm:grid-cols-2 xl:grid-cols-5">
             {/* The grade, as the first fact on the band rather than its own card. */}
-            <Link href="/deliverability" className="flex items-center gap-3">
+            <Link href="/deliverability" className="flex min-w-0 flex-col items-start gap-3 rounded-xl border bg-secondary/30 p-4 transition-colors hover:bg-secondary/60">
               {deliver && deliver.score != null ? (
                 <>
                   <span
                     className={cn(
-                      "display-num grid size-14 shrink-0 place-items-center rounded-full text-xl",
+                      "display-num grid size-9 shrink-0 place-items-center rounded-full text-base",
                       gradeTone(deliver.grade),
                     )}
                   >
@@ -302,17 +300,13 @@ export default async function OverviewPage() {
             </Link>
 
             {funnel ? (
-              /* A fixed four-up, not a wrapping row: the funnel is an ORDER,
-                 and a row that wraps three-then-one puts "clicked" underneath
-                 "sent" as if it followed it. The chain is drawn as a rule
-                 between the columns rather than as arrows that wrap on their
-                 own. */
-              <div className="grid grid-cols-2 gap-x-6 gap-y-6 border-t border-rule pt-5 lg:grid-cols-4">
-                {funnel.map((s, i) => (
-                  <Fragment key={s.label}>
+              /* Separate cards retain stage order and each metric's evidence. */
+              <>
+                {funnel.map((s) => (
                     <Link
+                      key={s.label}
                       href="/analytics?scope=all"
-                      className={cn("min-w-0", i > 0 && "border-l border-rule pl-6")}
+                      className="min-w-0 rounded-xl border bg-secondary/30 p-4 transition-colors hover:bg-secondary/60"
                     >
                       {s.inferred ? (
                         <Metric
@@ -334,9 +328,8 @@ export default async function OverviewPage() {
                         />
                       )}
                     </Link>
-                  </Fragment>
                 ))}
-              </div>
+              </>
             ) : (
               <p className="text-sm text-muted-foreground">
                 Send a few emails and your journey — sent, delivered, opened, clicked — shows up here.
@@ -391,11 +384,10 @@ export default async function OverviewPage() {
             lastMessage ? (
               <Link
                 href={`/messages/${lastMessage.id}`}
-                className="flex items-center gap-2 hover:text-foreground"
+                className="block min-w-0 space-y-2 hover:text-foreground"
               >
-                <MessageFlow message={lastMessage} />
-                <span className="truncate">{lastMessage.subject || lastMessage.to}</span>
-                <span className="ml-auto shrink-0 text-xs">{relativeTime(lastMessage.created_at)}</span>
+                <span className="flex flex-wrap items-center justify-between gap-2"><MessageFlow message={lastMessage} /><time dateTime={lastMessage.created_at} className="shrink-0 text-xs">{relativeTime(lastMessage.created_at)}</time></span>
+                <span className="block break-words text-sm font-medium text-foreground">{lastMessage.subject || lastMessage.to}</span>
               </Link>
             ) : null
           }
@@ -444,10 +436,10 @@ export default async function OverviewPage() {
             lastCampaign ? (
               <Link
                 href={`/campaigns/${lastCampaign.id}`}
-                className="flex items-center gap-2 hover:text-foreground"
+                className="flex min-w-0 flex-wrap items-center gap-2 hover:text-foreground"
               >
                 <Megaphone className="size-3.5 shrink-0 text-muted-foreground" />
-                <span className="truncate">{lastCampaign.name}</span>
+                <span className="min-w-0 flex-1 break-words">{lastCampaign.name}</span>
                 <span className="ml-auto shrink-0 text-xs capitalize">{lastCampaign.status}</span>
               </Link>
             ) : null
@@ -458,16 +450,13 @@ export default async function OverviewPage() {
         />
       </Reveal>
 
-      {/* Cross-wing shortcuts. Four equal bordered tiles with a tinted icon
-          chip each is what a dashboard grows when nobody decided what the page
-          is for — and it was the fourth grid of boxes on one screen. Same four
-          destinations, one ruled row, no chips. */}
-      <Reveal delay={0.12} className="flex flex-wrap items-center gap-x-6 gap-y-2 border-t pt-4">
+      {/* The owner's requested contained shortcuts, with all destinations intact. */}
+      <Reveal delay={0.12} className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {quickActions.map((a) => (
           <Link
             key={a.href}
             href={a.href}
-            className="inline-flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="flex min-h-16 items-center gap-3 rounded-2xl border bg-card p-4 text-sm font-medium shadow-e1 transition-colors hover:bg-secondary"
           >
             <a.icon className="size-4" /> {a.label}
           </Link>
@@ -476,11 +465,11 @@ export default async function OverviewPage() {
 
       {/* Recent activity + the workspace (the product you're in) with its billing. */}
       <Reveal delay={0.16} className="grid gap-6 lg:grid-cols-3">
-        <section className="lg:col-span-2">
+        <section className="min-w-0 rounded-2xl border bg-card p-5 shadow-e1 lg:col-span-2">
           <div className="flex items-baseline justify-between gap-2 border-b border-ink/20 pb-2">
-            <h2 className="text-sm font-medium uppercase tracking-wide">Latest out the door</h2>
-            <Link href="/messages" className="text-sm text-primary hover:underline">
-              The whole register <ArrowRight className="inline size-3.5" />
+            <h2 className="text-base font-semibold">Latest messages</h2>
+            <Link href="/messages" className="text-sm text-brass-text hover:underline">
+              View all <ArrowRight className="inline size-3.5" />
             </Link>
           </div>
           {recent.length === 0 ? (
@@ -498,15 +487,15 @@ export default async function OverviewPage() {
                 <li key={m.id} className="border-b border-rule">
                   <Link
                     href={`/messages/${m.id}`}
-                    className="-mx-2 flex items-center gap-4 rounded-md px-2 py-2.5 transition-colors duration-interaction ease-interaction hover:bg-secondary/40"
+                    className="-mx-2 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-lg px-2 py-3 transition-colors duration-interaction ease-interaction hover:bg-secondary/40"
                   >
                     <MessageFlow message={m} />
-                    <span className="w-full min-w-0 truncate text-sm font-medium sm:w-56">{m.to}</span>
-                    <span className="hidden min-w-0 flex-1 truncate text-sm text-muted-foreground sm:block">
+                    <span className="col-start-1 row-start-2 min-w-0 truncate text-sm font-medium">{m.to}</span>
+                    <span className="col-span-2 col-start-1 row-start-3 min-w-0 truncate text-sm text-muted-foreground">
                       {m.subject || "(no subject)"}
                     </span>
                     <span
-                      className="shrink-0 whitespace-nowrap font-mono text-[12.5px] text-muted-foreground"
+                      className="col-start-2 row-start-1 shrink-0 whitespace-nowrap font-mono text-xs text-muted-foreground"
                       data-fact
                     >
                       {relativeTime(m.created_at)}
@@ -520,7 +509,7 @@ export default async function OverviewPage() {
 
         {/* The workspace IS the product the user has — so it's titled by its name,
             and carries both the at-a-glance contents and the billing. */}
-        <Card>
+        <Card className="min-w-0 rounded-2xl shadow-e1">
           <CardHeader className="flex-row items-center justify-between space-y-0">
             <CardTitle className="flex min-w-0 items-center gap-2 text-base">
               <span className="truncate">{workspace?.name ?? "Workspace"}</span>
@@ -530,7 +519,7 @@ export default async function OverviewPage() {
                 </Badge>
               ) : null}
             </CardTitle>
-            <Link href="/settings" className="text-sm text-primary hover:underline">
+            <Link href="/settings" className="text-sm text-brass-text hover:underline">
               Manage
             </Link>
           </CardHeader>
@@ -607,8 +596,8 @@ function WingCard({
   openHref: string;
 }) {
   return (
-    <Card className="flex flex-col">
-      <CardContent className="flex flex-1 flex-col gap-4 p-5">
+    <Card className="flex min-w-0 flex-col rounded-2xl shadow-e1">
+      <CardContent className="flex min-w-0 flex-1 flex-col gap-4 p-5">
         <div className="flex items-start gap-3">
           <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-md border text-foreground">
             <Icon className="size-4" />
@@ -617,7 +606,7 @@ function WingCard({
             <Link href={openHref} className="font-semibold hover:underline">
               {name}
             </Link>
-            <p className="text-xs leading-snug text-muted-foreground">{blurb}</p>
+            <p className="text-sm leading-relaxed text-muted-foreground">{blurb}</p>
           </div>
         </div>
 
@@ -677,10 +666,10 @@ function WingCard({
         </div>
 
         {recent ? (
-          <div className="truncate border-t pt-3 text-sm text-muted-foreground">{recent}</div>
+          <div className="min-w-0 rounded-xl border bg-secondary/30 p-3 text-sm text-muted-foreground">{recent}</div>
         ) : null}
 
-        <div className="mt-auto flex items-center gap-2 pt-1">
+        <div className="mt-auto flex flex-wrap items-center gap-2 pt-1">
           <Link href={primary.href} className={cn(buttonVariants({ size: "sm" }), "gap-1.5")}>
             <primary.icon className="size-4" /> {primary.label}
           </Link>

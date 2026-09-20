@@ -24,10 +24,10 @@ import { cn } from "@/lib/utils";
  */
 export type NavLink = { href: string; label: string; prefix?: boolean };
 
-export function NavLinks({ links }: { links: readonly NavLink[] }) {
+export function NavLinks({ links, mobile = false }: { links: readonly NavLink[]; mobile?: boolean }) {
   const pathname = usePathname();
   return (
-    <nav className="nav-group hidden items-center gap-0.5 p-1 sm:flex">
+    <nav aria-label="Main navigation" className={cn("nav-group items-center gap-0.5 p-1", mobile ? "flex sm:hidden" : "hidden sm:flex")}>
       {links.map((l) => {
         const current = l.prefix
           ? pathname === l.href || pathname.startsWith(`${l.href}/`)

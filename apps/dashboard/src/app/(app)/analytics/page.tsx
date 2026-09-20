@@ -33,7 +33,7 @@ const SCOPE_TABS: { id: Scope; label: string; icon: typeof Zap }[] = [
 
 function ScopeToggle({ active }: { active: Scope }) {
   return (
-    <div className="inline-flex rounded-lg bg-secondary/60 p-1">
+    <nav aria-label="Analytics scope" className="inline-flex flex-wrap gap-1 rounded-lg border bg-secondary/60 p-1">
       {SCOPE_TABS.map((t) => {
         const on = t.id === active;
         return (
@@ -42,7 +42,7 @@ function ScopeToggle({ active }: { active: Scope }) {
             href={`/analytics?scope=${t.id}`}
             aria-current={on ? "page" : undefined}
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              "inline-flex min-h-10 items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors",
               on ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground",
             )}
           >
@@ -50,7 +50,7 @@ function ScopeToggle({ active }: { active: Scope }) {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }
 
@@ -134,7 +134,7 @@ export default async function AnalyticsPage({
       <PageHeader title={meta.title} description={meta.desc} actions={<ScopeToggle active={scope} />} />
 
       <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-x-6 gap-y-8 border-y border-rule py-6 lg:grid-cols-5">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-8 rounded-xl border bg-card p-5 shadow-e1 sm:grid-cols-3 xl:grid-cols-5">
           {funnel.map((f) => (
             <Metric key={f.label} {...f} />
           ))}

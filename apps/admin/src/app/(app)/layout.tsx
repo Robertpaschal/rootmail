@@ -49,6 +49,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="min-h-screen">
+      <a href="#main-content" className="skip-link">Skip to content</a>
       {/* Fixed, full-height sidebar — stays put while the page scrolls; the nav
           scrolls internally if it ever overflows. */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-60 flex-col border-r bg-card md:flex">
@@ -62,7 +63,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       <div className="flex min-h-screen min-w-0 flex-col md:pl-60">
         <Topbar staff={staff} />
         <MobileNav />
-        <main className="flex-1 p-6">{children}</main>
+        <main id="main-content" tabIndex={-1} className="admin-content min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</main>
       </div>
     </div>
   );

@@ -1,8 +1,5 @@
-import { cookies } from "next/headers";
 import Link from "next/link";
-import { buttonVariants } from "@/components/ui/button";
-import { dashboardUrl, loginUrl, signupUrl } from "@/lib/links";
-import { cn } from "@/lib/utils";
+import { AuthLinks } from "./auth-links";
 import { Logo } from "./logo";
 import { NavLinks } from "./nav-links";
 import { NavIsland } from "./nav-island";
@@ -56,10 +53,7 @@ const links = [
   { href: `${MAIN_SITE}/pricing`, label: "Pricing" },
 ] as const;
 
-export async function DevNavbar() {
-  // Reflect the signed-in state (the dashboard drops a cross-subdomain hint) so
-  // returning devs get a straight shot to their console instead of a Sign-in wall.
-  const signedIn = (await cookies()).get("rm_signed_in")?.value === "1";
+export function DevNavbar() {
   return (
     /* THE ISLAND — the same move as the marketing nav, for the same measured
        reason: this site's `<main>` is also a stack of inset rounded slabs and
@@ -70,7 +64,7 @@ export async function DevNavbar() {
        No `--beta-notice-h` offset and no 4rem constant on this site: nothing
        here pins a scroll rig to the header height, so the island simply floats
        at the top with air around it. */
-    <header className="sticky top-0 z-40 w-full">
+    <header className="sticky top-[var(--beta-notice-h,0px)] z-40 w-full">
       <div className="px-3 py-1.5 sm:px-5">
         <NavIsland className="flex h-[3.25rem] items-center justify-between gap-3 pl-3 pr-2 sm:pl-4 sm:pr-3">
         <Link href="/" aria-label="rootmail developers" className="flex shrink-0 items-center gap-2">
@@ -86,26 +80,14 @@ export async function DevNavbar() {
             In a recess, like the marketing nav: one lift per object, and what
             is inside the well takes you somewhere while what is outside it
             does something. A client island because marking the current page
-            needs `usePathname()` and this navbar reads `cookies()`. */}
+            needs `usePathname()`. */}
         <NavLinks links={links} />
         <div className="flex items-center gap-1.5">
           <ThemeToggle />
-          {signedIn ? (
-            <Link href={dashboardUrl} className={cn(buttonVariants({ size: "sm" }))}>
-              Dashboard
-            </Link>
-          ) : (
-            <>
-              <Link href={loginUrl} className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}>
-                Sign in
-              </Link>
-              <Link href={signupUrl} className={cn(buttonVariants({ size: "sm" }))}>
-                Get an API key
-              </Link>
-            </>
-          )}
+          <AuthLinks />
         </div>
         </NavIsland>
+        <div className="mt-1.5 sm:hidden"><NavLinks links={links} mobile /></div>
       </div>
     </header>
   );

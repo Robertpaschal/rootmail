@@ -62,7 +62,7 @@ export function ComposeAnnouncement({ recipientCount }: { recipientCount: number
           required
           maxLength={200}
           placeholder="Subject line"
-          className="w-full border-0 bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/40"
+          className="w-full border-0 bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground"
         />
         <textarea
           ref={bodyRef}
@@ -75,7 +75,7 @@ export function ComposeAnnouncement({ recipientCount }: { recipientCount: number
           required
           maxLength={10_000}
           placeholder="Write your announcement — plain text; a greeting and footer are added automatically…"
-          className="mt-4 w-full resize-none border-0 bg-transparent text-base leading-relaxed outline-none placeholder:text-muted-foreground/40"
+          className="mt-4 w-full resize-none border-0 bg-transparent text-base leading-relaxed outline-none placeholder:text-muted-foreground"
         />
 
         {/* The email, as each owner will receive it. */}

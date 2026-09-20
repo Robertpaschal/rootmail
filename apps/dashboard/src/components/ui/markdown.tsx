@@ -33,7 +33,7 @@ const components: Components = {
   ),
   a: ({ className, ...props }: ComponentPropsWithoutRef<"a">) => (
     <a
-      className={cn("font-medium text-primary underline underline-offset-2 hover:opacity-80", className)}
+      className={cn("font-medium text-brass-text underline underline-offset-2 hover:opacity-80", className)}
       target="_blank"
       rel="noopener noreferrer"
       {...props}

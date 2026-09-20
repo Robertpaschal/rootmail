@@ -101,7 +101,7 @@ export default async function ContactPage({
   return (
     <>
       <Navbar />
-      <main className="px-3 pb-4 sm:px-5">
+      <main id="main-content" tabIndex={-1} className="px-3 pb-4 sm:px-5">
         {/* A plate, like every other section on the site. It had the gutter
             already but sat on the page ground with nothing under it, so it read
             as loose text on a large empty sheet rather than as a page. */}
@@ -129,8 +129,8 @@ export default async function ContactPage({
             ))}
           </nav>
 
-          <div className="grid gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,6fr)] lg:gap-16">
-            <div className="lg:sticky lg:top-24 lg:self-start">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,4fr)_minmax(0,6fr)] lg:gap-16">
+            <div className="min-w-0 lg:sticky lg:top-[calc(var(--beta-notice-h,0px)+5.5rem)] lg:self-start">
               <h1 className="display-l text-balance">{t.title}</h1>
               <p className="lead mt-5 text-ink-muted">{t.blurb}</p>
               <p className="mt-5 font-mono text-[12.5px] text-ink-muted" data-fact>

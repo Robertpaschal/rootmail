@@ -74,10 +74,10 @@ img{max-width:100%;height:auto}a{color:${dark ? "#8ab4ff" : "#2563eb"}}</style><
   );
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("min-w-0 space-y-3", className)}>
       {/* Controls: who it's for, on what, in which scheme. */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 max-w-full items-center gap-2">
           {people && people.length > 0 ? (
             <div className="relative">
               <button
@@ -123,7 +123,7 @@ img{max-width:100%;height:auto}a{color:${dark ? "#8ab4ff" : "#2563eb"}}</style><
               </AnimatePresence>
             </div>
           ) : (
-            <span className="text-xs text-muted-foreground">
+            <span className="break-words text-sm text-muted-foreground">
               Previewing as{" "}
               <span className="font-medium text-foreground">{person.name ?? person.email}</span>
               {person.real ? "" : " (no matching contact record — check any sample details below)"}
@@ -202,7 +202,7 @@ img{max-width:100%;height:auto}a{color:${dark ? "#8ab4ff" : "#2563eb"}}</style><
           transition={{ type: "spring", stiffness: 260, damping: 30 }}
           style={{ width: `min(100%, ${width}px)` }}
           className={cn(
-            "overflow-hidden rounded-lg border shadow-lg",
+            "min-w-0 overflow-hidden rounded-lg border shadow-lg",
             dark ? "border-white/10 bg-[#111113]" : "border-black/10 bg-white",
           )}
         >
@@ -210,7 +210,7 @@ img{max-width:100%;height:auto}a{color:${dark ? "#8ab4ff" : "#2563eb"}}</style><
             <p className={cn("text-sm font-semibold leading-snug", dark ? "text-white" : "text-black")}>
               {filledSubject || "(no subject)"}
             </p>
-            <p className={cn("text-[12.5px]", dark ? "text-white/50" : "text-black/50")}>
+            <p className={cn("break-all text-sm", dark ? "text-white/70" : "text-black/70")}>
               {fromLabel} → {person.email}
             </p>
           </div>

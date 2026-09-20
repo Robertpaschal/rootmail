@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Bell } from "lucide-react";
 import { getClientContext } from "@/lib/client-context";
 import { listAccounts, type AccountsView, type ActiveIdentity } from "@/lib/accounts";
 import { api } from "@/lib/rootmail";
@@ -7,8 +6,8 @@ import type { Workspace, WorkspaceLimit } from "@/lib/types";
 import { AccountSwitcher } from "./account-switcher";
 import { ClientSwitcher } from "./client-switcher";
 import { CommandTrigger } from "./command-menu";
-import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { loadNotifications } from "@/lib/notifications";
+import { NotificationCenter } from "./notification-center";
 import { Logo } from "./logo";
 import { QuickCreate } from "./quick-create";
 import { BrandMark, SidebarToggle } from "./sidebar-shell";
@@ -43,9 +42,12 @@ export async function Topbar() {
   // Agency mode: the workspace's client domains + the acting-as selection
   // (shared per-request lookup with the scope banner; never throws).
   const clientCtx = await getClientContext();
+  const notifications = await loadNotifications().catch(() => null);
 
   return (
-    <header className="sticky top-0 z-30 flex min-h-16 items-center justify-between gap-2 border-b bg-card/80 px-4 py-2 backdrop-blur md:gap-4 md:px-8">
+    <header className="dashboard-topbar sticky top-0 z-[45] bg-background px-3 py-3 sm:px-5 lg:px-6">
+      <div className="topbar-island">
+      <div className="topbar-brand">
       <div className="md:hidden">
         <Link href="/" aria-label="rootmail">
           {/* The mark keeps the product identity without forcing the utility
@@ -58,12 +60,14 @@ export async function Topbar() {
       <div className="hidden min-w-0 items-center gap-2 md:flex">
         <BrandMark />
         {/* Hiding the sidebar has to be findable without knowing ⌘\. */}
-        <SidebarToggle className="-ml-1" />
+        <SidebarToggle />
+      </div>
       </div>
 
-      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1 sm:gap-3">
+      <div className="topbar-actions">
         <QuickCreate />
         <CommandTrigger />
+        <div className="topbar-context">
         {workspaces.length > 0 ? (
           <WorkspaceSwitcher workspaces={workspaces} activeId={activeId} limit={limit} />
         ) : null}
@@ -74,23 +78,17 @@ export async function Topbar() {
             stale={clientCtx.staleId !== null}
           />
         ) : null}
-        {/* Interventions and drift are global signals, not a place users work
-            inside every day. Keep the full record one click away with the
-            account utilities, without charging it permanent sidebar rent. */}
-        <Link
-          href="/activity"
-          aria-label="What changed"
-          title="What changed"
-          className={cn(buttonVariants({ variant: "ghost", size: "icon" }), "shrink-0")}
-        >
-          <Bell className="size-4" />
-        </Link>
+        </div>
+      </div>
+      <div className="topbar-utilities">
+        <NotificationCenter key={notifications?.scope ?? "unavailable"} initial={notifications} />
         <ThemeToggle />
         {/* Identity, its other identities, and sign-out all live behind the
             avatar. Sign out used to be a bare button here; once a browser can
             hold several accounts an unqualified "Sign out" no longer says what
             it will do, so it moved inside where it can name the account. */}
         <AccountSwitcher view={accounts} />
+      </div>
       </div>
     </header>
   );

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-import Link from "next/link";
 import { Loader2, Send, Sparkles, Square, User } from "lucide-react";
 import {
   createChat,
@@ -46,7 +45,7 @@ const tempId = () => `tmp_${Date.now()}_${tempCounter++}`;
 
 const MAX_COMPOSER_PX = 160; // grow the composer to ~6 rows, then let it scroll
 
-export function AssistantChat({ initialChats, initialCredits }: { initialChats: AssistantChat[]; initialCredits: Credits | null }) {
+export function AssistantChat({ initialChats, initialCredits, onSupport }: { initialChats: AssistantChat[]; initialCredits: Credits | null; onSupport: () => void }) {
   const [chats, setChats] = useState<AssistantChat[]>(initialChats);
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AssistantChatMessage[]>([]);
@@ -54,22 +53,24 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
   const [input, setInput] = useState("");
   const [pending, startSend] = useTransition();
   const [loadingChat, setLoadingChat] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const loadVersion = useRef(0);
 
   const ref = useRef<HTMLTextAreaElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const followLatest = useRef(true);
   const didInit = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
 
   const scrollToEnd = useCallback(() => {
-    requestAnimationFrame(() => {
-      const el = scrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
+    const el = scrollRef.current;
+    if (el && followLatest.current) el.scrollTop = el.scrollHeight;
   }, []);
 
   // Keep the transcript pinned to the latest turn as it grows.
   useEffect(() => {
-    scrollToEnd();
+    if (messages.length > 0) scrollToEnd();
+    else if (scrollRef.current) scrollRef.current.scrollTop = 0;
   }, [messages, pending, scrollToEnd]);
 
   // Grow the composer to fit its content (and shrink back when it's cleared).
@@ -81,13 +82,17 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
   }, [input]);
 
   const openChat = useCallback(async (id: string) => {
-    setActiveChatId(id);
+    if (pending) return;
+    const version = ++loadVersion.current;
     setLoadingChat(true);
+    setError(null);
     const res = await loadChat(id);
+    if (version !== loadVersion.current) return;
     setLoadingChat(false);
-    if (res.chat) setMessages(res.chat.messages);
-    else setMessages([{ object: "assistant_message", id: tempId(), role: "assistant", content: res.error ?? "Couldn't load this chat.", actions: [], created_at: new Date().toISOString() }]);
-  }, []);
+    followLatest.current = true;
+    if (res.chat) { setActiveChatId(id); setMessages(res.chat.messages); }
+    else setError(res.error ?? "Couldn't load this chat. Please try again.");
+  }, [pending]);
 
   /**
    * Stop watching the current run.
@@ -120,27 +125,29 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
   }, []);
 
   const newChat = useCallback(() => {
+    if (pending || loadingChat) return;
     setActiveChatId(null);
     setMessages([]);
     setInput("");
     requestAnimationFrame(() => ref.current?.focus());
-  }, []);
+  }, [pending, loadingChat]);
 
   const removeChat = useCallback(
     async (id: string) => {
+      if (pending || loadingChat) return;
       // Deleting a chat is irreversible and the button sits one pixel from
       // "rename" — ask before destroying someone's history.
       const title = chats.find((c) => c.id === id)?.title ?? "this chat";
       if (!window.confirm(`Delete “${title}”? The conversation can't be recovered.`)) return;
-      // Optimistic — drop it from the rail immediately.
+      const result = await deleteChat(id);
+      if (!result.ok) { setError(result.error ?? "Couldn't delete this conversation."); return; }
       setChats((cs) => cs.filter((c) => c.id !== id));
       if (activeChatId === id) {
         setActiveChatId(null);
         setMessages([]);
       }
-      await deleteChat(id);
     },
-    [activeChatId, chats],
+    [activeChatId, chats, pending, loadingChat],
   );
 
   // Rename, optimistic — reverted if the API rejects it. The rail owns the
@@ -162,8 +169,9 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
   const submit = useCallback(
     (prompt: string) => {
       const text = prompt.trim();
-      if (!text || pending) return;
+      if (!text || pending || loadingChat || (credits && isOutOfCredits(credits))) return;
       setInput("");
+      followLatest.current = true;
 
       const userTurn: AssistantChatMessage = {
         object: "assistant_message",
@@ -256,7 +264,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
         });
       });
     },
-    [activeChatId, pending],
+    [activeChatId, pending, loadingChat, credits],
   );
 
   // Deep link: other pages can hand off to the assistant with `?prompt=…`
@@ -266,10 +274,11 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
     if (didInit.current) return;
     didInit.current = true;
     const pre = new URLSearchParams(window.location.search).get("prompt");
+    const chat = new URLSearchParams(window.location.search).get("chat");
     if (pre?.trim()) {
       submit(pre);
       window.history.replaceState({}, "", window.location.pathname);
-    }
+    } else if (chat) void openChat(chat);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -283,7 +292,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
   const out = credits ? isOutOfCredits(credits) : false;
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[auto_minmax(0,1fr)]">
+    <div className="help-surface grid min-w-0 gap-4 lg:grid-cols-[auto_minmax(0,1fr)]">
       <ConversationRail
         chats={chats}
         activeChatId={activeChatId}
@@ -291,37 +300,27 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
         onNew={newChat}
         onRename={commitRenameById}
         onDelete={removeChat}
+        busy={pending || loadingChat}
       />
 
       {/* Conversation */}
-      <Card>
-        <CardContent className="flex h-[70vh] flex-col gap-3 p-4">
+      <Card className="min-w-0 overflow-hidden rounded-2xl shadow-e1">
+        <CardContent className="flex h-[70dvh] min-h-[32rem] flex-col gap-3 p-4 sm:p-5">
+          <div className="flex items-center gap-3 border-b pb-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl border border-brass-rule bg-brass-tint text-brass-text"><Sparkles className="size-5" /></span><div className="min-w-0"><p className="text-sm font-semibold">AI assistant</p><p className="truncate text-sm text-muted-foreground">{chats.find((c) => c.id === activeChatId)?.title ?? "A little help with your next step"}</p></div></div>
+          {error ? <p role="alert" className="text-sm text-destructive">{error}</p> : null}
           {/* A row: the conversation, then the outline in its own lane beside
               it. The rail used to float over the answers, and it grows a tick
               per question — the longer the chat, the more of the reading it
               crossed. */}
-          <div className="flex flex-1 overflow-hidden">
-            <div ref={scrollRef} className="h-full min-w-0 flex-1 space-y-3 overflow-y-auto pr-1 scroll-smooth">
-              {!hasConversation ? (
-                <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
-                  <div className="grid size-12 place-items-center rounded border border-rule text-ink-muted">
-                    <Sparkles className="size-6" />
-                  </div>
-                  <p className="max-w-md text-sm text-muted-foreground">
-                    I&apos;m your email operator. I can <strong className="font-medium text-foreground">build</strong>{" "}
-                    sequences and campaigns, <strong className="font-medium text-foreground">operate</strong> (populate
-                    lists, schedule sends), answer your{" "}
-                    <strong className="font-medium text-foreground">replies</strong>, tell you about your{" "}
-                    <strong className="font-medium text-foreground">audience</strong> and how a campaign actually{" "}
-                    <strong className="font-medium text-foreground">performed</strong>, and{" "}
-                    <strong className="font-medium text-foreground">diagnose</strong> why a message bounced. I read your
-                    real data rather than guessing, and I work within your plan and role — I&apos;ll flag anything that
-                    needs an upgrade.
-                  </p>
-                  <div className="flex w-full max-w-lg flex-col gap-3">
+          <div className="flex min-h-0 flex-1 overflow-hidden">
+            <div ref={scrollRef} onScroll={(event) => { const el = event.currentTarget; followLatest.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }} className="h-full min-w-0 flex-1 space-y-3 overflow-y-auto pr-1">
+              {loadingChat ? <p role="status" className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground"><Loader2 className="size-4 animate-spin" /> Opening conversation…</p> : !hasConversation ? (
+                <div className="mx-auto flex max-w-3xl flex-col gap-5 py-4">
+                  <div><h2 className="text-xl font-semibold">What would you like to work on?</h2><p className="mt-2 text-base leading-relaxed text-muted-foreground">Ask a question or choose a starting point. The assistant can work with your workspace, within your plan and role.</p></div>
+                  <div className="grid gap-3 xl:grid-cols-2">
                     {SUGGESTION_GROUPS.map((g) => (
-                      <div key={g.label} className="flex flex-wrap items-center justify-center gap-2">
-                        <span className="w-16 shrink-0 text-right text-[12.5px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <div key={g.label} className="rounded-xl border bg-background p-3">
+                        <span className="mb-1 block text-sm font-semibold">
                           {g.label}
                         </span>
                         {g.items.map((s) => (
@@ -329,7 +328,8 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                             key={s}
                             type="button"
                             onClick={() => submit(s)}
-                            className="rounded-full border px-3 py-1 text-xs text-muted-foreground hover:bg-secondary hover:text-foreground"
+                            disabled={pending || out}
+                            className="block w-full rounded-lg px-2 py-2 text-left text-sm text-muted-foreground hover:bg-secondary hover:text-foreground disabled:opacity-50"
                           >
                             {s}
                           </button>
@@ -337,10 +337,6 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                       </div>
                     ))}
                   </div>
-                </div>
-              ) : loadingChat ? (
-                <div className="flex h-full items-center justify-center">
-                  <Loader2 className="size-5 animate-spin text-muted-foreground" />
                 </div>
               ) : (
                 messages.map((t) => (
@@ -354,10 +350,11 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                     </span>
                     <div
                       className={cn(
-                        "max-w-[85%] rounded-lg px-3 py-2 text-sm",
-                        t.role === "user" ? "bg-primary text-primary-foreground" : "bg-secondary",
+                        "help-message min-w-0 max-w-[90%] rounded-2xl border px-4 py-3 text-base",
+                        t.role === "user" ? "border-brass-rule bg-brass-tint text-foreground" : "bg-card",
                       )}
                     >
+                      <p className="mb-1 text-xs font-semibold text-muted-foreground">{t.role === "user" ? "You" : "AI assistant"}</p>
                       {t.role === "user" ? (
                         <p className="whitespace-pre-wrap">{t.content}</p>
                       ) : (
@@ -401,20 +398,21 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
               e.preventDefault();
               submit(input);
             }}
-            className="border-t pt-3"
+            className="shrink-0 border-t pt-3"
           >
             {credits ? <CreditNudge credits={credits} className="mb-2" /> : null}
             <div className="flex items-end gap-2 rounded-lg border bg-background p-1.5 shadow-sm transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring">
               <Textarea
+                aria-label="Message the AI assistant"
                 ref={ref}
                 rows={1}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder={out ? "Out of AI credits — add more to continue" : "Ask the assistant to do something…"}
-                disabled={out}
+                placeholder={out ? "Out of AI credits" : "Ask the assistant…"}
+                disabled={out || loadingChat}
                 className="max-h-40 min-h-0 resize-none border-0 bg-transparent px-2 py-1.5 shadow-none focus-visible:ring-0"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
                     e.preventDefault();
                     submit(input);
                   }
@@ -426,7 +424,7 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                   size="icon"
                   variant="outline"
                   onClick={stop}
-                  aria-label="Stop"
+                  aria-label="Stop watching answer"
                   title="Stop watching this answer (it still finishes and is saved)"
                   className="shrink-0"
                 >
@@ -436,15 +434,15 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
                 <Button
                   type="submit"
                   size="icon"
-                  disabled={!input.trim() || out}
-                  aria-label="Send"
+                  disabled={!input.trim() || out || loadingChat}
+                  aria-label="Send to AI assistant"
                   className="shrink-0"
                 >
                   <Send className="size-4" />
                 </Button>
               )}
             </div>
-            <div className="mt-1.5 flex items-center justify-between gap-3 px-1">
+            <div className="mt-2 flex flex-wrap items-center justify-between gap-2 px-1">
               <p className="text-[12.5px] text-muted-foreground">
                 <kbd className="rounded border bg-muted px-1 py-px font-sans text-[12px]">Enter</kbd> to send ·{" "}
                 <kbd className="rounded border bg-muted px-1 py-px font-sans text-[12px]">Shift</kbd>
@@ -457,9 +455,9 @@ export function AssistantChat({ initialChats, initialCredits }: { initialChats: 
               the AI to a real person, without leaving the help surface. */}
           <p className="mt-2 text-center text-[12.5px] text-muted-foreground">
             Need a human?{" "}
-            <Link href="/assistant?pane=support" className="font-medium text-primary hover:underline">
+            <button type="button" onClick={onSupport} className="font-medium text-brass-text hover:underline">
               Talk to the support team
-            </Link>
+            </button>
           </p>
         </CardContent>
       </Card>

@@ -103,14 +103,14 @@ export async function OnboardingChecklist() {
     }] : []),
     {
       done: hasVerifiedSender,
-      label: "Send from your own address",
-      desc: "A sending identity is required before anything can leave. Add an address and confirm it — until then, Send is paused.",
+      label: "Set up a sending address",
+      desc: "Choose your authenticated beta address or verify an address of your own before sending.",
       href: "/settings/sender",
       minutes: 5,
       crucial: true,
       sub: [
-        "Add your address under Settings → Sending",
-        "Click the confirmation link we email to it",
+        "Open Settings → Sending",
+        "Choose a beta address, or add and verify your own",
       ],
     },
     {
@@ -123,7 +123,7 @@ export async function OnboardingChecklist() {
     {
       done: onboarded && Boolean(org?.postal_address?.trim()),
       label: "Complete your business profile",
-      desc: "Your details + postal address — required by anti-spam law on any marketing mail, and used to personalize rootmail.",
+      desc: "Add your business details and the postal address shown on your marketing emails.",
       href: onboarded ? "/settings" : "/onboarding",
       minutes: 2,
     },
@@ -144,14 +144,14 @@ export async function OnboardingChecklist() {
     {
       done: growthOn,
       label: "Turn on audience growth",
-      desc: "Get a shareable signup page + an embeddable form, so people subscribe themselves — and a welcome sequence can greet them automatically.",
+      desc: "Let people subscribe through a signup page or an embedded form.",
       href: "/contacts?tab=audiences",
       minutes: 2,
     },
     {
       done: replyDecided,
       label: "Set up your Replies inbox",
-      desc: "When people reply, it lands here as a conversation with them — one space per contact. Pick whether replies come here or straight to your own mailbox.",
+      desc: "Choose whether replies arrive here or in your own mailbox.",
       href: "/inbox",
       minutes: 1,
     },
@@ -165,23 +165,24 @@ export async function OnboardingChecklist() {
 
   return (
     <Card className="mb-6 border-primary/30 bg-primary/5">
-      <CardHeader className="space-y-3">
+      <CardHeader className="space-y-3 p-5 sm:p-6">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <CardTitle className="text-base">Finish setting up rootmail</CardTitle>
+          <CardTitle className="text-lg">Finish setting up rootmail</CardTitle>
           <span className="text-sm text-muted-foreground">
             {doneCount}/{steps.length} done · about {minutesLeft} min left
           </span>
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
+        <div role="progressbar" aria-label="Account setup" aria-valuemin={0} aria-valuemax={steps.length} aria-valuenow={doneCount} aria-valuetext={`${doneCount} of ${steps.length} steps complete`} className="h-1.5 w-full overflow-hidden rounded-full bg-secondary">
           <div className="h-full rounded-full bg-primary transition-[width]" style={{ width: `${donePct}%` }} />
         </div>
       </CardHeader>
-      <CardContent className="grid gap-2 sm:grid-cols-2">
-        {steps.map((s) => (
+      <CardContent className="space-y-4 px-5 pb-5 sm:px-6 sm:pb-6">
+        <div className="grid gap-3 xl:grid-cols-2">
+        {steps.filter((s) => !s.done).map((s) => (
           <div
             key={s.label}
             className={cn(
-              "flex items-start gap-3 rounded-md border bg-background p-3",
+              "flex items-start gap-3 rounded-lg border bg-background p-4",
               !s.done && s.crucial && "border-acted/50 ring-1 ring-acted/20",
             )}
           >
@@ -204,11 +205,11 @@ export async function OnboardingChecklist() {
                 ) : null}
                 {!s.done ? <span className="text-[12.5px] text-muted-foreground">~{s.minutes} min</span> : null}
               </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">{s.desc}</p>
+              <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{s.desc}</p>
               {!s.done && s.sub ? (
                 <ol className="mt-1.5 space-y-0.5">
                   {s.sub.map((step, i) => (
-                    <li key={step} className="flex gap-1.5 text-[12.5px] text-muted-foreground">
+                    <li key={step} className="flex gap-1.5 text-sm text-muted-foreground">
                       <span className="font-medium text-foreground">{i + 1}.</span> {step}
                     </li>
                   ))}
@@ -218,13 +219,30 @@ export async function OnboardingChecklist() {
             {!s.done && s.href ? (
               <Link
                 href={s.href}
-                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-primary hover:underline"
+                aria-label={`${s.crucial ? "Set up" : "Continue"}: ${s.label}`}
+                className="inline-flex min-h-10 shrink-0 items-center gap-1 rounded-md px-2 text-sm font-medium text-brass-text hover:underline"
               >
                 {s.crucial ? "Set up" : "Go"} <ArrowRight className="size-3" />
               </Link>
             ) : null}
           </div>
         ))}
+        </div>
+        {doneCount > 0 ? (
+          <details className="group border-t pt-3">
+            <summary className="cursor-pointer rounded-md py-2 text-sm font-medium text-muted-foreground hover:text-foreground">
+              {doneCount} completed {doneCount === 1 ? "step" : "steps"}
+            </summary>
+            <ul className="mt-3 grid gap-3 sm:grid-cols-2">
+              {steps.filter((s) => s.done).map((s) => (
+                <li key={s.label} className="flex items-start gap-2 text-sm">
+                  <CheckCircle2 aria-hidden="true" className="mt-0.5 size-4 shrink-0 text-witnessed" />
+                  <div><p className="font-medium">{s.label}</p><p className="mt-1 leading-relaxed text-muted-foreground">{s.desc}</p></div>
+                </li>
+              ))}
+            </ul>
+          </details>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -149,7 +149,7 @@ export function MarketingBilling({
         <AnimatePresence mode="wait">
           {yr ? (
             <motion.p key="y" initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="rounded-full bg-witnessed/15 px-3 py-1 text-xs font-semibold text-witnessed">
+              className="rounded-full bg-witnessed-tint px-3 py-1 text-xs font-semibold text-witnessed">
               2 months free on every yearly plan
             </motion.p>
           ) : (
@@ -220,14 +220,14 @@ export function MarketingBilling({
             <Zap className="size-4 text-muted-foreground" />
             <span><span className="font-medium">Transactional is its own wing</span><span className="ml-1 text-muted-foreground">— product email, priced by send volume.</span></span>
           </span>
-          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-brass-text" />
         </Link>
         <Link href={stitch?.team ? "/billing/addons?focus=extra_seat" : "/billing/addons"} className="group flex items-center justify-between rounded-lg border p-4 transition-colors hover:border-primary/40">
           <span className="flex items-center gap-2 text-sm">
             <Users className="size-4 text-muted-foreground" />
             <span><span className="font-medium">Add-ons</span><span className="ml-1 text-muted-foreground">— seats, roles, SSO &amp; more, shared across both wings.</span></span>
           </span>
-          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-primary" />
+          <ArrowRight className="size-4 shrink-0 text-muted-foreground group-hover:text-brass-text" />
         </Link>
       </div>
 
@@ -414,7 +414,7 @@ function OrderBar({
                     Review &amp; checkout
                   </Button>
                 ) : (
-                  <Link href="/billing/addons" className="text-xs font-medium text-primary hover:underline">
+                  <Link href="/billing/addons" className="text-xs font-medium text-brass-text hover:underline">
                     or buy extras alone
                   </Link>
                 )}
@@ -559,7 +559,7 @@ function MarketingAddons({
                 <div className="min-w-0">
                   <p className="flex items-center gap-2 text-sm font-medium">
                     {a.name}
-                    {have > 0 ? <span className="rounded-full bg-witnessed/15 px-1.5 py-0.5 text-[12px] font-medium text-witnessed">you have {isToggle ? "this" : have}</span> : null}
+                    {have > 0 ? <span className="rounded-full bg-witnessed-tint px-1.5 py-0.5 text-[12px] font-medium text-witnessed">you have {isToggle ? "this" : have}</span> : null}
                   </p>
                   <p className="mt-0.5 text-xs text-muted-foreground">{a.description}</p>
                   <p className="mt-1 text-xs"><span className="font-semibold">${a.unit_amount}</span><span className="text-muted-foreground">/mo{isToggle ? "" : ` per ${a.unit}`} · {a.unit_note}</span></p>

@@ -133,7 +133,7 @@ export function MessageFlow({ message }: { message: FlowInput }) {
       <span className="flex min-w-0 items-baseline gap-1.5 whitespace-nowrap">
         <span
           className={cn(
-            "shrink-0 text-xs font-medium",
+            "shrink-0 text-sm font-medium",
             state === "witnessed" && "text-witnessed",
             state === "stopped" && "text-stopped",
             // An inference is never drawn at full ink next to something we

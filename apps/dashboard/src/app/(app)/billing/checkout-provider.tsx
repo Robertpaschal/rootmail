@@ -136,7 +136,7 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
 
               {phase === "starting" ? (
                 <div className="grid place-items-center gap-3 p-12 text-center">
-                  <Loader2 className="size-6 animate-spin text-primary" />
+                  <Loader2 className="size-6 animate-spin text-brass-text" />
                   <p className="text-sm text-muted-foreground">Preparing your checkout…</p>
                 </div>
               ) : phase === "error" ? (
@@ -149,7 +149,7 @@ export function CheckoutProvider({ children }: { children: React.ReactNode }) {
                 </div>
               ) : phase === "completing" ? (
                 <div className="grid place-items-center gap-3 p-12 text-center">
-                  <Loader2 className="size-6 animate-spin text-primary" />
+                  <Loader2 className="size-6 animate-spin text-brass-text" />
                   <p className="text-sm font-medium">Confirming your payment…</p>
                   <p className="text-xs text-muted-foreground">Applying {label} — just a moment.</p>
                 </div>

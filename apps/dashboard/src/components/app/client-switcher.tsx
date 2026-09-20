@@ -37,6 +37,7 @@ export function ClientSwitcher({
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const active = activeId ? (tenants.find((t) => t.id === activeId) ?? null) : null;
 
@@ -47,7 +48,10 @@ export function ClientSwitcher({
       if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", onClick);
     document.addEventListener("keydown", onKey);
@@ -73,13 +77,14 @@ export function ClientSwitcher({
   return (
     <div ref={rootRef} className="static min-w-0 sm:relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-haspopup="menu"
         aria-expanded={open}
         title={active ? `Viewing client ${active.name}` : stale ? "This client view no longer exists" : "View as a client"}
         className={cn(
-          "inline-flex max-w-[13rem] items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors",
+          "topbar-control topbar-client",
           active && "border-ink bg-secondary text-foreground hover:bg-primary/15",
           !active && stale && "border-acted/50 bg-acted/10 text-acted hover:bg-acted/15",
           !active && !stale && "bg-background text-foreground hover:bg-accent",
@@ -93,7 +98,7 @@ export function ClientSwitcher({
       {open ? (
         <div
           role="menu"
-          className="absolute left-4 right-4 top-full z-50 mt-1.5 w-auto overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg sm:left-auto sm:right-0 sm:w-72"
+          className="ui-menu-enter absolute left-4 right-4 top-full z-50 mt-1.5 w-auto overflow-hidden rounded-lg border bg-popover text-popover-foreground shadow-lg sm:left-auto sm:right-0 sm:w-72"
         >
           <div className="px-3 py-2 text-[12.5px] font-medium uppercase tracking-wide text-muted-foreground">
             View as
@@ -116,7 +121,7 @@ export function ClientSwitcher({
                     Your own sending, plus every client&apos;s domains
                   </span>
                 </span>
-                {!active && !stale ? <Check className="size-4 shrink-0 text-primary" /> : null}
+                {!active && !stale ? <Check className="size-4 shrink-0 text-brass-text" /> : null}
               </button>
             </li>
             {tenants.map((t) => {
@@ -145,7 +150,7 @@ export function ClientSwitcher({
                         {t.sending_domain}
                       </span>
                     </span>
-                    {t.id === active?.id ? <Check className="size-4 shrink-0 text-primary" /> : null}
+                    {t.id === active?.id ? <Check className="size-4 shrink-0 text-brass-text" /> : null}
                   </button>
                 </li>
               );

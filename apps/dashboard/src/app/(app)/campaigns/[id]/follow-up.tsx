@@ -62,7 +62,7 @@ export function FollowUp({ campaignId, sequences }: { campaignId: string; sequen
     <Card>
       <CardContent className="p-5">
         <div className="mb-3 flex items-center gap-2">
-          <Workflow className="size-4 text-primary" />
+          <Workflow className="size-4 text-brass-text" />
           <p className="text-sm font-semibold">Follow up with a sequence</p>
         </div>
         {result ? (

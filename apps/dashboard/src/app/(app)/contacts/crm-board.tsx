@@ -260,7 +260,7 @@ export function CrmBoard({ columns }: { columns: BoardColumn[] }) {
                                           >
                                             <span className={cn("size-2 rounded-full", STAGE_META[s].dot)} />
                                             <span className="flex-1">{STAGE_META[s].label}</span>
-                                            {isCurrent ? <Check className="size-3.5 text-primary" /> : null}
+                                            {isCurrent ? <Check className="size-3.5 text-brass-text" /> : null}
                                           </button>
                                         );
                                       })}

@@ -61,7 +61,7 @@ export default async function SequencesPage() {
       ) : (
         <Card>
           <CardContent className="p-0">
-            <Table>
+            <Table className="min-w-[680px]">
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>

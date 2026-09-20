@@ -70,17 +70,17 @@ export function Metric(props: MetricProps) {
       >
         {value}
       </span>
-      <span className="font-mono text-[12.5px] leading-snug text-muted-foreground">
-        <span className="text-foreground/70">{label}</span>
-        {" · "}
+      <span className="text-sm font-medium leading-snug text-foreground">
+        {label}{inferred ? <span className="ml-1.5 text-xs font-normal text-muted-foreground">· inferred</span> : null}
+      </span>
+      <span className="font-mono text-xs leading-relaxed text-muted-foreground">
         {window}
         {" · "}
         {method}
         {threshold ? <> {" · "}{threshold}</> : null}
         {caveat ? (
           <>
-            {" · "}
-            <span className={cx(inferred && "text-acted")}>{caveat}</span>
+            <span className="mt-1 block font-sans text-xs leading-relaxed">{caveat}</span>
           </>
         ) : null}
       </span>

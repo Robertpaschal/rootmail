@@ -2,12 +2,12 @@
 
 import { useActionState, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { isPublicMailboxSender, PUBLIC_MAILBOX_SENDER_WARNING } from "@rootmail/core/constants";
-import { AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, ExternalLink, Eye, FileText, Film, ImageIcon, Loader2, Paperclip, RefreshCw, Send, X } from "lucide-react";
+import { ArrowLeft, ArrowRight, ExternalLink, Eye, FileText, Film, ImageIcon, Loader2, Paperclip, RefreshCw, X } from "lucide-react";
 import { lookupRecipient, sendMessage, sendTestMessage, uploadAttachmentAction, type SendState } from "../actions";
 import { SendTest } from "@/components/app/send-test";
+import { SendActivity } from "@/components/app/send-activity";
 import { EmailPreview } from "@/components/app/email-preview";
 import { StageRail, StageScene, type Stage } from "@/components/app/stage-rail";
 import {
@@ -115,24 +115,32 @@ export function SendForm({
   const [phase, setPhase] = useState<0 | 1>(0);
   const [dir, setDir] = useState(1);
   const [person, setPerson] = useState<PreviewPerson | null>(null);
+  const recipientInput = useRef<HTMLInputElement>(null);
+  const [reviewError, setReviewError] = useState<string | null>(null);
   const [resolving, startResolve] = useTransition();
   // Values for the {{variables}} we genuinely can't know. Asked for ONLY here,
   // one plain field each, and only when the draft actually contains one.
   const [blanks, setBlanks] = useState<Record<string, string>>({});
 
   const goReview = () => {
+    if (recipientInput.current && !recipientInput.current.reportValidity()) return;
+    setReviewError(null);
     setDir(1);
     startResolve(async () => {
-      const r = await lookupRecipient(to);
-      setPerson({ email: r.email, name: r.name, extra: r.extra, real: r.real });
-      setPhase(1);
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      try {
+        const r = await lookupRecipient(to);
+        setPerson({ email: r.email, name: r.name, extra: r.extra, real: r.real });
+        setPhase(1);
+        window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
+      } catch {
+        setReviewError("Could not load the preview. Your draft is still here — please try again.");
+      }
     });
   };
   const goWrite = () => {
     setDir(-1);
     setPhase(0);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth" });
   };
 
   const template = templates.find((t) => t.slug === startFrom) ?? null;
@@ -231,6 +239,7 @@ export function SendForm({
   return (
     <div className="pb-24">
       <StageRail stages={stages} current={phase} furthest={phase} onJump={(i) => (i === 0 ? goWrite() : goReview())} />
+      {reviewError ? <p role="alert" className="mb-4 text-sm text-stopped">{reviewError}</p> : null}
       {isPublicMailboxSender(from.startsWith("id:") ? from.slice(3) : from === "" ? senders[0]?.email ?? "" : "") ? (
         <p role="note" className="mb-4 rounded-lg border p-3 text-sm">{PUBLIC_MAILBOX_SENDER_WARNING} <Link href="/settings/sender" className="underline underline-offset-4">Change sender setup →</Link></p>
       ) : null}
@@ -254,7 +263,6 @@ export function SendForm({
           value={JSON.stringify(Object.fromEntries(Object.entries(blanks).filter(([, v]) => v.trim() !== "")))}
         />
 
-        <AnimatePresence mode="wait" initial={false}>
         {phase === 0 ? (
         <StageScene keyId="write" direction={dir}>
       <Card>
@@ -268,9 +276,9 @@ export function SendForm({
             <div className="divide-y">
               {/* From */}
               <div className="flex items-center gap-3 px-5 py-3">
-                <span className="w-16 shrink-0 text-sm text-muted-foreground">From</span>
+                <label htmlFor="compose-from" className="w-16 shrink-0 text-sm text-muted-foreground">From</label>
                 {senders.length > 0 || tenants.length > 0 ? (
-                  <Select value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 border-0 shadow-none focus-visible:ring-0">
+                  <Select id="compose-from" value={from} onChange={(e) => setFrom(e.target.value)} className="h-9 min-w-0 border-0 shadow-none focus-visible:ring-0">
                     <option value="">Workspace address</option>
                     {senders.map((s) => (
                       <option key={s.email} value={`id:${s.email}`}>{s.display_name ? `${s.display_name} · ${s.email}` : s.email}</option>
@@ -286,16 +294,16 @@ export function SendForm({
 
               {/* To */}
               <div className="flex items-center gap-3 px-5 py-3">
-                <span className="w-16 shrink-0 text-sm text-muted-foreground">To</span>
-                <input type="email" required value={to} onChange={(e) => setTo(e.target.value)} placeholder="ada@example.com"
-                  className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/50" />
+                <label htmlFor="compose-to" className="w-16 shrink-0 text-sm text-muted-foreground">To</label>
+                <input ref={recipientInput} id="compose-to" type="email" autoComplete="email" required value={to} onChange={(e) => setTo(e.target.value)} placeholder="ada@example.com"
+                  className="min-w-0 flex-1 bg-transparent text-base outline-none" />
               </div>
 
               {/* Subject */}
               <div className="flex items-center gap-3 px-5 py-3">
-                <span className="w-16 shrink-0 text-sm text-muted-foreground">Subject</span>
-                <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="What's this about?"
-                  className="flex-1 bg-transparent text-sm font-medium outline-none placeholder:text-muted-foreground/50" />
+                <label htmlFor="compose-subject" className="w-16 shrink-0 text-sm text-muted-foreground">Subject</label>
+                <input id="compose-subject" value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="What's this about?"
+                  className="min-w-0 flex-1 bg-transparent text-base font-medium outline-none" />
               </div>
 
               {/* Start from — pick a category, then a template; or jump to the
@@ -340,7 +348,7 @@ export function SendForm({
                 <Link
                   href="/templates/new"
                   target="_blank"
-                  className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  className="inline-flex items-center gap-1 text-xs font-medium text-brass-text hover:underline"
                 >
                   New template <ExternalLink className="size-3" />
                 </Link>
@@ -369,7 +377,7 @@ export function SendForm({
                     ) : null}
                   </div>
                 ) : (
-                  <ComposeEditor onHtml={setBodyHtml} onSubject={setSubject} />
+                  <ComposeEditor initialHtml={bodyHtml} onHtml={setBodyHtml} onSubject={setSubject} />
                 )}
               </div>
 
@@ -404,7 +412,7 @@ export function SendForm({
                   One-to-one email · uses your transactional sends
                 </span>
               </div>
-              <Button type="button" disabled={!to.trim() || uploading || resolving} onClick={goReview}>
+              <Button type="button" aria-busy={resolving} disabled={!to.trim() || uploading || resolving} onClick={goReview}>
                 {resolving ? <Loader2 className="size-4 animate-spin" /> : <Eye className="size-4" />}
                 See what they get <ArrowRight className="size-4" />
               </Button>
@@ -463,13 +471,13 @@ export function SendForm({
               </p>
             ) : null}
 
-            {state?.error ? <p className="text-sm text-destructive">{operatorReason(state.error) ?? state.error}</p> : null}
+            {state?.error ? <p role="alert" className="text-sm text-destructive">{operatorReason(state.error) ?? state.error}</p> : null}
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
               <Button type="button" variant="ghost" onClick={goWrite}>
                 <ArrowLeft className="size-4" /> Back to writing
               </Button>
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-wrap items-center gap-3">
                 {/* Prove it before a person gets it — same path, safe destination. */}
                 {canSend ? (
                   <SendTest
@@ -490,12 +498,13 @@ export function SendForm({
                 ) : null}
                 <Button
                   type="submit"
+                  aria-busy={pending}
                   disabled={!canSend || pending || uploading}
                   variant={canSend ? "default" : "secondary"}
-                  className={canSend ? undefined : "text-ink-muted shadow-none"}
+                  className={cn("h-auto min-h-11 max-w-full whitespace-normal break-all text-left", !canSend && "text-ink-muted shadow-none")}
                   title={canSend ? undefined : SEND_HALT_REASON}
                 >
-                  {pending ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                  <SendActivity pending={pending} />
                   {pending ? "Sending…" : canSend ? `Send to ${previewPerson.name ?? to}` : "Send"}
                 </Button>
               </div>
@@ -503,7 +512,6 @@ export function SendForm({
           </div>
         </StageScene>
         )}
-        </AnimatePresence>
       </form>
     </div>
   );

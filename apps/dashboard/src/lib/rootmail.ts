@@ -1,5 +1,6 @@
 import { getClientScopeId, isClientScopedPath } from "./client-scope";
 import { getSessionToken } from "./session";
+import type { ProductUpdate } from "./notification-items";
 import type {
   AccountIdentity,
   AiDraftResponse,
@@ -362,6 +363,7 @@ export const api = {
 
   listThreads: (q: { status?: ThreadStatus } = {}) =>
     rmFetch<ListResponse<Thread>>("/v1/threads", { query: q }),
+  listProductUpdates: () => rmFetch<ListResponse<ProductUpdate>>("/v1/changelog"),
   getThread: (id: string) => rmFetch<Thread>(`/v1/threads/${id}`),
   replyThread: (id: string, body: { html?: string; text?: string }) =>
     rmFetch<Thread>(`/v1/threads/${id}/reply`, { method: "POST", body }),

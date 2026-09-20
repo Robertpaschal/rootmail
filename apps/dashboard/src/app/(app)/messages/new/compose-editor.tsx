@@ -66,7 +66,7 @@ export function ComposeEditor({
       }),
     ],
     content: initialHtml,
-    editorProps: { attributes: { class: "min-h-[220px] focus:outline-none text-sm leading-relaxed" } },
+    editorProps: { attributes: { class: "prose-email min-h-[220px] text-base leading-relaxed", role: "textbox", "aria-label": "Email body", "aria-multiline": "true" } },
     onUpdate: ({ editor }) => onHtml(editor.getHTML()),
   });
 
@@ -99,9 +99,10 @@ export function ComposeEditor({
       {ai.open ? (
         <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
           <div className="mb-2 flex items-center gap-1.5 text-xs font-medium">
-            <Sparkles className="size-3.5 text-primary" /> What should this email say?
+            <Sparkles className="size-3.5 text-brass-text" /> What should this email say?
           </div>
           <textarea
+            aria-label="What should this email say?"
             autoFocus
             value={ai.prompt}
             onChange={(e) => setAi((s) => ({ ...s, prompt: e.target.value }))}
@@ -143,7 +144,7 @@ function Toolbar({ editor, onAi }: { editor: Editor; onAi: () => void }) {
       <Btn active={editor.isActive("orderedList")} onClick={() => editor.chain().focus().toggleOrderedList().run()} label="Numbered list"><ListOrdered className="size-4" /></Btn>
       <Btn active={editor.isActive("link")} onClick={promptLink} label="Link"><Link2 className="size-4" /></Btn>
       <span className="mx-1 h-5 w-px bg-border" />
-      <button type="button" onClick={onAi} className="ml-auto inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/10">
+      <button type="button" onClick={onAi} className="ml-auto inline-flex items-center gap-1.5 rounded px-2 py-1 text-xs font-medium text-brass-text transition-colors hover:bg-primary/10">
         <Sparkles className="size-3.5" /> Ask AI
       </button>
     </div>

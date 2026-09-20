@@ -113,7 +113,7 @@ export default function DevelopersHome() {
       <DevNavbar />
       {/* The gutter is what makes the curve on each slab legible — a
           full-bleed rounded section has nothing to be rounded against. */}
-      <main className="space-y-4 px-3 pb-4 sm:px-5">
+      <main id="main-content" tabIndex={-1} className="space-y-4 px-3 pb-4 sm:px-5">
         {/* ── D1 · on the bare ground ─────────────────────────────────────
             No slab. The hero and the close are the page's two asks, and they
             are the two places the page is not a document.
@@ -147,8 +147,8 @@ export default function DevelopersHome() {
             <h1 className="display-xl text-balance">One call to send. One honest word back.</h1>
             <div className="lg:pb-1">
               <p className="lead text-ink-muted">
-                Bearer auth, snake_case JSON, a typed Node SDK. Press Send it and read what the real
-                sandbox returns.
+                Send email, run campaigns, and receive replies through one API. Try a sandbox
+                request below, then follow delivery events on your webhook.
               </p>
               <div className="mt-6 flex flex-col gap-3 sm:flex-row">
                 <CtaButton label="Get an API key" size="lg" arrow />

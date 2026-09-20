@@ -41,7 +41,7 @@ const LEAVE_DELAY = 220;
 /** How close to the window edge wakes the panel. */
 const EDGE = 24;
 /** The panel's own width — past it, the pointer has clearly left. */
-const PANEL_W = 288;
+const PANEL_W = 256;
 
 export function useSidebar(): SidebarState {
   const ctx = useContext(Ctx);
@@ -161,8 +161,8 @@ export function ShellMain({ children }: { children: React.ReactNode }) {
           hidden → full width. A plain CSS transition, because it must only apply
           from md up and padding is exactly what CSS transitions are good at. */}
       <div
-        className="transition-[padding-left] duration-interaction ease-interaction motion-reduce:transition-none md:pl-[var(--rm-sidebar-w)]"
-        style={{ "--rm-sidebar-w": collapsed ? "0px" : "18rem" } as React.CSSProperties}
+        className="transition-none duration-narrative ease-narrative md:pl-[var(--rm-sidebar-w)] md:transition-[padding-left] motion-reduce:!transition-none"
+        style={{ "--rm-sidebar-w": collapsed ? "0px" : "16rem" } as React.CSSProperties}
       >
         {children}
       </div>
@@ -221,7 +221,7 @@ export function SidebarToggle({ className }: { className?: string }) {
       aria-label={`${collapsed ? "Show" : "Hide"} sidebar`}
       aria-pressed={!collapsed}
       className={cn(
-        "hidden rounded-md p-2 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground md:inline-flex",
+        "topbar-control topbar-icon hidden md:inline-flex",
         className,
       )}
     >

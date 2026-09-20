@@ -13,3 +13,7 @@
 # Prod secrets are injected at runtime via compose env_file — NEVER bake them in.
 .env.prod
 **/.env.prod
+# Include every local/staging secret variant, not only the known prod filename.
+**/.env.*
+**/*.pem
+**/*.key

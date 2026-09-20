@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
-import { Check, MessagesSquare, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Search, Trash2, X } from "lucide-react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Check, MessagesSquare, PanelLeftClose, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import type { AssistantChat } from "./actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -43,10 +42,6 @@ function useDesktopRail(): boolean {
   return desktop;
 }
 
-/** The same spring the replies panel opens with — one motion vocabulary. */
-const EASE_OPEN = { type: "spring" as const, stiffness: 380, damping: 34, mass: 0.7 };
-
-
 export function ConversationRail({
   chats,
   activeChatId,
@@ -54,6 +49,7 @@ export function ConversationRail({
   onNew,
   onRename,
   onDelete,
+  busy = false,
 }: {
   chats: AssistantChat[];
   activeChatId: string | null;
@@ -61,13 +57,21 @@ export function ConversationRail({
   onNew: () => void;
   onRename: (id: string, title: string) => void;
   onDelete: (id: string) => void;
+  busy?: boolean;
 }) {
-  const reduce = useReducedMotion();
   const desktop = useDesktopRail();
   const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  const restoreToggleFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (restoreToggleFocus.current) {
+      toggleRef.current?.focus({ preventScroll: true });
+      restoreToggleFocus.current = false;
+    }
+  }, [collapsed]);
 
   // Read the remembered state after mount — reading localStorage during render
   // would make the server and client markup disagree.
@@ -79,6 +83,7 @@ export function ConversationRail({
     }
   }, []);
   const toggle = () => {
+    restoreToggleFocus.current = true;
     setCollapsed((c) => {
       const next = !c;
       try {
@@ -116,13 +121,12 @@ export function ConversationRail({
     if (next) onRename(id, next);
   };
 
-  // The rail is ONE element that changes width, not two that replace each other.
-  // mode="wait" made it a two-beat stutter — the old state had to finish leaving
-  // before the new one arrived. Same spring the replies panel opens with, so
-  // the two read as the same product.
+  // Keep the compact rail useful: every chat remains directly reachable without
+  // expanding the list or losing the current transcript.
   const body = (
     <>
         <Button
+          disabled={busy}
           variant="outline"
           size="icon"
           onClick={onNew}
@@ -132,6 +136,7 @@ export function ConversationRail({
           <Plus className="size-4" />
         </Button>
         <Button
+          ref={toggleRef}
           variant="ghost"
           size="icon"
           onClick={toggle}
@@ -141,17 +146,20 @@ export function ConversationRail({
         >
           <CollapsedBadge count={chats.length} />
         </Button>
-      <PanelLeftOpen className="size-3.5 text-muted-foreground/60" aria-hidden />
+      <div aria-label="Quick conversation access" className="flex min-w-0 gap-1 overflow-x-auto lg:max-h-[60dvh] lg:flex-col lg:overflow-y-auto lg:overflow-x-hidden">
+        {chats.map((chat, index) => <Button key={chat.id} disabled={busy} variant="ghost" size="icon" onClick={() => onOpen(chat.id)} title={chat.title} aria-label={`Open ${chat.title}`} aria-current={activeChatId === chat.id ? "true" : undefined} className={cn("shrink-0 tabular-nums", activeChatId === chat.id && "border border-brass-rule bg-secondary text-foreground")}><span aria-hidden="true">{index + 1}</span></Button>)}
+      </div>
     </>
   );
 
   const expandedBody = (
     <>
       <div className="flex items-center gap-2">
-        <Button variant="outline" className="min-w-0 flex-1 justify-start gap-2" onClick={onNew}>
+        <Button disabled={busy} variant="outline" className="min-w-0 flex-1 justify-start gap-2" onClick={onNew}>
           <Plus className="size-4 shrink-0" /> New chat
         </Button>
         <Button
+          ref={toggleRef}
           variant="ghost"
           size="icon"
           onClick={toggle}
@@ -172,7 +180,7 @@ export function ConversationRail({
             onChange={(e) => setQuery(e.target.value)}
             placeholder={`Filter ${chats.length} conversations`}
             aria-label="Filter conversations"
-            className="h-8 w-full rounded-md border bg-background pl-8 pr-7 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-11 w-full rounded-xl border bg-background pl-8 pr-12 text-base outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           {query ? (
             <button
@@ -187,14 +195,14 @@ export function ConversationRail({
         </div>
       ) : null}
 
-      <Card className="min-h-0 flex-1">
-        <CardContent className="max-h-[60vh] space-y-3 overflow-y-auto p-2 lg:max-h-[calc(70vh-3rem)]">
+      <Card className="min-h-0 flex-1 rounded-2xl shadow-e1">
+        <CardContent className="max-h-[35vh] space-y-3 overflow-y-auto p-2 lg:max-h-[calc(70dvh-4rem)]">
           {chats.length === 0 ? (
-            <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+            <p className="px-2 py-6 text-center text-sm text-muted-foreground">
               No conversations yet. Ask the assistant something to start one.
             </p>
           ) : filtered.length === 0 ? (
-            <p className="px-2 py-6 text-center text-xs text-muted-foreground">
+            <p className="px-2 py-6 text-center text-sm text-muted-foreground">
               Nothing matches “{query}”.
             </p>
           ) : (
@@ -207,7 +215,7 @@ export function ConversationRail({
                   <div
                     key={c.id}
                     className={cn(
-                      "group flex items-start gap-1 rounded-md px-2 py-1.5 text-sm transition-colors",
+                      "group flex flex-wrap items-start gap-1 rounded-xl px-2 py-2 text-sm transition-colors",
                       activeChatId === c.id ? "bg-secondary text-foreground" : "hover:bg-secondary/60",
                     )}
                   >
@@ -250,6 +258,7 @@ export function ConversationRail({
                       <>
                         <button
                           type="button"
+                          disabled={busy}
                           onClick={() => onOpen(c.id)}
                           className="min-w-0 flex-1 text-left"
                           aria-current={activeChatId === c.id ? "true" : undefined}
@@ -265,9 +274,10 @@ export function ConversationRail({
                         {/* Kept mounted rather than conditionally rendered so the
                             row doesn't reflow on hover — and always visible on
                             touch, where there is no hover to reveal them. */}
-                        <span className="flex shrink-0 items-center opacity-60 transition-opacity group-hover:opacity-100 focus-within:opacity-100 md:opacity-0">
+                        <span className="flex shrink-0 items-center">
                           <button
                             type="button"
+                            disabled={busy}
                             onClick={() => startRename(c)}
                             aria-label={`Rename ${c.title}`}
                             className="rounded p-1 text-muted-foreground hover:bg-background hover:text-foreground"
@@ -276,6 +286,7 @@ export function ConversationRail({
                           </button>
                           <button
                             type="button"
+                            disabled={busy}
                             onClick={() => onDelete(c.id)}
                             aria-label={`Delete ${c.title}`}
                             className="rounded p-1 text-muted-foreground hover:bg-background hover:text-destructive"
@@ -296,29 +307,11 @@ export function ConversationRail({
   );
 
   return (
-    <motion.aside
-      // Width is what actually moves; on small screens the rail is full-width
-      // and stacked, so leave it alone there.
-      animate={desktop ? { width: collapsed ? 44 : 288 } : { width: "100%" }}
-      transition={reduce ? { duration: 0 } : EASE_OPEN}
-      className={cn(
-        "flex shrink-0 flex-col gap-2 overflow-hidden",
-        collapsed ? "items-center" : "min-w-0",
-      )}
-    >
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.div
-          key={collapsed ? "collapsed" : "expanded"}
-          initial={reduce ? false : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: reduce ? 0 : 0.12 }}
-          className={cn("flex min-w-0 flex-col gap-2", collapsed ? "items-center" : "w-full")}
-        >
-          {collapsed ? body : expandedBody}
-        </motion.div>
-      </AnimatePresence>
-    </motion.aside>
+    <aside aria-label="Assistant conversations" style={desktop ? { width: collapsed ? 52 : 300 } : undefined} className="ui-conversation-rail min-w-0">
+      <div className={cn("flex min-w-0 gap-2", collapsed ? "ui-content-enter items-center lg:flex-col" : "ui-panel-enter flex-col")}>
+        {collapsed ? body : expandedBody}
+      </div>
+    </aside>
   );
 }
 

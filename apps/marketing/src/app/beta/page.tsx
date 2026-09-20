@@ -78,7 +78,7 @@ export default async function BetaPage() {
   return (
     <>
       <Navbar />
-      <main className="px-3 pb-4 sm:px-5">
+      <main id="main-content" tabIndex={-1} className="px-3 pb-4 sm:px-5">
         {/* ── B1 · bare ground, type-led, one real figure ─────────────────── */}
         <section className="container py-14 md:py-20">
           <div className="grid gap-10 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)] lg:items-end lg:gap-16">

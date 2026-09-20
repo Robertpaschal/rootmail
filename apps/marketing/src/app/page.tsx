@@ -152,7 +152,7 @@ export default function HomePage() {
           the page reads as stacked sheets. The gutter is what makes the curve
           on each section legible — a full-bleed rounded section has nothing to
           be rounded against. */}
-      <main className="px-3 pb-4 sm:px-5">
+      <main id="main-content" tabIndex={-1} className="px-3 pb-4 sm:px-5">
         <Hero />
         <TheLine />
         <WhoItsFor />

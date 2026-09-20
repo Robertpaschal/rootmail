@@ -77,16 +77,17 @@ export function MessagesTable({
             setQ(e.target.value);
           }}
           placeholder="Search recipient or subject…"
+          aria-label="Search messages by recipient or subject"
           className="h-9 max-w-xs"
         />
-        <span className="ml-auto text-sm text-muted-foreground">
+        <span aria-live="polite" className="ml-auto text-sm text-muted-foreground">
           {filtered.length} message{filtered.length === 1 ? "" : "s"}
         </span>
       </div>
 
       <Card>
         <CardContent className="p-0">
-          <Table>
+          <Table aria-label="Messages" className="min-w-[720px]">
             <TableHeader>
               <TableRow>
                 <TableHead>Status</TableHead>
@@ -124,7 +125,8 @@ export function MessagesTable({
                           <Link
                             href={`/contacts/${m.to_contact_id}`}
                             title="Open contact record"
-                            className="text-muted-foreground transition-colors hover:text-primary"
+                            aria-label={`Open contact record for ${m.to}`}
+                            className="inline-flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-brass-text"
                           >
                             <User className="size-3.5" />
                           </Link>
@@ -142,10 +144,10 @@ export function MessagesTable({
                         ) : null}
                       </span>
                     </TableCell>
-                    <TableCell className="max-w-[280px] truncate text-muted-foreground">
-                      {m.subject}
+                    <TableCell className="min-w-[200px] max-w-sm">
+                      <Link href={`/messages/${m.id}`} className="block py-1 font-medium leading-relaxed hover:underline">{m.subject || "(No subject)"}</Link>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="whitespace-nowrap text-muted-foreground">
                       {m.campaign_id ? (
                         <Link
                           href={`/campaigns/${m.campaign_id}`}

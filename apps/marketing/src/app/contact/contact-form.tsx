@@ -44,7 +44,7 @@ export function ContactForm({ topic }: { topic: ContactTopic }) {
   }
 
   return (
-    <form action={action} className="space-y-5 rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
+    <form action={action} className="min-w-0 space-y-5 rounded-2xl border bg-card p-4 shadow-sm sm:p-8 [&_input]:min-w-0 [&_input]:min-h-11 [&_input]:text-base [&_select]:min-w-0 [&_select]:min-h-11 [&_select]:text-base [&_textarea]:text-base">
       <input type="hidden" name="source" value={topic.source} />
       {/* Honeypot — hidden from humans; bots that fill it are dropped server-side. */}
       <div aria-hidden="true" className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden">
@@ -52,7 +52,7 @@ export function ContactForm({ topic }: { topic: ContactTopic }) {
         <input id="company_fax" name="company_fax" type="text" tabIndex={-1} autoComplete="off" />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="name">Your name *</Label>
           <Input id="name" name="name" required maxLength={120} placeholder="Ada Lovelace" />
@@ -132,7 +132,7 @@ export function ContactForm({ topic }: { topic: ContactTopic }) {
         </p>
       ) : null}
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <p className="text-xs text-muted-foreground">
           We&apos;ll only use this to contact you about rootmail.
         </p>

@@ -36,7 +36,7 @@ export default async function PricingPage() {
       {/* Slabs sit ON a ground rather than butting against each other; P1 and
           P7 sit on the ground itself, which is what makes them read as speech
           rather than as panels. */}
-      <main className="px-3 pb-4 sm:px-5">
+      <main id="main-content" tabIndex={-1} className="px-3 pb-4 sm:px-5">
         <PricingClaim />
         <PricingMeters pricing={pricing} />
         <PricingFloor pricing={pricing} />

@@ -1,6 +1,7 @@
 "use client";
 
-import { motion } from "framer-motion";
+import * as React from "react";
+import type { CSSProperties } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -47,34 +48,33 @@ export function StageRail({
             <button
               key={s.id}
               type="button"
+              aria-current={active ? "step" : undefined}
               disabled={!reachable}
               onClick={() => reachable && onJump?.(i)}
               className={cn(
-                "group flex flex-1 flex-col gap-1.5 text-left",
+                "ui-stage-step group flex min-h-11 min-w-0 flex-1 flex-col gap-1.5 text-left",
                 reachable && !active && "cursor-pointer",
                 !reachable && "cursor-default",
               )}
             >
               <span className="relative block h-1 overflow-hidden rounded-full bg-secondary">
-                <motion.span
-                  initial={false}
-                  animate={{ scaleX: done || active ? 1 : 0 }}
-                  transition={{ type: "spring", stiffness: 260, damping: 32 }}
-                  style={{ originX: 0 }}
-                  className={cn("absolute inset-0 rounded-full", active ? "bg-primary" : "bg-primary/60")}
+                <span
+                  aria-hidden="true"
+                  style={{ scale: `${done || active ? 1 : 0} 1` }}
+                  className={cn("ui-stage-fill absolute inset-0 origin-left rounded-full", active ? "bg-primary" : "bg-primary/60")}
                 />
               </span>
               <span
                 className={cn(
-                  "flex items-center gap-1 text-[12.5px] transition-colors",
+                  "flex items-center gap-1 text-sm transition-colors",
                   active
                     ? "font-medium text-foreground"
                     : done
                       ? "text-muted-foreground group-hover:text-foreground"
-                      : "text-muted-foreground/60",
+                      : "text-muted-foreground",
                 )}
               >
-                {done ? <Check className="size-3 text-primary" /> : null}
+                {done ? <Check className="size-3 text-brass-text" /> : null}
                 {s.label}
               </span>
             </button>
@@ -82,17 +82,12 @@ export function StageRail({
         })}
       </div>
       {stages[current]?.hint ? (
-        <motion.p
+        <p
           key={stages[current].id}
-          // Transform only. This hint is always in the DOM, so fading it in
-          // means it is absent wherever frames are frozen (hidden tab, preview
-          // pane) — see docs/design/00-PHILOSOPHY.md §6.
-          initial={{ y: -3 }}
-          animate={{ y: 0 }}
-          className="mt-2 text-sm text-muted-foreground"
+          className="ui-content-enter mt-2 text-sm text-muted-foreground"
         >
           {stages[current].hint}
-        </motion.p>
+        </p>
       ) : null}
     </div>
   );
@@ -110,17 +105,12 @@ export function StageScene({
   direction?: number;
 }) {
   return (
-    <motion.div
+    <div
       key={keyId}
-      // The scene slides; it does not fade. An `exit` may still fade, because
-      // an element on its way out has already been read — but the ENTRANCE must
-      // leave the content legible even if it never animates.
-      initial={{ x: 24 * direction }}
-      animate={{ x: 0 }}
-      exit={{ opacity: 0, x: -24 * direction }}
-      transition={{ duration: 0.22, ease: "easeOut" }}
+      className="ui-scene-enter"
+      style={{ "--ui-scene-x": `${8 * Math.sign(direction)}px` } as CSSProperties}
     >
       {children}
-    </motion.div>
+    </div>
   );
 }

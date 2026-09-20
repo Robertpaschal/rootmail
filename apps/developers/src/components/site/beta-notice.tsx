@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "https://api.rootmail.io";
 const MARKETING_URL = process.env.NEXT_PUBLIC_MARKETING_URL ?? "https://rootmail.io";
@@ -23,6 +23,15 @@ const MARKETING_URL = process.env.NEXT_PUBLIC_MARKETING_URL ?? "https://rootmail
 export function BetaNotice() {
   const [closed, setClosed] = useState(true);
   const [cap, setCap] = useState<number | null>(null);
+  const strip = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (!closed || !strip.current) return;
+    const update = () => document.documentElement.style.setProperty("--beta-notice-h", `${strip.current?.getBoundingClientRect().height ?? 0}px`);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(strip.current);
+    return () => { observer.disconnect(); document.documentElement.style.removeProperty("--beta-notice-h"); };
+  }, [closed]);
 
   useEffect(() => {
     let cancelled = false;
@@ -43,7 +52,7 @@ export function BetaNotice() {
   if (!closed) return null;
 
   return (
-    <div className="beta-strip sticky top-0 z-[60] backdrop-blur">
+    <div ref={strip} className="beta-strip sticky top-0 z-[60] backdrop-blur">
       <style>{":root{--beta-notice-h:37px}"}</style>
       <div className="container flex flex-wrap items-center justify-center gap-x-3 gap-y-1 py-2 text-center text-sm">
         {/* `text-brass-text`, not `text-primary` — the same correction the
@@ -56,9 +65,7 @@ export function BetaNotice() {
           Closed beta
         </span>
         <span className="text-muted-foreground">
-          The API below is complete and real, but rootmail is invite-only
-          {cap !== null ? ` and every account is capped at ${cap} sends a day` : ""} while we finish
-          it.
+          Invite-only API access{cap !== null ? ` · ${cap} sends a day during beta` : ""}.
         </span>
         {/* `text-foreground`, not brass in any cut. This one sits DIRECTLY on
             the strip's glass with the page scrolling under it, so its ground

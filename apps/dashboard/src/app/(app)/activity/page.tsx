@@ -11,7 +11,7 @@ import {
   REPUTATION_WINDOW_DAYS,
 } from "@/lib/reputation";
 
-export const metadata = { title: "What changed · rootmail" };
+export const metadata = { title: "Activity log · rootmail" };
 
 /**
  * The destination the nav did not have.
@@ -25,9 +25,8 @@ export const metadata = { title: "What changed · rootmail" };
  * they learned about from their own customer.* This page is where that promise
  * is kept or broken.
  *
- * The overview carries the same feed, cut to five. This is the whole of it,
- * with the standing rules printed underneath — because "what we did" is only
- * trustworthy next to "what we always do".
+ * The bell is the entry point for this operational feed. Overview only shows
+ * recent, attributable actions, not this generic feed or product release notes.
  */
 export default async function ActivityPage() {
   const { changes, unreachable, clientsAvailable } = await loadChanges(30);
@@ -35,7 +34,7 @@ export default async function ActivityPage() {
   if (unreachable) {
     return (
       <>
-        <PageHeader title="What changed" />
+        <PageHeader title="Activity log" />
         <ConnectionErrorCard message="We couldn't reach your data just now." />
       </>
     );
@@ -44,16 +43,16 @@ export default async function ActivityPage() {
   return (
     <>
       <PageHeader
-        title="What changed"
-        description="Everything rootmail noticed and everything it did about it, newest first — each with the number that caused it and the way to fix it."
+        title="Activity log"
+        description="Your workspace's sending conditions and recorded actions. These are email operations, not product release notes."
       />
 
-      <ChangeFeed changes={changes} quiet={quietSentence(changes.length > 0)} />
+      <section className="rounded-2xl border bg-card p-5 shadow-e1 sm:p-6"><ChangeFeed changes={changes} quiet={quietSentence(changes.length > 0)} /></section>
 
       {/* The standing rules. A record of interventions means nothing without the
           thresholds they are measured against — and these are the real
           constants the worker enforces on, imported rather than retyped. */}
-      <section className="mt-10 border-t pt-6">
+      <section className="mt-6 rounded-2xl border bg-card p-5 sm:p-6">
         <h2 className="text-sm font-medium">What we are doing while you are not looking</h2>
         <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
           <Rule

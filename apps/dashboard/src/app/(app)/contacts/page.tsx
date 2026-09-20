@@ -312,17 +312,17 @@ export default async function AudienceHubPage({ searchParams }: { searchParams: 
                 </p>
                 <div className="mx-auto mt-5 grid max-w-2xl gap-3 sm:grid-cols-3">
                   <Link href="/contacts?tab=audiences" className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50">
-                    <TrendingUp className="size-5 text-primary" />
+                    <TrendingUp className="size-5 text-brass-text" />
                     <p className="mt-2 text-sm font-semibold">Grow</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">Turn on signup for an audience — share the page or embed the form; people add themselves.</p>
                   </Link>
                   <Link href={hubUrl({ add: "import" })} className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50">
-                    <Upload className="size-5 text-primary" />
+                    <Upload className="size-5 text-brass-text" />
                     <p className="mt-2 text-sm font-semibold">Import</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">Bring a CSV from your old provider — tags and details come along.</p>
                   </Link>
                   <Link href={hubUrl({ add: "one" })} className="rounded-lg border p-4 text-left transition-colors hover:border-primary/50">
-                    <UserPlus className="size-5 text-primary" />
+                    <UserPlus className="size-5 text-brass-text" />
                     <p className="mt-2 text-sm font-semibold">Add by hand</p>
                     <p className="mt-0.5 text-xs text-muted-foreground">Type one person in — perfect for testing the whole flow end to end.</p>
                   </Link>

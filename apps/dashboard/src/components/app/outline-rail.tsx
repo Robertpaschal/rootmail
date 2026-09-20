@@ -1,7 +1,7 @@
 "use client";
 
-import { type RefObject, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { type RefObject, useRef, useState } from "react";
+import { useReducedMotion } from "framer-motion";
 import { List } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -61,6 +61,7 @@ export function OutlineRail({
 }) {
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
 
   if (sections.length < minSections) return null;
 
@@ -99,10 +100,14 @@ export function OutlineRail({
       )}
       onMouseEnter={() => setOpen(true)}
       onMouseLeave={() => setOpen(false)}
+      onKeyDown={(event) => { if (event.key === "Escape" && open) { event.stopPropagation(); setOpen(false); trigger.current?.focus(); } }}
     >
       <button
+        ref={trigger}
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        // Hover may already have opened it before the click arrives. A pointer
+        // click must not immediately undo that opening; keyboard can toggle.
+        onClick={(event) => setOpen((value) => event.detail === 0 ? !value : true)}
         aria-label={`${label} (${sections.length} sections)`}
         aria-expanded={open}
         className={cn(
@@ -125,11 +130,9 @@ export function OutlineRail({
         The panel is a descendant, so hovering it still counts as inside and
         keeps it open.
       */}
-      <motion.div
+      <div
         aria-hidden={open}
-        animate={{ opacity: open ? 0 : 0.5 }}
-        transition={{ duration: reduce ? 0 : 0.14 }}
-        className="flex flex-col items-center gap-1"
+        className={cn("flex flex-col items-center gap-1", open ? "invisible" : "visible")}
       >
         {sections.map((s) => (
           <span
@@ -140,21 +143,16 @@ export function OutlineRail({
             )}
           />
         ))}
-      </motion.div>
+      </div>
 
-      <AnimatePresence initial={false}>
         {open ? (
-          <motion.nav
+          <nav
             key="labels"
             aria-label={label}
-            initial={reduce ? false : { opacity: 0, x: 8, scale: 0.98 }}
-            animate={{ opacity: 1, x: 0, scale: 1 }}
-            exit={{ opacity: 0, x: 8, scale: 0.98 }}
-            transition={{ duration: reduce ? 0 : 0.16, ease: [0.22, 1, 0.36, 1] }}
             // right-full: opens to the LEFT of the gutter, over the content.
             // A popover may cover things — it's transient and you asked for it.
             // The ticks, which are always there, are what must not.
-            className="absolute right-full top-1/2 mr-1 max-h-[70vh] w-56 -translate-y-1/2 overflow-y-auto rounded-lg border bg-popover/95 p-1 shadow-lg backdrop-blur"
+            className="ui-scene-enter absolute right-full top-1/2 mr-1 max-h-[70vh] w-56 max-w-[calc(100vw-6rem)] -translate-y-1/2 overflow-y-auto rounded-lg border bg-popover p-1 shadow-lg"
           >
             {sections.map((s) => (
               <button
@@ -172,9 +170,8 @@ export function OutlineRail({
                 ) : null}
               </button>
             ))}
-          </motion.nav>
+          </nav>
         ) : null}
-      </AnimatePresence>
     </div>
   );
 }

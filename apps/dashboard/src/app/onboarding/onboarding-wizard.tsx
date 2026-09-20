@@ -263,7 +263,7 @@ export function OnboardingWizard({
                   <span className="min-w-0">
                     <span className="flex items-center gap-2 font-medium">
                       {t.label}
-                      {active ? <Check className="size-4 text-primary" /> : null}
+                      {active ? <Check className="size-4 text-brass-text" /> : null}
                     </span>
                     <span className="mt-0.5 block text-sm text-muted-foreground">{t.desc}</span>
                   </span>
@@ -314,7 +314,7 @@ export function OnboardingWizard({
                 >
                   <span className="flex items-center justify-between">
                     {p.label}
-                    {active ? <Check className="size-4 text-primary" /> : null}
+                    {active ? <Check className="size-4 text-brass-text" /> : null}
                   </span>
                 </button>
               );
@@ -562,7 +562,7 @@ function VolumePitch({
 
       <div className="mt-6 rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
         <p className="flex items-center gap-1.5 font-medium">
-          <Rocket className="size-4 text-primary" /> Based on your answers
+          <Rocket className="size-4 text-brass-text" /> Based on your answers
         </p>
         <ul className="mt-2 space-y-1 text-muted-foreground">
           {summary.map((s) => (

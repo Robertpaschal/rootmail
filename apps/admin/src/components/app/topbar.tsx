@@ -17,6 +17,7 @@ const SECTION: Record<string, string> = {
   announcements: "Announcements",
   analytics: "Analytics",
   staff: "Staff",
+  "our-workspace": "Our workspace",
 };
 
 function initials(staff: StaffUser): string {
@@ -32,11 +33,11 @@ export function Topbar({ staff }: { staff: StaffUser }) {
   const section = SECTION[pathname.split("/")[1] ?? ""] ?? "Console";
 
   return (
-    <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b bg-card/80 px-6 backdrop-blur">
-      <div className="flex items-center gap-2 text-sm">
-        <span className="text-muted-foreground">Console</span>
-        <span className="text-muted-foreground/40">/</span>
-        <span className="font-medium">{section}</span>
+    <header className="sticky top-0 z-20 flex min-h-16 items-center justify-between gap-3 border-b bg-card px-4 sm:px-6">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm">
+        <span className="text-muted-foreground">Internal admin</span>
+        <span aria-hidden="true" className="text-muted-foreground">/</span>
+        <span className="break-words font-medium">{section}</span>
       </div>
       <div className="flex items-center gap-3">
         <div className="hidden items-center gap-2 rounded-full border bg-background py-1 pl-1 pr-3 sm:flex">

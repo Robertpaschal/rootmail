@@ -138,7 +138,7 @@ export default async function CompliancePage() {
                     Residency is pinned per organization and changed only by rootmail staff. We run a
                     single region today, so there is nothing to buy here — if your compliance posture
                     needs your data somewhere specific,{" "}
-                    <Link href="/contact" className="font-medium text-primary hover:underline">
+                    <Link href="/contact" className="font-medium text-brass-text hover:underline">
                       talk to us
                     </Link>{" "}
                     and we&apos;ll scope it with you.

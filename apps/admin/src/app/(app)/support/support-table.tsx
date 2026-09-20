@@ -89,6 +89,7 @@ export function SupportTable({ tickets }: { tickets: SupportTicketListItem[] }) 
             setQ(e.target.value);
           }}
           placeholder="Search sender, org, or message…"
+          aria-label="Search support by sender, organization, or message"
           className="h-9 max-w-xs"
         />
         <div className="flex items-center gap-0.5 rounded-md border p-0.5 text-sm">

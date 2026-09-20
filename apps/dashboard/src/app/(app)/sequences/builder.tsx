@@ -172,7 +172,7 @@ export function SequenceBuilder({
                             on ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "hover:border-primary/40",
                           )}
                         >
-                          <o.icon className={cn("size-4", on ? "text-primary" : "text-muted-foreground")} />
+                          <o.icon className={cn("size-4", on ? "text-brass-text" : "text-muted-foreground")} />
                           <p className="mt-1.5 text-sm font-medium">{o.title}</p>
                           <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{o.blurb}</p>
                         </button>
@@ -254,7 +254,7 @@ export function SequenceBuilder({
                               onClick={() => applyPreset(p.gaps)}
                               className="rounded-lg border p-3 text-left transition-colors hover:border-primary/50"
                             >
-                              <p.icon className="size-4 text-primary" />
+                              <p.icon className="size-4 text-brass-text" />
                               <p className="mt-1.5 text-sm font-medium">{p.name}</p>
                               <p className="mt-0.5 text-xs leading-snug text-muted-foreground">{p.blurb}</p>
                               <p className="mt-1.5 text-[12.5px] text-muted-foreground">

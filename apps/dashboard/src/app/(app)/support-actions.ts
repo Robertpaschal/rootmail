@@ -2,6 +2,7 @@
 
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { SupportTicket } from "@/lib/types";
+import { supportThreadSubject } from "@/lib/support-view";
 
 // The HUMAN side of the help chat. Kept next to the assistant's own actions so
 // one floating bubble can carry both conversations (AI ↔ real person) without
@@ -38,10 +39,11 @@ export async function loadSupportThread(id: string): Promise<{ ticket?: SupportT
 export async function startSupportThread(
   message: string,
   context?: string,
+  subject?: string,
 ): Promise<{ ticket?: SupportTicket; error?: string }> {
   const body = context ? `${message}\n\n— — —\nFrom the assistant conversation:\n${context}` : message;
   try {
-    const created = await api.createSupportTicket({ message: body });
+    const created = await api.createSupportTicket({ message: body, subject: supportThreadSubject(message, subject) });
     // Re-read so the caller gets the thread with its messages attached.
     return { ticket: await api.getSupportTicket(created.id ?? created.ticket_id) };
   } catch (err) {

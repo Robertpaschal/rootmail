@@ -31,7 +31,7 @@ export default function Error({
       </div>
       <div className="flex gap-2">
         <Button onClick={reset}>Try again</Button>
-        <a href="/" className={buttonVariants({ variant: "outline" })}>
+        <a href="/overview" className={buttonVariants({ variant: "outline" })}>
           Go to overview
         </a>
       </div>

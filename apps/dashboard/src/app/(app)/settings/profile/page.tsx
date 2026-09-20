@@ -46,7 +46,7 @@ export default async function ProfileSettingsPage() {
             <>
               The address you sign in with, and where we send account and security mail. This is{" "}
               <strong>not</strong> the address your recipients see — that&apos;s a{" "}
-              <Link href="/settings/sender" className="font-medium text-primary hover:underline">
+              <Link href="/settings/sender" className="font-medium text-brass-text hover:underline">
                 sending address
               </Link>
               , and you can have several.

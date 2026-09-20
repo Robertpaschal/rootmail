@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { AnimatePresence, motion } from "framer-motion";
 import { FileText, KeyRound, Megaphone, Plus, Send, Upload, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -20,6 +19,7 @@ const ACTIONS = [
 export function QuickCreate() {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   // Click-away + Escape both dismiss.
   useEffect(() => {
@@ -28,7 +28,10 @@ export function QuickCreate() {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey);
@@ -41,34 +44,25 @@ export function QuickCreate() {
   return (
     <div ref={ref} className="static shrink-0 sm:relative">
       <Button
+        ref={triggerRef}
         size="sm"
         variant="outline"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label="Create new"
-        className="px-2 sm:px-3"
+        className="topbar-control topbar-create"
       >
         <Plus className={`size-4 transition-transform ${open ? "rotate-45" : ""}`} />
-        <span className="hidden sm:inline">New</span>
+        <span className="hidden xl:inline">New</span>
       </Button>
-      <AnimatePresence>
         {open ? (
-          <motion.div
-            initial={{ opacity: 0, y: 6, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.98 }}
-            transition={{ type: "spring", stiffness: 420, damping: 32 }}
-            className="absolute left-4 right-4 top-full z-50 mt-2 w-auto overflow-hidden rounded-lg border bg-popover p-1.5 shadow-lg sm:left-auto sm:right-0 sm:w-64"
+          <div
+            className="ui-menu-enter absolute left-4 right-4 top-full z-50 mt-2 w-auto overflow-hidden rounded-lg border bg-popover p-1.5 shadow-lg sm:left-0 sm:right-auto sm:w-64"
             role="menu"
           >
-            {ACTIONS.map((a, i) => (
-              <motion.div
-                key={a.href}
-                initial={{ opacity: 0, x: -6 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.02 * i, duration: 0.14 }}
-              >
+            {ACTIONS.map((a) => (
+              <div key={a.href}>
                 <Link
                   href={a.href}
                   role="menuitem"
@@ -83,11 +77,10 @@ export function QuickCreate() {
                     <span className="block text-[12.5px] text-muted-foreground">{a.hint}</span>
                   </span>
                 </Link>
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
         ) : null}
-      </AnimatePresence>
     </div>
   );
 }

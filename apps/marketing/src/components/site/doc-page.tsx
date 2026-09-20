@@ -42,7 +42,7 @@ export function DocPage({
   return (
     <>
       <Navbar />
-      <main className="px-3 pb-4 sm:px-5">
+      <main id="main-content" tabIndex={-1} className="px-3 pb-4 sm:px-5">
         {/* ── The masthead, on the bare ground ───────────────────────────── */}
         <section className="container max-w-3xl py-12 md:py-16">
           <h1 className="display-l text-balance">{title}</h1>
@@ -59,7 +59,7 @@ export function DocPage({
         {/* ── The document ───────────────────────────────────────────────── */}
         <section className="slab settle">
           <div className="container max-w-3xl py-12 md:py-16">
-            <div className="max-w-[68ch] space-y-5 text-[0.9375rem] leading-relaxed text-ink-muted [&_a]:font-medium [&_a]:text-brass-text [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-12 [&_h2]:border-t [&_h2]:border-rule [&_h2]:pt-5 [&_h2]:font-mono [&_h2]:text-[12.5px] [&_h2]:font-normal [&_h2]:uppercase [&_h2]:tracking-wide [&_h2]:text-foreground [&_li]:ml-4 [&_li]:list-disc [&_strong]:text-foreground [&_ul]:space-y-1.5">
+            <div className="max-w-[68ch] space-y-5 text-base leading-relaxed text-ink-muted [&_a]:font-medium [&_a]:text-brass-text [&_a]:underline [&_a]:underline-offset-4 [&_h2]:mt-12 [&_h2]:border-t [&_h2]:border-rule [&_h2]:pt-5 [&_h2]:font-sans [&_h2]:text-xl [&_h2]:font-semibold [&_h2]:text-foreground [&_li]:ml-4 [&_li]:list-disc [&_strong]:text-foreground [&_ul]:space-y-1.5">
               {children}
             </div>
           </div>

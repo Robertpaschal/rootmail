@@ -1,8 +1,10 @@
-import { cookies } from "next/headers";
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, LayoutDashboard } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
-import { dashboardUrl, signupUrl } from "@/lib/links";
+import { dashboardUrl, readSignedInHint, signupUrl } from "@/lib/links";
 import { cn } from "@/lib/utils";
 
 type Variant = "default" | "secondary" | "outline" | "ghost" | "link";
@@ -23,12 +25,10 @@ export interface CtaButtonProps {
 }
 
 /**
- * The developer-site twin of the marketing CtaButton. The dev shell already
- * reads the cross-subdomain `rm_signed_in` hint server-side (so every dev page
- * is dynamic), so we read it here too — no hydration flash. Signed-out it keeps
- * its label and points at signup; signed-in it becomes "Go to dashboard".
+ * Keep the public page statically renderable. Only this navigation hint changes
+ * after hydration; authentication is still enforced by the dashboard.
  */
-export async function CtaButton({
+export function CtaButton({
   label,
   href = signupUrl,
   signedInLabel = "Go to dashboard",
@@ -37,7 +37,8 @@ export async function CtaButton({
   className,
   arrow = false,
 }: CtaButtonProps) {
-  const signedIn = (await cookies()).get("rm_signed_in")?.value === "1";
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => setSignedIn(readSignedInHint()), []);
 
   if (signedIn) {
     return (

@@ -126,14 +126,14 @@ export function PostEditor({ post }: { post: AdminBlogPost | null }) {
           }}
           required
           placeholder="Untitled post"
-          className="w-full border-0 bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground/40"
+          className="w-full border-0 bg-transparent text-3xl font-bold tracking-tight outline-none placeholder:text-muted-foreground"
         />
         <input
           name="description"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Add a short description…"
-          className="mt-2 w-full border-0 bg-transparent text-base text-muted-foreground outline-none placeholder:text-muted-foreground/40"
+          className="mt-2 w-full border-0 bg-transparent text-base text-muted-foreground outline-none placeholder:text-muted-foreground"
         />
 
         {/* Properties — quiet, Notion-style */}

@@ -127,16 +127,16 @@ export default async function CampaignsPage() {
           </div>
           <p className="text-sm text-muted-foreground">
             Need contacts first?{" "}
-            <Link href="/contacts?add=import" className="text-primary hover:underline">Import them from a file</Link>
+            <Link href="/contacts?add=import" className="text-brass-text hover:underline">Import them from a file</Link>
             {" "}or{" "}
-            <Link href="/contacts?tab=audiences" className="text-primary hover:underline">create an audience</Link>.
+            <Link href="/contacts?tab=audiences" className="text-brass-text hover:underline">create an audience</Link>.
           </p>
         </Reveal>
       ) : (
         <Reveal>
           <Card>
             <CardContent className="p-0">
-              <Table>
+              <Table className="min-w-[680px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Name</TableHead>
@@ -186,7 +186,7 @@ export default async function CampaignsPage() {
                           ) : null}
                           <ActionForm action={deleteCampaign} className="inline">
                             <input type="hidden" name="id" value={c.id} />
-                            <Button type="submit" variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive">
+                            <Button type="submit" variant="ghost" size="sm" aria-label={`Delete ${c.name}`} className="text-muted-foreground hover:text-destructive">
                               <Trash2 className="size-4" />
                             </Button>
                           </ActionForm>
