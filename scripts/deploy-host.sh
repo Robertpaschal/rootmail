@@ -21,7 +21,11 @@ fi
 LOCK=".deploy-$SVC.lock"
 mkdir "$LOCK" || { echo "Another deployment holds $LOCK; investigate before retrying" >&2; exit 1; }
 D=(sudo docker)
-dc() { local tag="$1"; shift; sudo env REGISTRY="$NS" TAG="$tag" docker compose --env-file .env.prod -f docker-compose.prod.yml "$@"; }
+C=(--env-file .env.prod -f docker-compose.prod.yml)
+# Consolidated hosts retain distinct backend environments and loopback bindings.
+# Use the same overlay for validation, replacement, health checks and rollback.
+if [[ -f docker-compose.host.yml ]]; then C+=(-f docker-compose.host.yml); fi
+dc() { local tag="$1"; shift; sudo env REGISTRY="$NS" TAG="$tag" docker compose "${C[@]}" "$@"; }
 PREVIOUS_ID=""
 HOLDER=""
 SWITCHED=0
