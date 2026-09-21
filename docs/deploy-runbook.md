@@ -21,6 +21,14 @@ successful rollback. Do not prune containers carrying `rootmail.rollback.service
 labels: they protect the rollback image. No database migrations run by default;
 review backward compatibility before opting into a migration.
 
+If `docker-compose.host.yml` exists beside the base compose file, the script uses
+it for validation, release, health checks and rollback. Preserve this host-local
+overlay when copying a release. Consolidated hosts use it to retain separate API
+and worker environment files, bind application ports to loopback, and connect web
+server-side requests to the API through the private Docker network. Never render
+interpolated compose output into logs: it contains secrets. Validate with
+`docker compose --env-file .env.prod -f docker-compose.prod.yml -f docker-compose.host.yml config --quiet`.
+
 The worker heartbeat is new. An older worker image cannot satisfy the new worker
 healthcheck; retain the old compose file with its image during the first transition
 and perform that first rollback with both artifacts, not only the new script.
