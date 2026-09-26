@@ -51,6 +51,7 @@ export const metadata: Metadata = {
   authors: [{ name: "rootmail" }],
   openGraph: {
     type: "website",
+    url: "/",
     siteName: "rootmail developers",
     title: "Rootmail for developers — outsource your email layer",
     description,

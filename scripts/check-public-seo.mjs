@@ -8,11 +8,15 @@ const manifest = JSON.parse(await read(`${dev}/prerender-manifest.json`));
 const docs = Object.keys(manifest.routes).filter((path) => path.startsWith("/docs/"));
 assert.ok(docs.length > 0, "Public docs must be prerendered, not personalized on the server");
 assert.ok(manifest.routes["/"], "Developer homepage must remain prerendered");
+const homepage = await read(`${dev}/server/app/index.html`);
+assert.match(homepage, /rel="canonical" href="https:\/\/developers\.rootmail\.io\/?"/, "Developer homepage canonical URL");
+assert.match(homepage, /property="og:url" content="https:\/\/developers\.rootmail\.io\/?"/, "Developer homepage Open Graph URL");
 const sitemap = await read(`${dev}/server/app/sitemap.xml.body`);
 for (const path of docs) {
   assert.ok(sitemap.includes(`<loc>https://developers.rootmail.io${path}</loc>`), `Missing sitemap entry: ${path}`);
   const html = await read(`${dev}/server/app${path}.html`);
   assert.ok(html.includes(`rel="canonical" href="https://developers.rootmail.io${path}"`), `Wrong canonical: ${path}`);
+  assert.ok(html.includes(`property="og:url" content="https://developers.rootmail.io${path}"`), `Wrong Open Graph URL: ${path}`);
 }
 assert.ok(!sitemap.includes("<lastmod>"), "Do not invent documentation modification dates");
 const robots = await read(`${dev}/server/app/robots.txt.body`);
