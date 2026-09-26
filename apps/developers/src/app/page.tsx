@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { ArrowRight, ChevronRight } from "lucide-react";
 import { CallResponse } from "@/components/site/call-response";
 import { CopyLine } from "@/components/site/copy-line";
@@ -10,6 +11,10 @@ import { Proof } from "@/components/site/proof";
 import { SubTenancy } from "@/components/site/sub-tenancy";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 /**
  * THE DEVELOPER SITE — `docs/design/04-EXPERIENCE.md` §8.
