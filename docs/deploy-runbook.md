@@ -1,6 +1,41 @@
 # Deploy runbook
 
-## Verified release path (prepared September 2026)
+## Current production (September 27, 2026)
+
+Production web traffic now uses the consolidated ARM host
+`i-0b7b3474488dc906b` (`t4g.medium`). The existing web IP `32.195.196.221`
+was reassociated to it; `api.rootmail.io` now points to that same address.
+Mail DNS was not changed. PostgreSQL runs on `db.t3.micro`; the existing cache
+endpoint now serves Valkey 7.2.6 with `noeviction`.
+
+All six application services run on this host. Developers uses release
+`4a0bd7ad3f393adf2fe3934671045130532cf8b7`; the other five use
+`c0938b63fb58724dd64ae91a7dd8f5e2c98bc241`. These are intentional per-service
+versions, not floating tags. Never recreate every service with one `TAG` merely
+to update one service.
+
+The three old hosts were stopped after cutover checks (including the API record's
+300-second DNS TTL), backed up to completed encrypted EBS snapshots, then
+terminated with owner approval. Their 90 GB of old root disks were deleted by
+termination and their two unused IPs released. Only the new host's 20 GB disk and
+one public IP remain. Snapshot completion/encryption was verified; a full restore
+drill has not been performed. Backup identifiers are in the private account audit.
+
+This is a single-host application stack, not high availability. Host failure
+affects all apps, while the database and queue remain managed services. Basic
+public/readiness checks passed, but no authenticated workflow or peak-load claim
+is implied. Five infrastructure alarms and a monthly budget warning are now
+configured. The health-alert email subscription is still pending confirmation;
+do not mistake a configured alarm for a delivered operator notification.
+
+The notification-only alarms cover EC2 status checks (2 of 3 one-minute samples),
+CPU above 80 percent for 15 minutes, RDS free memory below 100 MiB for 15 minutes,
+RDS free storage below 2 GiB for 15 minutes, and cache memory use above 80 percent
+for 15 minutes. They do not restart/stop instances. This is infrastructure
+monitoring, not an external application uptime check. Missing data remains
+visible rather than being counted as a healthy datapoint.
+
+## Verified release path
 
 CI must pass on the exact current main revision before publishing. Native amd64
 and ARM64 builds are assembled into a single immutable multi-platform image tag.
@@ -11,7 +46,7 @@ After syncing the release's compose file and deployment script to a host, use:
 
 ```bash
 cd /home/ubuntu/rootmail
-TAG=sha-<full40> ./scripts/deploy-host.sh <service>
+TAG=sha-<full40> ./deploy-host.sh <service>
 ```
 
 The script pulls before replacement, pins the previous image with a never-started
@@ -33,8 +68,18 @@ The worker heartbeat is new. An older worker image cannot satisfy the new worker
 healthcheck; retain the old compose file with its image during the first transition
 and perform that first rollback with both artifacts, not only the new script.
 
-The consolidated ARM host and managed-service resizes are **not deployed yet**.
-The existing hosts below remain authoritative until cutover is verified.
+On the consolidated host, the deployment script is copied to the release root
+as `deploy-host.sh`; its repository source is `scripts/deploy-host.sh`.
+Keep `.env.prod`, `.env.api.prod`, `.env.worker.prod` protected and separate.
+Application ports are loopback-bound; Caddy is the public HTTPS entry point.
+Its certificate data and configuration use persistent Docker volumes. Never
+print interpolated compose settings or environment values into release logs.
+
+After release, verify the exact running image, container health/restart count,
+public HTTPS, API database/cache health, login redirects/noindex, documentation
+canonicals/sitemap/static assets and worker queue counts. These checks do not
+replace an authenticated end-user walkthrough or a peak-load test. Do not send
+synthetic messages through the production mail provider.
 
 ## Historical manual procedure (not the new guarded release path)
 
@@ -64,16 +109,32 @@ network fault and is actually a full disk. `docker image prune -a -f` reclaimed
 21 GB; running containers are never touched, and every removed image is
 re-pullable.
 
-So: check `df -h /` first when an SSM command dies for no reason, and prune as
-part of the deploy rather than after the outage.
+So: check `df -h /` first when an SSM command dies for no reason. The old host had
+a prune cron; the new ARM host does not. Logs are bounded to three 10 MB files per
+container and the new host had 14 GiB free after cutover. If image cleanup is
+needed, run it only after deployments finish: pruning between pull and container
+replacement can remove the incoming image. Preserve rollback-holder containers;
+never use a volume/system prune as routine release cleanup.
 
 ## Hosts
 
 | host | instance | runs |
 |---|---|---|
-| api | `i-00fc3899bf560fefb` | api, caddy |
-| worker | `i-07f1f375578886933` | worker (registry SHA image; verified September 2026) |
-| web | `i-05b681a056fa42fc3` | marketing, dashboard, admin, developers |
+| production ARM | `i-0b7b3474488dc906b` | all six apps and Caddy |
+| old api (retired) | `i-00fc3899bf560fefb` | terminated after encrypted snapshot |
+| old worker (retired) | `i-07f1f375578886933` | terminated after encrypted snapshot |
+| old web (retired) | `i-05b681a056fa42fc3` | terminated after encrypted snapshot |
+
+### Recovery after retirement
+
+Application-image rollback remains available through the guarded deploy script
+and pinned predecessor images. Recovery from a lost host requires provisioning
+and restoring retained artifacts/backups; the terminated hosts cannot simply be
+restarted, and their released IPs must not be reused in DNS. Preserve the current
+production EIP and verify restored health before reassociation. A disk snapshot
+is not an instantly available server. Never start a recovered old worker while
+the production worker is still running. Keep the old compose alongside an old
+worker image, because pre-heartbeat images cannot satisfy the new healthcheck.
 
 The admin console is at **internal.rootmail.io** — there is no
 `admin.rootmail.io` record.

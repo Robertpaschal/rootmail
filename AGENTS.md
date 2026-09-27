@@ -62,7 +62,20 @@ the industry's founding lie, in our own product.
 
 ---
 
-## Current UX branch (September 2026, not deployed)
+## Current production checkpoint (September 27, 2026)
+
+The dashboard UX/lean-runtime release is deployed. Web traffic now uses the
+consolidated ARM host; API DNS also points to it. The new worker is healthy;
+the old worker container is stopped. Managed PostgreSQL is resized and the
+cache is Valkey with `noeviction`. Developers uses `4a0bd7a`; the other five
+services use `c0938b6`. See `docs/deploy-runbook.md` for full immutable versions,
+host-local overlay requirements and recovery guidance. The three old hosts were
+retired after completed encrypted disk snapshots; their disks and spare IPs are
+gone. Infrastructure alarms and a budget alert are configured; health-alert email
+confirmation is pending. Public smoke
+checks passed; this is not evidence of authenticated UX or peak-load coverage.
+
+## Released UX direction (September 2026)
 
 The owner explicitly approved a new visual direction, including fonts, for a
 dashboard-first usability pass. `codex/dashboard-ux-polish` uses Manrope for UI
@@ -72,7 +85,7 @@ marketing palette. Navigation destinations, table controls
 and the four-state rendering law are preserved. Read design philosophy **§12**
 for the updated type roles and `docs/design/06-CONSOLE-UX-QA.md` for verification
 and limitations. The historical production snapshot below does not describe this
-unreleased branch.
+released direction.
 
 Public beta notices now measure their wrapped height. Keep marketing's 4rem
 header contract, and include the measured notice in sticky offsets. Glass opacity

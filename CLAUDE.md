@@ -1,6 +1,19 @@
 # CLAUDE.md — working notes for rootmail
 
-## Current UX branch (September 2026, not deployed)
+## Current production checkpoint (September 27, 2026)
+
+The dashboard UX/lean-runtime release is deployed. Web traffic now uses the
+consolidated ARM host; API DNS also points to it. The new worker is healthy;
+the old worker container is stopped. Managed PostgreSQL is resized and the
+cache is Valkey with `noeviction`. Developers uses `4a0bd7a`; the other five
+services use `c0938b6`. See `docs/deploy-runbook.md` for full immutable versions,
+host-local overlay requirements and recovery guidance. The three old hosts were
+retired after completed encrypted disk snapshots; their disks and spare IPs are
+gone. Infrastructure alarms and a budget alert are configured; health-alert email
+confirmation is pending. Public smoke
+checks passed; this is not evidence of authenticated UX or peak-load coverage.
+
+## Released UX direction (September 2026)
 
 The owner approved changing the visual identity, including fonts, for the
 dashboard-first usability pass on `codex/dashboard-ux-polish`. Manrope carries
@@ -176,9 +189,10 @@ run this before anything else — those are the tests that exist.
   received timeout signal" — which looks like a broken tool, not a full disk —
   and the container stays up on the OLD image with nothing reporting an error.
   `docker image prune -af --filter "until=24h"` does NOT help (the sha tags are
-  fresh, which is why they survive it); use `-af` with no age filter. A daily
-  cron does this now, but always check `docker compose ps` really shows a fresh
-  container after a deploy.
+  fresh, which is why they survive it). The old host had a daily prune cron;
+  the consolidated ARM host does not. Do not prune during a deployment: the
+  newly pulled image is not pinned until replacement. Preserve rollback-holder
+  containers and check `docker compose ps` shows the intended release.
 - **A Redis client handed to a plugin must be closed with the server.**
   `@fastify/rate-limit` does not own the client you pass it, so a bare
   `createRedis()` in `buildServer` outlives `app.close()` and the test process
