@@ -1,6 +1,16 @@
 import { and, count, eq, gt, isNull, like, or, sql } from "drizzle-orm";
 import { env, newId } from "@rootmail/core";
-import { betaInvites, contacts, db, ensureInternalAccount, evaluateTriggers, lists, verifiedRecipients } from "@rootmail/db";
+import {
+  type BetaInviteAutomation,
+  betaInvites,
+  contacts,
+  db,
+  ensureBetaInviteAutomation,
+  ensureInternalAccount,
+  evaluateTriggers,
+  lists,
+  verifiedRecipients,
+} from "@rootmail/db";
 import { isTesterVerified } from "./ses-provisioning";
 
 /**
@@ -156,6 +166,27 @@ export async function autoAdmitRemaining(): Promise<{ limit: number; used: numbe
 }
 
 /**
+ * The sweep found verified testers but the invite automation cannot send.
+ *
+ * Thrown instead of tagging them: a ready tag is the one-shot trigger, and
+ * spending it while there is no sequence to fire loses the invite for good.
+ * Held testers stay waiting and are promoted on the first pass after the
+ * automation is fixed.
+ */
+export class BetaInviteAutomationError extends Error {
+  constructor(
+    readonly automation: BetaInviteAutomation,
+    readonly held: number,
+  ) {
+    super(
+      `beta invite automation is not runnable (${automation.problems.join(", ")}) — ` +
+        `holding ${held} verified tester(s); nobody is invited until it is fixed`,
+    );
+    this.name = "BetaInviteAutomationError";
+  }
+}
+
+/**
  * Promote everyone who has now verified their address.
  *
  * A tester clicks the link in Amazon's mail; nothing in our system is told. So
@@ -178,6 +209,8 @@ export async function promoteVerifiedTesters(): Promise<number> {
     .limit(500);
 
   let promoted = 0;
+  let held = 0;
+  let automation: BetaInviteAutomation | undefined;
   for (const c of waiting) {
     const tags = c.tags ?? [];
     if (!tags.includes(BETA_WAITLIST_TAG)) continue;
@@ -196,6 +229,14 @@ export async function promoteVerifiedTesters(): Promise<number> {
     });
     if (tags.includes(BETA_READY_TAG)) continue;
 
+    // Ensure on first use: creates the template/sequence if a database never
+    // had them, and tells us when they exist but cannot send (paused, edited).
+    automation ??= await ensureBetaInviteAutomation({ workspaceId });
+    if (!automation.ok) {
+      held += 1;
+      continue;
+    }
+
     const next = [...tags, BETA_READY_TAG];
     await db.update(contacts).set({ tags: next, updatedAt: new Date() }).where(eq(contacts.id, c.id));
     // The same trigger evaluation a customer's own signup form runs — which is
@@ -203,5 +244,6 @@ export async function promoteVerifiedTesters(): Promise<number> {
     await evaluateTriggers(workspaceId, null, { id: c.id, email: c.email, tags: next }, { created: false });
     promoted += 1;
   }
+  if (held > 0 && automation) throw new BetaInviteAutomationError(automation, held);
   return promoted;
 }
