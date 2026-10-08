@@ -3,6 +3,7 @@ import { env, newId } from "@rootmail/core";
 import {
   type BetaInviteAutomation,
   betaInvites,
+  users,
   contacts,
   db,
   ensureBetaInviteAutomation,
@@ -166,6 +167,41 @@ export async function autoAdmitRemaining(): Promise<{ limit: number; used: numbe
 }
 
 /**
+ * A working code for someone we are about to invite — at the moment we invite
+ * them, not when they first asked.
+ *
+ * If they already hold a live code (an older signup, or a staff admission) it
+ * is re-armed for another full window instead of replaced, so a code they may
+ * already have seen keeps working. A code that has lapsed already gave its seat
+ * back, so it is NOT revived — that would take a seat without checking the cap
+ * — and a fresh one is minted through the cap instead.
+ *
+ * Null means no seat: the caller holds them until one frees up.
+ */
+export async function liveInviteCodeFor(email: string, metadata: Record<string, unknown>): Promise<string | null> {
+  const existing = typeof metadata.beta_invite_code === "string" ? metadata.beta_invite_code : null;
+  if (existing) {
+    const [rearmed] = await db
+      .update(betaInvites)
+      .set({
+        // A staff code with no expiry stays without one.
+        expiresAt: sql`case when ${betaInvites.expiresAt} is null then null else now() + make_interval(days => ${UNCLAIMED_SEAT_DAYS}::int) end`,
+      })
+      .where(
+        and(
+          eq(betaInvites.code, existing),
+          isNull(betaInvites.revokedAt),
+          sql`${betaInvites.usedCount} < ${betaInvites.maxUses}`,
+          or(isNull(betaInvites.expiresAt), gt(betaInvites.expiresAt, new Date())),
+        ),
+      )
+      .returning({ code: betaInvites.code });
+    if (rearmed) return rearmed.code;
+  }
+  return autoMintInvite(email);
+}
+
+/**
  * The sweep found verified testers but the invite automation cannot send.
  *
  * Thrown instead of tagging them: a ready tag is the one-shot trigger, and
@@ -199,10 +235,27 @@ export class BetaInviteAutomationError extends Error {
  * line can be quiet when nothing happened.
  */
 export async function promoteVerifiedTesters(): Promise<number> {
+  // One sweep at a time per process. The interval fires every two minutes
+  // whether or not the last pass finished (a slow or hung SES call is enough),
+  // and two overlapping passes read the same waiting contacts: each mints its
+  // own code, the contact keeps the second, and the first sits live in the
+  // table holding an automatic seat for a week. With eight seats, that is a
+  // tester we cannot invite.
+  if (sweepInFlight) return 0;
+  sweepInFlight = true;
+  try {
+    return await sweepVerifiedTesters();
+  } finally {
+    sweepInFlight = false;
+  }
+}
+let sweepInFlight = false;
+
+async function sweepVerifiedTesters(): Promise<number> {
   const { workspaceId } = await betaWaitlistAudience();
 
   const waiting = await db
-    .select({ id: contacts.id, email: contacts.email, tags: contacts.tags, recipientStatus: verifiedRecipients.status })
+    .select({ id: contacts.id, email: contacts.email, tags: contacts.tags, metadata: contacts.metadata, recipientStatus: verifiedRecipients.status })
     .from(contacts)
     .leftJoin(verifiedRecipients, and(eq(verifiedRecipients.workspaceId, contacts.workspaceId), eq(verifiedRecipients.email, contacts.email)))
     .where(and(eq(contacts.workspaceId, workspaceId), isNull(contacts.subTenantId)))
@@ -237,8 +290,28 @@ export async function promoteVerifiedTesters(): Promise<number> {
       continue;
     }
 
+    // Someone who already has an account (Google/GitHub, an earlier invite)
+    // must not spend a seat on a code they cannot use.
+    const [account] = await db.select({ id: users.id }).from(users).where(eq(users.email, c.email.toLowerCase())).limit(1);
+    if (account) continue;
+
+    // The code is minted (or re-armed) NOW, at verification, and written onto
+    // the contact before the trigger fires: the sequence renders it as
+    // {{beta_invite_code}} from contact metadata at send time. No seat, no tag
+    // — they stay waiting and the next sweep tries again.
+    const metadata = (c.metadata ?? {}) as Record<string, unknown>;
+    const code = await liveInviteCodeFor(c.email, metadata);
+    if (!code) continue;
+
     const next = [...tags, BETA_READY_TAG];
-    await db.update(contacts).set({ tags: next, updatedAt: new Date() }).where(eq(contacts.id, c.id));
+    await db
+      .update(contacts)
+      .set({
+        tags: next,
+        metadata: { ...metadata, beta_invite_code: code, beta_invited_at: new Date().toISOString() },
+        updatedAt: new Date(),
+      })
+      .where(eq(contacts.id, c.id));
     // The same trigger evaluation a customer's own signup form runs — which is
     // what makes the invite arrive by our own sequence engine, not a side door.
     await evaluateTriggers(workspaceId, null, { id: c.id, email: c.email, tags: next }, { created: false });
