@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it, mock } from "node:test";
 import { SESv2Client } from "@aws-sdk/client-sesv2";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { betaSenderAddress, closeQueues, closeRedis, env, isPublicMailboxSender, newId, testRecipientAddress } from "@rootmail/core";
-import { closeDb, contacts, db, ensureBetaInviteAutomation, listContacts, lists, messages, organizations, orgSendingProviders, sequenceEnrollments, sequences, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
+import { betaInvites, closeDb, contacts, db, ensureBetaInviteAutomation, listContacts, lists, messages, organizations, orgSendingProviders, sequenceEnrollments, sequences, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
 import { provisionAccount, createSession, upsertOAuthUser } from "../lib/auth";
 import { seedBetaTestKit } from "../lib/beta-test-kit";
 import { betaWaitlistAudience, promoteVerifiedTesters, BetaInviteAutomationError, BETA_WAITLIST_TAG, BETA_READY_TAG } from "../lib/beta-waitlist";
@@ -16,7 +16,7 @@ import { assertSenderAllowed } from "../lib/senders";
 // No worker runs and no network delivery or verification email can occur.
 const stamp = Date.now();
 const ownerEmail = `beta-${stamp}@example.test`;
-const inviteEmails = [`invite-${stamp}@example.test`, `ready-${stamp}@example.test`, `held-${stamp}@example.test`];
+const inviteEmails = [`invite-${stamp}@example.test`, `ready-${stamp}@example.test`, `held-${stamp}@example.test`, `late-${stamp}@example.test`, `prompt-${stamp}@example.test`, `seatless-${stamp}@example.test`];
 const states = new Map<string, boolean>();
 let verificationRequests = 0;
 let verificationUnavailable = false;
@@ -30,11 +30,14 @@ const previousProvider = env.MAIL_PROVIDER;
 const previousSandbox = env.SES_SANDBOX_MODE;
 const previousInbound = env.INBOUND_DOMAIN;
 const previousDns = env.DNS_VERIFY_MODE;
+const previousAutoAdmit = env.BETA_AUTO_ADMIT_LIMIT;
 
 before(async () => {
   env.MAIL_PROVIDER = "ses";
   env.SES_SANDBOX_MODE = "true";
   env.INBOUND_DOMAIN = "reply.example.test";
+  // Seats are counted across the whole (shared) test database; never run out.
+  env.BETA_AUTO_ADMIT_LIMIT = 1_000_000;
   mock.method(SESv2Client.prototype, "send", async (command: { constructor: { name: string }; input: { EmailIdentity: string } }) => {
     const email = command.input.EmailIdentity;
     if (command.constructor.name === "GetEmailIdentityCommand") {
@@ -63,10 +66,11 @@ after(async () => {
   if (oauthOrg) await db.delete(organizations).where(eq(organizations.id, oauthOrg));
   if (oauthUser) await db.delete(users).where(eq(users.id, oauthUser));
   await db.delete(contacts).where(inArray(contacts.email, [ownerEmail, `oauth-beta-${stamp}@example.test`, ...inviteEmails]));
-  await db.delete(verifiedRecipients).where(inArray(verifiedRecipients.email, inviteEmails));
+  await db.delete(verifiedRecipients).where(inArray(verifiedRecipients.email, [ownerEmail, ...inviteEmails]));
   await db.delete(sequenceEnrollments).where(inArray(sequenceEnrollments.email, inviteEmails));
+  for (const email of inviteEmails) await db.delete(betaInvites).where(like(betaInvites.label, `%${email}`));
   mock.restoreAll(); env.MAIL_PROVIDER = previousProvider; env.SES_SANDBOX_MODE = previousSandbox;
-  env.INBOUND_DOMAIN = previousInbound; env.DNS_VERIFY_MODE = previousDns;
+  env.INBOUND_DOMAIN = previousInbound; env.DNS_VERIFY_MODE = previousDns; env.BETA_AUTO_ADMIT_LIMIT = previousAutoAdmit;
   await closeDb();
 });
 
@@ -200,6 +204,55 @@ describe("closed beta — a verified inbox, a reusable audience and honest sendi
     }
     assert.equal(await promoteVerifiedTesters(), 1);
     assert.equal((await db.select().from(sequenceEnrollments).where(eq(sequenceEnrollments.email, email))).length, 1);
+  });
+
+  it("mints the invite code when a tester verifies, so a late verifier never gets a dead code", async () => {
+    const { workspaceId } = await betaWaitlistAudience();
+    const day = 86_400_000;
+    const [late, prompt] = [inviteEmails[3], inviteEmails[4]];
+    // `late` signed up before this fix and was handed a code that has since lapsed;
+    // `prompt` holds one that is still live.
+    await db.insert(betaInvites).values([
+      { id: newId("betaInvite"), code: `beta-L${stamp}`, label: `auto: ${late}`, maxUses: 1, expiresAt: new Date(Date.now() - day) },
+      { id: newId("betaInvite"), code: `beta-P${stamp}`, label: `auto: ${prompt}`, maxUses: 1, expiresAt: new Date(Date.now() + day) },
+    ]);
+    for (const [email, code] of [[late, `beta-L${stamp}`], [prompt, `beta-P${stamp}`]]) {
+      states.set(email, true);
+      await db.insert(contacts).values({ id: newId("contact"), workspaceId, email, tags: [BETA_WAITLIST_TAG], metadata: { beta_invite_code: code } });
+    }
+    assert.equal(await promoteVerifiedTesters(), 2);
+    const codeOf = async (email: string) => {
+      const [c] = await db.select().from(contacts).where(and(eq(contacts.workspaceId, workspaceId), eq(contacts.email, email)));
+      const code = (c.metadata as Record<string, string>).beta_invite_code;
+      const [invite] = await db.select().from(betaInvites).where(eq(betaInvites.code, code));
+      return { code, invite, tags: c.tags };
+    };
+    const a = await codeOf(late);
+    assert.notEqual(a.code, `beta-L${stamp}`, "a lapsed code is replaced, not revived past the seat cap");
+    assert.ok(a.invite.expiresAt!.getTime() > Date.now() + 6 * day);
+    const b = await codeOf(prompt);
+    assert.equal(b.code, `beta-P${stamp}`, "a live code they may already have seen keeps working");
+    assert.ok(b.invite.expiresAt!.getTime() > Date.now() + 6 * day, "and gets a full window from verification");
+  });
+
+  it("holds a verified tester when no seat is free, and never spends a seat on an existing account", async () => {
+    const { workspaceId } = await betaWaitlistAudience();
+    const seatless = inviteEmails[5];
+    states.set(seatless, true);
+    await db.insert(contacts).values([
+      { id: newId("contact"), workspaceId, email: seatless, tags: [BETA_WAITLIST_TAG] },
+      { id: newId("contact"), workspaceId, email: ownerEmail, tags: [BETA_WAITLIST_TAG] },
+    ]);
+    env.BETA_AUTO_ADMIT_LIMIT = 0;
+    try {
+      assert.equal(await promoteVerifiedTesters(), 0);
+      const [c] = await db.select().from(contacts).where(and(eq(contacts.workspaceId, workspaceId), eq(contacts.email, seatless)));
+      assert.ok(!c.tags.includes(BETA_READY_TAG), "no seat, no trigger — not an invite with an empty code");
+    } finally { env.BETA_AUTO_ADMIT_LIMIT = 1_000_000; }
+    assert.equal(await promoteVerifiedTesters(), 1, "the seat frees up and only the stranger is invited");
+    const [owner] = await db.select().from(contacts).where(and(eq(contacts.workspaceId, workspaceId), eq(contacts.email, ownerEmail)));
+    assert.ok(!owner.tags.includes(BETA_READY_TAG));
+    assert.equal((await db.select().from(betaInvites).where(like(betaInvites.label, `%${ownerEmail}`))).length, 0);
   });
 
   it("uses the same AI allowance in billing and Assistant when credit packs are added", async () => {

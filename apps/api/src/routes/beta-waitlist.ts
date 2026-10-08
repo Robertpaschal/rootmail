@@ -3,7 +3,7 @@ import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { admitSubscriber, contacts, db } from "@rootmail/db";
 import { betaInviteRequired } from "../lib/beta";
-import { autoAdmitRemaining, autoMintInvite, betaWaitlistAudience } from "../lib/beta-waitlist";
+import { autoAdmitRemaining, betaWaitlistAudience } from "../lib/beta-waitlist";
 import { ensureTesterIdentity } from "../lib/ses-provisioning";
 import { parse } from "../lib/validate";
 
@@ -45,12 +45,9 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
       })
       .catch((err) => req.log.error({ err }, "tester verification threw"));
 
-    // Mint BEFORE admitting. admitSubscriber writes the contact and then fires
-    // trigger evaluation, so a code handed over here is already on the record
-    // when the welcome sequence enrolls them — and the sequence renders it as
-    // {{beta_invite_code}} like any other custom field. No bespoke send path:
-    // the automation every customer builds is the one that mails our invites.
-    const code = await autoMintInvite(body.email);
+    // No code yet. It is minted when they VERIFY (promoteVerifiedTesters), not
+    // here: a code minted now holds its seat for a week, and someone who takes
+    // eight days to click Amazon's link would be invited with a dead code.
 
     const result = await admitSubscriber({
       workspaceId,
@@ -66,7 +63,6 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
       metadata: {
         ...(body.use_case ? { beta_use_case: body.use_case } : {}),
         ...(body.volume ? { beta_volume: body.volume } : {}),
-        ...(code ? { beta_invite_code: code, beta_invited_at: new Date().toISOString() } : {}),
         beta_signed_up_at: new Date().toISOString(),
       },
     });
