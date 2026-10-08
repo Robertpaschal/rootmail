@@ -1,7 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import {
   env,
+  isUnconfirmedRecipientRejection,
   newId,
+  RECIPIENT_UNCONFIRMED_ERROR,
   SUPPRESSION_BLOCKS,
   type SystemMailClass,
   type SystemMailJob,
@@ -167,14 +169,23 @@ export async function processSystemMail(job: SystemMailJob): Promise<void> {
       .set({ status: "sent", replyTo, updatedAt: new Date() })
       .where(eq(messages.id, message.id));
   } catch (err) {
+    // The sandbox refused an address that hasn't confirmed with Amazon yet.
+    // Retrying cannot help — the person has to click a link first — and the
+    // provider's text (our region and all) is not a reason we store. Record a
+    // stable code; the API reads it back to tell the person what is true.
+    const unconfirmed = isUnconfirmedRecipientRejection(err, to);
     await db
       .update(messages)
       .set({
         status: "failed",
-        error: err instanceof Error ? err.message : String(err),
+        error: unconfirmed ? RECIPIENT_UNCONFIRMED_ERROR : err instanceof Error ? err.message : String(err),
         updatedAt: new Date(),
       })
       .where(eq(messages.id, message.id));
+    if (unconfirmed) {
+      console.warn(`[system-mail] ${message.id} (${cls}): recipient has not confirmed with the provider — not retrying`);
+      return;
+    }
     throw err; // let BullMQ retry with its existing backoff
   }
 }

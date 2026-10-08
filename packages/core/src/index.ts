@@ -26,3 +26,4 @@ export * from "./message-id";
 export * from "./dkim-rotation";
 export * from "./retry";
 export * from "./content-scan";
+export * from "./provider-rejections";
