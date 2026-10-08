@@ -86,8 +86,8 @@ import {
   syncPlanSaleCoupon,
 } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
-import { BETA_WAITLIST_TAG, betaWaitlistAudience } from "../lib/beta-waitlist";
-import { realSendsOnly, testSendsOnly } from "@rootmail/db";
+import { BETA_READY_TAG, BETA_WAITLIST_TAG, betaWaitlistAudience } from "../lib/beta-waitlist";
+import { betaInviteAutomationStatus, hasBetaInviteEnrollment, realSendsOnly, testSendsOnly } from "@rootmail/db";
 import { parse } from "../lib/validate";
 
 const loginBody = z.object({ email: z.string().email(), password: z.string().min(1) });
@@ -2662,6 +2662,37 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           volume: (r.metadata as Record<string, unknown>).beta_volume ?? null,
           joined_at: r.createdAt.toISOString(),
         })),
+    };
+  });
+
+  /**
+   * Can the beta invite be sent right now — and has anyone already fallen
+   * through? `stranded` are testers tagged ready (so the sweep will never look
+   * at them again) who were never enrolled in the invite sequence: the people
+   * a missing sequence silently lost. Admit them by hand to rescue them.
+   */
+  app.get("/v1/admin/beta/automation", async (req) => {
+    await requireStaff(req);
+    const { workspaceId } = await betaWaitlistAudience();
+    const automation = await betaInviteAutomationStatus(workspaceId);
+    const ready = await db
+      .select({ id: contacts.id, email: contacts.email, tags: contacts.tags })
+      .from(contacts)
+      .where(and(eq(contacts.workspaceId, workspaceId), isNull(contacts.subTenantId)))
+      .limit(500);
+    const stranded: Array<{ id: string; email: string }> = [];
+    for (const c of ready) {
+      if (!c.tags.includes(BETA_READY_TAG) || c.tags.includes("beta-invited")) continue;
+      if (!(await hasBetaInviteEnrollment(c.email, workspaceId))) stranded.push({ id: c.id, email: c.email });
+    }
+    return {
+      object: "beta_invite_automation",
+      ok: automation.ok,
+      problems: automation.problems,
+      warnings: automation.warnings,
+      sequence_id: automation.sequenceId,
+      template_id: automation.templateId,
+      stranded,
     };
   });
 

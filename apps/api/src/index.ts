@@ -1,5 +1,6 @@
 import { env } from "@rootmail/core";
-import { closeDb, ensureInternalAccount } from "@rootmail/db";
+import { closeDb, ensureBetaInviteAutomation, ensureInternalAccount } from "@rootmail/db";
+import { betaInviteRequired } from "./lib/beta";
 import { promoteVerifiedTesters } from "./lib/beta-waitlist";
 import { refreshPlanCache } from "./lib/plans";
 import { refreshTierCache } from "./lib/wings";
@@ -17,6 +18,25 @@ async function main() {
     if (internal.created) app.log.info({ ...internal }, "bootstrapped the internal rootmail account");
   } catch (err) {
     app.log.error({ err }, "could not ensure the internal rootmail account");
+  }
+
+  // The beta invite is a sequence in our own account — data, and data can be
+  // missing. Create it if it is, and say so loudly if it cannot send: the
+  // sweep holds verified testers rather than tag them into a dead trigger.
+  // Non-fatal for the same reason as above.
+  if (betaInviteRequired() || env.BETA_AUTO_ADMIT_LIMIT > 0) {
+    try {
+      const automation = await ensureBetaInviteAutomation();
+      if (automation.created.length) {
+        app.log.info({ created: automation.created, sequenceId: automation.sequenceId }, "created the beta invite automation");
+      }
+      for (const warning of automation.warnings) app.log.warn(warning);
+      if (!automation.ok) {
+        app.log.error({ problems: automation.problems, sequenceId: automation.sequenceId }, "beta invite automation is NOT runnable — verified testers will be held, not invited");
+      }
+    } catch (err) {
+      app.log.error({ err }, "could not ensure the beta invite automation");
+    }
   }
 
   await app.listen({ port: env.API_PORT, host: env.API_HOST });

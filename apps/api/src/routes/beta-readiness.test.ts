@@ -3,10 +3,10 @@ import { after, before, describe, it, mock } from "node:test";
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { and, eq, inArray } from "drizzle-orm";
 import { betaSenderAddress, closeQueues, closeRedis, env, isPublicMailboxSender, newId, testRecipientAddress } from "@rootmail/core";
-import { closeDb, contacts, db, listContacts, lists, messages, organizations, orgSendingProviders, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
+import { closeDb, contacts, db, ensureBetaInviteAutomation, listContacts, lists, messages, organizations, orgSendingProviders, sequenceEnrollments, sequences, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
 import { provisionAccount, createSession, upsertOAuthUser } from "../lib/auth";
 import { seedBetaTestKit } from "../lib/beta-test-kit";
-import { betaWaitlistAudience, promoteVerifiedTesters, BETA_WAITLIST_TAG, BETA_READY_TAG } from "../lib/beta-waitlist";
+import { betaWaitlistAudience, promoteVerifiedTesters, BetaInviteAutomationError, BETA_WAITLIST_TAG, BETA_READY_TAG } from "../lib/beta-waitlist";
 import { buildServer } from "../server";
 import { processSend } from "../../../worker/src/pipeline";
 import { appendInbound, appendOutbound, openConversationForSend, resolveReplyTo, senderIdentities, threadMessages, threads } from "@rootmail/db";
@@ -16,7 +16,7 @@ import { assertSenderAllowed } from "../lib/senders";
 // No worker runs and no network delivery or verification email can occur.
 const stamp = Date.now();
 const ownerEmail = `beta-${stamp}@example.test`;
-const inviteEmails = [`invite-${stamp}@example.test`, `ready-${stamp}@example.test`];
+const inviteEmails = [`invite-${stamp}@example.test`, `ready-${stamp}@example.test`, `held-${stamp}@example.test`];
 const states = new Map<string, boolean>();
 let verificationRequests = 0;
 let verificationUnavailable = false;
@@ -64,6 +64,7 @@ after(async () => {
   if (oauthUser) await db.delete(users).where(eq(users.id, oauthUser));
   await db.delete(contacts).where(inArray(contacts.email, [ownerEmail, `oauth-beta-${stamp}@example.test`, ...inviteEmails]));
   await db.delete(verifiedRecipients).where(inArray(verifiedRecipients.email, inviteEmails));
+  await db.delete(sequenceEnrollments).where(inArray(sequenceEnrollments.email, inviteEmails));
   mock.restoreAll(); env.MAIL_PROVIDER = previousProvider; env.SES_SANDBOX_MODE = previousSandbox;
   env.INBOUND_DOMAIN = previousInbound; env.DNS_VERIFY_MODE = previousDns;
   await closeDb();
@@ -168,7 +169,7 @@ describe("closed beta — a verified inbox, a reusable audience and honest sendi
 
   it("records observed confirmation for beta invites and repairs previously ready testers", async () => {
     const { workspaceId } = await betaWaitlistAudience();
-    for (const [i, email] of inviteEmails.entries()) {
+    for (const [i, email] of inviteEmails.slice(0, 2).entries()) {
       states.set(email, true);
       await db.insert(contacts).values({ id: newId("contact"), workspaceId, email, tags: i ? [BETA_WAITLIST_TAG, BETA_READY_TAG] : [BETA_WAITLIST_TAG] });
     }
@@ -176,8 +177,29 @@ describe("closed beta — a verified inbox, a reusable audience and honest sendi
     const rows = await db.select().from(verifiedRecipients).where(and(eq(verifiedRecipients.workspaceId, workspaceId), inArray(verifiedRecipients.email, inviteEmails)));
     assert.equal(rows.length, 2);
     assert.ok(rows.every(r => r.status === "verified"));
-    assert.deepEqual(await unverifiedSendRecipients(workspaceId, inviteEmails), []);
+    assert.deepEqual(await unverifiedSendRecipients(workspaceId, inviteEmails.slice(0, 2)), []);
     assert.equal(await promoteVerifiedTesters(), 0, "repair must not repeat an invite");
+    const enrolled = await db.select().from(sequenceEnrollments).where(inArray(sequenceEnrollments.email, inviteEmails));
+    assert.deepEqual(enrolled.map(e => e.email), [inviteEmails[0]], "the sweep ensured the invite sequence and enrolled only the new tester");
+  });
+
+  it("holds a verified tester while the invite sequence cannot send, then invites them once it can", async () => {
+    const { workspaceId } = await betaWaitlistAudience();
+    const automation = await ensureBetaInviteAutomation({ workspaceId });
+    const email = inviteEmails[2];
+    states.set(email, true);
+    const id = newId("contact");
+    await db.insert(contacts).values({ id, workspaceId, email, tags: [BETA_WAITLIST_TAG] });
+    await db.update(sequences).set({ status: "paused" }).where(eq(sequences.id, automation.sequenceId!));
+    try {
+      await assert.rejects(promoteVerifiedTesters(), (err: unknown) => err instanceof BetaInviteAutomationError && err.held === 1 && /sequence_paused/.test(err.message));
+      const [held] = await db.select().from(contacts).where(eq(contacts.id, id));
+      assert.ok(!held.tags.includes(BETA_READY_TAG), "the one-shot trigger tag must not be spent while nothing can fire");
+    } finally {
+      await db.update(sequences).set({ status: "active" }).where(eq(sequences.id, automation.sequenceId!));
+    }
+    assert.equal(await promoteVerifiedTesters(), 1);
+    assert.equal((await db.select().from(sequenceEnrollments).where(eq(sequenceEnrollments.email, email))).length, 1);
   });
 
   it("uses the same AI allowance in billing and Assistant when credit packs are added", async () => {
