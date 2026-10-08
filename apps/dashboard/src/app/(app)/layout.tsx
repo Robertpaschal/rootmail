@@ -86,7 +86,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
             />
           ) : null}
           {me?.beta ? <BetaBanner /> : null}
-          {unverified ? <VerifyEmailBanner /> : null}
+          {unverified ? <VerifyEmailBanner blocked={me?.email_verification_blocked ?? false} /> : null}
           {/* Agency mode: while acting as a client, name them on every page. */}
         <ClientScopeBanner />
         <main id="main-content" tabIndex={-1} className="dashboard-content mx-auto min-w-0 max-w-6xl p-4 pb-24 sm:p-6 sm:pb-24 lg:p-8 lg:pb-24">{children}</main>

@@ -180,7 +180,10 @@ export async function resendVerification(): Promise<{ sent?: boolean; error?: st
   try {
     await api.resendVerification();
     return { sent: true };
-  } catch {
+  } catch (err) {
+    // 409: we can't email this address yet — the API's message says why and
+    // what to do, in product words. Anything else stays generic.
+    if (err instanceof ApiError && err.status === 409) return { error: err.message };
     return { error: "Couldn't resend right now — try again in a moment." };
   }
 }

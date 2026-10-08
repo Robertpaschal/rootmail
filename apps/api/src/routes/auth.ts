@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import {
+  AppError,
   env,
   Errors,
   generateRecoveryCode,
@@ -14,6 +15,7 @@ import {
   totpUri,
   verifyMfaChallenge,
   verifyPassword,
+  RECIPIENT_UNCONFIRMED,
   verifyTotp,
 } from "@rootmail/core";
 // `workspaces` is aliased: two functions in this file already bind a local
@@ -34,6 +36,8 @@ import { consumeAuthToken, createAuthToken } from "../lib/auth-tokens";
 import { passwordChangedEmail, passwordResetEmail, verificationEmail, welcomeEmail } from "../lib/emails";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
 import { betaInviteRequired, redeemBetaInvite } from "../lib/beta";
+import { platformRecipientsRestricted, UNCONFIRMED_ADDRESS_COPY, verificationMailRefused } from "../lib/platform-recipients";
+import { ensureTesterIdentity, isTesterVerified } from "../lib/ses-provisioning";
 import { signupAllowed } from "../lib/signup-limit";
 import { serializeUser, serializeWorkspace } from "../lib/serialize";
 import { storage } from "../lib/storage";
@@ -185,6 +189,19 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
     });
 
     const { token, session } = await createSession(account.user.id, account.production.id);
+
+    // Sandbox: our provider only delivers to addresses that have confirmed with
+    // it, so ask Amazon to send them its confirmation now. Best-effort and
+    // never awaited — it must not fail or slow the signup. The verification
+    // email below is still sent: if it is refused, system-mail records that,
+    // and /v1/auth/me tells the dashboard to explain instead of waiting.
+    if (platformRecipientsRestricted()) {
+      void ensureTesterIdentity(email)
+        .then((r) => {
+          if (!r.ok) req.log.error({ email, reason: r.reason }, "tester verification failed at signup");
+        })
+        .catch((err) => req.log.error({ err }, "tester verification threw at signup"));
+    }
 
     // Kick off email verification (best-effort — never fail signup on it).
     try {
@@ -361,6 +378,10 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
       internal,
       beta,
       onboarding_completed: onboardingCompleted,
+      // Our verification email was refused because the address hasn't
+      // confirmed with our provider: the banner explains, not "check your inbox".
+      email_verification_blocked:
+        !user.emailVerifiedAt && platformRecipientsRestricted() ? await verificationMailRefused(user.email) : false,
     };
   }
 
@@ -686,6 +707,22 @@ export async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post("/v1/auth/verify-email/resend", async (req) => {
     const { user } = await requireSession(req);
     if (user.emailVerifiedAt) return { verified: true };
+    if (platformRecipientsRestricted()) {
+      // Don't enqueue mail the provider is certain to refuse and then answer
+      // "sent". If SES can't be asked, send anyway: a refusal is recorded and
+      // surfaced, which is no worse than before.
+      let confirmed = true;
+      try {
+        confirmed = await isTesterVerified(user.email, { throwOnUnavailable: true });
+      } catch {
+        /* provider unavailable — fall through and try */
+      }
+      if (!confirmed) {
+        const requested = await ensureTesterIdentity(user.email);
+        if (!requested.ok) req.log.error({ email: user.email, reason: requested.reason }, "tester verification failed on resend");
+        throw new AppError(409, RECIPIENT_UNCONFIRMED, UNCONFIRMED_ADDRESS_COPY);
+      }
+    }
     await sendVerificationEmail(user);
     return { sent: true };
   });

@@ -291,6 +291,8 @@ export interface MeResult {
   beta?: boolean;
   /** False until the org completes the post-signup onboarding wizard. */
   onboarding_completed?: boolean;
+  /** Our verification email couldn't be delivered yet (closed-beta provider limits). */
+  email_verification_blocked?: boolean;
 }
 
 export interface TestInbox {

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it, mock } from "node:test";
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { and, eq, inArray, like } from "drizzle-orm";
-import { betaSenderAddress, closeQueues, closeRedis, env, isPublicMailboxSender, newId, testRecipientAddress } from "@rootmail/core";
-import { betaInvites, closeDb, contacts, db, ensureBetaInviteAutomation, listContacts, lists, messages, organizations, orgSendingProviders, sequenceEnrollments, sequences, staffUsers, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
+import { betaSenderAddress, closeQueues, closeRedis, env, isPublicMailboxSender, newId, RECIPIENT_UNCONFIRMED_ERROR, testRecipientAddress } from "@rootmail/core";
+import { betaInvites, closeDb, contacts, db, ensureBetaInviteAutomation, ensureInternalAccount, listContacts, lists, messages, organizations, orgSendingProviders, sequenceEnrollments, sequences, staffUsers, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
 import { provisionAccount, createSession, upsertOAuthUser } from "../lib/auth";
 import { createStaffSession } from "../lib/admin-auth";
 import { seedBetaTestKit } from "../lib/beta-test-kit";
@@ -17,7 +17,7 @@ import { assertSenderAllowed } from "../lib/senders";
 // No worker runs and no network delivery or verification email can occur.
 const stamp = Date.now();
 const ownerEmail = `beta-${stamp}@example.test`;
-const inviteEmails = [`invite-${stamp}@example.test`, `ready-${stamp}@example.test`, `held-${stamp}@example.test`, `late-${stamp}@example.test`, `prompt-${stamp}@example.test`, `seatless-${stamp}@example.test`, `admitted-${stamp}@example.test`, `unreachable-${stamp}@example.test`, `direct-${stamp}@example.test`];
+const inviteEmails = [`invite-${stamp}@example.test`, `ready-${stamp}@example.test`, `held-${stamp}@example.test`, `late-${stamp}@example.test`, `prompt-${stamp}@example.test`, `seatless-${stamp}@example.test`, `admitted-${stamp}@example.test`, `unreachable-${stamp}@example.test`, `direct-${stamp}@example.test`, `signup-${stamp}@example.test`];
 const states = new Map<string, boolean>();
 let verificationRequests = 0;
 let verificationUnavailable = false;
@@ -303,6 +303,41 @@ describe("closed beta — a verified inbox, a reusable audience and honest sendi
       assert.equal((await db.select().from(sequenceEnrollments).where(eq(sequenceEnrollments.email, direct))).length, 0);
     } finally {
       await db.delete(staffUsers).where(eq(staffUsers.id, staffId));
+    }
+  });
+
+  it("tells a password signup the truth when our provider won't deliver their verification email", async () => {
+    const email = inviteEmails[9];
+    await db.insert(betaInvites).values({ id: newId("betaInvite"), code: `beta-S${stamp}`, label: `test: ${email}`, maxUses: 1 });
+    const signup = await app.inject({ method: "POST", url: "/v1/auth/signup", payload: { email, password: "correct horse battery", organization_name: `signup-${stamp}`, invite_code: `beta-S${stamp}` } });
+    assert.equal(signup.statusCode, 201, signup.body);
+    const user = { authorization: `Bearer ${signup.json().session_token}` };
+    const { workspaceId } = await ensureInternalAccount();
+    try {
+      for (let i = 0; i < 100 && !states.has(email); i++) await new Promise((r) => setTimeout(r, 10));
+      assert.equal(states.get(email), false, "signup asks Amazon to send its confirmation");
+      const me = () => app.inject({ method: "GET", url: "/v1/auth/me", headers: user });
+      assert.equal((await me()).json().email_verification_blocked, false, "nothing refused yet");
+
+      // What system-mail records when SES refuses the unconfirmed recipient
+      // (the classifier itself is covered in core's provider-rejections.test.ts).
+      await db.insert(messages).values({ id: newId("message"), workspaceId, toEmail: email, fromEmail: `no-reply@${env.ROOTMAIL_DOMAIN}`, subject: "Verify your email", status: "failed", error: RECIPIENT_UNCONFIRMED_ERROR, metadata: { platform_mail_class: "security" } });
+      assert.equal((await me()).json().email_verification_blocked, true);
+
+      const refused = await app.inject({ method: "POST", url: "/v1/auth/verify-email/resend", headers: user, payload: {} });
+      assert.equal(refused.statusCode, 409, refused.body);
+      assert.match(refused.body, /recipient_unconfirmed/);
+      assert.match(refused.body, /Google or GitHub/);
+      assert.doesNotMatch(refused.body, /region|configuration set|MessageRejected/i, "no provider internals in user copy");
+
+      states.set(email, true);
+      const sent = await app.inject({ method: "POST", url: "/v1/auth/verify-email/resend", headers: user, payload: {} });
+      assert.equal(sent.statusCode, 200, sent.body);
+      assert.equal(sent.json().sent, true);
+    } finally {
+      await db.delete(messages).where(and(eq(messages.workspaceId, workspaceId), eq(messages.toEmail, email)));
+      await db.delete(organizations).where(eq(organizations.name, `signup-${stamp}`));
+      await db.delete(users).where(eq(users.email, email));
     }
   });
 
