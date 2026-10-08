@@ -3,10 +3,11 @@ import { after, before, describe, it, mock } from "node:test";
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { betaSenderAddress, closeQueues, closeRedis, env, isPublicMailboxSender, newId, testRecipientAddress } from "@rootmail/core";
-import { betaInvites, closeDb, contacts, db, ensureBetaInviteAutomation, listContacts, lists, messages, organizations, orgSendingProviders, sequenceEnrollments, sequences, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
+import { betaInvites, closeDb, contacts, db, ensureBetaInviteAutomation, listContacts, lists, messages, organizations, orgSendingProviders, sequenceEnrollments, sequences, staffUsers, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
 import { provisionAccount, createSession, upsertOAuthUser } from "../lib/auth";
+import { createStaffSession } from "../lib/admin-auth";
 import { seedBetaTestKit } from "../lib/beta-test-kit";
-import { betaWaitlistAudience, promoteVerifiedTesters, BetaInviteAutomationError, BETA_WAITLIST_TAG, BETA_READY_TAG } from "../lib/beta-waitlist";
+import { betaWaitlistAudience, promoteVerifiedTesters, BetaInviteAutomationError, BETA_ADMITTED_TAG, BETA_INVITED_TAG, BETA_WAITLIST_TAG, BETA_READY_TAG } from "../lib/beta-waitlist";
 import { buildServer } from "../server";
 import { processSend } from "../../../worker/src/pipeline";
 import { appendInbound, appendOutbound, openConversationForSend, resolveReplyTo, senderIdentities, threadMessages, threads } from "@rootmail/db";
@@ -16,7 +17,7 @@ import { assertSenderAllowed } from "../lib/senders";
 // No worker runs and no network delivery or verification email can occur.
 const stamp = Date.now();
 const ownerEmail = `beta-${stamp}@example.test`;
-const inviteEmails = [`invite-${stamp}@example.test`, `ready-${stamp}@example.test`, `held-${stamp}@example.test`, `late-${stamp}@example.test`, `prompt-${stamp}@example.test`, `seatless-${stamp}@example.test`];
+const inviteEmails = [`invite-${stamp}@example.test`, `ready-${stamp}@example.test`, `held-${stamp}@example.test`, `late-${stamp}@example.test`, `prompt-${stamp}@example.test`, `seatless-${stamp}@example.test`, `admitted-${stamp}@example.test`, `unreachable-${stamp}@example.test`, `direct-${stamp}@example.test`];
 const states = new Map<string, boolean>();
 let verificationRequests = 0;
 let verificationUnavailable = false;
@@ -270,6 +271,56 @@ describe("closed beta — a verified inbox, a reusable audience and honest sendi
     const [owner] = await db.select().from(contacts).where(and(eq(contacts.workspaceId, workspaceId), eq(contacts.email, ownerEmail)));
     assert.ok(!owner.tags.includes(BETA_READY_TAG));
     assert.equal((await db.select().from(betaInvites).where(like(betaInvites.label, `%${ownerEmail}`))).length, 0);
+  });
+
+  it("admits an unconfirmed address without pretending to mail it, then invites them the moment they confirm", async () => {
+    const { workspaceId } = await betaWaitlistAudience();
+    const staffId = newId("staffUser");
+    await db.insert(staffUsers).values({ id: staffId, email: `staff-${stamp}@example.test`, passwordHash: "unused", role: "superadmin" });
+    const staff = { authorization: `Bearer ${(await createStaffSession(staffId)).token}` };
+    const admit = (contactId: string) => app.inject({ method: "POST", url: `/v1/admin/beta/waitlist/${contactId}/admit`, headers: staff, payload: {} });
+    const contactOf = async (email: string) => (await db.select().from(contacts).where(and(eq(contacts.workspaceId, workspaceId), eq(contacts.email, email))))[0];
+    const [admitted, unreachable, direct] = [inviteEmails[6], inviteEmails[7], inviteEmails[8]];
+    for (const email of [admitted, unreachable, direct]) await db.insert(contacts).values({ id: newId("contact"), workspaceId, email, tags: [BETA_WAITLIST_TAG] });
+    try {
+      const requests = verificationRequests;
+      const pending = await admit((await contactOf(admitted)).id);
+      assert.equal(pending.statusCode, 202, pending.body);
+      assert.equal(pending.json().status, "pending_verification");
+      assert.equal(pending.json().emailed, false);
+      assert.equal(pending.json().verification, "requested");
+      assert.equal(verificationRequests, requests + 1, "Amazon is asked to send the confirmation link");
+      assert.ok((await contactOf(admitted)).tags.includes(BETA_ADMITTED_TAG));
+      assert.equal((await db.select().from(betaInvites).where(like(betaInvites.label, `%${admitted}`))).length, 0, "no code minted for mail we cannot deliver");
+      assert.equal(await promoteVerifiedTesters(), 0, "still unconfirmed");
+
+      states.set(admitted, true);
+      env.BETA_AUTO_ADMIT_LIMIT = 0;
+      try { assert.equal(await promoteVerifiedTesters(), 1, "a staff admission does not wait for an automatic seat"); }
+      finally { env.BETA_AUTO_ADMIT_LIMIT = 1_000_000; }
+      const invited = await contactOf(admitted);
+      const [invite] = await db.select().from(betaInvites).where(eq(betaInvites.code, (invited.metadata as Record<string, string>).beta_invite_code));
+      assert.equal(invite.label, `waitlist: ${admitted}`); assert.equal(invite.createdByStaffId, staffId); assert.equal(invite.expiresAt, null);
+      assert.ok(invited.tags.includes(BETA_INVITED_TAG));
+      assert.equal((await db.select().from(sequenceEnrollments).where(eq(sequenceEnrollments.email, admitted))).length, 1);
+      assert.equal((await admit(invited.id)).json().status, "already_invited");
+
+      verificationUnavailable = true;
+      try {
+        const unknown = await admit((await contactOf(unreachable)).id);
+        assert.equal(unknown.statusCode, 503, unknown.body);
+        assert.match(unknown.body, /Nothing was sent/);
+      } finally { verificationUnavailable = false; }
+
+      states.set(direct, true);
+      const emailed = await admit((await contactOf(direct)).id);
+      assert.equal(emailed.statusCode, 200, emailed.body);
+      assert.equal(emailed.json().status, "emailed");
+      assert.equal(await promoteVerifiedTesters(), 0, "the sweep does not send a second, different code");
+      assert.equal((await db.select().from(sequenceEnrollments).where(eq(sequenceEnrollments.email, direct))).length, 0);
+    } finally {
+      await db.delete(staffUsers).where(eq(staffUsers.id, staffId));
+    }
   });
 
   it("uses the same AI allowance in billing and Assistant when credit packs are added", async () => {

@@ -3,6 +3,7 @@ import type { FastifyInstance } from "fastify";
 import type Stripe from "stripe";
 import { z } from "zod";
 import {
+  AppError,
   ADD_ON_IDS,
   announcementUnsubscribeUrl,
   BILLING_INTERVALS,
@@ -86,7 +87,16 @@ import {
   syncPlanSaleCoupon,
 } from "../lib/stripe";
 import { clearAuthFailures, isLockedOut, recordAuthFailure } from "../lib/login-throttle";
-import { BETA_READY_TAG, BETA_WAITLIST_TAG, betaWaitlistAudience } from "../lib/beta-waitlist";
+import {
+  BETA_ADMITTED_TAG,
+  BETA_INVITED_TAG,
+  BETA_READY_TAG,
+  BETA_WAITLIST_TAG,
+  betaWaitlistAudience,
+  mintStaffInvite,
+} from "../lib/beta-waitlist";
+import { platformRecipientsRestricted } from "../lib/platform-recipients";
+import { ensureTesterIdentity, isTesterVerified } from "../lib/ses-provisioning";
 import { betaInviteAutomationStatus, hasBetaInviteEnrollment, realSendsOnly, testSendsOnly } from "@rootmail/db";
 import { parse } from "../lib/validate";
 
@@ -2658,6 +2668,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           email: r.email,
           name: r.name,
           invited: r.tags.includes("beta-invited"),
+          // Admitted, but their invite waits on them confirming their address.
+          admitted: r.tags.includes(BETA_ADMITTED_TAG),
           use_case: (r.metadata as Record<string, unknown>).beta_use_case ?? null,
           volume: (r.metadata as Record<string, unknown>).beta_volume ?? null,
           joined_at: r.createdAt.toISOString(),
@@ -2703,6 +2715,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
    * The code is single-use and labelled with their address, so an invite that
    * shows up in someone else's hands is traceable to the person we sent it to.
    * Idempotent by tag — pressing admit twice does not mint a second code.
+   *
+   * While our SES account is in the sandbox we can only mail an address that
+   * has confirmed with Amazon. Minting and mailing anyway used to answer
+   * "emailed: true" for a message SES was about to refuse. Now an unconfirmed
+   * address is admitted, asked to confirm, and handed to the sweep — which
+   * mails the invite the moment they click — and staff are told exactly that.
    */
   app.post("/v1/admin/beta/waitlist/:id/admit", async (req, reply) => {
     const staff = await requireStaff(req);
@@ -2716,24 +2734,64 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       .where(and(eq(contacts.id, id), eq(contacts.workspaceId, workspaceId)))
       .limit(1);
     if (!person) throw Errors.notFound("No one on the waitlist with that id.");
-    if (person.tags.includes("beta-invited")) {
-      return reply.send({ object: "beta_admission", id, already_invited: true });
+    if (person.tags.includes(BETA_INVITED_TAG)) {
+      return reply.send({ object: "beta_admission", id, status: "already_invited", already_invited: true });
     }
 
-    const alphabet = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
-    const code =
-      "beta-" +
-      Array.from({ length: 8 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join("");
-    const [invite] = await db
-      .insert(betaInvites)
-      .values({
-        id: newId("betaInvite"),
-        code,
-        label: `waitlist: ${person.email}`,
-        maxUses: 1,
-        createdByStaffId: staff.id,
-      })
-      .returning();
+    if (platformRecipientsRestricted()) {
+      let verified: boolean;
+      try {
+        verified = await isTesterVerified(person.email, { throwOnUnavailable: true });
+      } catch {
+        throw new AppError(
+          503,
+          "provider_unavailable",
+          "Couldn't check with Amazon SES whether this address can receive mail. Nothing was sent — try again in a minute.",
+        );
+      }
+      if (!verified) {
+        const requested = await ensureTesterIdentity(person.email);
+        if (!requested.ok) req.log.error({ email: person.email, reason: requested.reason }, "tester verification failed on admit");
+        const metadata = person.metadata as Record<string, unknown>;
+        await db
+          .update(contacts)
+          .set({
+            // The waitlist tag too, so the sweep picks them up even if staff
+            // admitted a contact that never came through the form.
+            tags: [...new Set([...person.tags, BETA_WAITLIST_TAG, BETA_ADMITTED_TAG])],
+            metadata: {
+              ...metadata,
+              beta_admitted_at: (metadata.beta_admitted_at as string | undefined) ?? new Date().toISOString(),
+              beta_admitted_by: staff.id,
+            },
+            updatedAt: new Date(),
+          })
+          .where(eq(contacts.id, person.id));
+        await writeStaffAudit({
+          staffUserId: staff.id,
+          action: "beta.waitlist.admit",
+          targetType: "contact",
+          targetId: person.id,
+          metadata: { email: person.email, status: "pending_verification", verification_requested: requested.ok },
+          ip: req.ip,
+        });
+        return reply.code(202).send({
+          object: "beta_admission",
+          id,
+          status: "pending_verification",
+          emailed: false,
+          invite_id: null,
+          code: null,
+          verification: requested.ok ? "requested" : "request_failed",
+          message: requested.ok
+            ? "Admitted — nothing has been sent yet. Their address hasn't confirmed with Amazon SES, and while we're in the SES sandbox we can't email it. Amazon has been asked to send them a confirmation link (it isn't re-sent if one is already pending); their invite goes out automatically within a couple of minutes of them clicking it."
+            : "Admitted — nothing has been sent. Asking Amazon SES to send them a confirmation link failed (see the API log). Their invite goes out automatically once their address is confirmed; retry admit later.",
+        });
+      }
+    }
+
+    const invite = await mintStaffInvite(person.email, staff.id);
+    const { code } = invite;
 
     const mail = betaInviteEmail({
       code,
@@ -2754,7 +2812,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     await db
       .update(contacts)
       .set({
-        tags: [...person.tags, "beta-invited"],
+        tags: [...person.tags, BETA_INVITED_TAG],
         // They stop being a name on a list and become someone we are waiting on.
         stage: "lead",
         metadata: {
@@ -2774,7 +2832,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
 
-    return reply.send({ object: "beta_admission", id, invite_id: invite.id, code, emailed: true });
+    return reply.send({ object: "beta_admission", id, status: "emailed", invite_id: invite.id, code, emailed: true });
   });
 
 }
