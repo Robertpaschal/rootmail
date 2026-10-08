@@ -36,6 +36,16 @@ export const BETA_WAITLIST_TAG = "beta-pending";
 
 /** The tag the invite sequence triggers on. Earned by verifying, never given. */
 export const BETA_READY_TAG = "beta-waitlist";
+
+/**
+ * Staff let them in before their address could receive mail. The sweep
+ * invites them the moment it can, with a staff code that does not count
+ * against the automatic seats.
+ */
+export const BETA_ADMITTED_TAG = "beta-admitted";
+
+/** They have been sent a code — by staff directly, or by the invite sequence. */
+export const BETA_INVITED_TAG = "beta-invited";
 const BETA_WAITLIST_NAME = "Beta waitlist";
 
 export interface BetaWaitlistAudience {
@@ -128,6 +138,21 @@ export async function autoMintInvite(email: string): Promise<string | null> {
   return code;
 }
 
+/**
+ * A personal code staff chose to hand out: labelled with the address, no
+ * expiry, and outside the automatic cap (the `waitlist:` label is not counted).
+ */
+export async function mintStaffInvite(email: string, staffId: string): Promise<{ id: string; code: string }> {
+  const code =
+    "beta-" +
+    Array.from({ length: 8 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join("");
+  const [invite] = await db
+    .insert(betaInvites)
+    .values({ id: newId("betaInvite"), code, label: `waitlist: ${email}`, maxUses: 1, createdByStaffId: staffId })
+    .returning({ id: betaInvites.id, code: betaInvites.code });
+  return invite;
+}
+
 /** How long an unclaimed auto-minted code holds its seat before releasing it. */
 const UNCLAIMED_SEAT_DAYS = 7;
 
@@ -178,7 +203,11 @@ export async function autoAdmitRemaining(): Promise<{ limit: number; used: numbe
  *
  * Null means no seat: the caller holds them until one frees up.
  */
-export async function liveInviteCodeFor(email: string, metadata: Record<string, unknown>): Promise<string | null> {
+export async function liveInviteCodeFor(
+  email: string,
+  metadata: Record<string, unknown>,
+  opts: { staffId?: string | null } = {},
+): Promise<string | null> {
   const existing = typeof metadata.beta_invite_code === "string" ? metadata.beta_invite_code : null;
   if (existing) {
     const [rearmed] = await db
@@ -198,6 +227,8 @@ export async function liveInviteCodeFor(email: string, metadata: Record<string, 
       .returning({ code: betaInvites.code });
     if (rearmed) return rearmed.code;
   }
+  // Someone staff admitted gets the seat staff gave them, cap or no cap.
+  if (opts.staffId) return (await mintStaffInvite(email, opts.staffId)).code;
   return autoMintInvite(email);
 }
 
@@ -250,6 +281,9 @@ export async function promoteVerifiedTesters(): Promise<number> {
   for (const c of waiting) {
     const tags = c.tags ?? [];
     if (!tags.includes(BETA_WAITLIST_TAG)) continue;
+    // Staff already mailed them a code. A sequence invite on top would be a
+    // second, different code for the same person.
+    if (tags.includes(BETA_INVITED_TAG) && !tags.includes(BETA_READY_TAG)) continue;
     if (tags.includes(BETA_READY_TAG) && c.recipientStatus === "verified") continue;
     if (!(await isTesterVerified(c.email))) continue;
 
@@ -283,10 +317,13 @@ export async function promoteVerifiedTesters(): Promise<number> {
     // {{beta_invite_code}} from contact metadata at send time. No seat, no tag
     // — they stay waiting and the next sweep tries again.
     const metadata = (c.metadata ?? {}) as Record<string, unknown>;
-    const code = await liveInviteCodeFor(c.email, metadata);
+    const staffId = tags.includes(BETA_ADMITTED_TAG) && typeof metadata.beta_admitted_by === "string" ? metadata.beta_admitted_by : null;
+    const code = await liveInviteCodeFor(c.email, metadata, { staffId });
     if (!code) continue;
 
-    const next = [...tags, BETA_READY_TAG];
+    // Invited as well as ready: the /beta page and the staff list read
+    // BETA_INVITED_TAG, and admit must not mail a second code on top.
+    const next = [...tags, BETA_READY_TAG, BETA_INVITED_TAG];
     await db
       .update(contacts)
       .set({
