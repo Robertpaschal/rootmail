@@ -235,6 +235,23 @@ export class BetaInviteAutomationError extends Error {
  * line can be quiet when nothing happened.
  */
 export async function promoteVerifiedTesters(): Promise<number> {
+  // One sweep at a time per process. The interval fires every two minutes
+  // whether or not the last pass finished (a slow or hung SES call is enough),
+  // and two overlapping passes read the same waiting contacts: each mints its
+  // own code, the contact keeps the second, and the first sits live in the
+  // table holding an automatic seat for a week. With eight seats, that is a
+  // tester we cannot invite.
+  if (sweepInFlight) return 0;
+  sweepInFlight = true;
+  try {
+    return await sweepVerifiedTesters();
+  } finally {
+    sweepInFlight = false;
+  }
+}
+let sweepInFlight = false;
+
+async function sweepVerifiedTesters(): Promise<number> {
   const { workspaceId } = await betaWaitlistAudience();
 
   const waiting = await db

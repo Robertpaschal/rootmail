@@ -235,6 +235,23 @@ describe("closed beta — a verified inbox, a reusable audience and honest sendi
     assert.ok(b.invite.expiresAt!.getTime() > Date.now() + 6 * day, "and gets a full window from verification");
   });
 
+  it("never runs two sweeps at once, so an overlapping pass cannot mint a second code", async () => {
+    const { workspaceId } = await betaWaitlistAudience();
+    const email = `overlap-${stamp}@example.test`;
+    states.set(email, true);
+    await db.insert(contacts).values({ id: newId("contact"), workspaceId, email, tags: [BETA_WAITLIST_TAG] });
+    try {
+      const results = await Promise.all([promoteVerifiedTesters(), promoteVerifiedTesters(), promoteVerifiedTesters()]);
+      assert.equal(results.reduce((a, b) => a + b, 0), 1);
+      assert.equal((await db.select().from(betaInvites).where(like(betaInvites.label, `%${email}`))).length, 1);
+    } finally {
+      await db.delete(sequenceEnrollments).where(eq(sequenceEnrollments.email, email));
+      await db.delete(betaInvites).where(like(betaInvites.label, `%${email}`));
+      await db.delete(verifiedRecipients).where(eq(verifiedRecipients.email, email));
+      await db.delete(contacts).where(and(eq(contacts.workspaceId, workspaceId), eq(contacts.email, email)));
+    }
+  });
+
   it("holds a verified tester when no seat is free, and never spends a seat on an existing account", async () => {
     const { workspaceId } = await betaWaitlistAudience();
     const seatless = inviteEmails[5];
