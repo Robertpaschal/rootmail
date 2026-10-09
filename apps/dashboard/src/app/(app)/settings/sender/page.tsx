@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Organization, SenderIdentity , SendingProvider} from "@/lib/types";
-import { betaLead, closedBetaLine } from "@/lib/sender-beta-first";
+import { betaLead, senderCountLine } from "@/lib/sender-beta-first";
 import { SettingsItem, SettingsSection, StateBadge } from "../setting-item";
 import { BetaLeadCard } from "./beta-lead";
 import { OwnReplyDomain } from "./own-reply-domain";
@@ -58,7 +58,7 @@ export default async function SenderSettingsPage() {
   // verified address exactly as before; this only changes what comes first.
   const lead = betaLead(senders, betaAvailable, process.env.ROOTMAIL_DOMAIN || "rootmail.io");
   const leadSender = lead.kind === "active" ? senders.find((s) => s.email === lead.email) : undefined;
-  const secondary = closedBetaLine(verified, pending);
+  const secondary = senderCountLine(verified, pending);
 
   return (
     <div className="space-y-8">
