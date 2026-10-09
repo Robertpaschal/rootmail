@@ -156,6 +156,7 @@ export async function processSystemMail(job: SystemMailJob): Promise<void> {
     replyTo = job.replyTo ?? null;
   }
 
+  const platformSet = platformConfigurationSet();
   try {
     await getProviderFor(false).send({
       messageId: message.id,
@@ -163,13 +164,14 @@ export async function processSystemMail(job: SystemMailJob): Promise<void> {
       to,
       replyTo,
       subject: job.subject,
-      // Our own mail: no click rewriting, and the platform config set when one
-      // is configured (else the shared one, as before). The stored copy is untouched.
-      html: addSesNoTrack(job.html),
+      // Only with SES_PLATFORM_CONFIGURATION_SET set: that set, and no click
+      // rewriting. Unset: the HTML as stored and no config set passed, so the
+      // shared (tracked) set applies, as before. The stored copy is untouched.
+      html: platformSet ? addSesNoTrack(job.html) : job.html,
       text: job.text,
       dkim: null,
       sandbox: false,
-      configurationSet: platformConfigurationSet(),
+      ...(platformSet ? { configurationSet: platformSet } : {}),
     });
     await db
       .update(messages)
