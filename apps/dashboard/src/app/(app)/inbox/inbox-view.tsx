@@ -31,6 +31,7 @@ import { SendActivity } from "@/components/app/send-activity";
 import { Textarea } from "@/components/ui/textarea";
 import { relativeTime } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { headerIdentity, isOtherReplyAddress, senderLine } from "@/lib/reply-identity";
 import type { Thread, ThreadMessage, ThreadMessageKind } from "@/lib/types";
 import { loadConversations, sendReply, simulateInbound } from "./actions";
 
@@ -90,6 +91,8 @@ interface ContactGroup {
   lastAt: string;
   needsReply: boolean;
   preview: string | null;
+  /** Real Froms of the latest replies across this contact's threads. */
+  replyFroms: string[];
 }
 
 const RAIL_KEY = "rm_inbox_rail_open";
@@ -125,11 +128,13 @@ function groupByContact(threads: Thread[]): ContactGroup[] {
         lastAt: t.last_message_at,
         needsReply: t.status === "needs_reply",
         preview: t.preview,
+        replyFroms: t.last_reply_from ? [t.last_reply_from] : [],
       });
     } else {
       g.threads.push(t);
       g.name = g.name ?? t.contact_name;
       g.needsReply = g.needsReply || t.status === "needs_reply";
+      if (t.last_reply_from) g.replyFroms.push(t.last_reply_from);
     }
   }
   return [...byEmail.values()];
@@ -139,23 +144,21 @@ function groupByContact(threads: Thread[]): ContactGroup[] {
 function EmailCard({
   m,
   contactName,
+  contactEmail,
   open,
   onToggle,
 }: {
   m: ThreadMessage;
   contactName: string | null;
+  contactEmail: string;
   open: boolean;
   onToggle: () => void;
 }) {
   const outbound = m.direction === "outbound";
   const meta = KIND[m.kind];
-  const sender = outbound
-    ? m.from_name
-      ? `${m.from_name} <${m.from}>`
-      : m.from
-    : contactName
-      ? `${contactName} <${m.from}>`
-      : m.from;
+  // Inbound always shows its real From; "You" is only ever outbound.
+  const sender = senderLine(m, { email: contactEmail, name: contactName });
+  const otherAddress = isOtherReplyAddress(m, { email: contactEmail, name: contactName });
   const snippet = textOf(m);
 
   return (
@@ -178,6 +181,11 @@ function EmailCard({
           <span className="truncate">
             <span className="text-foreground/70">From</span> {sender}
           </span>
+          {otherAddress ? (
+            <span className="rounded-full border border-rule px-2 py-0.5 text-[12px]" title={`Replied from a different address than ${contactEmail}`}>
+              different address
+            </span>
+          ) : null}
           <span className="truncate">
             <span className="text-foreground/70">To</span> {m.to}
           </span>
@@ -698,7 +706,7 @@ export function InboxView({
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <p className="truncate text-sm font-semibold">{contact.name ?? contact.email}</p>
+                    <p className="truncate text-sm font-semibold">{headerIdentity(contact, contact.replyFroms).title}</p>
                     <AnimatePresence initial={false}>
                       {contact.needsReply ? (
                         <motion.span
@@ -716,6 +724,9 @@ export function InboxView({
                   </div>
                   <p className="truncate text-xs text-muted-foreground">
                     {contact.email} · {contact.threads.length === 1 ? "1 subject" : `${contact.threads.length} subjects`}
+                    {headerIdentity(contact, contact.replyFroms).repliesFrom.length
+                      ? ` · replied from ${headerIdentity(contact, contact.replyFroms).repliesFrom.join(", ")}`
+                      : ""}
                     {" · "}
                     <Link href={`/contacts?email=${encodeURIComponent(contact.email)}`} className="hover:text-foreground hover:underline">
                       their record
@@ -863,6 +874,7 @@ export function InboxView({
                                   key={m.id}
                                   m={m}
                                   contactName={contact.name}
+                                  contactEmail={contact.email}
                                   open={openEmails.has(m.id)}
                                   onToggle={() =>
                                     setOpenEmails((s) => {

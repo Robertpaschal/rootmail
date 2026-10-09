@@ -111,13 +111,18 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
     }
     const tids = rows.map((t) => t.id);
     const previewByThread = new Map<string, string>();
+    // Who ACTUALLY wrote the latest reply. Usually the contact, but a reply via
+    // the thread's reply address can come from a colleague, an alias or a
+    // forward — the inbox names that sender rather than assuming the contact.
+    const lastReplyFromByThread = new Map<string, string>();
     if (tids.length) {
       const ms = await db
-        .select({ threadId: threadMessages.threadId, bodyText: threadMessages.bodyText, bodyHtml: threadMessages.bodyHtml })
+        .select({ threadId: threadMessages.threadId, bodyText: threadMessages.bodyText, bodyHtml: threadMessages.bodyHtml, direction: threadMessages.direction, fromEmail: threadMessages.fromEmail })
         .from(threadMessages)
         .where(inArray(threadMessages.threadId, tids))
         .orderBy(desc(threadMessages.createdAt));
       for (const m of ms) {
+        if (m.direction === "inbound" && !lastReplyFromByThread.has(m.threadId)) lastReplyFromByThread.set(m.threadId, m.fromEmail);
         if (previewByThread.has(m.threadId)) continue;
         const text = (m.bodyText ?? m.bodyHtml?.replace(/<[^>]+>/g, " ") ?? "").replace(/\s+/g, " ").trim();
         previewByThread.set(m.threadId, text.slice(0, 140));
@@ -129,6 +134,7 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
         serializeThread(t, undefined, {
           contactName: nameByEmail.get(t.contactEmail) ?? null,
           preview: previewByThread.get(t.id) ?? null,
+          lastReplyFrom: lastReplyFromByThread.get(t.id) ?? null,
         }),
       ),
     };
