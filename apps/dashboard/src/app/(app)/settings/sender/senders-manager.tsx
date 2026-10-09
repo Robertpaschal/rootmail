@@ -10,13 +10,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { SenderIdentity } from "@/lib/types";
-import { activateBetaSenderAction, addSenderAction, checkSenderAction, deleteSenderAction, setDefaultSenderAction, type SenderState } from "./actions";
+import { addSenderAction, checkSenderAction, deleteSenderAction, setDefaultSenderAction, type SenderState } from "./actions";
 
 // Your own from-addresses. Adding one makes Amazon (our email provider) send a
 // confirmation link to that mailbox; once clicked, the address appears in
 // compose's From menu — and replies go straight to the real inbox. The DEFAULT
 // address is what campaigns and quick composes send from when none is named.
-export function SendersManager({ senders: initialSenders, betaAvailable = false }: { senders: SenderIdentity[]; betaAvailable?: boolean }) {
+// The beta address is offered at the top of the page (beta-lead.tsx), not here.
+export function SendersManager({ senders: initialSenders }: { senders: SenderIdentity[] }) {
   const [senders, setSenders] = useState(initialSenders);
   useEffect(() => setSenders(initialSenders), [initialSenders]);
   const [state, action] = useActionState<SenderState, FormData>(addSenderAction, {});
@@ -28,7 +29,6 @@ export function SendersManager({ senders: initialSenders, betaAvailable = false 
   // leaves room to say what the thing is for first.
   const [adding, setAdding] = useState(false);
   const [email, setEmail] = useState("");
-  const [betaReady, setBetaReady] = useState(false);
 
   // A successful add puts the form away — the new row below is the confirmation.
   useEffect(() => {
@@ -66,23 +66,6 @@ export function SendersManager({ senders: initialSenders, betaAvailable = false 
 
   return (
     <div className="space-y-4">
-      {betaAvailable ? (
-        <div className="space-y-3 rounded-lg border bg-card p-4">
-          <p className="text-sm font-semibold">Start with an authenticated beta address</p>
-          <p className="text-sm text-muted-foreground">Use an address assigned to this workspace on Rootmail&apos;s domain. No DNS setup is needed. It becomes your default sender; replies stay in your Replies inbox. Your existing addresses and drafts are kept.</p>
-          <p className="text-xs text-muted-foreground">The shared SES sandbox still requires confirmed test inboxes. The receiving mailbox still decides inbox or spam placement. Add your own authenticated domain when you are ready to send as your brand.</p>
-          <Button type="button" disabled={pending} onClick={() => start(async () => {
-            setRowError(null);
-            const result = await activateBetaSenderAction();
-            if (result.error) setRowError(result.error);
-            else if (result.sender) {
-              setSenders(current => [result.sender!, ...current.filter(s => s.id !== result.sender!.id).map(s => ({ ...s, is_default: false }))]);
-              setBetaReady(true);
-            }
-          })}>{pending ? <Loader2 className="size-4 animate-spin" /> : <MailPlus className="size-4" />} Use beta address</Button>
-          {betaReady ? <p className="text-sm">Beta sender ready. <Link href="/testing#test-inboxes" className="underline underline-offset-4">Confirm your test inbox →</Link></p> : null}
-        </div>
-      ) : null}
       <p className="text-sm text-muted-foreground">Verifying an email address confirms ownership, not domain authentication. For branded sending, configure DKIM on a domain you own through <Link href="/sub-tenants" className="text-foreground underline underline-offset-4">Client domains</Link> or your connected provider.</p>
       {senders.some(s => isPublicMailboxSender(s.email)) || isPublicMailboxSender(email) ? <p role="note" className="rounded-lg border p-3 text-sm">{PUBLIC_MAILBOX_SENDER_WARNING}</p> : null}
       {senders.length > 0 ? (

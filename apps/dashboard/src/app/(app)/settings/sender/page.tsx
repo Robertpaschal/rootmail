@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Organization, SenderIdentity , SendingProvider} from "@/lib/types";
+import { betaLead, closedBetaLine } from "@/lib/sender-beta-first";
 import { SettingsItem, SettingsSection, StateBadge } from "../setting-item";
+import { BetaLeadCard } from "./beta-lead";
 import { OwnReplyDomain } from "./own-reply-domain";
 import { PostalAddress } from "./postal-address";
 import { ReplySettings } from "./reply-settings";
@@ -52,9 +54,16 @@ export default async function SenderSettingsPage() {
   const pending = senders.filter((s) => s.status === "pending").length;
   const hasPostal = Boolean(org.postal_address?.trim());
   const domainActive = org.reply_domain_status === "active";
+  // Closed beta: the beta address leads the page. Sending stays gated on a
+  // verified address exactly as before; this only changes what comes first.
+  const lead = betaLead(senders, betaAvailable, process.env.ROOTMAIL_DOMAIN || "rootmail.io");
+  const leadSender = lead.kind === "active" ? senders.find((s) => s.email === lead.email) : undefined;
+  const secondary = closedBetaLine(verified, pending);
 
   return (
     <div className="space-y-8">
+      <BetaLeadCard lead={lead} senderId={leadSender?.id} secondary={secondary} />
+
       {/* First on the page, because it is upstream of everything below it: which
           account the mail actually leaves from decides whose reputation and whose
           limits apply to all of it. */}
@@ -73,7 +82,7 @@ export default async function SenderSettingsPage() {
         hint="Set up an address your recipients recognise, such as hello@yourcompany.com. We email that inbox a confirmation link; once it's clicked, the address appears in the From menu when you compose."
       >
         <div className="p-4">
-          <SendersManager senders={senders} betaAvailable={betaAvailable} />
+          <SendersManager senders={senders} />
         </div>
       </SettingsSection>
 
@@ -131,13 +140,8 @@ export default async function SenderSettingsPage() {
         </SettingsItem>
       </SettingsSection>
 
-      {/* One quiet line of orientation, since verified > 0 is what actually
-          unlocks sending as yourself. */}
-      <p className="text-xs text-muted-foreground">
-        {verified > 0
-          ? `${verified} address${verified === 1 ? "" : "es"} verified${pending ? ` · ${pending} still awaiting confirmation` : ""}.`
-          : "Dashboard sending is paused until you verify a sending address. You can prepare templates and campaign drafts in the meantime."}
-      </p>
+      {/* Without the beta lead, the same short line closes the page instead. */}
+      {lead.kind === "none" ? <p className="text-xs text-muted-foreground">{secondary}</p> : null}
     </div>
   );
 }

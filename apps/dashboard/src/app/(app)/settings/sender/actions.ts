@@ -11,6 +11,7 @@ export async function activateBetaSenderAction(): Promise<SenderState & { sender
     const sender = await api.activateBetaSender();
     revalidatePath("/testing");
     revalidatePath("/messages/new");
+    revalidatePath("/settings/sender");
     return { ok: true, sender };
   } catch (err) {
     return { error: err instanceof ApiError || err instanceof ConnectionError ? err.message : "Couldn't activate the beta address. Please try again." };
