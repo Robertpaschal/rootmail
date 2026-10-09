@@ -107,6 +107,7 @@ export async function automationSend(
   let postalAddress: string | null = null;
   let orgReplyMode: string | null = null;
   let orgReplyDomain: string | null = null;
+  let internalOrg = false;
   if (input.organizationId) {
     const [o] = await db
       .select({
@@ -114,6 +115,7 @@ export async function automationSend(
         transactionalBlocks: organizations.transactionalBlocks,
         marketingTier: organizations.marketingTier,
         a: organizations.postalAddress,
+        internal: organizations.isInternal,
         replyMode: organizations.replyMode,
         replyDomain: organizations.replyDomain,
         replyDomainStatus: organizations.replyDomainStatus,
@@ -129,6 +131,7 @@ export async function automationSend(
         }
       : null;
     postalAddress = o?.a ?? null;
+    internalOrg = o?.internal === true;
     orgReplyMode = o?.replyMode ?? null;
     orgReplyDomain = o ? activeReplyDomain(o) : null;
   }
@@ -153,7 +156,9 @@ export async function automationSend(
   }
   // Free-WING live mail carries the "Sent with rootmail" footer — branded per the
   // wing this message belongs to; paying for that wing removes it.
-  if (input.mode === "live" && orgWings && wingBrandingRequired(input.type, orgWings)) {
+  // Not on rootmail's own mail: it has no plan to upgrade, and "Sent with
+  // rootmail" under a note from rootmail is an ad on our own letterhead.
+  if (input.mode === "live" && orgWings && !internalOrg && wingBrandingRequired(input.type, orgWings)) {
     rendered = { ...rendered, ...appendBrandingFooter(rendered, { url: env.MARKETING_URL }) };
   }
   const contentHash = sha256Hex(rendered.html);
