@@ -1489,6 +1489,25 @@ export const staffSessions = pgTable(
   (t) => [index("staff_sessions_user_idx").on(t.staffUserId)],
 );
 
+// Single-use, short-lived staff password-reset tokens. Separate from
+// auth_tokens because staff are a separate identity (auth_tokens references
+// users). Only the SHA-256 of the token is stored; the raw token exists only in
+// the emailed or printed link. used_at makes it one-time.
+export const staffResetTokens = pgTable(
+  "staff_reset_tokens",
+  {
+    id: text("id").primaryKey(),
+    staffUserId: text("staff_user_id")
+      .notNull()
+      .references(() => staffUsers.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    createdAt: createdAt(),
+  },
+  (t) => [index("staff_reset_tokens_staff_idx").on(t.staffUserId)],
+);
+
 // Append-only log of privileged staff actions (impersonation, etc.).
 export const staffAudit = pgTable(
   "staff_audit",

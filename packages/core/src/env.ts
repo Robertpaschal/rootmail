@@ -206,6 +206,10 @@ const EnvSchema = z.object({
   // The marketing site's base URL — used to trigger on-publish ISR revalidation
   // when staff edit CMS content. The shared secret is INTERNAL_API_SECRET.
   MARKETING_URL: z.string().url().default("http://localhost:3000"),
+  // The staff console's public origin (internal.rootmail.io in production) —
+  // where a staff password-reset link points. Unset → https://internal.<ROOTMAIL_DOMAIN>
+  // in production, http://localhost:3002 otherwise.
+  STAFF_CONSOLE_URL: z.string().url().optional(),
 
   // --- AI template drafting ------------------------------------------------
   // Unset => a deterministic mock generator answers, so "Ask AI" is fully

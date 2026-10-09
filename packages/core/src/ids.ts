@@ -41,6 +41,7 @@ export const ID_PREFIXES = {
   staffUser: "stf",
   staffSession: "sts",
   staffAudit: "sta",
+  staffResetToken: "srt",
   impersonationGrant: "img",
   lead: "led",
   leadNote: "lnt",

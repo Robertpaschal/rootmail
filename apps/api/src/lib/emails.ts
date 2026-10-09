@@ -234,6 +234,41 @@ export function paymentSucceededEmail(
   };
 }
 
+/**
+ * Staff console password reset. Points at the staff console, never the
+ * customer dashboard, and says plainly that it is for the internal console.
+ */
+export function staffPasswordResetEmail(link: string, name?: string | null): EmailContent {
+  const hi = name ? `Hi ${esc(name)},` : "Hi,";
+  return {
+    subject: "Reset your rootmail staff console password",
+    text:
+      `${name ? `Hi ${name},` : "Hi,"}\n\nSomeone asked to reset the password for your rootmail staff console account:\n${link}\n\n` +
+      `The link works once and expires in 30 minutes. If you didn't ask for this, ignore this email — your password won't change.`,
+    html: wrap(
+      `<p>${hi}</p><p>Someone asked to reset the password for your rootmail staff console account.</p>` +
+        `<p>${button(link, "Reset staff password")}</p>` +
+        `<p style="color:#666;font-size:13px">Or paste this link:<br>${link}</p>` +
+        `<p style="color:#666;font-size:13px">The link works once and expires in 30 minutes. If you didn't ask for this, ignore this email — your password won't change.</p>`,
+    ),
+  };
+}
+
+/** Sent after a staff password reset completes. */
+export function staffPasswordChangedEmail(name?: string | null): EmailContent {
+  const hi = name ? `Hi ${esc(name)},` : "Hi,";
+  return {
+    subject: "Your rootmail staff console password was changed",
+    text:
+      `${name ? `Hi ${name},` : "Hi,"}\n\nYour rootmail staff console password was just reset, and every staff session you had was signed out.\n\n` +
+      `If this wasn't you, tell another superadmin right away so they can deactivate the account.`,
+    html: wrap(
+      `<p>${hi}</p><p>Your rootmail staff console password was just reset, and every staff session you had was signed out.</p>` +
+        `<p style="color:#666;font-size:13px">If this wasn't you, tell another superadmin right away so they can deactivate the account.</p>`,
+    ),
+  };
+}
+
 /** Security notice sent after a password is successfully changed. */
 export function passwordChangedEmail(name?: string | null): EmailContent {
   const hi = name ? `Hi ${esc(name)},` : "Hi,";

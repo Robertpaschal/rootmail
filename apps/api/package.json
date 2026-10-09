@@ -17,6 +17,7 @@
     "test:embedded-checkout": "tsx scripts/test-embedded-checkout.ts",
     "test:comms": "tsx scripts/test-comms.ts",
     "cleanup:test-users": "tsx scripts/cleanup-test-users.ts",
+    "staff:reset-link": "tsx src/cli/staff-reset-link.ts",
     "test": "LOG_LEVEL=silent node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
