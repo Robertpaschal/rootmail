@@ -165,7 +165,7 @@ export default async function BetaPage() {
           </p>
           {/* For someone who joined earlier and whose Amazon link has since
               lapsed. Without this the only way in left was OAuth sign-in. */}
-          <div className="border-b border-rule py-6">
+          <div id="resend-confirmation" className="scroll-mt-24 border-b border-rule py-6">
             <p className="text-[0.9375rem] text-ink-muted">
               Joined the waitlist but never got Amazon&apos;s confirmation email, or the link
               expired? Each link works for 24 hours. Ask for a new one here.
