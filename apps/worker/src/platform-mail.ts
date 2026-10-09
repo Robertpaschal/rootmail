@@ -7,13 +7,13 @@ import { db, organizations, workspaces } from "@rootmail/db";
  * system mail (welcome, verification, receipts, staff invites…) and the
  * internal org's transactional and sequence sends (the beta invite automation).
  *
- * The shared SES configuration set has OPEN and CLICK tracking on for every
- * message, which rewrote every link in our own invites through awstrack.me and
- * added a pixel. Customer mail keeps that — it's the product. Ours doesn't need it:
- *  - every <a> gets `ses:no-track`, so SES leaves the link alone;
- *  - SES_PLATFORM_CONFIGURATION_SET, when set, replaces the shared set for this
- *    mail (one without OPEN tracking, but with the same bounce/complaint
- *    destinations). Unset: the shared set, exactly as before. Never "no set".
+ * By default it is tracked (opens and clicks) like all other mail, through the
+ * shared SES_CONFIGURATION_SET, and its HTML is sent exactly as stored.
+ * Only when SES_PLATFORM_CONFIGURATION_SET is set does this mail opt out:
+ *  - that set replaces the shared one (it must publish the same
+ *    bounce/complaint destinations), and
+ *  - every <a> gets `ses:no-track`, so SES leaves the link alone.
+ * Unset: neither happens. Never "no set".
  * Internal-org CAMPAIGNS and marketing API sends are not platform mail here: they
  * keep tracking, like a customer's.
  */

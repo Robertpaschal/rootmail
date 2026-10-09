@@ -10,13 +10,17 @@ import { processSend } from "../../../worker/src/pipeline";
 import { automationSend } from "../../../worker/src/send";
 import { processSystemMail } from "../../../worker/src/system-mail";
 
-// rootmail-hq's own mail goes out with ses:no-track on every link, and through
-// SES_PLATFORM_CONFIGURATION_SET when that is set. Customer mail is untouched.
-// Every AWS call is intercepted; nothing leaves the process.
+// rootmail-hq's own mail is tracked (opens and clicks) like all other mail:
+// with SES_PLATFORM_CONFIGURATION_SET unset (prod), its HTML reaches SES exactly
+// as stored, with no ses:no-track, on the shared rootmail-events set. Only when
+// the override is set does platform mail get ses:no-track and that set.
+// Customer mail is untouched either way, and #25's transactional classification
+// (no List-Unsubscribe, no unsubscribe/postal or "Sent with rootmail" footer)
+// holds in both states. Every AWS call is intercepted; nothing leaves the process.
 const stamp = Date.now();
 const to = `pnt-${stamp}@example.test`;
 const html = '<p>Hi <a href="https://rootmail.io/x">join</a> <a class="b" href="https://rootmail.io/y">docs</a></p>';
-const wire: { config?: string; html?: string; raw?: boolean }[] = [];
+const wire: { config?: string; html?: string; text?: string; headers: string[]; raw?: boolean }[] = [];
 let customer: Awaited<ReturnType<typeof provisionAccount>>;
 let internal: { organizationId: string; workspaceId: string };
 let internalPostal: string | null = null;
@@ -49,6 +53,15 @@ async function internalSend(kind: "transactional" | "sequence" | "campaign") {
 }
 const systemMail = () => processSystemMail({ to, subject: `System ${stamp}`, html, text: "Hi", cls: "transactional" });
 const tracked = (h?: string) => !/ses:no-track/.test(h ?? "");
+// The links exactly as written: no attribute added, nothing rewritten.
+const linksAsWritten = (h?: string) =>
+  (h ?? "").includes('<a href="https://rootmail.io/x">join</a>') && (h ?? "").includes('<a class="b" href="https://rootmail.io/y">docs</a>');
+function assertTransactionalShape(s: (typeof wire)[number], label: string) {
+  assert.ok(!s.headers.includes("list-unsubscribe"), `${label}: ${s.headers.join(",")}`);
+  assert.ok(!s.headers.includes("list-unsubscribe-post"), label);
+  assert.doesNotMatch(s.html ?? "", /Sent with rootmail|unsubscribe/i, label);
+  assert.doesNotMatch(s.text ?? "", /Sent with rootmail|unsubscribe/i, label);
+}
 const allNoTrack = (h?: string) => (h?.match(/<a[\s>]/gi)?.length ?? 0) === (h?.match(/<a ses:no-track/g)?.length ?? -1);
 
 before(async () => {
@@ -61,7 +74,16 @@ before(async () => {
     if (name === "GetEmailIdentityCommand") return { VerifiedForSendingStatus: true, DkimAttributes: { Status: "SUCCESS", SigningEnabled: true } };
     if (name === "SendEmailCommand") {
       const c = command.input.Content;
-      wire.push({ config: command.input.ConfigurationSetName, html: c.Simple?.Body?.Html?.Data ?? Buffer.from(c.Raw?.Data ?? "").toString("utf8"), raw: Boolean(c.Raw) });
+      const raw = c.Raw ? Buffer.from(c.Raw.Data).toString("utf8") : null;
+      wire.push({
+        config: command.input.ConfigurationSetName,
+        html: c.Simple?.Body?.Html?.Data ?? raw ?? "",
+        text: c.Simple?.Body?.Text?.Data ?? raw ?? "",
+        headers: raw
+          ? [...raw.split(/\r?\n\r?\n/)[0].matchAll(/^([A-Za-z-]+):/gm)].map((m) => m[1].toLowerCase())
+          : (c.Simple?.Headers ?? []).map((h: { Name: string }) => h.Name.toLowerCase()),
+        raw: Boolean(raw),
+      });
       return { MessageId: `ses-pnt-${wire.length}-${stamp}` };
     }
     throw new Error(`Unexpected AWS operation: ${name}`);
@@ -89,58 +111,82 @@ after(async () => {
 });
 
 describe("platform mail tracking", () => {
-  it("system mail: every link carries ses:no-track; shared config set when no override", async () => {
+  it("override unset (prod): system mail goes out exactly as stored, tracked, on rootmail-events", async () => {
     const s = await last(systemMail);
-    assert.ok(allNoTrack(s.html), s.html);
+    assert.equal(s.html, html, "byte-identical to the stored HTML");
+    assert.ok(tracked(s.html) && linksAsWritten(s.html), s.html);
     assert.equal(s.config, "rootmail-events");
     const [row] = await db.select().from(messages).where(eq(messages.subject, `System ${stamp}`));
     assert.equal(row.renderedHtml, html, "the stored copy is not rewritten");
   });
 
-  it("internal transactional and sequence (invite) mail: no-track; internal campaigns keep tracking", async () => {
-    for (const kind of ["transactional", "sequence"] as const) {
+  it("override unset (prod): internal transactional and sequence (invite) mail links are unmodified, no ses:no-track", async () => {
+    for (const kind of ["transactional", "sequence", "campaign"] as const) {
       const s = await last(() => internalSend(kind));
-      assert.ok(allNoTrack(s.html), `${kind}: ${s.html}`);
-      assert.equal(s.config, "rootmail-events");
+      assert.ok(tracked(s.html), `${kind}: ${s.html}`);
+      assert.ok(linksAsWritten(s.html), `${kind}: ${s.html}`);
+      assert.equal(s.config, "rootmail-events", kind);
     }
-    const c = await last(() => internalSend("campaign"));
-    assert.ok(tracked(c.html), c.html);
   });
 
-  it("customer mail is untouched", async () => {
-    const s = await last(customerSend);
-    assert.ok(tracked(s.html), s.html);
-    assert.ok(s.html?.includes('<a href="https://rootmail.io/x">join</a>'));
-    assert.equal(s.config, "rootmail-events");
+  it("blank or whitespace override behaves exactly like unset", async () => {
+    for (const v of ["", "   "]) {
+      env.SES_PLATFORM_CONFIGURATION_SET = v;
+      try {
+        const sys = await last(systemMail);
+        assert.equal(sys.html, html); assert.equal(sys.config, "rootmail-events");
+        const tx = await last(() => internalSend("transactional"));
+        assert.ok(tracked(tx.html) && linksAsWritten(tx.html)); assert.equal(tx.config, "rootmail-events");
+      } finally { env.SES_PLATFORM_CONFIGURATION_SET = undefined; }
+    }
   });
 
-  it("SES_PLATFORM_CONFIGURATION_SET applies to platform mail only, and only when set", async () => {
+  it("override set: platform mail gets ses:no-track on every link and the platform set", async () => {
     env.SES_PLATFORM_CONFIGURATION_SET = "rootmail-platform";
     try {
-      assert.equal((await last(systemMail)).config, "rootmail-platform");
-      assert.equal((await last(() => internalSend("transactional"))).config, "rootmail-platform");
-      assert.equal((await last(() => internalSend("sequence"))).config, "rootmail-platform");
-      assert.equal((await last(() => internalSend("campaign"))).config, "rootmail-events");
-      assert.equal((await last(customerSend)).config, "rootmail-events");
+      const sys = await last(systemMail);
+      assert.ok(allNoTrack(sys.html), sys.html); assert.equal(sys.config, "rootmail-platform");
+      for (const kind of ["transactional", "sequence"] as const) {
+        const s = await last(() => internalSend(kind));
+        assert.ok(allNoTrack(s.html), `${kind}: ${s.html}`); assert.equal(s.config, "rootmail-platform", kind);
+      }
+      const c = await last(() => internalSend("campaign"));
+      assert.ok(tracked(c.html) && linksAsWritten(c.html), "our own campaigns are not platform mail");
+      assert.equal(c.config, "rootmail-events");
     } finally { env.SES_PLATFORM_CONFIGURATION_SET = undefined; }
-    assert.equal((await last(systemMail)).config, "rootmail-events");
+  });
+
+  it("customer mail is untouched with the override unset and set", async () => {
+    for (const v of [undefined, "rootmail-platform"]) {
+      env.SES_PLATFORM_CONFIGURATION_SET = v;
+      try {
+        const s = await last(customerSend);
+        assert.ok(tracked(s.html) && linksAsWritten(s.html), s.html);
+        assert.equal(s.config, "rootmail-events");
+      } finally { env.SES_PLATFORM_CONFIGURATION_SET = undefined; }
+    }
   });
 
   it("a customer's dedicated-IP config set is unchanged by the override", async () => {
     await db.update(organizations).set({ dedicatedIpStatus: "active", dedicatedIpConfigSet: "cust-dedicated" } as Partial<typeof organizations.$inferInsert>).where(eq(organizations.id, customer.organizationId));
-    env.SES_PLATFORM_CONFIGURATION_SET = "rootmail-platform";
-    try {
-      const s = await last(customerSend);
-      assert.equal(s.config, "cust-dedicated");
-      assert.ok(tracked(s.html));
-    } finally { env.SES_PLATFORM_CONFIGURATION_SET = undefined; }
+    for (const v of [undefined, "rootmail-platform"]) {
+      env.SES_PLATFORM_CONFIGURATION_SET = v;
+      try {
+        const s = await last(customerSend);
+        assert.equal(s.config, "cust-dedicated");
+        assert.ok(tracked(s.html) && linksAsWritten(s.html));
+      } finally { env.SES_PLATFORM_CONFIGURATION_SET = undefined; }
+    }
+    await db.update(organizations).set({ dedicatedIpStatus: "none", dedicatedIpConfigSet: null } as Partial<typeof organizations.$inferInsert>).where(eq(organizations.id, customer.organizationId));
   });
 
-  it("never sends platform mail without a config set while the shared one exists", async () => {
-    for (const v of [undefined, "", "   "]) {
+  it("#25 holds in both states: internal transactional and system mail carry no List-Unsubscribe and no unsubscribe or 'Sent with rootmail' footer", async () => {
+    for (const v of [undefined, "rootmail-platform"]) {
       env.SES_PLATFORM_CONFIGURATION_SET = v;
-      assert.equal((await last(systemMail)).config, "rootmail-events");
+      try {
+        assertTransactionalShape(await last(() => internalSend("transactional")), `internal transactional, override=${v}`);
+        assertTransactionalShape(await last(systemMail), `system, override=${v}`);
+      } finally { env.SES_PLATFORM_CONFIGURATION_SET = undefined; }
     }
-    env.SES_PLATFORM_CONFIGURATION_SET = undefined;
   });
 });

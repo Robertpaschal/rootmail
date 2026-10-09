@@ -448,11 +448,14 @@ export async function processSend(data: SendJobData): Promise<void> {
     return;
   }
 
-  // rootmail-hq's own system/invite/transactional mail: links not click-tracked,
-  // and the platform configuration set when one is configured. Applied after the
-  // dedicated-IP choice above and never over it; customer mail is untouched.
-  const platform = livePath && isPlatformMessage(message, await isInternalWorkspace(message.workspaceId));
-  if (platform) configurationSet = configurationSet ?? platformConfigurationSet();
+  // rootmail-hq's own system/invite/transactional mail. Only when
+  // SES_PLATFORM_CONFIGURATION_SET is set: that set (unless a dedicated-IP set
+  // was chosen above, which always wins) and ses:no-track on its links. Unset:
+  // nothing here runs; it is tracked on the shared set like all other mail.
+  // Customer mail is untouched either way.
+  const platformSet = platformConfigurationSet();
+  const platform = platformSet !== null && livePath && isPlatformMessage(message, await isInternalWorkspace(message.workspaceId));
+  if (platform) configurationSet = configurationSet ?? platformSet;
 
   // The customer's own account when they have connected one, ours otherwise.
   const provider = await providerForMessage(message);
