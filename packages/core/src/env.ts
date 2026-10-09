@@ -75,6 +75,9 @@ const EnvSchema = z.object({
     .transform((v) => v === "true"),
 
   ROOTMAIL_DOMAIN: z.string().default("rootmail.io"),
+  // Where a reply goes when platform mail tells the reader "just reply": a real
+  // mailbox a person reads. Unset → admin@<ROOTMAIL_DOMAIN>.
+  PLATFORM_REPLY_TO: z.string().email().optional(),
   DKIM_SELECTOR: z.string().default("rootmail"),
 
   // Domain verification. "mock" auto-passes EVERY check so the sub-tenant flow
@@ -275,6 +278,11 @@ if (parsed.data.NODE_ENV === "production" && !parsed.data.ENCRYPTION_KEY) {
 
 export const env = parsed.data;
 export type Env = typeof env;
+
+/** The human inbox for replies to platform mail that says "just reply". */
+export function platformReplyTo(): string {
+  return (env.PLATFORM_REPLY_TO ?? `admin@${env.ROOTMAIL_DOMAIN}`).trim().toLowerCase();
+}
 
 /**
  * Billing mode is derived, not configured: the mere presence of a Stripe secret

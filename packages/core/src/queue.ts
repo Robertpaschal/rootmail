@@ -202,6 +202,13 @@ export interface SystemMailJob {
   /** Sender; defaults to no-reply@<ROOTMAIL_DOMAIN> in the worker when omitted. */
   from?: string | null;
   /**
+   * Where a reply should go. Set it to platformReplyTo() on mail that tells the
+   * reader "just reply": that is a mailbox a person reads, while the default
+   * (our Replies-inbox capture address, else nothing, since no-reply@ is never
+   * a reply target) does not guarantee one. Omitted → the worker's default.
+   */
+  replyTo?: string | null;
+  /**
    * What may stop this email. See SYSTEM_MAIL_CLASSES — "security" is the one
    * that a complaint must never be able to silence.
    *

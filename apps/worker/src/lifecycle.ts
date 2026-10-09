@@ -1,6 +1,6 @@
 import type { Redis } from "ioredis";
 import { eq } from "drizzle-orm";
-import { contactCapForOrg, createRedis, env, PLANS, sendSystemEmail } from "@rootmail/core";
+import { contactCapForOrg, createRedis, env, PLANS, platformReplyTo, sendSystemEmail, type SystemMailJob } from "@rootmail/core";
 import { admitWaitlisted, billableContactCount, contactEvents, contactPackUnits, db, memberships, organizations, plans, syncAllCustomersToAudience, usageRecords, users, workspaces } from "@rootmail/db";
 
 // Conditional lifecycle email, sent by a daily sweep and de-duplicated in Redis so
@@ -100,6 +100,23 @@ async function admitWaitlistedSweep(): Promise<void> {
   }
 }
 
+/**
+ * The win-back email. Marketing, and genuinely so: this one is a pitch, fully
+ * gated and unsubscribable like a customer's own marketing. It ends "Just reply
+ * to this email", so the reply goes to platformReplyTo(), a mailbox a person reads.
+ */
+export function winBackJob(owner: { email: string; name: string | null }): SystemMailJob {
+  const mail = winBackEmail(owner.name);
+  return {
+    to: owner.email,
+    subject: mail.subject,
+    html: mail.html,
+    text: mail.text,
+    cls: "marketing",
+    replyTo: platformReplyTo(),
+  };
+}
+
 export async function processLifecycleSweep(): Promise<void> {
   const redis = createRedis() as unknown as Redis;
   let sent = 0;
@@ -160,10 +177,7 @@ export async function processLifecycleSweep(): Promise<void> {
       // have a real activity signal, so we don't blast everyone on first rollout.
       if (!owner.lastActiveAt || owner.lastActiveAt >= cutoff) continue;
       if (!(await claim(redis, `lc:winback:${owner.orgId}`, 45 * DAY_SEC))) continue; // once/spell
-      const mail = winBackEmail(owner.name);
-      // marketing, and genuinely so — this one is a pitch. Fully gated and
-      // unsubscribable, exactly like a customer's own marketing.
-      await sendSystemEmail({ to: owner.email, subject: mail.subject, html: mail.html, text: mail.text, cls: "marketing" });
+      await sendSystemEmail(winBackJob(owner));
       sent++;
     }
 

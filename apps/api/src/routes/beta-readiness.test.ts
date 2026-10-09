@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it, mock } from "node:test";
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { and, eq, inArray, like } from "drizzle-orm";
-import { betaSenderAddress, closeQueues, closeRedis, env, isPublicMailboxSender, newId, RECIPIENT_UNCONFIRMED_ERROR, testRecipientAddress } from "@rootmail/core";
+import { betaSenderAddress, closeQueues, closeRedis, env, getSystemMailQueue, platformReplyTo, isPublicMailboxSender, newId, RECIPIENT_UNCONFIRMED_ERROR, testRecipientAddress } from "@rootmail/core";
 import { betaInvites, closeDb, contacts, db, ensureBetaInviteAutomation, ensureInternalAccount, listContacts, lists, messages, organizations, orgSendingProviders, sequenceEnrollments, sequences, staffUsers, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
 import { provisionAccount, createSession, upsertOAuthUser } from "../lib/auth";
 import { createStaffSession } from "../lib/admin-auth";
@@ -316,6 +316,9 @@ describe("closed beta — a verified inbox, a reusable audience and honest sendi
       const emailed = await admit((await contactOf(direct)).id);
       assert.equal(emailed.statusCode, 200, emailed.body);
       assert.equal(emailed.json().status, "emailed");
+      // The invite says "just reply; it reaches a person", so it replies to the human inbox.
+      const inviteJob = (await getSystemMailQueue().getJobs(["waiting", "delayed", "prioritized", "active", "completed"])).map((j) => j?.data).find((d) => d?.to === direct);
+      assert.equal(inviteJob?.replyTo, platformReplyTo());
       assert.equal(await promoteVerifiedTesters(), 0, "the sweep does not send a second, different code");
       assert.equal((await db.select().from(sequenceEnrollments).where(eq(sequenceEnrollments.email, direct))).length, 0);
     } finally {
