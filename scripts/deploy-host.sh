@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 # Run on the host from its repository root:
 # TAG=sha-<full40> ./scripts/deploy-host.sh dashboard
+#   (canary release of api + worker: ./scripts/deploy-host.sh --canary, see deploy-canary.sh)
 # Pull first, retain one rollback image, replace only this service, then verify.
 set -Eeuo pipefail
+
+# `--canary`: api + worker release behind a loopback canary (scripts/deploy-canary.sh).
+# Without the flag nothing below changes.
+if [[ "${1:-}" == --canary ]]; then shift; exec "$(dirname "${BASH_SOURCE[0]}")/deploy-canary.sh" "$@"; fi
 
 SVC="${1:-}"
 case "$SVC" in api|worker|marketing|developers|dashboard|admin) ;; *)
