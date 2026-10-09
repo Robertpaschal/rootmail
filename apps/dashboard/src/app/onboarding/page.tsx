@@ -4,6 +4,7 @@ import { SIGNED_IN_HOME } from "@/lib/home";
 import { Logo } from "@/components/app/logo";
 import { api } from "@/lib/rootmail";
 import { getSessionToken } from "@/lib/session";
+import { firstSendNote, type FirstSendNote } from "@/lib/first-send-note";
 import { OnboardingWizard } from "./onboarding-wizard";
 
 export const metadata: Metadata = { title: "Welcome to rootmail" };
@@ -21,11 +22,18 @@ export default async function OnboardingPage() {
   let userName = "";
   let alreadyDone = false;
   let failed = false;
+  let sendNote: FirstSendNote | null = null;
   try {
-    const [me, org] = await Promise.all([api.me(), api.getOrganization()]);
+    const [me, org, access] = await Promise.all([
+      api.me(),
+      api.getOrganization(),
+      // Only feeds the step-4 note; an unavailable check must not wedge onboarding.
+      api.sendingAccess().catch(() => null),
+    ]);
     alreadyDone = me.onboarding_completed !== false;
     orgName = org.name;
     userName = me.user.name ?? "";
+    sendNote = firstSendNote(access, me.user.email);
   } catch {
     failed = true;
   }
@@ -39,7 +47,7 @@ export default async function OnboardingPage() {
         <Logo />
       </header>
       <main className="mx-auto max-w-5xl px-4 pb-16">
-        <OnboardingWizard orgName={orgName} userName={userName} />
+        <OnboardingWizard orgName={orgName} userName={userName} sendNote={sendNote} />
       </main>
     </div>
   );

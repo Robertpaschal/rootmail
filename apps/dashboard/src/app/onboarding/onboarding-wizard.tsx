@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { BETA_RESEND_URL, CONFIRM_IN_APP_HREF, type FirstSendNote } from "@/lib/first-send-note";
 import { completeOnboarding } from "./actions";
 
 // ---------------------------------------------------------------------------
@@ -70,9 +71,12 @@ const REGION_TO_COUNTRY: Record<string, string> = {
 export function OnboardingWizard({
   orgName,
   userName,
+  sendNote = null,
 }: {
   orgName: string;
   userName: string;
+  /** Step 4's "confirm your address first" note, when sending is limited. */
+  sendNote?: FirstSendNote | null;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -334,7 +338,7 @@ export function OnboardingWizard({
         </section>
       ) : null}
 
-      {step === 3 ? <FirstSend router={router} onSizePlan={() => setStep(4)} /> : null}
+      {step === 3 ? <FirstSend router={router} onSizePlan={() => setStep(4)} note={sendNote} /> : null}
 
       {step === 4 ? <VolumePitch types={types} router={router} onBack={() => setStep(3)} /> : null}
     </div>
@@ -365,9 +369,11 @@ const FIRST_SEND_STATIONS: Station[] = [
 function FirstSend({
   router,
   onSizePlan,
+  note,
 }: {
   router: ReturnType<typeof useRouter>;
   onSizePlan: () => void;
+  note: FirstSendNote | null;
 }) {
   return (
     <section className="mx-auto max-w-2xl">
@@ -382,6 +388,30 @@ function FirstSend({
           setup was worth doing.
         </p>
       </div>
+
+      {note ? (
+        <aside
+          aria-label="Before you send"
+          className="mt-6 rounded border-[0.5px] border-rule bg-card px-4 py-3 text-sm"
+        >
+          <p className="font-medium">{note.title}</p>
+          <p className="mt-1 text-muted-foreground">{note.body}</p>
+          <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+            <a
+              href={CONFIRM_IN_APP_HREF}
+              className="inline-flex min-h-11 items-center font-medium text-foreground underline underline-offset-4 hover:no-underline"
+            >
+              {note.confirmLabel}
+            </a>
+            <a
+              href={BETA_RESEND_URL}
+              className="inline-flex min-h-11 items-center text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            >
+              {note.resendLabel}
+            </a>
+          </div>
+        </aside>
+      ) : null}
 
       <div className="mt-8 rounded border-[0.5px] border-rule bg-card p-6">
         <div className="flex justify-center">
