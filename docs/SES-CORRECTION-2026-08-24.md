@@ -74,7 +74,7 @@ record.
 
 ## Before you send — check these are done
 
-- [ ] `abuse@rootmail.io` exists and reaches a person (the AUP now publishes it)
+- [ ] `security@rootmail.io` exists and reaches a person (the AUP now publishes it for abuse reports; Google Workspace reserves `abuse@`)
 - [ ] A business postal address appears in the site footer
 - [ ] Terms name the incorporated legal entity, not just "rootmail"
 - [ ] `_dmarc.rootmail.io` has a `rua=` and ideally `p=quarantine`
