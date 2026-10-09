@@ -26,6 +26,10 @@ jobs:
       - run: pnpm typecheck
       - name: Deployment rollback regression tests
         run: node --test scripts/deploy-host.test.mjs
+      # abuse@ and postmaster@ are Google Workspace-reserved on rootmail.io;
+      # nothing user-facing may publish them (reports go to security@).
+      - name: Reserved mailbox regression tests
+        run: node --test scripts/reserved-mailboxes.test.mjs
       - name: Design and truthfulness audit
         run: pnpm exec tsx scripts/design-audit.ts
       # Cheap and fast, so it runs before the build: a placeholder link is a
