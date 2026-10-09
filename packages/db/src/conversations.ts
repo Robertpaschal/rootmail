@@ -101,11 +101,12 @@ export function betaSenderDomain(): string {
   return apex;
 }
 
-/** Is this one of rootmail's managed beta addresses: beta+<org>@ the apex
- * (legacy form) or any subdomain of it (reply.rootmail.io, the current form)?
- * Subdomains are matched broadly, not just today's INBOUND_DOMAIN, so a migrated
- * address is still recognised — and still fails closed without reply capture —
- * even if INBOUND_DOMAIN is later unset or changed. */
+/** Does this LOOK like one of rootmail's managed beta addresses: beta+<org>@ the
+ * apex or any subdomain of it? A safety check, deliberately broad: such an
+ * address is never treated as a mailbox (always reply capture, refused without
+ * it, never a Reply-To, never added by hand) — even if INBOUND_DOMAIN is unset
+ * on the process, which is exactly when a worker must refuse. It grants nothing:
+ * sending as, or receiving at, a beta address goes through betaAddressOrgId. */
 export function isPlatformBetaFrom(fromEmail: string | null | undefined): boolean {
   const e = (fromEmail ?? "").trim().toLowerCase();
   const domain = e.slice(e.lastIndexOf("@") + 1);
@@ -113,11 +114,15 @@ export function isPlatformBetaFrom(fromEmail: string | null | undefined): boolea
   return (domain === apex || domain.endsWith(`.${apex}`)) && isPlatformBetaAddress(e, domain);
 }
 
-/** The org id a beta address names (its local part after "beta+"), or null. */
+/** The org id an ISSUED beta address names (its local part after "beta+"), or
+ * null. Only the two domains we issue on count: the apex (legacy form) and
+ * betaSenderDomain() (INBOUND_DOMAIN, reply.rootmail.io in prod). Least
+ * privilege: this is what lets an org send as its beta address and what files
+ * hand-typed mail to one, so no other subdomain qualifies. */
 export function betaAddressOrgId(email: string | null | undefined): string | null {
-  if (!isPlatformBetaFrom(email)) return null;
   const e = (email ?? "").trim().toLowerCase();
-  return e.slice("beta+".length, e.indexOf("@"));
+  const issued = isPlatformBetaAddress(e, env.ROOTMAIL_DOMAIN) || isPlatformBetaAddress(e, betaSenderDomain());
+  return issued ? e.slice("beta+".length, e.indexOf("@")) : null;
 }
 
 /**
