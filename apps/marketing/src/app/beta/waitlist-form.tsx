@@ -83,6 +83,14 @@ export function WaitlistForm() {
         </div>
       </div>
 
+      {/* Named site_url on purpose: "website" is the honeypot above. */}
+      <div className="space-y-2">
+        <Label htmlFor="site_url">
+          Website <span className="font-normal text-muted-foreground">(optional)</span>
+        </Label>
+        <Input id="site_url" name="site_url" type="text" inputMode="url" autoComplete="url" maxLength={200} placeholder="acme.com" />
+      </div>
+
       <div className="space-y-2">
         <Label htmlFor="volume">How much email do you send today?</Label>
         <Select id="volume" name="volume" defaultValue="">

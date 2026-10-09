@@ -20,6 +20,8 @@ export interface WaitlistState {
  * every other marketing form here. The API decides everything that matters
  * (dedupe, honeypot, capacity); this only carries the answer back.
  */
+const SITE_URL_ERROR = "That website doesn't look right. Try something like acme.com, or leave it blank.";
+
 export async function joinWaitlist(
   _prev: WaitlistState | null,
   formData: FormData,
@@ -38,10 +40,15 @@ export async function joinWaitlist(
         name: String(formData.get("name") ?? "").trim() || undefined,
         use_case: String(formData.get("use_case") ?? "").trim() || undefined,
         volume: String(formData.get("volume") ?? "").trim() || undefined,
+        // Their real website (optional). `website` below is the honeypot.
+        site_url: String(formData.get("site_url") ?? "").trim() || undefined,
         website: String(formData.get("website") ?? "") || undefined,
       }),
       cache: "no-store",
     });
+    if (res.status === 422 && (await res.text().catch(() => "")).includes("site_url")) {
+      return { error: SITE_URL_ERROR };
+    }
     if (!res.ok) {
       // Never surface the API's internals to a stranger on a public page.
       return { error: "We couldn't add you just now. Try again in a moment?" };
