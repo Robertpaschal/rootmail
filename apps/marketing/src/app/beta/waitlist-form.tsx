@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import { ArrowRight, CheckCircle2, Loader2 } from "lucide-react";
 import { AwsEmailPreview } from "@/components/site/aws-email-preview";
 import { joinWaitlist, type WaitlistState } from "./actions";
+import { ResendConfirmation } from "./resend-confirmation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -46,6 +47,13 @@ export function WaitlistForm() {
               a very long signed URL, which reads as phishing unless you were
               told to expect exactly this. */}
           <AwsEmailPreview />
+          <div className="border-t pt-3">
+            <p className="text-sm font-medium">Nothing from Amazon, or the link expired?</p>
+            <p className="mt-1 mb-2 text-sm text-muted-foreground">
+              Each link works for 24 hours. You can ask for a new one.
+            </p>
+            <ResendConfirmation email={state.email} />
+          </div>
         </div>
       </div>
     );

@@ -5,6 +5,7 @@ import {
 } from "@aws-sdk/client-ses";
 import {
   CreateEmailIdentityCommand,
+  DeleteEmailIdentityCommand,
   GetEmailIdentityCommand,
   CreateConfigurationSetCommand,
   CreateConfigurationSetEventDestinationCommand,
@@ -315,6 +316,86 @@ export async function isTesterVerified(email: string, options: { throwOnUnavaila
     // will refuse is worse than making someone wait.
     return false;
   }
+}
+
+/**
+ * How long Amazon's confirmation link stays clickable. After that the identity
+ * sits in SES as pending (later failed) and nothing we do re-sends it: asking
+ * ensureTesterIdentity again finds the identity and, correctly for a live link,
+ * leaves it alone.
+ */
+export const TESTER_LINK_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Where a tester's address stands with SES.
+ *
+ * `not_a_tester` is anything that is not a plain email-address identity (a
+ * domain, a managed domain). Nothing in the tester flow may ever touch one.
+ */
+export type TesterIdentityState = "missing" | "pending" | "failed" | "verified" | "not_a_tester";
+
+/** Read-only: one GetEmailIdentity, mapped to the states the beta flow cares about. */
+export async function testerIdentityState(email: string): Promise<ProvisionResult<TesterIdentityState>> {
+  const addr = email.trim().toLowerCase();
+  try {
+    const got = await sesv2().send(new GetEmailIdentityCommand({ EmailIdentity: addr }));
+    if (got.IdentityType && got.IdentityType !== "EMAIL_ADDRESS") return { ok: true, value: "not_a_tester" };
+    if (got.VerifiedForSendingStatus || got.VerificationStatus === "SUCCESS") return { ok: true, value: "verified" };
+    if (got.VerificationStatus === "FAILED") return { ok: true, value: "failed" };
+    return { ok: true, value: "pending" };
+  } catch (e) {
+    if ((e as { name?: string })?.name === "NotFoundException") return { ok: true, value: "missing" };
+    return { ok: false, reason: `Could not read identity — ${described(e)}`, retryable: !isAccessDenied(e) };
+  }
+}
+
+/** Our own sending and receiving domains. Never a tester's address, whatever the caller thinks. */
+export function isPlatformAddress(addr: string): boolean {
+  const domain = addr.slice(addr.lastIndexOf("@") + 1);
+  const own = [env.ROOTMAIL_DOMAIN, env.INBOUND_DOMAIN].filter((d): d is string => Boolean(d)).map((d) => d.toLowerCase());
+  return own.some((d) => domain === d || domain.endsWith(`.${d}`));
+}
+
+/**
+ * Get Amazon to send a tester a NEW confirmation link after the old one lapsed.
+ *
+ * SESv2 has no "resend" for an email identity — the console's Resend button is
+ * the only one. The supported API path is to remove the stuck identity and
+ * create it again, and creating it is what sends the email.
+ *
+ * Refuses, without writing anything, unless the identity is a plain email
+ * address that is NOT verified and is not on one of our own domains. So the
+ * worst a wrong caller can do is re-send a confirmation to an inbox that never
+ * confirmed; it cannot remove a working sender or anything of ours.
+ */
+export async function recreateTesterIdentity(email: string): Promise<ProvisionResult<{ status: "pending" }>> {
+  const addr = email.trim().toLowerCase();
+  if (isPlatformAddress(addr)) return { ok: false, reason: "Refusing to recreate an identity on a platform domain", retryable: false };
+
+  const state = await testerIdentityState(addr);
+  if (!state.ok) return state;
+  if (state.value === "verified" || state.value === "not_a_tester") {
+    return { ok: false, reason: `Refusing to recreate a ${state.value} identity`, retryable: false };
+  }
+
+  const client = sesv2();
+  if (state.value !== "missing") {
+    try {
+      await client.send(new DeleteEmailIdentityCommand({ EmailIdentity: addr }));
+    } catch (e) {
+      if ((e as { name?: string })?.name !== "NotFoundException") {
+        return { ok: false, reason: `Could not clear the lapsed identity — ${described(e)}`, retryable: !isAccessDenied(e) };
+      }
+    }
+  }
+  try {
+    await client.send(new CreateEmailIdentityCommand({ EmailIdentity: addr }));
+  } catch (e) {
+    if ((e as { name?: string })?.name !== "AlreadyExistsException") {
+      return { ok: false, reason: `Could not request verification — ${described(e)}`, retryable: !isAccessDenied(e) };
+    }
+  }
+  return { ok: true, value: { status: "pending" } };
 }
 
 // ---------------------------------------------------------------------------

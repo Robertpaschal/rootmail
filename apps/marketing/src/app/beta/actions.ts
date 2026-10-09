@@ -1,10 +1,16 @@
 "use server";
 
+import { headers } from "next/headers";
+import { clientAddress } from "../check/rate-limit";
+import { takeResend } from "./rate-limit";
+
 const API_URL = process.env.ROOTMAIL_API_URL ?? "http://localhost:4000";
 
 export interface WaitlistState {
   ok?: boolean;
   error?: string;
+  /** Echoed back on success so the "send a new link" action can be prefilled. */
+  email?: string;
 }
 
 /**
@@ -40,7 +46,50 @@ export async function joinWaitlist(
       // Never surface the API's internals to a stranger on a public page.
       return { error: "We couldn't add you just now. Try again in a moment?" };
     }
-    return { ok: true };
+    return { ok: true, email };
+  } catch {
+    return { error: "We couldn't reach the signup service. Try again in a moment?" };
+  }
+}
+
+export interface ResendState {
+  /** The API's neutral answer. Same for every address, on the list or not. */
+  message?: string;
+  error?: string;
+}
+
+/**
+ * Ask for a new Amazon confirmation link (the old one lasts 24 hours).
+ *
+ * Whatever the API decides, it answers with one neutral message, and this
+ * passes it through unchanged — the page must not be able to tell a visitor
+ * whether someone else's address is on the list.
+ */
+export async function resendConfirmation(
+  _prev: ResendState | null,
+  formData: FormData,
+): Promise<ResendState> {
+  const email = String(formData.get("email") ?? "").trim().toLowerCase();
+  if (!email || !email.includes("@")) {
+    return { error: "That doesn't look like an email address." };
+  }
+  if (!takeResend(clientAddress(await headers()))) {
+    return { error: "That's a lot of requests from here. Give it an hour and try again." };
+  }
+
+  try {
+    const res = await fetch(`${API_URL}/v1/beta/waitlist/resend-confirmation`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, website: String(formData.get("website") ?? "") || undefined }),
+      cache: "no-store",
+    });
+    if (res.status === 429) {
+      return { error: "We've had a few requests for that address already. Try again tomorrow." };
+    }
+    if (!res.ok) return { error: "We couldn't send that just now. Try again in a moment?" };
+    const body = (await res.json().catch(() => ({}))) as { message?: string };
+    return { message: body.message ?? "If that address is on our waitlist, a confirmation email is on its way." };
   } catch {
     return { error: "We couldn't reach the signup service. Try again in a moment?" };
   }
