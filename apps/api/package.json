@@ -18,6 +18,7 @@
     "test:comms": "tsx scripts/test-comms.ts",
     "cleanup:test-users": "tsx scripts/cleanup-test-users.ts",
     "staff:reset-link": "tsx src/cli/staff-reset-link.ts",
+    "beta:migrate-senders": "tsx src/cli/beta-sender-migrate.ts",
     "test": "LOG_LEVEL=silent node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {

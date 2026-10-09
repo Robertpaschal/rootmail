@@ -44,7 +44,8 @@ export function threadReplyAddress(conversationId: string, ownDomain?: string | 
  *    reply address) — unless it is itself a platform beta address, which is a
  *    sending identity with no mailbox behind it and would bounce. That one is
  *    treated as absent.
- * 2. From a platform beta address (beta+<org>@ROOTMAIL_DOMAIN): always the
+ * 2. From a platform beta address (beta+<org>@ the apex or reply subdomain, see
+ *    isPlatformBetaFrom): always the
  *    capture address, whatever the reply mode, because there is no "own mailbox"
  *    to fall back to. Null when capture is not configured; the worker refuses to
  *    send in that case (see pipeline.ts) rather than ship a reply that bounces.
@@ -62,7 +63,7 @@ export function resolveReplyTo(opts: {
    * the shared rootmail address. Pass only when receiving is live for it. */
   replyDomain?: string | null;
 }): string | null {
-  const explicit = opts.explicit && !isPlatformBetaAddress(opts.explicit, env.ROOTMAIL_DOMAIN) ? opts.explicit : null;
+  const explicit = opts.explicit && !isPlatformBetaFrom(opts.explicit) ? opts.explicit : null;
   if (explicit) return explicit;
   // Managed beta addresses are sending identities, not mailboxes. Even if the
   // workspace later chooses own_mailbox, replies must not disappear there.
@@ -74,9 +75,43 @@ export function resolveReplyTo(opts: {
   return threadReplyAddress(opts.conversationId, opts.replyDomain) ?? ownMailbox;
 }
 
-/** Is this From one of rootmail's managed beta addresses (beta+<org>@ROOTMAIL_DOMAIN)? */
+/**
+ * The domain NEW beta addresses are issued on: INBOUND_DOMAIN when it is a
+ * subdomain of ROOTMAIL_DOMAIN (reply.rootmail.io), otherwise the apex.
+ *
+ * Why the subdomain: rootmail.io's MX is a human mail host with no beta+
+ * mailboxes, so anyone who writes to the From by hand (or a client that ignores
+ * Reply-To) bounced. reply.rootmail.io's MX is our SES inbound, so the From is
+ * itself routable. Sending from it needs no new SES identity: a subdomain of the
+ * verified rootmail.io domain identity is covered by it, DKIM signs d=rootmail.io
+ * (relaxed alignment with reply.rootmail.io) and SPF passes on the shared
+ * custom MAIL FROM (mail.rootmail.io), also relaxed-aligned. A domain OUTSIDE
+ * ROOTMAIL_DOMAIN would not be covered by that identity, so it is never used.
+ */
+export function betaSenderDomain(): string {
+  const apex = env.ROOTMAIL_DOMAIN.trim().toLowerCase();
+  const inbound = env.INBOUND_DOMAIN?.trim().toLowerCase();
+  if (inbound && HOSTNAME_RE.test(inbound) && inbound.endsWith(`.${apex}`)) return inbound;
+  return apex;
+}
+
+/** Is this one of rootmail's managed beta addresses: beta+<org>@ the apex
+ * (legacy form) or any subdomain of it (reply.rootmail.io, the current form)?
+ * Subdomains are matched broadly, not just today's INBOUND_DOMAIN, so a migrated
+ * address is still recognised — and still fails closed without reply capture —
+ * even if INBOUND_DOMAIN is later unset or changed. */
 export function isPlatformBetaFrom(fromEmail: string | null | undefined): boolean {
-  return isPlatformBetaAddress(fromEmail, env.ROOTMAIL_DOMAIN);
+  const e = (fromEmail ?? "").trim().toLowerCase();
+  const domain = e.slice(e.lastIndexOf("@") + 1);
+  const apex = env.ROOTMAIL_DOMAIN.trim().toLowerCase();
+  return (domain === apex || domain.endsWith(`.${apex}`)) && isPlatformBetaAddress(e, domain);
+}
+
+/** The org id a beta address names (its local part after "beta+"), or null. */
+export function betaAddressOrgId(email: string | null | undefined): string | null {
+  if (!isPlatformBetaFrom(email)) return null;
+  const e = (email ?? "").trim().toLowerCase();
+  return e.slice("beta+".length, e.indexOf("@"));
 }
 
 /**
@@ -86,7 +121,7 @@ export function isPlatformBetaFrom(fromEmail: string | null | undefined): boolea
  * answer this — only whether a routable domain exists.
  */
 export function betaReplyCaptureAvailable(opts: { explicit?: string | null; replyDomain?: string | null } = {}): boolean {
-  if (opts.explicit && !isPlatformBetaAddress(opts.explicit, env.ROOTMAIL_DOMAIN)) return true;
+  if (opts.explicit && !isPlatformBetaFrom(opts.explicit)) return true;
   return threadReplyAddress("thr_probe", opts.replyDomain) !== null;
 }
 

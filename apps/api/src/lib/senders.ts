@@ -6,7 +6,7 @@ import {
 } from "@aws-sdk/client-sesv2";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { Errors, env } from "@rootmail/core";
-import { db, senderIdentities, type SenderIdentity } from "@rootmail/db";
+import { betaAddressOrgId, db, senderIdentities, type SenderIdentity } from "@rootmail/db";
 
 // Own-address sending: an org adds e.g. hello@acme.com, SES emails that mailbox a
 // confirmation link (CreateEmailIdentity), and once confirmed the address may be
@@ -133,6 +133,18 @@ export async function assertSenderAllowed(opts: {
   if (opts.subTenantDomain && fromDomain === opts.subTenantDomain.toLowerCase()) return;
   if (opts.fromEmail.toLowerCase() === `no-reply@${env.ROOTMAIL_DOMAIN.toLowerCase()}`) return;
   if (opts.organizationId && (await verifiedSenderFor(opts.organizationId, opts.fromEmail))) return;
+  // A beta address moved from the apex (beta+<org>@rootmail.io) to the reply
+  // subdomain stays usable in either form by ITS org, so an integration that
+  // hard-coded the old From keeps sending. The org id in the address must be
+  // this org's, and the org must have activated its beta address.
+  const betaOrg = betaAddressOrgId(opts.fromEmail);
+  if (opts.organizationId && betaOrg && betaOrg === opts.organizationId.toLowerCase()) {
+    const verified = await db
+      .select({ email: senderIdentities.email })
+      .from(senderIdentities)
+      .where(and(eq(senderIdentities.organizationId, opts.organizationId), eq(senderIdentities.status, "verified")));
+    if (verified.some((s) => betaAddressOrgId(s.email) === betaOrg)) return;
+  }
   throw Errors.validation(
     `"${opts.fromEmail}" isn't a verified sender for this organization. Verify it under Settings → Sending, or leave From empty to use your workspace address.`,
   );
