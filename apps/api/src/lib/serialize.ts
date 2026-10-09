@@ -53,6 +53,14 @@ export interface ThreadExtras {
   contactName?: string | null;
   preview?: string | null;
   source?: (m: ThreadMessage) => ThreadMessageSource | undefined;
+  /** The From of the newest inbound entry (list view). Derived from msgs when given. */
+  lastReplyFrom?: string | null;
+}
+
+function latestInboundFrom(msgs: ThreadMessage[]): string | null {
+  let best: ThreadMessage | null = null;
+  for (const m of msgs) if (m.direction === "inbound" && (!best || m.createdAt > best.createdAt)) best = m;
+  return best?.fromEmail ?? null;
 }
 
 export function serializeThread(t: Thread, msgs?: ThreadMessage[], extra?: ThreadExtras) {
@@ -64,6 +72,8 @@ export function serializeThread(t: Thread, msgs?: ThreadMessage[], extra?: Threa
     contact_email: t.contactEmail,
     contact_name: extra?.contactName ?? null,
     preview: extra?.preview ?? null,
+    // The real sender of the latest reply — never assumed to be the contact.
+    last_reply_from: extra?.lastReplyFrom ?? (msgs ? latestInboundFrom(msgs) : null),
     sub_tenant_id: t.subTenantId,
     last_message_at: t.lastMessageAt,
     created_at: t.createdAt,

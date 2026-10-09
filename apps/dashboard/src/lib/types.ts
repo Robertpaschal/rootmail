@@ -1036,6 +1036,8 @@ export interface Thread {
   contact_name: string | null;
   /** A short last-message preview for the conversation list. */
   preview: string | null;
+  /** The real From of the latest reply (may differ from the contact). */
+  last_reply_from?: string | null;
   sub_tenant_id: string | null;
   last_message_at: string;
   created_at: string;
