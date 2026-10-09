@@ -615,7 +615,7 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
   dedicated_ip: {
     id: "dedicated_ip",
     name: "Dedicated IP",
-    description: "A sending IP address only you send from, so your reputation is entirely your own (most senders share a warm pool — this isolates yours).",
+    description: "Your own sending IP address, used only for your mail, so its IP reputation reflects only what you send (most senders share a warm pool). It still sends through our one provider account, so that account's overall reputation and suppression list still apply.",
     unit: "dedicated IP",
     unitNote: "Priced per IP — one IP is one dedicated address.",
     defaultUnitAmount: 30,

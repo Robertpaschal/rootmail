@@ -129,7 +129,7 @@ function DedicatedIpBanner({
           </p>
           <p className="mt-0.5 text-sm text-muted-foreground">
             {status === "active"
-              ? `Your mail sends from a dedicated IP${address ? ` (${address})` : ""} — reputation you own.`
+              ? `Your mail sends from a dedicated IP${address ? ` (${address})` : ""} — its IP reputation reflects only your mail.`
               : "Your dedicated IP is being set up by our team. We'll email you when it's live, then warm it gradually (usually 1–2 business days to start)."}
           </p>
         </div>
