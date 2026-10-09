@@ -20,7 +20,7 @@ else if(a[0]==='docker') a=a.slice(1);
 const svc = a.includes('worker') ? 'worker' : 'api';
 const st = (s) => fs.existsSync('state-'+s) ? fs.readFileSync('state-'+s,'utf8') : 'old';
 if(a[0]==='compose') {
-  const op=a.find(x=>['config','ps','up','run'].includes(x));
+  const op=a.find(x=>['config','ps','up','run','down'].includes(x));
   if(op==='ps') console.log('cid-'+svc);
   if(op==='up') fs.writeFileSync('state-'+svc, tag===${JSON.stringify(sha)}?'new':'old');
   if(op==='run' && a.includes('-d')) fs.writeFileSync('canary', a[a.indexOf('--name')+1]);
@@ -78,6 +78,25 @@ function run(scenario, to = 'admin@rootmail.io') {
   return res;
 }
 
+// The canary never shares a port, compose project, name or alias with prod.
+function isolation(r) {
+  const calls = r.docker.trim().split('\n').map(JSON.parse).filter((c) => c.includes('compose'));
+  const project = (c) => (c.includes('-p') && c[c.indexOf('-p') - 1] === 'compose') ? c[c.indexOf('-p') + 1] : 'rootmail';
+  const runs = calls.filter((c) => c.includes('run') && c.includes('-d'));
+  assert.equal(runs.length, 1);
+  const run = runs[0];
+  assert.equal(project(run), 'rootmail-canary', 'own compose project, so its own network');
+  assert.equal(run.slice(run.indexOf('compose') + 1, run.indexOf('compose') + 7).join(' '), '-p rootmail-canary --env-file .env.prod -f docker-compose.prod.yml', 'same files and env as prod');
+  assert.ok(run.includes('docker-compose.host.yml'), 'host overlay (.env.api.prod) too');
+  assert.match(run[run.indexOf('--name') + 1], /^rootmail-canary-api-\d+$/);
+  const published = run.filter((x, i) => run[i - 1] === '-p' && x.includes(':'));
+  assert.deepEqual(published, ['127.0.0.1:4100:4000'], 'only its own loopback port; never 4000 on the host');
+  for (const f of ['--service-ports', '--use-aliases', '--network', '--network-alias']) assert.equal(run.includes(f), false, f);
+  for (const c of calls.filter((c) => c.includes('up'))) assert.equal(project(c), 'rootmail', 'prod swaps stay in the prod project');
+  for (const c of calls.filter((c) => c.includes('down'))) assert.equal(project(c), 'rootmail-canary', 'teardown only touches the canary project');
+  assert.ok(calls.some((c) => c.includes('down')), 'canary network removed');
+}
+
 test('refuses any recipient outside the hard allowlist before touching docker or the network', () => {
   for (const to of ['someone@example.com', 'admin@rootmail.io.evil.test', 'nnamani.odinakarobert+x@gmail.com', '']) {
     const r = run('healthy', to);
@@ -93,6 +112,7 @@ test('healthy: canary on 127.0.0.1, smoke, swap api then worker, rollback printe
   assert.equal(r.api, 'new'); assert.equal(r.worker, 'new'); assert.equal(r.canary, false);
   assert.match(r.docker, /"run","-d","--no-deps","--name","rootmail-canary-api-\d+","-p","127\.0\.0\.1:4100:4000","api"/);
   assert.match(r.docker, /docker-compose\.host\.yml/);
+  isolation(r);
   assert.match(r.stdout, new RegExp(`TAG=${prev} \\./scripts/deploy-host\\.sh api`));
   assert.match(r.stdout, /Inbound reply check/);
   for (const out of [r.stdout, r.stderr, r.docker, r.curl]) assert.equal(out.includes(key), false);
@@ -108,6 +128,7 @@ for (const scenario of ['canary-unhealthy', 'send-fails']) {
     assert.equal(r.status, 1);
     assert.equal(r.api, 'old'); assert.equal(r.worker, 'old'); assert.equal(r.canary, false);
     assert.doesNotMatch(r.docker, /force-recreate/);
+    isolation(r);
     assert.match(r.stderr, /canary log line/);
   });
 }

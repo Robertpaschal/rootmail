@@ -5,8 +5,8 @@
 # (default 4100) and API_URL (the prod API on this host, default 127.0.0.1:4000).
 #
 #  1. Migrations first, exactly as today (backward compatible only).
-#  2. The new api tag as a separate container on 127.0.0.1:$CANARY_PORT, with the
-#     same compose files and env files as prod. Smoke: /health ok, signup, one
+#  2. The new api tag as a separate container on 127.0.0.1:$CANARY_PORT, in its
+#     own compose project and network, with the same compose and env files. Smoke: /health ok, signup, one
 #     test send to an allowlisted recipient, its delivery event (proof the
 #     tracking configuration set is attached) and its stored HTML.
 #  3. On success the canary is removed and the api swaps via deploy-host.sh,
@@ -53,6 +53,13 @@ C=(--env-file .env.prod -f docker-compose.prod.yml)
 # The host overlay carries .env.api.prod / .env.worker.prod and the loopback bindings.
 if [[ -f docker-compose.host.yml ]]; then C+=(-f docker-compose.host.yml); fi
 dc() { local tag="$1"; shift; sudo env REGISTRY="$NS" TAG="$tag" docker compose "${C[@]}" "$@"; }
+# The canary runs in its own compose project, so compose never recreates or
+# lists it as the prod api, and on its own network (rootmail-canary_default),
+# so nothing on rootmail_default (Caddy) can resolve or reach it. `run` takes
+# no service ports (no --service-ports) and no "api" alias (no --use-aliases):
+# only 127.0.0.1:$CANARY_PORT is published. Same files, so the same env files.
+CANARY_PROJECT="rootmail-canary"
+dcc() { local tag="$1"; shift; sudo env REGISTRY="$NS" TAG="$tag" docker compose -p "$CANARY_PROJECT" "${C[@]}" "$@"; }
 CANARY="rootmail-canary-api-$$"
 TMP="$(mktemp -d)"
 CANARY_UP=0
@@ -63,6 +70,8 @@ remove_canary() {
   if "${D[@]}" inspect "$CANARY" >/dev/null 2>&1; then
     "${D[@]}" rm -f "$CANARY" >/dev/null || { log "Could not remove $CANARY; remove it by hand"; return 1; }
   fi
+  # Only the canary project's own network; prod's project is never named here.
+  dcc "$TAG" down --remove-orphans >/dev/null 2>&1 || { log "Could not remove the $CANARY_PROJECT network; remove it by hand"; return 1; }
 }
 finish() {
   local result=$?
@@ -178,7 +187,7 @@ fi
 
 log "Starting the canary api on 127.0.0.1:$PORT"
 CANARY_UP=1
-dc "$TAG" run -d --no-deps --name "$CANARY" -p "127.0.0.1:$PORT:4000" api >/dev/null
+dcc "$TAG" run -d --no-deps --name "$CANARY" -p "127.0.0.1:$PORT:4000" api >/dev/null
 CANARY_URL="http://127.0.0.1:$PORT"
 health_ok "$CANARY_URL"
 signup_ok "$CANARY_URL"
