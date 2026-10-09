@@ -10,6 +10,7 @@ import {
   BILLING_MODE,
   blocksMonthlyPrice,
   env,
+  platformReplyTo,
   Errors,
   generateSessionToken,
   hashPassword,
@@ -2869,6 +2870,8 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       html: mail.html,
       text: mail.text,
       cls: "transactional",
+      // "Just reply to this email; it reaches a person" — so it must.
+      replyTo: platformReplyTo(),
     });
 
     await db

@@ -146,10 +146,13 @@ export async function processSystemMail(job: SystemMailJob): Promise<void> {
       replyMode: "inbox",
       conversationId: thread.id,
       fromEmail: from,
-      explicit: null,
+      // A caller-chosen Reply-To (platformReplyTo() on mail that says "just reply") wins,
+      // exactly as it does for a customer's API send.
+      explicit: job.replyTo ?? null,
     });
   } catch {
-    /* no thread, so no reply address — send anyway, as before */
+    /* no thread — send anyway, as before, still honouring an explicit Reply-To */
+    replyTo = job.replyTo ?? null;
   }
 
   try {

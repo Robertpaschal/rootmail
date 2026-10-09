@@ -1,7 +1,7 @@
 import { asc, desc, eq, inArray, type SQL } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { Errors, newId, sendSystemEmail, SUPPORT_TICKET_STATUSES } from "@rootmail/core";
+import { Errors, newId, platformReplyTo, sendSystemEmail, SUPPORT_TICKET_STATUSES } from "@rootmail/core";
 import {
   db,
   organizations,
@@ -241,6 +241,8 @@ export async function supportRoutes(app: FastifyInstance): Promise<void> {
       text: `${text}\n\n— rootmail support`,
       // transactional: a reply in a conversation the customer started.
       cls: "transactional",
+      // It says "just reply": send that reply to the inbox a person reads.
+      replyTo: platformReplyTo(),
     }).catch((err) => req.log.warn({ err }, "support reply email failed"));
 
     await writeStaffAudit({
