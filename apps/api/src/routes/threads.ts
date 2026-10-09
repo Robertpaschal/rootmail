@@ -1,7 +1,7 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
-import { enqueueWebhookEvent, Errors, THREAD_STATUSES } from "@rootmail/core";
+import { enqueueWebhookEvent, env, Errors, THREAD_STATUSES } from "@rootmail/core";
 import {
   activeReplyDomain,
   appendInbound,
@@ -13,12 +13,14 @@ import {
   messages,
   organizations,
   resolveReplyTo,
+  subTenants,
   type Thread,
   threadMessages,
   threadReplyFrom,
   threads,
 } from "@rootmail/db";
 import { assertCanSend } from "../lib/billing";
+import { defaultSenderFor } from "../lib/senders";
 import { authActor, dispatchMessage } from "../lib/dispatch";
 import { exitEnrollments } from "../lib/sequence-triggers";
 import { requirePermission } from "../lib/permissions";
@@ -75,6 +77,23 @@ async function getScopedThread(req: FastifyRequest, id: string): Promise<Thread>
     .limit(1);
   if (!t) throw Errors.notFound(`Thread ${id} not found`);
   return t;
+}
+
+/**
+ * The From for a reply in a conversation we never sent into (no outbound entry
+ * to copy the address from). The same default as any send that names no From
+ * (messages.ts resolveFrom): a client domain's no-reply for a sub-tenant thread,
+ * else the org's default verified sender, else the platform no-reply. Each of
+ * those is covered by a verified sending identity. This used to be
+ * no-reply@<slug>.rootmail.dev, which no SES identity of ours covers.
+ */
+export async function fallbackReplyFrom(thread: Pick<Thread, "subTenantId">, organizationId: string): Promise<string> {
+  if (thread.subTenantId) {
+    const [st] = await db.select({ domain: subTenants.sendingDomain }).from(subTenants).where(eq(subTenants.id, thread.subTenantId)).limit(1);
+    if (st?.domain) return `no-reply@${st.domain}`;
+  }
+  const own = await defaultSenderFor(organizationId);
+  return own?.email ?? `no-reply@${env.ROOTMAIL_DOMAIN}`;
 }
 
 export async function threadRoutes(app: FastifyInstance): Promise<void> {
@@ -237,7 +256,7 @@ export async function threadRoutes(app: FastifyInstance): Promise<void> {
     if (!body.html && !body.text) throw Errors.validation("Provide `html` or `text` to reply.");
     const thread = await getScopedThread(req, id);
     const fromEmail =
-      (await threadReplyFrom(thread.id)) ?? `no-reply@${req.auth.workspace.slug}.rootmail.dev`;
+      (await threadReplyFrom(thread.id)) ?? (await fallbackReplyFrom(thread, req.auth.workspace.organizationId));
 
     // Replies count against the monthly quota like any other live send.
     const [org] = await db
