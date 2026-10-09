@@ -10,12 +10,14 @@ import {
   sequenceEnrollments,
   sequences,
   messages,
+  organizations,
   subTenants,
   templates,
   workspaces,
 } from "@rootmail/db";
 import { checkSendCapacity } from "./capacity";
 import { automationSend } from "./send";
+import { sequenceSendType } from "./sequence-send-type";
 
 const MAX_ITERATIONS = 50; // per enrollment per tick — defuses a tight branch loop
 
@@ -28,6 +30,8 @@ interface SendCtx {
   fromName: string | null;
   /** The enrollee's own details — fills the template's {{placeholders}} per person. */
   variables: Record<string, unknown>;
+  /** rootmail's own account (see sequenceSendType). */
+  internalOrg: boolean;
 }
 
 async function resolveTemplate(seq: Sequence, ref: string) {
@@ -98,10 +102,16 @@ async function buildCtx(enr: SequenceEnrollment): Promise<SendCtx> {
     fromEmail,
     fromName,
     variables: contactVariables(enrollee ?? null, enr.email),
+    internalOrg: ws?.organizationId ? await isInternalOrg(ws.organizationId) : false,
     // Reply-To is resolved inside automationSend per the org's reply mode
     // (capture into the Replies inbox by default) — a drip's replies thread back
     // to the contact just like every other send.
   };
+}
+
+async function isInternalOrg(organizationId: string): Promise<boolean> {
+  const [org] = await db.select({ internal: organizations.isInternal }).from(organizations).where(eq(organizations.id, organizationId)).limit(1);
+  return org?.internal === true;
 }
 
 /** Advance a single enrollment through as many steps as it can in this tick. */
@@ -141,8 +151,10 @@ async function advance(enr: SequenceEnrollment, seq: Sequence): Promise<void> {
       // is, DEFER the step (stay active, retry when the cap resets); never drop
       // it and never advance past it, or the contact would silently miss an
       // email they were supposed to get.
+      const { internalOrg, ...sendCtx } = ctx;
+      const type = sequenceSendType({ templateType: tpl.type, internalOrg });
       if (ctx.mode === "live" && ctx.organizationId) {
-        const cap = await checkSendCapacity(ctx.organizationId, "marketing");
+        const cap = await checkSendCapacity(ctx.organizationId, type);
         if (!cap.ok) {
           nextRunAt = cap.retryAt ?? new Date(Date.now() + 3_600_000);
           console.warn(
@@ -152,8 +164,8 @@ async function advance(enr: SequenceEnrollment, seq: Sequence): Promise<void> {
         }
       }
       const res = await automationSend({
-        ...ctx,
-        type: "marketing",
+        ...sendCtx,
+        type,
         to: enr.email,
         subject: tpl.subject,
         html: tpl.html,
