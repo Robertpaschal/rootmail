@@ -2728,6 +2728,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
           admitted: r.tags.includes(BETA_ADMITTED_TAG),
           use_case: (r.metadata as Record<string, unknown>).beta_use_case ?? null,
           volume: (r.metadata as Record<string, unknown>).beta_volume ?? null,
+          site_url: (r.metadata as Record<string, unknown>).beta_site_url ?? null,
           joined_at: r.createdAt.toISOString(),
         })),
     };

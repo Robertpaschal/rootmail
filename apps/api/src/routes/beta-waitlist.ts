@@ -2,7 +2,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { admitSubscriber, contacts, db } from "@rootmail/db";
-import { AppError } from "@rootmail/core";
+import { AppError, Errors } from "@rootmail/core";
 import { betaInviteRequired } from "../lib/beta";
 import { resendClientIp, resendTesterConfirmation, takeResendSlot, track } from "../lib/beta-resend";
 import { autoAdmitRemaining, betaWaitlistAudience } from "../lib/beta-waitlist";
@@ -12,6 +12,9 @@ import { parse } from "../lib/validate";
 // PUBLIC. rootmail.io/beta posts here. No auth, by design — this is the front
 // door of a closed beta, so it must be reachable by someone who has nothing.
 
+/** Longest website we keep. Generous for a real homepage, small enough not to be a payload. */
+export const SITE_URL_MAX = 200;
+
 const waitlistBody = z.object({
   email: z.string().email(),
   name: z.string().trim().max(120).optional(),
@@ -19,9 +22,34 @@ const waitlistBody = z.object({
   use_case: z.string().trim().max(600).optional(),
   /** Roughly how much mail. Free text — a range is more honest than a number. */
   volume: z.string().trim().max(60).optional(),
+  /** Their real website, optional. NOT `website` — that name is the honeypot. */
+  /** Their real website, optional. NOT `website` — that name is the honeypot.
+   * Checked by normalizeSiteUrl AFTER the honeypot, so a bot learns nothing. */
+  site_url: z.string().trim().max(2000).optional(),
   /** Honeypot. Humans never fill it; bots do. Accepted, then dropped. */
   website: z.string().optional(),
 });
+
+/**
+ * "acme.com", "www.acme.com/about" or "https://acme.com" → an https?:// URL, or
+ * null when it isn't a plausible public web address (no dot in the host, a
+ * non-web scheme, embedded credentials, spaces, or too long).
+ */
+export function normalizeSiteUrl(input: string): string | null {
+  const raw = input.trim();
+  if (!raw || raw.length > SITE_URL_MAX || /\s/.test(raw)) return null;
+  const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(raw) ? raw : `https://${raw}`;
+  let url: URL;
+  try { url = new URL(withScheme); } catch { return null; }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+  if (url.username || url.password) return null;
+  const host = url.hostname.toLowerCase();
+  if (!/^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/.test(host)) return null;
+  const out = url.toString();
+  // Drop the bare trailing slash URL() adds, so "acme.com" stays readable.
+  const tidy = url.pathname === "/" && !url.search && !url.hash ? out.replace(/\/$/, "") : out;
+  return tidy.length <= SITE_URL_MAX ? tidy : null;
+}
 
 const resendBody = z.object({
   email: z.string().email(),
@@ -47,6 +75,14 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
     // A bot filled the hidden field. Answer exactly as we would a human, so it
     // learns nothing, and write nothing.
     if (body.website) return reply.code(202).send({ ok: true, status: "waiting" });
+
+    const siteUrl = body.site_url ? normalizeSiteUrl(body.site_url) : null;
+    if (body.site_url && !siteUrl) {
+      throw Errors.validation("Request validation failed", {
+        formErrors: [],
+        fieldErrors: { site_url: ["Enter a web address like acme.com or https://acme.com."] },
+      });
+    }
 
     const { workspaceId, list } = await betaWaitlistAudience();
 
@@ -82,6 +118,7 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
       metadata: {
         ...(body.use_case ? { beta_use_case: body.use_case } : {}),
         ...(body.volume ? { beta_volume: body.volume } : {}),
+        ...(siteUrl ? { beta_site_url: siteUrl } : {}),
         beta_signed_up_at: new Date().toISOString(),
       },
     });
@@ -94,7 +131,7 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
     // Keep what they told us. This is the difference between a list of
     // addresses and knowing who to invite first: someone sending receipts for a
     // Nigerian fintech tests a different half of the product than a newsletter.
-    if (contactId && (body.use_case || body.volume)) {
+    if (contactId && (body.use_case || body.volume || siteUrl)) {
       const [existing] = await db
         .select({ metadata: contacts.metadata })
         .from(contacts)
@@ -107,6 +144,7 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
             ...(existing?.metadata ?? {}),
             ...(body.use_case ? { beta_use_case: body.use_case } : {}),
             ...(body.volume ? { beta_volume: body.volume } : {}),
+            ...(siteUrl ? { beta_site_url: siteUrl } : {}),
             beta_signed_up_at: new Date().toISOString(),
           },
         })
