@@ -1261,3 +1261,21 @@ export const PUBLIC_MAILBOX_SENDER_WARNING = "Gmail, Outlook and other personal 
 export function betaSenderAddress(organizationId: string, domain: string): string {
   return `beta+${organizationId.toLowerCase()}@${domain.toLowerCase()}`;
 }
+
+/**
+ * True for an address minted by betaSenderAddress on `domain`. These are sending
+ * identities, not mailboxes: rootmail.io's MX is a human mail host that has no
+ * such user, so a reply sent straight to one hard-bounces. Every send from one
+ * must carry a routable Reply-To (see resolveReplyTo in @rootmail/db).
+ */
+export function isPlatformBetaAddress(email: string | null | undefined, domain: string): boolean {
+  const e = (email ?? "").trim().toLowerCase();
+  const at = e.indexOf("@");
+  return e.startsWith("beta+") && at > "beta+".length && at === e.lastIndexOf("@") && e.slice(at + 1) === domain.trim().toLowerCase();
+}
+
+/** Stored on a message the worker refused to send from a beta address because
+ * no reply-capture address could be attached. Customer-facing: no provider or
+ * infrastructure names. */
+export const BETA_REPLY_CAPTURE_UNAVAILABLE =
+  "Not sent: replies to your Rootmail beta address are delivered to your Replies inbox, and that reply service was unavailable for this email, so a reply to it would have bounced. Nothing was sent. Try again in a few minutes, or set a Reply-To address you read.";

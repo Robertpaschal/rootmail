@@ -30,6 +30,8 @@ import {
 import {
   activeReplyDomain,
   assets,
+  betaReplyCaptureAvailable,
+  isPlatformBetaFrom,
   auditEntries,
   db,
   messages,
@@ -436,6 +438,12 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // domain — otherwise SES would reject it downstream with a cryptic error.
     if (body.from) {
       await assertSenderAllowed({ fromEmail: from.email, organizationId: org?.id ?? null, subTenantDomain: subTenant?.sendingDomain });
+    }
+    // A rootmail beta address has no mailbox behind it; replies only arrive
+    // through the capture Reply-To. Refuse up front, in our voice, when this
+    // deployment cannot attach one — the worker would refuse it anyway.
+    if (isPlatformBetaFrom(from.email) && !betaReplyCaptureAvailable({ explicit: body.reply_to ?? null, replyDomain: org ? activeReplyDomain(org) : null })) {
+      throw Errors.validation("Rootmail's beta reply service is not available, so replies to this beta address would bounce. Nothing was sent. Set reply_to to an address you read, or try again shortly.");
     }
     // While our sending account is provider-limited, mail to an address the
     // provider has not verified is refused BY THE PROVIDER — with its wording,
