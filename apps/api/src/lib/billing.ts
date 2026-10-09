@@ -415,7 +415,7 @@ export async function assertTransactionalSendCapacity(org: BillableOrg, n = 1): 
     // who reports a bug and one who quietly concludes the thing is a toy.
     if (org.isBeta && !org.isInternal) {
       throw Errors.quotaExceeded(
-        `That's your ${daily} test sends for today — it resets at midnight UTC. This limit is ours, not the product's: rootmail is still waiting on our email provider to lift the launch cap that every new sender starts under, and we share it across all testers. It has nothing to do with what rootmail can send in production. Getting testers using it properly is exactly how that cap comes off — so if this is in your way, tell us and it moves up the list.`,
+        `That's your ${daily} test sends for today — it resets at midnight UTC. This limit is ours, not the product's: rootmail is in a closed beta, our email provider still has us on the limits every new sender starts under, and every seat shares them. They stay until our request for production access is approved. It has nothing to do with what rootmail can send in production — if this cap is in your way, reply and tell us.`,
         { transactional_daily_used: usedToday, transactional_daily_limit: daily, beta: true },
       );
     }

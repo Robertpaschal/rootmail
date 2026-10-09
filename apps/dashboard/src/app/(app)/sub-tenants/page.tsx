@@ -20,7 +20,7 @@ import type { SubTenant } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const DESC =
-  "Give each client or brand their own verified sending domain, with DKIM and email reputation kept separate. (Sending from your own address instead? Set that under Settings → Sending.)";
+  "Give each client or brand their own verified sending domain, with its own DKIM keys and its own reputation score. (Sending from your own address instead? Set that under Settings → Sending.)";
 
 // The three stages of /sub-tenants/new, shown here as a preview of the journey.
 // They used to be a static explainer with the create form opening UNDERNEATH

@@ -66,8 +66,8 @@ const PROMISES = [
   },
   {
     title: "Sending is capped",
-    body: "Our email provider lifts the limits every new sender starts under. That is our constraint, not the product's.",
-    fact: "daily cap · provider ramp · lifts as we send well",
+    body: "rootmail is in a closed beta and rolling out slowly. Our email provider keeps every new sender on starter limits until it approves production access, and ours stay until that approval comes. That is our constraint, not the product's.",
+    fact: "daily cap · starter limits · stay until production access is approved",
   },
 ];
 

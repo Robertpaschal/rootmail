@@ -628,7 +628,7 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
   subtenant_pack: {
     id: "subtenant_pack",
     name: "Client sending domain",
-    description: "Send on behalf of a client from their own verified domain, with their reputation kept separate from yours and everyone else's (for agencies and platforms).",
+    description: "Send on behalf of a client from their own verified domain, with their own suppression list and their own reputation score (for agencies and platforms). Every client sends through one shared provider account and IP pool.",
     unit: "client domain",
     unitNote: "Priced per domain — one is a single client's sending domain.",
     defaultUnitAmount: 2,
