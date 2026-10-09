@@ -260,8 +260,8 @@ export function NewClientDomainFlow({ mockDns }: { mockDns: boolean }) {
                     </span>
                     <h2 className="mt-3 text-lg font-semibold">{tenant.sending_domain} is live</h2>
                     <p className="mx-auto mt-1 max-w-sm text-sm text-muted-foreground">
-                      The records check out. Mail for {tenant.name} now sends under their own domain, with its
-                      reputation kept separate from everyone else&apos;s.
+                      The records check out. Mail for {tenant.name} now sends under their own domain, and its
+                      reputation is scored on its own.
                     </p>
                     <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                       <Button onClick={() => router.push(`/sub-tenants/${tenant.id}`)}>

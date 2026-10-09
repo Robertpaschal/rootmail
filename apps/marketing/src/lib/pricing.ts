@@ -106,7 +106,7 @@ export const FALLBACK_PRICING: PublicPricing = {
     fbAddon("workspace_pack", "Workspace", "workspace", 10, "A separate space per product or brand."),
     fbAddon("ai_credit_pack", "AI credits", "pack of 100", 5, "100 more AI assistant actions each month."),
     fbAddon("subtenant_pack", "Client sending domain", "client domain", 2, "Send on behalf of a client from their own verified domain."),
-    fbAddon("dedicated_ip", "Dedicated IP", "dedicated IP", 30, "A sending IP only you send from — your reputation is entirely yours."),
+    fbAddon("dedicated_ip", "Dedicated IP", "dedicated IP", 30, "Your own sending IP, used only for your mail. It still sends through our one provider account and its suppression list."),
     fbAddon("custom_roles", "Custom team roles", "workspace", 15, "Roles that scope exactly what each teammate can do."),
     fbAddon("sso_scim", "SAML SSO + SCIM", "organization", 50, "Sign-in through your identity provider; leavers lose access automatically."),
     fbAddon("proof_exports", "Proof & compliance exports", "organization", 25, "Signed exports of exactly what you sent, that anyone can verify independently."),

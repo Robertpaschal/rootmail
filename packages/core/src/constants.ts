@@ -615,7 +615,7 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
   dedicated_ip: {
     id: "dedicated_ip",
     name: "Dedicated IP",
-    description: "A sending IP address only you send from, so your reputation is entirely your own (most senders share a warm pool — this isolates yours).",
+    description: "Your own sending IP address, used only for your mail, so its IP reputation reflects only what you send (most senders share a warm pool). It still sends through our one provider account, so that account's overall reputation and suppression list still apply.",
     unit: "dedicated IP",
     unitNote: "Priced per IP — one IP is one dedicated address.",
     defaultUnitAmount: 30,
@@ -628,7 +628,7 @@ export const ADD_ONS: Record<AddOnId, AddOnDef> = {
   subtenant_pack: {
     id: "subtenant_pack",
     name: "Client sending domain",
-    description: "Send on behalf of a client from their own verified domain, with their reputation kept separate from yours and everyone else's (for agencies and platforms).",
+    description: "Send on behalf of a client from their own verified domain, with their own suppression list and their own reputation score (for agencies and platforms). Every client sends through one shared provider account and IP pool.",
     unit: "client domain",
     unitNote: "Priced per domain — one is a single client's sending domain.",
     defaultUnitAmount: 2,
