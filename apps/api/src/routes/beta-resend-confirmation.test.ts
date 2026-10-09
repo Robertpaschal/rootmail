@@ -3,7 +3,8 @@ import { after, before, beforeEach, describe, it, mock } from "node:test";
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { eq, inArray } from "drizzle-orm";
 import { closeQueues, closeRedis, env, getRedis, newId } from "@rootmail/core";
-import { closeDb, contacts, db, ensureInternalAccount, senderIdentities } from "@rootmail/db";
+import { closeDb, contacts, db, ensureInternalAccount, senderIdentities, staffUsers } from "@rootmail/db";
+import { createStaffSession } from "../lib/admin-auth";
 import {
   CONFIRMATION_REQUESTED_AT,
   RESEND_LIMITS,
@@ -37,6 +38,8 @@ const emails = {
   stranger: addr("stranger"),
   route: addr("route"),
   limited: addr("limited"),
+  admitNew: addr("admit-new"),
+  admitExisting: addr("admit-existing"),
 };
 const own = () => `resend-${stamp}@${env.ROOTMAIL_DOMAIN}`;
 const allEmails = () => [...Object.values(emails), own()];
@@ -303,5 +306,52 @@ describe("POST /v1/beta/waitlist/resend-confirmation", () => {
       env.INTERNAL_API_SECRET = previous.secret;
       await settleResends();
     }
+  });
+});
+
+describe("staff admit starts the 24-hour clock when it is what sent the link", () => {
+  const staffId = newId("staffUser");
+  let staff: { authorization: string };
+  const admit = (contactId: string) =>
+    app.inject({ method: "POST", url: `/v1/admin/beta/waitlist/${contactId}/admit`, headers: staff, payload: {} });
+  const contactId = async (email: string) => {
+    const { workspaceId } = await betaWaitlistAudience();
+    const rows = await db.select({ id: contacts.id, ws: contacts.workspaceId }).from(contacts).where(eq(contacts.email, email));
+    return rows.find((r) => r.ws === workspaceId)!.id;
+  };
+
+  before(async () => {
+    await db.insert(staffUsers).values({ id: staffId, email: `staff-resend-${stamp}@example.test`, passwordHash: "unused", role: "superadmin" });
+    staff = { authorization: `Bearer ${(await createStaffSession(staffId)).token}` };
+  });
+  after(async () => {
+    await db.delete(staffUsers).where(eq(staffUsers.id, staffId));
+  });
+
+  it("stamps the request when admit creates the identity, so a resend can't replace it early", async () => {
+    // Added long ago (e.g. by hand), never asked Amazon for a link.
+    await onWaitlist(emails.admitNew, { createdAt: longAgo() });
+    const res = await admit(await contactId(emails.admitNew));
+    assert.equal(res.statusCode, 202, res.body);
+    assert.equal(res.json().status, "pending_verification");
+    assert.deepEqual(writes, [{ op: "create", email: emails.admitNew }]);
+    const at = Date.parse(String((await metadataOf(emails.admitNew))[CONFIRMATION_REQUESTED_AT]));
+    assert.ok(Date.now() - at < 60_000, "stamped at admit time");
+
+    // Without the stamp, the old createdAt would make this link look lapsed.
+    writes = [];
+    assert.equal(await resendTesterConfirmation(emails.admitNew), "already_pending");
+    assert.deepEqual(writes, []);
+  });
+
+  it("does not stamp when the link was already pending — admit sent nothing", async () => {
+    await onWaitlist(emails.admitExisting, { createdAt: longAgo() });
+    identities.set(emails.admitExisting, { type: "EMAIL_ADDRESS", status: "PENDING" });
+    const res = await admit(await contactId(emails.admitExisting));
+    assert.equal(res.statusCode, 202, res.body);
+    assert.deepEqual(writes, []);
+    assert.equal((await metadataOf(emails.admitExisting))[CONFIRMATION_REQUESTED_AT], undefined);
+    // So the lapsed link can still be replaced.
+    assert.equal(await resendTesterConfirmation(emails.admitExisting), "sent");
   });
 });

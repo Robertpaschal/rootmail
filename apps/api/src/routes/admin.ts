@@ -95,6 +95,7 @@ import {
   betaWaitlistAudience,
   mintStaffInvite,
 } from "../lib/beta-waitlist";
+import { CONFIRMATION_REQUESTED_AT } from "../lib/beta-resend";
 import { platformRecipientsRestricted } from "../lib/platform-recipients";
 import { ensureTesterIdentity, isTesterVerified } from "../lib/ses-provisioning";
 import { betaInviteAutomationStatus, hasBetaInviteEnrollment, realSendsOnly, testSendsOnly } from "@rootmail/db";
@@ -2753,6 +2754,12 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
         const requested = await ensureTesterIdentity(person.email);
         if (!requested.ok) req.log.error({ email: person.email, reason: requested.reason }, "tester verification failed on admit");
         const metadata = person.metadata as Record<string, unknown>;
+        // When admit is what made Amazon send the link, say so: the /beta
+        // "send a new link" action measures the link's 24 hours from this
+        // stamp, and without it falls back to when the contact was created —
+        // which for a contact added long before admit would let a resend
+        // replace a link that is still minutes old.
+        const linkStartedNow = requested.ok && requested.value.created;
         await db
           .update(contacts)
           .set({
@@ -2763,6 +2770,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
               ...metadata,
               beta_admitted_at: (metadata.beta_admitted_at as string | undefined) ?? new Date().toISOString(),
               beta_admitted_by: staff.id,
+              ...(linkStartedNow ? { [CONFIRMATION_REQUESTED_AT]: new Date().toISOString() } : {}),
             },
             updatedAt: new Date(),
           })

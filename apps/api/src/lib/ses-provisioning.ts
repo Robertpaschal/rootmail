@@ -279,8 +279,10 @@ export async function provisionReplyReceiptRule(
  * the supported way through that, and it costs them one click in an email.
  *
  * Idempotent: an address already verified, or already pending, is left alone.
+ * `created` is true only when THIS call made Amazon send a confirmation link,
+ * so a caller can record when that link's 24 hours started.
  */
-export async function ensureTesterIdentity(email: string): Promise<ProvisionResult<{ status: string }>> {
+export async function ensureTesterIdentity(email: string): Promise<ProvisionResult<{ status: string; created: boolean }>> {
   const client = sesv2();
   const addr = email.trim().toLowerCase();
 
@@ -288,7 +290,7 @@ export async function ensureTesterIdentity(email: string): Promise<ProvisionResu
   // asking again would send them a duplicate.
   try {
     const got = await client.send(new GetEmailIdentityCommand({ EmailIdentity: addr }));
-    return { ok: true, value: { status: got.VerifiedForSendingStatus ? "verified" : "pending" } };
+    return { ok: true, value: { status: got.VerifiedForSendingStatus ? "verified" : "pending", created: false } };
   } catch (e) {
     if ((e as { name?: string })?.name !== "NotFoundException") {
       return { ok: false, reason: `Could not read identity — ${described(e)}`, retryable: !isAccessDenied(e) };
@@ -301,8 +303,10 @@ export async function ensureTesterIdentity(email: string): Promise<ProvisionResu
     if ((e as { name?: string })?.name !== "AlreadyExistsException") {
       return { ok: false, reason: `Could not request verification — ${described(e)}`, retryable: !isAccessDenied(e) };
     }
+    // Someone else created it between our read and our create; their link, not ours.
+    return { ok: true, value: { status: "pending", created: false } };
   }
-  return { ok: true, value: { status: "pending" } };
+  return { ok: true, value: { status: "pending", created: true } };
 }
 
 /** Has the tester clicked the link yet? Drives when their invite may be sent. */

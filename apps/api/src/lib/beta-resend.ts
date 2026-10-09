@@ -68,10 +68,14 @@ export async function resendTesterConfirmation(email: string, now: Date = new Da
       return "already_confirmed";
     case "not_a_tester":
       return "protected";
-    case "missing":
+    case "missing": {
       // The signup-time request never landed (it is best-effort). Same call the form makes.
-      requested = await ensureTesterIdentity(addr);
+      const made = await ensureTesterIdentity(addr);
+      // Created by someone else between our read and our create: their link is fresh.
+      if (made.ok && !made.value.created) return "already_pending";
+      requested = made;
       break;
+    }
     case "failed":
       requested = await recreateTesterIdentity(addr);
       break;
