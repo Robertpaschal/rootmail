@@ -53,7 +53,8 @@ const EnvSchema = z.object({
   LINK_SIGNING_SECRET: z.string().optional(),
 
   // Ed25519 private key (PKCS8 PEM) for signing Layer-3 proof bundles. Unset →
-  // a stable dev key in source (dev-only). Generate prod:
+  // a stable dev key in source (dev-only; in production the API refuses to start
+  // without a real Ed25519 key — see packages/core/src/proof.ts). Generate prod:
   //   openssl genpkey -algorithm ed25519
   PROOF_SIGNING_KEY: z.string().optional(),
 

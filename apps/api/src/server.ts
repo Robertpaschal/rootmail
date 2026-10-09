@@ -2,7 +2,7 @@ import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import Fastify, { type FastifyInstance } from "fastify";
-import { createRedis, env } from "@rootmail/core";
+import { assertProofSigningKey, createRedis, env } from "@rootmail/core";
 import "./context";
 import { registerAuth } from "./plugins/auth";
 import { registerErrorHandler } from "./plugins/errors";
@@ -62,6 +62,10 @@ function parseTrustProxy(v: string): boolean | number | string {
 }
 
 export async function buildServer(): Promise<FastifyInstance> {
+  // Fail closed before anything listens: in production a missing, malformed,
+  // non-Ed25519 or committed-dev proof key throws here (packages/core/src/proof.ts).
+  const proofKey = assertProofSigningKey();
+
   const app = Fastify({
     logger: { level: env.LOG_LEVEL },
     // Bounded by default (trust one proxy hop) so a spoofed X-Forwarded-For can't
@@ -69,6 +73,8 @@ export async function buildServer(): Promise<FastifyInstance> {
     trustProxy: parseTrustProxy(env.TRUST_PROXY),
     bodyLimit: 5 * 1024 * 1024,
   });
+  // Public fingerprint only — lets a key rotation be confirmed from the logs.
+  app.log.info({ proof_key_fingerprint: proofKey.fingerprint.slice(0, 16), dev_key: proofKey.dev }, "proof signing key loaded");
 
   await app.register(sensible);
 
