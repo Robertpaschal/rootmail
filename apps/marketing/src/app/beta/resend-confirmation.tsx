@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useId } from "react";
 import { Loader2 } from "lucide-react";
 import { resendConfirmation, type ResendState } from "./actions";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,11 @@ import { Label } from "@/components/ui/label";
  */
 export function ResendConfirmation({ email }: { email?: string }) {
   const [state, action, pending] = useActionState<ResendState, FormData>(resendConfirmation, {});
+  // This form can be on the page twice (success panel and the bottom row), so
+  // every id is per instance.
+  const uid = useId();
+  const honeypotId = `resend-website-${uid}`;
+  const emailId = `resend-email-${uid}`;
 
   if (state.message) {
     return (
@@ -29,15 +34,15 @@ export function ResendConfirmation({ email }: { email?: string }) {
         aria-hidden="true"
         className="pointer-events-none absolute -left-[9999px] h-0 w-0 overflow-hidden"
       >
-        <label htmlFor="resend-website">Website</label>
-        <input id="resend-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+        <label htmlFor={honeypotId}>Website</label>
+        <input id={honeypotId} name="website" type="text" tabIndex={-1} autoComplete="off" />
       </div>
       {email ? (
         <input type="hidden" name="email" value={email} />
       ) : (
         <>
-          <Label htmlFor="resend-email">The address you joined the waitlist with</Label>
-          <Input id="resend-email" name="email" type="email" required placeholder="you@company.com" />
+          <Label htmlFor={emailId}>The address you joined the waitlist with</Label>
+          <Input id={emailId} name="email" type="email" required placeholder="you@company.com" />
         </>
       )}
       {state.error ? (

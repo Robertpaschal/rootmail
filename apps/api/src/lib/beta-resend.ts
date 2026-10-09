@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
+import { isIP } from "node:net";
+import type { FastifyRequest } from "fastify";
 import { and, eq, isNull, sql } from "drizzle-orm";
-import { getRedis } from "@rootmail/core";
+import { env, getRedis, safeEqual } from "@rootmail/core";
 import { contacts, db, senderIdentities } from "@rootmail/db";
 import { BETA_INVITED_TAG, BETA_WAITLIST_TAG, betaWaitlistAudience } from "./beta-waitlist";
 import { platformRecipientsRestricted } from "./platform-recipients";
@@ -97,11 +99,27 @@ export async function resendTesterConfirmation(email: string, now: Date = new Da
 // Rate limits. Counted for EVERY request, on the list or not, so a 429 says
 // nothing about whether an address is known.
 //
-// Per IP is the API-side backstop: rootmail.io's server action calls the API
-// from one place, so the person-level per-IP limit lives in the marketing
-// action (apps/marketing/src/app/beta/rate-limit.ts) and this one only has to
-// stop someone hammering the public endpoint directly.
+// Per IP means per VISITOR. rootmail.io's server action calls the API from one
+// server, so req.ip alone would put every visitor in one bucket. The marketing
+// server therefore forwards the visitor's address, and the API believes it only
+// when the request also proves it holds INTERNAL_API_SECRET — the same header
+// and secret the dashboard already uses for internal calls (routes/saml.ts).
+// Anyone else's header is ignored and they are counted by their own address.
 // ---------------------------------------------------------------------------
+
+export const INTERNAL_HEADER = "x-rootmail-internal";
+export const FORWARDED_CLIENT_IP_HEADER = "x-rootmail-client-ip";
+
+export function resendClientIp(req: FastifyRequest): string {
+  const secret = env.INTERNAL_API_SECRET;
+  const proof = req.headers[INTERNAL_HEADER];
+  const forwarded = req.headers[FORWARDED_CLIENT_IP_HEADER];
+  if (secret && typeof proof === "string" && typeof forwarded === "string" && safeEqual(proof, secret)) {
+    const ip = forwarded.trim();
+    if (isIP(ip)) return ip;
+  }
+  return req.ip;
+}
 
 export const RESEND_LIMITS = {
   perAddress: 3,

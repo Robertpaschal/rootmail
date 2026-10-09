@@ -43,7 +43,7 @@ const allEmails = () => [...Object.values(emails), own()];
 
 let app: Awaited<ReturnType<typeof buildServer>>;
 let senderId: string | undefined;
-const previous = { provider: env.MAIL_PROVIDER, sandbox: env.SES_SANDBOX_MODE };
+const previous = { provider: env.MAIL_PROVIDER, sandbox: env.SES_SANDBOX_MODE, secret: env.INTERNAL_API_SECRET };
 
 async function onWaitlist(email: string, opts: { tags?: string[]; createdAt?: Date; requestedAt?: Date } = {}) {
   const { workspaceId } = await betaWaitlistAudience();
@@ -63,9 +63,10 @@ async function metadataOf(email: string): Promise<Record<string, unknown>> {
   return (rows.find((r) => r.ws === workspaceId)?.metadata ?? {}) as Record<string, unknown>;
 }
 
+const forwardedIps = ["203.0.113.7", "203.0.113.8", "203.0.113.9"];
 async function clearLimits() {
   const redis = getRedis();
-  await redis.del(resendIpKey("127.0.0.1"), ...allEmails().map(resendAddressKey));
+  await redis.del(resendIpKey("127.0.0.1"), ...forwardedIps.map(resendIpKey), ...allEmails().map(resendAddressKey));
 }
 
 const longAgo = () => new Date(Date.now() - TESTER_LINK_TTL_MS - 60_000);
@@ -137,6 +138,7 @@ after(async () => {
   mock.restoreAll();
   env.MAIL_PROVIDER = previous.provider;
   env.SES_SANDBOX_MODE = previous.sandbox;
+  env.INTERNAL_API_SECRET = previous.secret;
   await closeQueues();
   await closeRedis();
   await closeDb();
@@ -255,18 +257,51 @@ describe("POST /v1/beta/waitlist/resend-confirmation", () => {
     for (let i = 0; i < RESEND_LIMITS.perAddress; i++) assert.equal((await post(emails.limited)).statusCode, 202);
     const limited = await post(emails.limited);
     assert.equal(limited.statusCode, 429);
+    assert.equal(limited.json().error.details.scope, "address", "says which limit, so the page blames the right thing");
     assert.equal((await post(emails.stranger)).statusCode, 202, "another address is unaffected");
     await settleResends();
   });
 
   it("rate-limits per IP", async () => {
     await clearLimits();
-    let last = 0;
+    let last = { statusCode: 0, json: () => ({}) as { error?: { details?: { scope?: string } } } };
     for (let i = 0; i <= RESEND_LIMITS.perIp; i++) {
-      last = (await post(`resend-ip-${i}-${stamp}@example.test`)).statusCode;
+      last = await post(`resend-ip-${i}-${stamp}@example.test`);
     }
-    assert.equal(last, 429);
+    assert.equal(last.statusCode, 429);
+    assert.equal(last.json().error?.details?.scope, "ip");
     await settleResends();
     assert.deepEqual(writes, [], "unknown addresses never reach AWS writes");
+  });
+
+  it("counts the visitor IP the marketing server forwards — but only with the internal secret", async () => {
+    await clearLimits();
+    env.INTERNAL_API_SECRET = `test-secret-${stamp}`;
+    try {
+      const as = (ip: string, secret: string | undefined, i: number) =>
+        app.inject({
+          method: "POST",
+          url: "/v1/beta/waitlist/resend-confirmation",
+          headers: { "x-rootmail-client-ip": ip, ...(secret ? { "x-rootmail-internal": secret } : {}) },
+          payload: { email: `resend-fwd-${i}-${ip}-${stamp}@example.test` },
+        });
+      // One visitor uses up their own bucket…
+      let last = 0;
+      for (let i = 0; i <= RESEND_LIMITS.perIp; i++) last = (await as(forwardedIps[0]!, env.INTERNAL_API_SECRET, i)).statusCode;
+      assert.equal(last, 429);
+      // …and the next visitor through the same marketing server is unaffected.
+      assert.equal((await as(forwardedIps[1]!, env.INTERNAL_API_SECRET, 0)).statusCode, 202);
+
+      // A forged header (wrong or missing secret) is ignored: counted against the caller's own address.
+      const redis = getRedis();
+      const before = Number((await redis.get(resendIpKey("127.0.0.1"))) ?? 0);
+      assert.equal((await as(forwardedIps[2]!, "wrong-secret", 0)).statusCode, 202);
+      assert.equal((await as(forwardedIps[2]!, undefined, 1)).statusCode, 202);
+      assert.equal(await redis.get(resendIpKey(forwardedIps[2]!)), null);
+      assert.equal(Number(await redis.get(resendIpKey("127.0.0.1"))), before + 2);
+    } finally {
+      env.INTERNAL_API_SECRET = previous.secret;
+      await settleResends();
+    }
   });
 });

@@ -3,11 +3,11 @@ import { createHash, randomBytes } from "node:crypto";
 /**
  * Per-person limit for "send me a new confirmation link".
  *
- * The API cannot do this one: every request it sees comes from this server,
- * so to the API all of rootmail.io is one IP. The person's own address is only
- * known here. In memory and per process, like /check's limiter (no Redis in
- * apps/marketing by design); the API adds a shared per-address and per-IP limit
- * behind it, so this is the first brake, not the only one.
+ * The first brake, not the only one. The API keeps the shared limits (per
+ * address, and per visitor IP using the address this server forwards with
+ * INTERNAL_API_SECRET). This one still matters when that secret is not set,
+ * because then the API sees all of rootmail.io as a single IP. In memory and
+ * per process, like /check's limiter (no Redis in apps/marketing by design).
  *
  * Client addresses are hashed with a per-process salt and never stored raw.
  */

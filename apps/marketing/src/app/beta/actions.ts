@@ -52,6 +52,8 @@ export async function joinWaitlist(
   }
 }
 
+const TOO_MANY = "Too many requests right now. Try again in a bit.";
+
 export interface ResendState {
   /** The API's neutral answer. Same for every address, on the list or not. */
   message?: string;
@@ -73,19 +75,34 @@ export async function resendConfirmation(
   if (!email || !email.includes("@")) {
     return { error: "That doesn't look like an email address." };
   }
-  if (!takeResend(clientAddress(await headers()))) {
-    return { error: "That's a lot of requests from here. Give it an hour and try again." };
-  }
+  const visitor = clientAddress(await headers());
+  if (!takeResend(visitor)) return { error: TOO_MANY };
+
+  // The API sees every call from here as one IP. Tell it who the visitor is,
+  // with the internal secret as proof that it is us saying so; without the
+  // secret the API ignores the header and falls back to its own view.
+  const secret = process.env.INTERNAL_API_SECRET;
+  const forward: Record<string, string> = secret
+    ? { "x-rootmail-internal": secret, "x-rootmail-client-ip": visitor }
+    : {};
 
   try {
     const res = await fetch(`${API_URL}/v1/beta/waitlist/resend-confirmation`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...forward },
       body: JSON.stringify({ email, website: String(formData.get("website") ?? "") || undefined }),
       cache: "no-store",
     });
     if (res.status === 429) {
-      return { error: "We've had a few requests for that address already. Try again tomorrow." };
+      // Only blame the address when the API says the address limit is the one
+      // that was hit; any other 429 is about load, not about them.
+      const body = (await res.json().catch(() => null)) as { error?: { details?: { scope?: string } } } | null;
+      return {
+        error:
+          body?.error?.details?.scope === "address"
+            ? "We've had a few requests for that address already. Try again tomorrow."
+            : TOO_MANY,
+      };
     }
     if (!res.ok) return { error: "We couldn't send that just now. Try again in a moment?" };
     const body = (await res.json().catch(() => ({}))) as { message?: string };

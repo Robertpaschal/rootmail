@@ -2,9 +2,9 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { admitSubscriber, contacts, db } from "@rootmail/db";
-import { Errors } from "@rootmail/core";
+import { AppError } from "@rootmail/core";
 import { betaInviteRequired } from "../lib/beta";
-import { resendTesterConfirmation, takeResendSlot, track } from "../lib/beta-resend";
+import { resendClientIp, resendTesterConfirmation, takeResendSlot, track } from "../lib/beta-resend";
 import { autoAdmitRemaining, betaWaitlistAudience } from "../lib/beta-waitlist";
 import { ensureTesterIdentity } from "../lib/ses-provisioning";
 import { parse } from "../lib/validate";
@@ -129,9 +129,13 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
     if (body.website) return reply.code(202).send(RESEND_NEUTRAL);
 
     const email = body.email.trim().toLowerCase();
-    const slot = await takeResendSlot(req.ip, email);
+    const slot = await takeResendSlot(resendClientIp(req), email);
     if (!slot.ok) {
-      throw Errors.rateLimited("Too many requests for a new confirmation link. Try again later.");
+      // Which limit was hit is safe to say: both count every address, on the
+      // list or not. The caller needs it to avoid blaming the wrong thing.
+      throw new AppError(429, "rate_limited", "Too many requests for a new confirmation link. Try again later.", {
+        scope: slot.scope,
+      });
     }
 
     void track(resendTesterConfirmation(email))
