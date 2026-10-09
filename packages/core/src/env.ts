@@ -115,6 +115,11 @@ const EnvSchema = z.object({
   // events to be published to SNS (→ /v1/webhooks/ses). Without it, messages that
   // truly delivered never advance past "sent". Unset → no config set (events off).
   SES_CONFIGURATION_SET: z.string().optional(),
+  // Optional. Configuration set for rootmail's OWN system, invite and
+  // transactional mail (the internal org), e.g. one without OPEN/CLICK tracking.
+  // It must publish the same BOUNCE/COMPLAINT events. Unset → that mail uses
+  // SES_CONFIGURATION_SET like everything else. Customer mail never uses it.
+  SES_PLATFORM_CONFIGURATION_SET: z.string().optional(),
 
   // Subdomain whose MX points at SES inbound, for reply capture. Outbound thread
   // sends set Reply-To to reply+<threadId>@<INBOUND_DOMAIN>; the SES inbound
