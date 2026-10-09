@@ -202,10 +202,9 @@ export interface SystemMailJob {
   /** Sender; defaults to no-reply@<ROOTMAIL_DOMAIN> in the worker when omitted. */
   from?: string | null;
   /**
-   * Where a reply should go. Set it to platformReplyTo() on mail that tells the
-   * reader "just reply": that is a mailbox a person reads, while the default
-   * (our Replies-inbox capture address, else nothing, since no-reply@ is never
-   * a reply target) does not guarantee one. Omitted → the worker's default.
+   * An explicit Reply-To. Omitted → the worker's default: our Replies-inbox
+   * capture address (else nothing, since no-reply@ is never a reply target),
+   * which is what mail that says "just reply" wants, so it threads in Replies.
    */
   replyTo?: string | null;
   /**

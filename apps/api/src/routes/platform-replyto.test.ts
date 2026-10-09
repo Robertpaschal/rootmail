@@ -9,10 +9,11 @@ import { buildServer } from "../server";
 import { processSystemMail } from "../../../worker/src/system-mail";
 import { winBackJob } from "../../../worker/src/lifecycle";
 
-// Three platform emails tell the reader "just reply": the staff-console beta
-// invite, a support ticket reply and the win-back. Their replies go to
-// PLATFORM_REPLY_TO (default admin@<ROOTMAIL_DOMAIN>), a mailbox a person
-// reads, instead of depending on the capture address or dying at no-reply@.
+// Platform Reply-To. PLATFORM_REPLY_TO (default admin@<ROOTMAIL_DOMAIN>) is
+// only named in the beta daily-cap text. A support ticket reply, the win-back
+// and the beta invite (beta-readiness.test.ts) set no Reply-To, so — as before
+// #26 — replies go to the capture address (reply+thr_…@INBOUND_DOMAIN) and
+// land in the Replies inbox.
 // All AWS calls are intercepted.
 const stamp = Date.now();
 const human = `admin@${env.ROOTMAIL_DOMAIN}`;
@@ -50,13 +51,12 @@ after(async () => {
   await closeDb();
 });
 
-describe("platform mail that says 'just reply' replies to a human inbox", () => {
+describe("platform mail Reply-To", () => {
   it("defaults to admin@<ROOTMAIL_DOMAIN> and follows PLATFORM_REPLY_TO when set", () => {
     assert.equal(platformReplyTo(), human);
     env.PLATFORM_REPLY_TO = "Ops@Example.test";
     try {
       assert.equal(platformReplyTo(), "ops@example.test");
-      assert.equal(winBackJob({ email: "dormant@example.test", name: null }).replyTo, "ops@example.test");
     } finally { env.PLATFORM_REPLY_TO = undefined; }
   });
 
@@ -72,7 +72,7 @@ describe("platform mail that says 'just reply' replies to a human inbox", () => 
     assert.match(replyTos[to]?.[0] ?? "", /^reply\+thr_.+@reply\.example\.test$/);
   });
 
-  it("a staff support reply is queued with the human Reply-To", async () => {
+  it("a staff support reply sets no Reply-To, so the reply is captured (pre-#26)", async () => {
     const customer = `ticket-${stamp}@example.test`;
     await db.insert(staffUsers).values({ id: staffId, email: `staff-human-${stamp}@example.test`, passwordHash: "unused", role: "superadmin" });
     await db.insert(supportTickets).values({ id: ticketId, email: customer, subject: "Help" });
@@ -81,14 +81,20 @@ describe("platform mail that says 'just reply' replies to a human inbox", () => 
     assert.equal(res.statusCode < 300, true, res.body);
     const job = await queuedFor(customer);
     assert.ok(job, "reply email queued");
-    assert.equal(job.replyTo, human);
-    assert.equal(job.from ?? null, null, "still From no-reply@: only the Reply-To moves");
+    assert.equal(job.replyTo, undefined);
+    assert.equal(job.from ?? null, null, "From no-reply@, unchanged");
+    assert.equal(job.cls, "transactional", "classification unchanged");
+    await processSystemMail(job);
+    assert.match(replyTos[customer]?.[0] ?? "", /^reply\+thr_.+@reply\.example\.test$/);
   });
 
-  it("the win-back email replies to the human inbox and stays marketing", () => {
-    const job = winBackJob({ email: "dormant@example.test", name: "Ada" });
-    assert.equal(job.replyTo, human);
+  it("the win-back sets no Reply-To (captured, pre-#26) and stays marketing", async () => {
+    const to = `dormant-${stamp}@example.test`;
+    const job = winBackJob({ email: to, name: "Ada" });
+    assert.equal(job.replyTo, undefined);
     assert.equal(job.cls, "marketing");
     assert.match(job.text, /Just reply/);
+    await processSystemMail(job);
+    assert.match(replyTos[to]?.[0] ?? "", /^reply\+thr_.+@reply\.example\.test$/);
   });
 });
