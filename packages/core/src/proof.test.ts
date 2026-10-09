@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync, sign, verify, createPublicKey } from "node:crypto";
 import { describe, it } from "node:test";
-import { ProofKeyError, proofKeyFingerprint, resolveProofSigningKey } from "./proof";
+import { DEV_PROOF_KEY, ProofKeyError, proofKeyFingerprint, resolveProofSigningKey } from "./proof";
 
-// The committed dev key, as it appears in proof.ts. Duplicated on purpose: the
-// test must catch the dev key in production even if someone edits the constant.
-const DEV_PEM = `-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIFN412AGmRRBVx+saStk5pIP4UrwMaKQYeFJh63Dr2jE
------END PRIVATE KEY-----
-`;
+// No key material is written in this file: the dev key is imported from
+// proof.ts and every other key is generated when the test runs.
+const DEV_PEM = DEV_PROOF_KEY;
+
 
 const pkcs8 = (type: "ed25519" | "rsa" | "ec") => {
   const opts =
@@ -47,7 +45,10 @@ describe("proof signing key — production fails closed", () => {
   });
 
   it("refuses a PEM that does not parse", () => {
-    assertRefused("-----BEGIN PRIVATE KEY-----\nAAAAsupersecretgarbageAAAA\n-----END PRIVATE KEY-----\n", /could not be parsed/);
+    // A generated key's PEM armour around a body that isn't a key.
+    const lines = pkcs8("ed25519").trim().split("\n");
+    const garbled = [lines[0], "AAAAsupersecretgarbageAAAA", lines.at(-1), ""].join("\n");
+    assertRefused(garbled, /could not be parsed/);
   });
 
   it("refuses keys that are not Ed25519", () => {

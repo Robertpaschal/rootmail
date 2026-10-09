@@ -1,17 +1,15 @@
 import assert from "node:assert/strict";
 import { generateKeyPairSync } from "node:crypto";
 import { after, describe, it } from "node:test";
-import { closeQueues, closeRedis, env, signProof, verifyProof } from "@rootmail/core";
+import { DEV_PROOF_KEY, closeQueues, closeRedis, env, signProof, verifyProof } from "@rootmail/core";
 import { closeDb } from "@rootmail/db";
 import { buildServer } from "./server";
 
 // The API must refuse to start in production without its own proof key, and
 // must start normally with one. Nothing here listens on a port or calls AWS.
 const previous = { nodeEnv: env.NODE_ENV, key: env.PROOF_SIGNING_KEY };
-const DEV_PEM = `-----BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VwBCIEIFN412AGmRRBVx+saStk5pIP4UrwMaKQYeFJh63Dr2jE
------END PRIVATE KEY-----
-`;
+// The committed dev key, imported rather than pasted (no key literals in tests).
+const DEV_PEM = DEV_PROOF_KEY;
 
 after(async () => {
   env.NODE_ENV = previous.nodeEnv;

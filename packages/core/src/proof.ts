@@ -10,6 +10,14 @@ MC4CAQAwBQYDK2VwBCIEIFN412AGmRRBVx+saStk5pIP4UrwMaKQYeFJh63Dr2jE
 -----END PRIVATE KEY-----
 `;
 
+/**
+ * Exported only so tests can refer to the dev key without pasting a private-key
+ * literal of their own (secret scanners flag every copy). It is public by
+ * design and refused in production — see resolveProofSigningKey. Exported
+ * separately so the key's own lines stay untouched in history and diffs.
+ */
+export { DEV_PROOF_KEY };
+
 /** SHA-256 of the public key's SPKI DER, hex. Public information: safe to log. */
 export function proofKeyFingerprint(key: KeyObject): string {
   const pub = key.type === "private" ? createPublicKey(key) : key;
