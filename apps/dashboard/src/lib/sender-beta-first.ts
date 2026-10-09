@@ -48,10 +48,10 @@ export const BETA_LEAD_COPY = {
   },
 } as const;
 
-/** The short secondary line under the lead — plain closed-beta language. */
-export function closedBetaLine(verifiedCount: number, pendingCount: number): string {
-  if (verifiedCount > 0) {
-    return `${verifiedCount} address${verifiedCount === 1 ? "" : "es"} ready to send${pendingCount ? ` · ${pendingCount} awaiting confirmation` : ""}.`;
-  }
-  return "Closed beta: dashboard sending starts once you have a ready address. Drafts and templates save in the meantime.";
+/** One quiet line of orientation under the sender page: how many sending
+ * addresses are verified, or what to do when none is (pre-#29 wording). */
+export function senderCountLine(verified: number, pending: number): string {
+  return verified > 0
+    ? `${verified} address${verified === 1 ? "" : "es"} verified${pending ? ` · ${pending} still awaiting confirmation` : ""}.`
+    : "Dashboard sending is paused until you verify a sending address. You can prepare templates and campaign drafts in the meantime.";
 }

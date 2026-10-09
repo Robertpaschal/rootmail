@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { BETA_LEAD_COPY, betaLead, closedBetaLine, isBetaSenderEmail } from "./sender-beta-first";
+import { BETA_LEAD_COPY, betaLead, isBetaSenderEmail, senderCountLine } from "./sender-beta-first";
 
 const D = "rootmail.io";
 const s = (email: string, status = "verified", is_default = false) => ({ email, status, is_default });
@@ -28,14 +28,14 @@ describe("betaLead", () => {
 });
 
 describe("copy", () => {
-  const all = [closedBetaLine(0, 0), closedBetaLine(1, 2), closedBetaLine(3, 0), ...Object.values(BETA_LEAD_COPY).flatMap((c) => Object.values(c))].join(" ");
-  it("uses plain closed-beta language with no provider or infrastructure terms", () => {
-    assert.match(closedBetaLine(0, 0), /^Closed beta:/);
-    assert.ok(closedBetaLine(0, 0).length <= 120);
+  it("lead copy uses plain language with no provider or infrastructure terms", () => {
+    const all = Object.values(BETA_LEAD_COPY).flatMap((c) => Object.values(c)).join(" ");
     assert.doesNotMatch(all, /\bSES\b|sandbox|Amazon|AWS|identity|paused/i);
   });
-  it("counts ready addresses", () => {
-    assert.equal(closedBetaLine(1, 0), "1 address ready to send.");
-    assert.equal(closedBetaLine(2, 1), "2 addresses ready to send · 1 awaiting confirmation.");
+  it("the count line is the pre-#29 wording, byte for byte", () => {
+    assert.equal(senderCountLine(1, 0), "1 address verified.");
+    assert.equal(senderCountLine(2, 1), "2 addresses verified · 1 still awaiting confirmation.");
+    assert.equal(senderCountLine(0, 3), "Dashboard sending is paused until you verify a sending address. You can prepare templates and campaign drafts in the meantime.");
+    assert.doesNotMatch([senderCountLine(0, 0), senderCountLine(3, 1)].join(" "), /\bSES\b|sandbox|Amazon|AWS/i);
   });
 });
