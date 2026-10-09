@@ -57,6 +57,15 @@ import {
   workspaces,
 } from "@rootmail/db";
 import { autoProvisionDedicatedIp } from "../lib/provisioning";
+import {
+  completeStaffReset,
+  emailFingerprint,
+  processStaffResetRequest,
+  staffPassword,
+  takeStaffRedeemSlot,
+  takeStaffResetRequestSlot,
+  trackStaffReset,
+} from "../lib/staff-password-reset";
 import { announcementEmail, betaInviteEmail } from "../lib/emails";
 import { serializeAudit } from "../lib/serialize";
 import {
@@ -102,6 +111,15 @@ import { betaInviteAutomationStatus, hasBetaInviteEnrollment, realSendsOnly, tes
 import { parse } from "../lib/validate";
 
 const loginBody = z.object({ email: z.string().email(), password: z.string().min(1) });
+const staffForgotBody = z.object({ email: z.string().email() });
+const staffResetBody = z.object({ token: z.string().min(20).max(200), password: staffPassword });
+
+/** The forgot-password answer, identical for every address. */
+export const STAFF_FORGOT_NEUTRAL = {
+  ok: true,
+  message:
+    "If that address belongs to a staff account, a reset link is on its way. It works once and expires in 30 minutes.",
+} as const;
 
 // Slim message view for support — deliberately omits rendered_html/text (heavy,
 // and not needed to triage). Use the customer API for the full rendered body.
@@ -264,6 +282,42 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     return { staff: serializeStaff(staff), session_token: token, session_expires_at: session.expiresAt };
   });
 
+  // --- Forgot password ---------------------------------------------------
+  // PUBLIC. One answer for every address, sent before any lookup happens, so
+  // neither the body nor the timing says whether someone is staff. The work
+  // (lookup, token, email, audit) runs after the reply.
+  app.post("/v1/admin/auth/forgot-password", async (req, reply) => {
+    const body = parse(staffForgotBody, req.body);
+    const email = body.email.trim().toLowerCase();
+    const slot = await takeStaffResetRequestSlot(req.ip, email);
+    if (!slot.ok) {
+      req.log.warn({ event: "staff.password_reset.rate_limited", scope: slot.scope, email_fp: emailFingerprint(email) }, "staff reset rate-limited");
+      throw Errors.rateLimited("Too many reset requests. Try again later.");
+    }
+    void trackStaffReset(processStaffResetRequest(email, req.ip, req.log)).catch((err) =>
+      req.log.error({ err }, "staff reset request failed"),
+    );
+    return reply.code(202).send(STAFF_FORGOT_NEUTRAL);
+  });
+
+  // PUBLIC. Redeem a reset link (emailed, or printed by `staff:reset-link`).
+  // The password is validated BEFORE the token is spent, so a too-short
+  // password doesn't burn the link. Every failure reads the same.
+  app.post("/v1/admin/auth/reset-password", async (req) => {
+    if (!(await takeStaffRedeemSlot(req.ip))) {
+      throw Errors.rateLimited("Too many attempts. Try again later.");
+    }
+    const body = parse(staffResetBody, req.body);
+    const result = await completeStaffReset(body.token, body.password, req.ip);
+    if (!result.ok) {
+      // Known tokens are audited inside completeStaffReset; an unknown one has
+      // no staff id to audit against, so it is logged.
+      req.log.warn({ event: "staff.password_reset.failed", reason: result.reason }, "staff reset link refused");
+      throw Errors.badRequest("This reset link is invalid or has expired. Ask for a new one.");
+    }
+    return { ok: true };
+  });
+
   app.post("/v1/admin/auth/logout", async (req) => {
     const token = staffBearer(req);
     if (token) await deleteStaffSession(token);
@@ -292,7 +346,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
   const bootstrapBody = z.object({
     email: z.string().email(),
     name: z.string().trim().min(1).max(120).optional(),
-    password: z.string().min(10).max(200),
+    password: staffPassword,
     secret: z.string().min(1),
   });
   app.post("/v1/admin/auth/bootstrap", async (req) => {
@@ -345,7 +399,7 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
     email: z.string().email(),
     name: z.string().trim().min(1).max(120).optional(),
     role: z.enum(STAFF_ROLES),
-    password: z.string().min(10).max(200).optional(),
+    password: staffPassword.optional(),
   });
   app.post("/v1/admin/staff", async (req) => {
     const actor = await requireStaff(req);

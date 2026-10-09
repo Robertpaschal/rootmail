@@ -9,7 +9,8 @@ import { LoginForm } from "./login-form";
 
 export const metadata: Metadata = { title: "Sign in" };
 
-export default async function LoginPage() {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ reset?: string }> }) {
+  const { reset } = await searchParams;
   // Soft auto-skip: a still-valid session goes straight in. An expired session
   // (or unreachable API) just falls through to the form — no redirect loop.
   const token = await getStaffToken();
@@ -41,7 +42,9 @@ export default async function LoginPage() {
             <CardDescription>
               {needsBootstrap
                 ? "No staff exist yet. Set up the first account using your deployment's bootstrap secret."
-                : "Internal access only. Activity is audited."}
+                : reset
+                  ? "Password changed. Sign in with your new password."
+                  : "Internal access only. Activity is audited."}
             </CardDescription>
           </CardHeader>
           <CardContent>{needsBootstrap ? <BootstrapForm /> : <LoginForm />}</CardContent>

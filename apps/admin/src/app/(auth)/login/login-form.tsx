@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -22,6 +23,11 @@ export function LoginForm() {
       <SubmitButton className="w-full" pendingLabel="Signing in…">
         Sign in
       </SubmitButton>
+      <p className="text-center text-sm">
+        <Link href="/login/forgot" className="text-muted-foreground underline underline-offset-4">
+          Forgot password?
+        </Link>
+      </p>
     </form>
   );
 }

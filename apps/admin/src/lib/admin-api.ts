@@ -122,6 +122,11 @@ export const adminApi = {
   logout: () => adminFetch<{ ok: boolean }>("/v1/admin/auth/logout", { method: "POST", body: {} }),
   me: () => adminFetch<MeResult>("/v1/admin/auth/me"),
   status: () => adminFetch<{ needs_bootstrap: boolean }>("/v1/admin/auth/status", { noAuth: true }),
+  // Password reset (public). The API answers forgotPassword identically for every address.
+  forgotPassword: (body: { email: string }) =>
+    adminFetch<{ ok: boolean; message: string }>("/v1/admin/auth/forgot-password", { method: "POST", body, noAuth: true }),
+  resetPassword: (body: { token: string; password: string }) =>
+    adminFetch<{ ok: boolean }>("/v1/admin/auth/reset-password", { method: "POST", body, noAuth: true }),
 
   // First-run bootstrap (no auth — gated by INTERNAL_API_SECRET + zero staff).
   bootstrap: (body: { email: string; name?: string; password: string; secret: string }) =>
