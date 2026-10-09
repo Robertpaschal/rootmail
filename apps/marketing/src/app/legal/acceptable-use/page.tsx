@@ -136,7 +136,7 @@ export default function AcceptableUsePage() {
       <h2>Reporting abuse</h2>
       <p>
         If you received mail sent through rootmail that you believe violates this policy, tell us at{" "}
-        <a href="mailto:abuse@rootmail.io">abuse@rootmail.io</a> and include the full message
+        <a href="mailto:security@rootmail.io">security@rootmail.io</a> and include the full message
         headers if you can. We investigate every report. You can also reach us through our{" "}
         <a href="/contact">contact page</a>.
       </p>

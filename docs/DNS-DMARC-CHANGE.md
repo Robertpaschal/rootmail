@@ -13,7 +13,9 @@ permissions, and I will not widen my own access.
 ## Step 1 — make sure `dmarc@rootmail.io` receives mail
 
 A `rua=` pointing at a mailbox that bounces collects nothing. It is a Google
-Workspace alias; same job as the `abuse@` alias. Do this first.
+Workspace alias; same job as the `security@` alias the acceptable-use policy
+publishes for abuse reports (Google Workspace reserves `abuse@` and `postmaster@`,
+so we don't use those). Do this first.
 
 ## Step 2 — publish the record
 
