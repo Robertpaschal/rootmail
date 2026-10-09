@@ -45,10 +45,11 @@ describe("mode: explicit reply_to", () => {
 });
 
 describe("mode: own_mailbox", () => {
-  it("non-beta From: replies go to the From itself, even with a branded domain; never to no-reply", () => {
+  it("non-beta From: replies go to the From itself, even with a branded domain; the platform no-reply is captured", () => {
     assert.equal(r({ replyMode: "own_mailbox" }), plain);
     assert.equal(r({ replyMode: "own_mailbox", replyDomain: brand }), plain);
-    assert.equal(r({ replyMode: "own_mailbox", fromEmail: `no-reply@${apex()}` }), null);
+    // no-reply-always-capture: the platform no-reply has no mailbox, so it is captured in every mode.
+    assert.equal(r({ replyMode: "own_mailbox", fromEmail: `no-reply@${apex()}` }), capture());
   });
   it("beta From (both forms): still captured, because there is no mailbox behind it", () => {
     for (const fromEmail of betas()) assert.equal(r({ replyMode: "own_mailbox", fromEmail }), capture());
