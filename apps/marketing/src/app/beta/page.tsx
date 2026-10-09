@@ -3,6 +3,7 @@ import { Metric } from "@rootmail/design";
 import { Navbar } from "@/components/site/navbar";
 import { Footer } from "@/components/site/footer";
 import { betaStatus } from "@/lib/beta";
+import { ResendConfirmation } from "./resend-confirmation";
 import { WaitlistForm } from "./waitlist-form";
 
 const title = "Join the rootmail beta";
@@ -162,6 +163,17 @@ export default async function BetaPage() {
             </a>
             .
           </p>
+          {/* For someone who joined earlier and whose Amazon link has since
+              lapsed. Without this the only way in left was OAuth sign-in. */}
+          <div className="border-b border-rule py-6">
+            <p className="text-[0.9375rem] text-ink-muted">
+              Joined the waitlist but never got Amazon&apos;s confirmation email, or the link
+              expired? Each link works for 24 hours. Ask for a new one here.
+            </p>
+            <div className="mt-4 max-w-sm">
+              <ResendConfirmation />
+            </div>
+          </div>
         </section>
       </main>
       <Footer />

@@ -2,7 +2,9 @@ import { and, eq, isNull } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { admitSubscriber, contacts, db } from "@rootmail/db";
+import { AppError } from "@rootmail/core";
 import { betaInviteRequired } from "../lib/beta";
+import { resendClientIp, resendTesterConfirmation, takeResendSlot, track } from "../lib/beta-resend";
 import { autoAdmitRemaining, betaWaitlistAudience } from "../lib/beta-waitlist";
 import { ensureTesterIdentity } from "../lib/ses-provisioning";
 import { parse } from "../lib/validate";
@@ -20,6 +22,23 @@ const waitlistBody = z.object({
   /** Honeypot. Humans never fill it; bots do. Accepted, then dropped. */
   website: z.string().optional(),
 });
+
+const resendBody = z.object({
+  email: z.string().email(),
+  /** Same honeypot as the signup form. */
+  website: z.string().optional(),
+});
+
+/**
+ * The one answer the resend endpoint ever gives (bar a 429). Identical whether
+ * the address is on the list, unknown, already confirmed or still within its
+ * 24 hours — so it cannot be used to find out who has asked to join.
+ */
+export const RESEND_NEUTRAL = {
+  ok: true,
+  message:
+    "If that address is on our waitlist, a confirmation email from Amazon Web Services is on its way or already in your inbox. Check spam too. Each link works for 24 hours; if yours has expired, we have asked for a new one.",
+} as const;
 
 export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
   app.post("/v1/beta/waitlist", async (req, reply) => {
@@ -95,6 +114,36 @@ export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {
     }
 
     return reply.code(202).send({ ok: true, status: "waiting" });
+  });
+
+  /**
+   * PUBLIC: "my Amazon confirmation link expired — send another".
+   *
+   * Answers first and works after, so neither the body nor the response time
+   * says whether the address is on the list. All the deciding (on the waitlist?
+   * link actually dead? our domain? a customer's sender?) is in
+   * resendTesterConfirmation; this route only validates, rate-limits and hides.
+   */
+  app.post("/v1/beta/waitlist/resend-confirmation", async (req, reply) => {
+    const body = parse(resendBody, req.body);
+    if (body.website) return reply.code(202).send(RESEND_NEUTRAL);
+
+    const email = body.email.trim().toLowerCase();
+    const slot = await takeResendSlot(resendClientIp(req), email);
+    if (!slot.ok) {
+      // Which limit was hit is safe to say: both count every address, on the
+      // list or not. The caller needs it to avoid blaming the wrong thing.
+      throw new AppError(429, "rate_limited", "Too many requests for a new confirmation link. Try again later.", {
+        scope: slot.scope,
+      });
+    }
+
+    void track(resendTesterConfirmation(email))
+      // The outcome, never the address: this runs for strangers' addresses too.
+      .then((outcome) => req.log.info({ outcome }, "beta confirmation resend"))
+      .catch((err) => req.log.error({ err }, "beta confirmation resend threw"));
+
+    return reply.code(202).send(RESEND_NEUTRAL);
   });
 
   /**
