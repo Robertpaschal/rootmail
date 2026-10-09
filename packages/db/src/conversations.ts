@@ -11,8 +11,8 @@ import { type Thread, threadMessages, threads } from "./schema";
 
 /** Is this the rootmail house no-reply address (the only "from" we never want a
  * human to receive replies at)? */
-export function isRootmailNoReply(fromEmail: string): boolean {
-  return fromEmail.toLowerCase() === `no-reply@${env.ROOTMAIL_DOMAIN}`.toLowerCase();
+export function isRootmailNoReply(fromEmail: string | null | undefined): boolean {
+  return (fromEmail ?? "").trim().toLowerCase() === `no-reply@${env.ROOTMAIL_DOMAIN}`.trim().toLowerCase();
 }
 
 const HOSTNAME_RE = /^(?=.{1,253}$)([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/i;
@@ -49,7 +49,10 @@ export function threadReplyAddress(conversationId: string, ownDomain?: string | 
  *    capture address, whatever the reply mode, because there is no "own mailbox"
  *    to fall back to. Null when capture is not configured; the worker refuses to
  *    send in that case (see pipeline.ts) rather than ship a reply that bounces.
- * 3. `own_mailbox` → the From address (never rootmail's no-reply).
+ *    The platform no-reply (no-reply@ROOTMAIL_DOMAIN) is treated the same way —
+ *    always the capture address, whatever the mode — but is not refused when
+ *    capture is unavailable (it never was).
+ * 3. `own_mailbox` → the From address (a real mailbox).
  * 4. `inbox` → the capture address, else the From address.
  *
  * ("own_domain" — a branded reply subdomain — is passed as replyDomain.)
@@ -65,14 +68,17 @@ export function resolveReplyTo(opts: {
 }): string | null {
   const explicit = opts.explicit && !isPlatformBetaFrom(opts.explicit) ? opts.explicit : null;
   if (explicit) return explicit;
-  // Managed beta addresses are sending identities, not mailboxes. Even if the
-  // workspace later chooses own_mailbox, replies must not disappear there.
-  if (isPlatformBetaFrom(opts.fromEmail)) {
+  // Managed beta addresses and the platform no-reply (the default From of an
+  // org with no verified sender) are sending identities, not mailboxes: nobody
+  // reads them, and rootmail.io's MX bounces them. Even if the workspace chose
+  // own_mailbox, a reply must not go there — it always gets the capture address
+  // (null only when no capture domain is configured at all).
+  if (isPlatformBetaFrom(opts.fromEmail) || isRootmailNoReply(opts.fromEmail)) {
     return threadReplyAddress(opts.conversationId, opts.replyDomain);
   }
-  const ownMailbox = isRootmailNoReply(opts.fromEmail) ? null : opts.fromEmail;
-  if (opts.replyMode === "own_mailbox") return ownMailbox;
-  return threadReplyAddress(opts.conversationId, opts.replyDomain) ?? ownMailbox;
+  // A real mailbox: exactly as before.
+  if (opts.replyMode === "own_mailbox") return opts.fromEmail;
+  return threadReplyAddress(opts.conversationId, opts.replyDomain) ?? opts.fromEmail;
 }
 
 /**
