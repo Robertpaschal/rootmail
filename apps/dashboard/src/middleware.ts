@@ -3,6 +3,20 @@ import { SIGNED_IN_HOME } from "@/lib/home";
 import { SESSION_COOKIE, SIGNED_IN_HINT } from "@/lib/session";
 
 const PUBLIC_PATHS = ["/login", "/signup"];
+
+/**
+ * The email-verification link must open whether or not this browser has a
+ * session: people click it in another browser, on their phone, or in a mail
+ * app's built-in browser, where our cookie does not exist. Sending them to
+ * /login dropped the token on the floor, so the link "logged people out" and
+ * never verified. Unlike PUBLIC_PATHS, a signed-in visitor is NOT bounced home
+ * either, because verifying while signed in is the common case. The page
+ * authenticates by its own single-use token, spent only on a button press.
+ *
+ * Deliberately ONLY /verify-email. /forgot-password is hidden this week and
+ * /reset-password keeps main's behaviour; do not add them here.
+ */
+const VERIFY_EMAIL_PATH = "/verify-email";
 const THIRTY_DAYS = 60 * 60 * 24 * 30;
 
 /**
@@ -72,6 +86,10 @@ export function middleware(req: NextRequest) {
   // public, branded per audience, session or not.
   if (pathname.startsWith("/subscribe/")) {
     return NextResponse.next();
+  }
+
+  if (pathname === VERIFY_EMAIL_PATH) {
+    return syncHint(req, hasSession, NextResponse.next());
   }
 
   const isPublic = PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
