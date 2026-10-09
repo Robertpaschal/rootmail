@@ -19,6 +19,7 @@ import {
 } from "@rootmail/core";
 import { activeReplyDomain, auditEntries, betaReplyCaptureAvailable, db, isPlatformBetaFrom, threadReplyParent, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
 import { providerForMessage } from "./providers/for-org";
+import { addSesNoTrack, isInternalWorkspace, isPlatformMessage, platformConfigurationSet } from "./platform-mail";
 import { unverifiedSendRecipients, RECIPIENT_VERIFICATION_REQUIRED } from "@rootmail/db";
 import type { OutboundAttachment } from "./providers/types";
 
@@ -447,6 +448,12 @@ export async function processSend(data: SendJobData): Promise<void> {
     return;
   }
 
+  // rootmail-hq's own system/invite/transactional mail: links not click-tracked,
+  // and the platform configuration set when one is configured. Applied after the
+  // dedicated-IP choice above and never over it; customer mail is untouched.
+  const platform = livePath && isPlatformMessage(message, await isInternalWorkspace(message.workspaceId));
+  if (platform) configurationSet = configurationSet ?? platformConfigurationSet();
+
   // The customer's own account when they have connected one, ours otherwise.
   const provider = await providerForMessage(message);
   try {
@@ -460,7 +467,7 @@ export async function processSend(data: SendJobData): Promise<void> {
       to: message.toEmail,
       replyTo,
       subject: message.subject,
-      html: message.renderedHtml ?? "",
+      html: platform ? addSesNoTrack(message.renderedHtml ?? "") : (message.renderedHtml ?? ""),
       text: message.renderedText ?? "",
       dkim,
       sandbox: message.sandbox,

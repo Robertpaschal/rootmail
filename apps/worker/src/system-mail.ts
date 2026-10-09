@@ -16,6 +16,7 @@ import {
   resolveReplyTo,
   suppressions,
 } from "@rootmail/db";
+import { addSesNoTrack, platformConfigurationSet } from "./platform-mail";
 import { getProviderFor } from "./providers";
 
 /**
@@ -162,10 +163,13 @@ export async function processSystemMail(job: SystemMailJob): Promise<void> {
       to,
       replyTo,
       subject: job.subject,
-      html: job.html,
+      // Our own mail: no click rewriting, and the platform config set when one
+      // is configured (else the shared one, as before). The stored copy is untouched.
+      html: addSesNoTrack(job.html),
       text: job.text,
       dkim: null,
       sandbox: false,
+      configurationSet: platformConfigurationSet(),
     });
     await db
       .update(messages)
