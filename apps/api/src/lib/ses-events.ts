@@ -1,5 +1,5 @@
 import { GetObjectCommand, S3Client } from "@aws-sdk/client-s3";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { type ParsedMail, simpleParser } from "mailparser";
 import {
   WEBHOOK_EVENTS,
@@ -12,12 +12,15 @@ import {
 } from "@rootmail/core";
 import {
   auditEntries,
+  baseSubject,
+  betaAddressOrgId,
   db,
   type Message,
   messages,
   type Thread,
   threadMessages,
   threads,
+  workspaces,
 } from "@rootmail/db";
 import { addSuppression } from "./queries";
 import { exitEnrollments } from "./sequence-triggers";
@@ -124,6 +127,32 @@ async function rawMessage(n: SesNotification): Promise<Buffer | null> {
 }
 
 /**
+ * Last resort: mail written straight to a beta address — the From of a beta
+ * send, on the reply subdomain or (should it ever arrive) the legacy apex form —
+ * with no reply token and no threading headers. Someone who received a beta
+ * email and typed the address by hand.
+ *
+ * It lands only where the org already has a conversation with THIS sender: the
+ * thread with the same base subject, else their most recent one. The org id in a
+ * beta address is public (it is the From), so it must never be enough on its
+ * own to open a thread — a stranger's mail is dropped, not filed.
+ */
+async function threadFromBetaAddress(recipients: string[], fromEmail: string, subject: string | undefined): Promise<Thread | null> {
+  const orgId = recipients.map((r) => betaAddressOrgId(r.trim())).find((id): id is string => Boolean(id));
+  if (!orgId) return null;
+  const rows = await db
+    .select({ thread: threads })
+    .from(threads)
+    .innerJoin(workspaces, eq(workspaces.id, threads.workspaceId))
+    .where(and(sql`lower(${workspaces.organizationId}) = ${orgId}`, eq(threads.contactEmail, fromEmail.trim().toLowerCase())))
+    .orderBy(desc(threads.lastMessageAt))
+    .limit(25);
+  if (rows.length === 0) return null;
+  const key = subject ? baseSubject(subject) : null;
+  return (key ? rows.find((r) => baseSubject(r.thread.subject) === key)?.thread : undefined) ?? rows[0].thread;
+}
+
+/**
  * Find the conversation a reply belongs to from its RFC threading headers.
  *
  * The fallback for every reply that lost the `reply+<threadId>@` token: someone
@@ -192,9 +221,10 @@ export async function applySesInbound(n: SesNotification): Promise<"received" | 
     thread = t ?? null;
   }
   if (!thread) thread = await threadFromHeaders(parsed);
-  if (!thread) return "ignored";
 
   const fromEmail = parsed.from?.value?.[0]?.address ?? n.mail?.source ?? "";
+  if (!thread && fromEmail) thread = await threadFromBetaAddress(recipients, fromEmail, parsed.subject);
+  if (!thread) return "ignored";
   if (!fromEmail) return "ignored";
   const toEmail =
     recipients.find((r) => REPLY_TOKEN.test(r.trim())) ?? recipients[0] ?? "";

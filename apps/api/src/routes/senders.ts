@@ -1,8 +1,8 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { betaSenderAddress, env, Errors, newId } from "@rootmail/core";
-import { db, senderIdentities, sendingAccess, threadReplyAddress, type SenderIdentity } from "@rootmail/db";
+import { betaSenderDomain, db, isPlatformBetaFrom, senderIdentities, sendingAccess, threadReplyAddress, type SenderIdentity } from "@rootmail/db";
 import { loadOrg } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
 import { betaSendingDomainReady, ensureDefaultSender, identityVerified, removeIdentity, setDefaultSender, startIdentityVerification } from "../lib/senders";
@@ -44,12 +44,27 @@ export async function senderRoutes(app: FastifyInstance): Promise<void> {
     if (!(await betaSendingDomainReady())) {
       throw Errors.validation("Rootmail's beta sending domain is not ready. Contact support; no address was activated.");
     }
-    const email = betaSenderAddress(org.id, env.ROOTMAIL_DOMAIN);
+    // Issued on reply.<ROOTMAIL_DOMAIN> when INBOUND_DOMAIN is that subdomain, so
+    // a reply to the From itself is routable (see betaSenderDomain).
+    const email = betaSenderAddress(org.id, betaSenderDomain());
+    const legacy = betaSenderAddress(org.id, env.ROOTMAIL_DOMAIN);
     const row = await db.transaction(async tx => {
       await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`beta-sender:${org.id}`}, 0))`);
       const [existing] = await tx.select().from(senderIdentities).where(eq(senderIdentities.email, email)).limit(1);
       if (existing && existing.organizationId !== org.id) throw Errors.conflict("This beta address needs support to resolve its ownership.");
       await tx.update(senderIdentities).set({ isDefault: false }).where(eq(senderIdentities.organizationId, org.id));
+      // An org activated before the move still holds the apex form. Move THAT row
+      // (same id, same history) rather than adding a second address beside it.
+      if (!existing && legacy !== email) {
+        const [old] = await tx.select().from(senderIdentities)
+          .where(and(eq(senderIdentities.email, legacy), eq(senderIdentities.organizationId, org.id))).limit(1);
+        if (old) {
+          const [moved] = await tx.update(senderIdentities)
+            .set({ email, isDefault: true, status: "verified", verifiedAt: old.verifiedAt ?? new Date() })
+            .where(eq(senderIdentities.id, old.id)).returning();
+          return moved;
+        }
+      }
       const [sender] = await tx.insert(senderIdentities).values({
         id: newId("senderIdentity"), organizationId: org.id, email,
         displayName: `${org.name || "Your workspace"} · Rootmail beta`, status: "verified", verifiedAt: new Date(), isDefault: true,
@@ -72,7 +87,7 @@ export async function senderRoutes(app: FastifyInstance): Promise<void> {
     await requirePermission(req, "billing.manage");
     const org = await loadOrg(req);
     const b = parse(createBody, req.body);
-    if (b.email.startsWith("beta+") && b.email.endsWith(`@${env.ROOTMAIL_DOMAIN.toLowerCase()}`)) {
+    if (isPlatformBetaFrom(b.email)) {
       throw Errors.validation("Use the beta address setup instead of adding a managed address manually.");
     }
 
