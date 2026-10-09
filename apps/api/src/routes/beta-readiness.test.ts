@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it, mock } from "node:test";
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { and, eq, inArray, like } from "drizzle-orm";
-import { betaSenderAddress, closeQueues, closeRedis, env, getSystemMailQueue, platformReplyTo, isPublicMailboxSender, newId, RECIPIENT_UNCONFIRMED_ERROR, testRecipientAddress } from "@rootmail/core";
+import { betaSenderAddress, closeQueues, closeRedis, env, getSystemMailQueue, isPublicMailboxSender, newId, RECIPIENT_UNCONFIRMED_ERROR, testRecipientAddress } from "@rootmail/core";
 import { betaInvites, closeDb, contacts, db, ensureBetaInviteAutomation, ensureInternalAccount, listContacts, lists, messages, organizations, orgSendingProviders, sequenceEnrollments, sequences, staffUsers, templates, users, verifiedRecipients, unverifiedSendRecipients, orgAddons, workspaces } from "@rootmail/db";
 import { provisionAccount, createSession, upsertOAuthUser } from "../lib/auth";
 import { createStaffSession } from "../lib/admin-auth";
@@ -10,6 +10,7 @@ import { seedBetaTestKit } from "../lib/beta-test-kit";
 import { betaWaitlistAudience, promoteVerifiedTesters, BetaInviteAutomationError, BETA_ADMITTED_TAG, BETA_INVITED_TAG, BETA_WAITLIST_TAG, BETA_READY_TAG } from "../lib/beta-waitlist";
 import { buildServer } from "../server";
 import { processSend } from "../../../worker/src/pipeline";
+import { processSystemMail } from "../../../worker/src/system-mail";
 import { appendInbound, appendOutbound, openConversationForSend, resolveReplyTo, senderIdentities, threadMessages, threads } from "@rootmail/db";
 import { assertSenderAllowed } from "../lib/senders";
 
@@ -20,6 +21,7 @@ const ownerEmail = `beta-${stamp}@example.test`;
 const inviteEmails = [`invite-${stamp}@example.test`, `ready-${stamp}@example.test`, `held-${stamp}@example.test`, `late-${stamp}@example.test`, `prompt-${stamp}@example.test`, `seatless-${stamp}@example.test`, `admitted-${stamp}@example.test`, `unreachable-${stamp}@example.test`, `direct-${stamp}@example.test`, `signup-${stamp}@example.test`];
 const states = new Map<string, boolean>();
 let verificationRequests = 0;
+const wireReplyTo = new Map<string, string[] | undefined>();
 let verificationUnavailable = false;
 let dkimReady = true;
 let account: Awaited<ReturnType<typeof provisionAccount>>;
@@ -39,8 +41,12 @@ before(async () => {
   env.INBOUND_DOMAIN = "reply.example.test";
   // Seats are counted across the whole (shared) test database; never run out.
   env.BETA_AUTO_ADMIT_LIMIT = 1_000_000;
-  mock.method(SESv2Client.prototype, "send", async (command: { constructor: { name: string }; input: { EmailIdentity: string } }) => {
+  mock.method(SESv2Client.prototype, "send", async (command: { constructor: { name: string }; input: Record<string, any> }) => {
     const email = command.input.EmailIdentity;
+    if (command.constructor.name === "SendEmailCommand") {
+      wireReplyTo.set(command.input.Destination?.ToAddresses?.[0], command.input.ReplyToAddresses);
+      return { MessageId: `ses-${stamp}-${wireReplyTo.size}` };
+    }
     if (command.constructor.name === "GetEmailIdentityCommand") {
       if (verificationUnavailable) throw Object.assign(new Error("Unavailable"), { name: "ServiceUnavailableException" });
       if (email === env.ROOTMAIL_DOMAIN) return { VerifiedForSendingStatus: true, DkimAttributes: { Status: "SUCCESS", SigningEnabled: dkimReady } };
@@ -316,9 +322,14 @@ describe("closed beta — a verified inbox, a reusable audience and honest sendi
       const emailed = await admit((await contactOf(direct)).id);
       assert.equal(emailed.statusCode, 200, emailed.body);
       assert.equal(emailed.json().status, "emailed");
-      // The invite says "just reply; it reaches a person", so it replies to the human inbox.
+      // The invite says "just reply": as before #26 it sets no Reply-To, so the
+      // wire carries the capture address and the reply threads into Replies.
       const inviteJob = (await getSystemMailQueue().getJobs(["waiting", "delayed", "prioritized", "active", "completed"])).map((j) => j?.data).find((d) => d?.to === direct);
-      assert.equal(inviteJob?.replyTo, platformReplyTo());
+      assert.ok(inviteJob, "invite queued");
+      assert.equal(inviteJob.replyTo, undefined);
+      assert.equal(inviteJob.cls, "transactional");
+      await processSystemMail(inviteJob);
+      assert.match(wireReplyTo.get(direct)?.[0] ?? "", /^reply\+thr_.+@reply\.example\.test$/);
       assert.equal(await promoteVerifiedTesters(), 0, "the sweep does not send a second, different code");
       assert.equal((await db.select().from(sequenceEnrollments).where(eq(sequenceEnrollments.email, direct))).length, 0);
     } finally {

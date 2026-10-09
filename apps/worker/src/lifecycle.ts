@@ -1,6 +1,6 @@
 import type { Redis } from "ioredis";
 import { eq } from "drizzle-orm";
-import { contactCapForOrg, createRedis, env, PLANS, platformReplyTo, sendSystemEmail, type SystemMailJob } from "@rootmail/core";
+import { contactCapForOrg, createRedis, env, PLANS, sendSystemEmail, type SystemMailJob } from "@rootmail/core";
 import { admitWaitlisted, billableContactCount, contactEvents, contactPackUnits, db, memberships, organizations, plans, syncAllCustomersToAudience, usageRecords, users, workspaces } from "@rootmail/db";
 
 // Conditional lifecycle email, sent by a daily sweep and de-duplicated in Redis so
@@ -103,7 +103,8 @@ async function admitWaitlistedSweep(): Promise<void> {
 /**
  * The win-back email. Marketing, and genuinely so: this one is a pitch, fully
  * gated and unsubscribable like a customer's own marketing. It ends "Just reply
- * to this email", so the reply goes to platformReplyTo(), a mailbox a person reads.
+ * to this email"; with no explicit Reply-To the reply goes to the capture
+ * address and lands in the Replies inbox (pre-#26 behaviour).
  */
 export function winBackJob(owner: { email: string; name: string | null }): SystemMailJob {
   const mail = winBackEmail(owner.name);
@@ -113,7 +114,6 @@ export function winBackJob(owner: { email: string; name: string | null }): Syste
     html: mail.html,
     text: mail.text,
     cls: "marketing",
-    replyTo: platformReplyTo(),
   };
 }
 
