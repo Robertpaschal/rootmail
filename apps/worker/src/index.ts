@@ -19,7 +19,7 @@ import {
   type SystemMailJob,
   WEBHOOK_QUEUE,
 } from "@rootmail/core";
-import { closeDb } from "@rootmail/db";
+import { betaReplyCaptureAvailable, closeDb } from "@rootmail/db";
 import { processCampaignSend } from "./campaigns";
 import { processLifecycleSweep } from "./lifecycle";
 import { processSend } from "./pipeline";
@@ -42,9 +42,16 @@ const worker = new Worker<SendJobData>(
   { connection, prefix: BULL_PREFIX, concurrency: 10 },
 );
 
-worker.on("ready", () =>
-  console.log(`rootmail worker ready — queue "${SEND_QUEUE}", provider "${env.MAIL_PROVIDER}"`),
-);
+worker.on("ready", () => {
+  console.log(`rootmail worker ready — queue "${SEND_QUEUE}", provider "${env.MAIL_PROVIDER}"`);
+  // Say it at boot, not one refused send at a time: without a capture domain no
+  // reply can be routed back, and every send from a beta address is refused.
+  if (!betaReplyCaptureAvailable()) {
+    console.error(
+      "[reply-capture] INBOUND_DOMAIN is unset or not a hostname on this worker: replies cannot be captured, and sends from Rootmail beta addresses will be refused until it is set.",
+    );
+  }
+});
 worker.on("completed", (job) => console.log(`✓ sent ${job.data.messageId} (job ${job.id})`));
 worker.on("failed", (job, err) =>
   console.error(`✗ failed ${job?.data.messageId} (job ${job?.id}): ${err.message}`),

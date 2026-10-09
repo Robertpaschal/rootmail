@@ -1,5 +1,5 @@
 import { and, desc, eq, isNotNull, isNull, sql } from "drizzle-orm";
-import { env, newId } from "@rootmail/core";
+import { env, isPlatformBetaAddress, newId } from "@rootmail/core";
 import { db } from "./client";
 import { type Thread, threadMessages, threads } from "./schema";
 
@@ -38,8 +38,20 @@ export function threadReplyAddress(conversationId: string, ownDomain?: string | 
  *   in the per-contact Replies inbox. Falls back to the From address if inbound
  *   capture isn't configured, so a reply is never sent into a black hole.
  *
- * An explicit caller-supplied Reply-To (e.g. the API's `reply_to`) always wins.
- * ("own_domain" — a branded reply subdomain — is Phase 2; it will resolve here.)
+ * Precedence, highest first:
+ *
+ * 1. An explicit caller-supplied Reply-To (the API's `reply_to`, a campaign's
+ *    reply address) — unless it is itself a platform beta address, which is a
+ *    sending identity with no mailbox behind it and would bounce. That one is
+ *    treated as absent.
+ * 2. From a platform beta address (beta+<org>@ROOTMAIL_DOMAIN): always the
+ *    capture address, whatever the reply mode, because there is no "own mailbox"
+ *    to fall back to. Null when capture is not configured; the worker refuses to
+ *    send in that case (see pipeline.ts) rather than ship a reply that bounces.
+ * 3. `own_mailbox` → the From address (never rootmail's no-reply).
+ * 4. `inbox` → the capture address, else the From address.
+ *
+ * ("own_domain" — a branded reply subdomain — is passed as replyDomain.)
  */
 export function resolveReplyTo(opts: {
   replyMode: string | null | undefined;
@@ -50,15 +62,32 @@ export function resolveReplyTo(opts: {
    * the shared rootmail address. Pass only when receiving is live for it. */
   replyDomain?: string | null;
 }): string | null {
-  if (opts.explicit) return opts.explicit;
+  const explicit = opts.explicit && !isPlatformBetaAddress(opts.explicit, env.ROOTMAIL_DOMAIN) ? opts.explicit : null;
+  if (explicit) return explicit;
   // Managed beta addresses are sending identities, not mailboxes. Even if the
   // workspace later chooses own_mailbox, replies must not disappear there.
-  if (opts.fromEmail.toLowerCase().startsWith("beta+") && opts.fromEmail.toLowerCase().endsWith(`@${env.ROOTMAIL_DOMAIN.toLowerCase()}`)) {
+  if (isPlatformBetaFrom(opts.fromEmail)) {
     return threadReplyAddress(opts.conversationId, opts.replyDomain);
   }
   const ownMailbox = isRootmailNoReply(opts.fromEmail) ? null : opts.fromEmail;
   if (opts.replyMode === "own_mailbox") return ownMailbox;
   return threadReplyAddress(opts.conversationId, opts.replyDomain) ?? ownMailbox;
+}
+
+/** Is this From one of rootmail's managed beta addresses (beta+<org>@ROOTMAIL_DOMAIN)? */
+export function isPlatformBetaFrom(fromEmail: string | null | undefined): boolean {
+  return isPlatformBetaAddress(fromEmail, env.ROOTMAIL_DOMAIN);
+}
+
+/**
+ * Whether a send from a beta address can carry a working Reply-To at all: true
+ * when the caller gave a usable one, or a capture domain (the org's active
+ * branded one, or INBOUND_DOMAIN) is configured. The thread id is not needed to
+ * answer this — only whether a routable domain exists.
+ */
+export function betaReplyCaptureAvailable(opts: { explicit?: string | null; replyDomain?: string | null } = {}): boolean {
+  if (opts.explicit && !isPlatformBetaAddress(opts.explicit, env.ROOTMAIL_DOMAIN)) return true;
+  return threadReplyAddress("thr_probe", opts.replyDomain) !== null;
 }
 
 /** The org's branded reply domain IF receiving is live (status "active"); else

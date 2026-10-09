@@ -15,8 +15,9 @@ import {
   env,
   MAX_ATTACHMENT_BYTES,
   assertPublicUrl,
+  BETA_REPLY_CAPTURE_UNAVAILABLE,
 } from "@rootmail/core";
-import { activeReplyDomain, auditEntries, db, threadReplyParent, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
+import { activeReplyDomain, auditEntries, betaReplyCaptureAvailable, db, isPlatformBetaFrom, threadReplyParent, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
 import { providerForMessage } from "./providers/for-org";
 import { unverifiedSendRecipients, RECIPIENT_VERIFICATION_REQUIRED } from "@rootmail/db";
 import type { OutboundAttachment } from "./providers/types";
@@ -355,8 +356,11 @@ export async function processSend(data: SendJobData): Promise<void> {
   // own platform mail and fixed it for ourselves first, which is exactly the
   // asymmetry we said we would not ship.)
   //
-  // Best-effort: threading must never fail a send that is otherwise fine.
+  // Best-effort: threading must never fail a send that is otherwise fine — with
+  // one exception below: a beta From with no reply address.
   let replyTo = message.replyTo;
+  let threadingError: unknown = null;
+  let replyDomain: string | null = null;
   try {
     const [wsRow] = await db
       .select({
@@ -368,6 +372,9 @@ export async function processSend(data: SendJobData): Promise<void> {
       .innerJoin(workspaces, eq(workspaces.organizationId, organizations.id))
       .where(eq(workspaces.id, message.workspaceId))
       .limit(1);
+    // Branded own-domain replies only once receiving is actually live for it;
+    // otherwise the shared address, so no reply is lost while it's pending.
+    replyDomain = wsRow ? activeReplyDomain(wsRow) : null;
 
     const thread = await openConversationForSend({
       workspaceId: message.workspaceId,
@@ -380,37 +387,64 @@ export async function processSend(data: SendJobData): Promise<void> {
       bodyText: message.renderedText,
     });
 
-    // Now that the conversation is known, point this message at what the contact
-    // actually sent. Without it their client files our answer as a NEW thread
-    // beside the one they are reading — which is the visible half of the bug:
-    // our replies did not thread on the recipient's side at all.
-    const parent = await threadReplyParent(thread.id);
-    if (parent) {
-      headers.push(
-        ...replyThreadingHeaders({
-          rfcMessageId: parent.rfcMessageId,
-          references: parent.references,
-        }),
-      );
-    }
-
     // `explicit` wins inside resolveReplyTo, so a caller who set reply_to in
     // their API call keeps it — we add capture, we never override an
-    // instruction their integration deliberately gave us.
+    // instruction their integration deliberately gave us. (Resolved BEFORE the
+    // threading headers below, so a failure there cannot cost us the Reply-To.)
     replyTo = resolveReplyTo({
       replyMode: wsRow?.replyMode,
       conversationId: thread.id,
       fromEmail: message.fromEmail,
       explicit: message.replyTo,
-      // Branded own-domain replies only once receiving is actually live for it;
-      // otherwise the shared address, so no reply is lost while it's pending.
-      replyDomain: wsRow ? activeReplyDomain(wsRow) : null,
+      replyDomain,
     });
     if (replyTo !== message.replyTo) {
       await db.update(messages).set({ replyTo, updatedAt: new Date() }).where(eq(messages.id, message.id));
     }
-  } catch {
-    /* threading is non-critical to the send */
+
+    // Now that the conversation is known, point this message at what the contact
+    // actually sent. Without it their client files our answer as a NEW thread
+    // beside the one they are reading — which is the visible half of the bug:
+    // our replies did not thread on the recipient's side at all.
+    try {
+      const parent = await threadReplyParent(thread.id);
+      if (parent) {
+        headers.push(
+          ...replyThreadingHeaders({
+            rfcMessageId: parent.rfcMessageId,
+            references: parent.references,
+          }),
+        );
+      }
+    } catch {
+      /* recipient-side threading is cosmetic; never costs the send */
+    }
+  } catch (err) {
+    threadingError = err;
+  }
+
+  // A rootmail beta address is a sending identity, not a mailbox: our domain's
+  // MX is a human mail host with no such user, so a reply that reaches the From
+  // hard-bounces (5.1.3) and the customer never learns it was sent. The product
+  // promises those replies arrive in the Replies inbox. If no routable Reply-To
+  // could be attached — capture not configured on this process, or opening the
+  // thread failed — refuse loudly instead of sending a mail whose answer is lost.
+  if (isPlatformBetaFrom(message.fromEmail) && (!replyTo || isPlatformBetaFrom(replyTo))) {
+    const cause = threadingError
+      ? "threading_failed"
+      : betaReplyCaptureAvailable({ replyDomain })
+        ? "no_reply_address"
+        : "inbound_domain_unset";
+    console.error(
+      `[reply-capture] refusing beta send ${message.id}: ${cause}` +
+        (threadingError instanceof Error ? ` (${threadingError.message})` : ""),
+    );
+    await db
+      .update(messages)
+      .set({ status: "failed", error: BETA_REPLY_CAPTURE_UNAVAILABLE, updatedAt: new Date() })
+      .where(eq(messages.id, message.id));
+    await audit(message, "failed", { metadata: { reason: "beta_reply_capture_unavailable", cause } });
+    return;
   }
 
   // The customer's own account when they have connected one, ours otherwise.
