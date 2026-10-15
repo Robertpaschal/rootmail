@@ -255,6 +255,21 @@ describe("POST /v1/beta/waitlist/resend-confirmation", () => {
     assert.deepEqual(writes, []);
   });
 
+  it("gives verified and protected addresses the same truthful guidance without sending", async () => {
+    await clearLimits();
+    const verified = await post(emails.verified);
+    const protectedSender = await post(emails.sender);
+    assert.equal(verified.statusCode, 202);
+    assert.equal(protectedSender.statusCode, 202);
+    assert.equal(verified.body, protectedSender.body);
+    assert.deepEqual(verified.json(), RESEND_NEUTRAL);
+    assert.match(verified.json().message, /Already confirmed/);
+    assert.match(verified.json().message, /sign in if you already have an account/);
+    assert.doesNotMatch(verified.json().message, /is on its way|we have asked for a new one/);
+    await settleResends();
+    assert.deepEqual(writes, []);
+  });
+
   it("rate-limits per address, for listed and unknown addresses alike", async () => {
     await clearLimits();
     for (let i = 0; i < RESEND_LIMITS.perAddress; i++) assert.equal((await post(emails.limited)).statusCode, 202);
