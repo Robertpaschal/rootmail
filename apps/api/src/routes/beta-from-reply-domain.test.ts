@@ -28,7 +28,7 @@ type Account = Awaited<ReturnType<typeof provisionAccount>>;
 const accounts: Account[] = [];
 let fresh: Account; let legacy: Account; let unmigrated: Account;
 let app: Awaited<ReturnType<typeof buildServer>>;
-const previous = { provider: env.MAIL_PROVIDER, sandbox: env.SES_SANDBOX_MODE, inbound: env.INBOUND_DOMAIN };
+const previous = { provider: env.MAIL_PROVIDER, sandbox: env.SES_SANDBOX_MODE, inbound: env.INBOUND_DOMAIN, domain: env.ROOTMAIL_DOMAIN };
 
 async function bearer(a: Account) { return { authorization: `Bearer ${(await createSession(a.user.id, a.production.id)).token}` }; }
 async function call(a: Account, method: "GET" | "POST", url: string, payload?: Record<string, unknown>) {
@@ -73,6 +73,10 @@ async function insertLegacy(a: Account) {
 }
 
 before(async () => {
+  // The migration scans every legacy sender on ROOTMAIL_DOMAIN. Give this
+  // process its own domain so it cannot migrate another parallel suite's
+  // fixture while that suite is testing reply-capture failures.
+  env.ROOTMAIL_DOMAIN = `beta-migration-${stamp}.example.test`;
   env.MAIL_PROVIDER = "ses";
   env.SES_SANDBOX_MODE = "false";
   env.INBOUND_DOMAIN = `reply.${apex()}`;
@@ -105,6 +109,7 @@ after(async () => {
   await db.delete(contacts).where(inArray(contacts.email, [recipient, stranger]));
   mock.restoreAll();
   env.MAIL_PROVIDER = previous.provider; env.SES_SANDBOX_MODE = previous.sandbox; env.INBOUND_DOMAIN = previous.inbound;
+  env.ROOTMAIL_DOMAIN = previous.domain;
   await closeDb();
 });
 

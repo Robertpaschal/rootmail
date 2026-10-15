@@ -286,3 +286,17 @@ Its reply was captured in the same thread, with exactly two entries and Needs re
 This is a successful single-mailbox observation, not an inbox-rate promise. A
 mobile deep-link bug was found and repaired in a dashboard-only follow-up: opening
 a specific conversation must select that subject, not another one needing attention.
+
+## 2026-10-15 — fresh beta acceptance and truthful resend guidance
+
+A fresh owner-approved signup completed Amazon confirmation, automatic invitation,
+account creation, onboarding, sender activation, live Gmail delivery and a reply
+captured in the original conversation. SPF, DKIM and DMARC passed. This supports
+a small controlled beta, not unrestricted sending or a general inbox-placement
+claim. SES remains sandboxed; the QA account is not an externally recruited tester.
+
+The reported missing confirmation was an existing verified account. Resend copy
+now explains that already-confirmed people need their invite or sign-in, without
+revealing account status or promising an email when no send occurs. This copy
+and isolated migration-test fixtures are entering the guarded release process;
+deployment is not yet claimed. Evidence: `docs/beta-readiness-2026-10-15.md`.

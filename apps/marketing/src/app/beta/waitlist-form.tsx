@@ -41,6 +41,8 @@ export function WaitlistForm() {
               While we&apos;re in beta, our email provider asks each tester to confirm their address
               once. Click the link inside and your invite follows — until you do, we&apos;re not able
               to email you at all.
+              {" "}Already confirmed your address with Amazon? You won&apos;t need another AWS email.
+              Look for your Rootmail invite, or sign in if you already have an account.
             </p>
           </div>
           {/* Shown, not just described: it arrives from an unfamiliar sender with

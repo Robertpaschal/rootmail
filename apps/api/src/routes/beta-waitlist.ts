@@ -65,7 +65,7 @@ const resendBody = z.object({
 export const RESEND_NEUTRAL = {
   ok: true,
   message:
-    "If that address is on our waitlist, a confirmation email from Amazon Web Services is on its way or already in your inbox. Check spam too. Each link works for 24 hours; if yours has expired, we have asked for a new one.",
+    "Request received. If that address is waiting for confirmation and needs a new link, we will request one from Amazon Web Services. Check your inbox and spam folder; links work for 24 hours. Already confirmed? You do not need another AWS email. Look for your Rootmail invite, or sign in if you already have an account. If you are still stuck, contact support.",
 } as const;
 
 export async function betaWaitlistRoutes(app: FastifyInstance): Promise<void> {

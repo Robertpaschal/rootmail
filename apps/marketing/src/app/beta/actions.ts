@@ -113,7 +113,7 @@ export async function resendConfirmation(
     }
     if (!res.ok) return { error: "We couldn't send that just now. Try again in a moment?" };
     const body = (await res.json().catch(() => ({}))) as { message?: string };
-    return { message: body.message ?? "If that address is on our waitlist, a confirmation email is on its way." };
+    return { message: body.message ?? "Request received. If you still need confirmation, check your inbox and spam folder. Already confirmed? Look for your Rootmail invite, or sign in if you already have an account." };
   } catch {
     return { error: "We couldn't reach the signup service. Try again in a moment?" };
   }
