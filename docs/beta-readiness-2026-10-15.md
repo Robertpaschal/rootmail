@@ -2,8 +2,10 @@
 
 ## Verdict
 
-The **core journey passed for a small, controlled beta**. Production remains on
-`b2d448bd61deb8297f5e6880745adf2e164fbf9e`; changes in this worktree are not deployed.
+The **core journey passed for a small, controlled beta**. All six production
+services now run `182928943604ddb3eb4ba79ec48fc0ae3a6fb7a1` (PR #43), released
+15 October at 22:58–22:59 WAT. Fresh signup acceptance below was observed on
+the predecessor `b2d448b`; the post-release canary and reply evidence is separate.
 
 The fresh, owner-approved live test passed the public waitlist form, Amazon
 verification, automatic invitation, owner-completed password signup, Rootmail
@@ -78,15 +80,15 @@ mock-test connection settings target disposable fixtures.
 
 ## Prod behaviour preserved
 
-No deployed changes. Proposed changes preserve signup admission, sender
+The deployed changes preserve signup admission, sender
 protection, resend cooldowns, rate limits, identity handling, queue behaviour,
 tracking, reply routing, navigation and the four-state rendering law. Only
 public guidance and test-fixture isolation change.
 
 ## Remaining follow-ups
 
-1. Review and release the local copy fix through CI and the guarded canary path;
-   verify the resulting live release before calling the fix shipped.
+1. Release complete: the copy and test-isolation fixes passed exact-main CI,
+   guarded deployment and post-release checks detailed below.
 2. Retire the temporary beta fixture with the
    appropriate approval; it must not count as an externally recruited tester.
 3. The separately recorded invitation-reply/internal-inbox check and broader
@@ -103,3 +105,38 @@ cannot list SNS subscriptions. Receipt of an email is not itself confirmation.
 
 The Rootmail hub, active beta task and earlier missing-email report were updated
 without erasing their historical observations.
+
+## Released version and cleanup — 15–16 October
+
+- [PR #43](https://github.com/Robertpaschal/rootmail/pull/43) merged as
+  `182928943604ddb3eb4ba79ec48fc0ae3a6fb7a1`.
+- [Exact-main CI](https://github.com/Robertpaschal/rootmail/actions/runs/38693440175)
+  and [all six multi-architecture images](https://github.com/Robertpaschal/rootmail/actions/runs/38693759378)
+  passed before deployment. Host scripts/base compose matched the reviewed source;
+  protected env files and the host overlay were preserved.
+- The first canary stopped before replacement because the approved Gmail inbox
+  was not yet registered in the new QA workspace. It sent nothing. Registering it
+  through Testing confirmed its existing SES identity; no safeguard was bypassed.
+- Isolated API delivery: `msg_2d6e1c47ekq8f3s48ul10yuf`, received 22:57:59 WAT.
+- Post-swap worker delivery: `msg_tdzxwj7pl2rgploexvli2x0a`, received 22:58:29 WAT.
+  Gmail reported SPF/DKIM/DMARC PASS; tracked links and pixel were present.
+- A reply to the actual captured Reply-To appeared in the original conversation
+  `thr_i21k7vluutd5a1d9l2fv45hf`, with two emails and the expected test marker.
+- API/worker released through the canary path; marketing/dashboard/admin/developers
+  followed individually through the guarded script. All six exact image IDs
+  matched, healthy with zero restarts. Completion: 22:59:30 WAT, 15 October.
+  A subsequent 16 October check found all six still healthy after about six hours.
+- Post-release public probe passed: 28 pages, 13 static assets, two private
+  noindex login pages and the marketing sitemap. API, PostgreSQL, cache and beta
+  invitation readiness reported OK. Old images remain pinned for rollback.
+- Temporary QA key revocation was completed at 04:29:45 WAT on 16 October after
+  browser confirmation controls failed and the session paused. The authorized
+  revocation targeted only that exact QA key; a subsequent request returned 401.
+  Its local secret copy was removed. The canary's transient auth file/network
+  were cleaned up; test account and message history remain for inspection.
+- Extra UI spot checks observed the New menu above navigation, a collapsed AI
+  conversation rail with its reopen control, and the support empty-state/thread
+  controls. This is not a completed support-resolution or AI-response test.
+
+No extra AWS resources, IAM grants, DNS changes, paid plans or provider changes
+were introduced by this release. SES sandbox restrictions still apply.
