@@ -1,6 +1,6 @@
 # Deploy runbook
 
-## Current production (September 27, 2026)
+## Current production (October 16, 2026)
 
 Production web traffic now uses the consolidated ARM host
 `i-0b7b3474488dc906b` (`t4g.medium`). The existing web IP `32.195.196.221`
@@ -8,11 +8,15 @@ was reassociated to it; `api.rootmail.io` now points to that same address.
 Mail DNS was not changed. PostgreSQL runs on `db.t3.micro`; the existing cache
 endpoint now serves Valkey 7.2.6 with `noeviction`.
 
-All six application services run on this host. Developers uses release
-`4a0bd7ad3f393adf2fe3934671045130532cf8b7`; the other five use
-`c0938b63fb58724dd64ae91a7dd8f5e2c98bc241`. These are intentional per-service
-versions, not floating tags. Never recreate every service with one `TAG` merely
-to update one service.
+All six application services run release
+`182928943604ddb3eb4ba79ec48fc0ae3a6fb7a1` (PR #43). The owner-requested beta
+release completed at 22:59:30 WAT on 15 October, after isolated API canary and
+post-swap worker delivery checks. All six were intentionally released together;
+future single-service changes should still be deployed only to affected services.
+Each predecessor image is pinned by its rollback holder. Rollback uses
+`TAG=sha-b2d448bd61deb8297f5e6880745adf2e164fbf9e ./deploy-host.sh <service>`.
+No migrations or production configuration changes accompanied this release.
+See `docs/beta-readiness-2026-10-15.md` for CI, delivery and captured-reply evidence.
 
 The three old hosts were stopped after cutover checks (including the API record's
 300-second DNS TTL), backed up to completed encrypted EBS snapshots, then
@@ -23,10 +27,11 @@ drill has not been performed. Backup identifiers are in the private account audi
 
 This is a single-host application stack, not high availability. Host failure
 affects all apps, while the database and queue remain managed services. Basic
-public/readiness checks passed, but no authenticated workflow or peak-load claim
-is implied. Five infrastructure alarms and a monthly budget warning are now
-configured. The health-alert email subscription is still pending confirmation;
-do not mistake a configured alarm for a delivered operator notification.
+public/readiness checks and the core authenticated beta journey passed; this
+does not imply full-feature, peak-load or restore coverage. Five infrastructure
+alarms and a monthly budget warning are configured. The owner received the
+health-alert email, but subscription confirmation could not be independently
+rechecked with deployment credentials; receipt is not proof of confirmation.
 
 The notification-only alarms cover EC2 status checks (2 of 3 one-minute samples),
 CPU above 80 percent for 15 minutes, RDS free memory below 100 MiB for 15 minutes,
@@ -48,6 +53,15 @@ After syncing the release's compose file and deployment script to a host, use:
 cd /home/ubuntu/rootmail
 TAG=sha-<full40> ./deploy-host.sh <service>
 ```
+
+For the API/worker release, copy both `scripts/deploy-host.sh` and
+`scripts/deploy-canary.sh` beside the host compose files, then use
+`TAG=sha-<full40> CANARY_TO=<approved-allowlisted-inbox> ./deploy-host.sh --canary`
+with `CANARY_API_KEY` supplied securely, never printed or placed in shell history.
+The canary uses its own network and loopback port 4100; only the approved inbox
+is sent two labelled checks. That inbox must also be confirmed in the key's
+workspace, not merely in SES account-wide. Revoke any temporary QA key after
+the checks and verify HTTP 401; preserve message/thread evidence.
 
 The script pulls before replacement, pins the previous image with a never-started
 container, verifies dependency/readiness health and the exact image, and restores
@@ -79,7 +93,8 @@ After release, verify the exact running image, container health/restart count,
 public HTTPS, API database/cache health, login redirects/noindex, documentation
 canonicals/sitemap/static assets and worker queue counts. These checks do not
 replace an authenticated end-user walkthrough or a peak-load test. Do not send
-synthetic messages through the production mail provider.
+synthetic messages through the production mail provider without explicit owner
+approval for the recipient and bounded test; never send real mail from local.
 
 ## Historical manual procedure (not the new guarded release path)
 

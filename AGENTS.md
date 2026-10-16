@@ -62,18 +62,23 @@ the industry's founding lie, in our own product.
 
 ---
 
-## Current production checkpoint (September 27, 2026)
+## Current production checkpoint (October 16, 2026)
 
-The dashboard UX/lean-runtime release is deployed. Web traffic now uses the
-consolidated ARM host; API DNS also points to it. The new worker is healthy;
-the old worker container is stopped. Managed PostgreSQL is resized and the
-cache is Valkey with `noeviction`. Developers uses `4a0bd7a`; the other five
-services use `c0938b6`. See `docs/deploy-runbook.md` for full immutable versions,
-host-local overlay requirements and recovery guidance. The three old hosts were
-retired after completed encrypted disk snapshots; their disks and spare IPs are
-gone. Infrastructure alarms and a budget alert are configured; health-alert email
-confirmation is pending. Public smoke
-checks passed; this is not evidence of authenticated UX or peak-load coverage.
+All six services run `182928943604ddb3eb4ba79ec48fc0ae3a6fb7a1` (PR #43),
+deployed 15 October at 22:58–22:59 WAT through the guarded canary/release path.
+Exact-main CI and image publishing passed; all six services are healthy, with
+previous `b2d448b` images retained for rollback. Fresh signup through delivery
+and captured reply passed on the predecessor; two live canary deliveries and
+the worker-canary reply passed on this release. The temporary QA key is revoked
+and verified rejected (401). See `docs/beta-readiness-2026-10-15.md` for evidence.
+
+The consolidated ARM host, managed PostgreSQL and Valkey `noeviction` remain
+unchanged. Old hosts/disks/spare IPs were retired after encrypted snapshots.
+See `docs/deploy-runbook.md` for immutable versions and host-local overlays.
+Ready for a small controlled beta within SES sandbox limits, not unrestricted
+sending, high availability, full-feature acceptance, peak load or restore proof.
+The QA seat is not a recruited tester. Health-alert subscription confirmation
+remains independently unverified; receipt alone does not confirm subscription.
 
 ## Released UX direction (September 2026)
 

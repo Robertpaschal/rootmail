@@ -298,5 +298,8 @@ claim. SES remains sandboxed; the QA account is not an externally recruited test
 The reported missing confirmation was an existing verified account. Resend copy
 now explains that already-confirmed people need their invite or sign-in, without
 revealing account status or promising an email when no send occurs. This copy
-and isolated migration-test fixtures are entering the guarded release process;
-deployment is not yet claimed. Evidence: `docs/beta-readiness-2026-10-15.md`.
+and isolated migration-test fixtures shipped in PR #43 (`1829289`) on all six
+services at 22:58–22:59 WAT, 15 October. Exact-main CI, both canary deliveries,
+and a correctly captured post-release reply passed. Rollback images are retained;
+the temporary QA key is revoked and rejected (401). Evidence and limitations:
+`docs/beta-readiness-2026-10-15.md`.
