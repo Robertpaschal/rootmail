@@ -16,6 +16,15 @@
 #     a log check and a test send through it; either failing rolls it back.
 # Never prints secrets. Makes no SES, SNS or other AWS configuration change.
 #
+# CANARY_API_KEY is optional. Without it the canary is HEALTH-ONLY: /health,
+# GET /v1/beta/status and the signup probe (none need a key) on the canary,
+# and the worker's log check after its swap. Both test sends, and with them
+# the delivery-event and tracked-link checks, are SKIPPED and reported loudly;
+# run a manual inbound/send check if the diff touches mail.
+#
+# Limitation: takes no service argument. The canary is api-only; the worker is
+# always swapped after it (step 4). For any other service use deploy-host.sh.
+#
 # TODO(worker canary): give the worker a no-consume / queue-prefix flag so a
 # canary worker can boot against prod without taking jobs; until then step 4.
 set -Eeuo pipefail
@@ -31,13 +40,14 @@ TO="$(printf '%s' "${CANARY_TO:-}" | tr '[:upper:]' '[:lower:]')"
 log() { printf '[canary] %s\n' "$*" >&2; }
 die() { log "$1"; exit "${2:-1}"; }
 
-[[ $# -eq 0 ]] || die "usage: TAG=sha-<full40> CANARY_TO=<allowlisted> CANARY_API_KEY=… $0 --canary (no other arguments)" 2
+[[ $# -eq 0 ]] || die "usage: TAG=sha-<full40> CANARY_TO=<allowlisted> [CANARY_API_KEY=…] $0 --canary (no other arguments; api + worker only, no service argument; without CANARY_API_KEY the canary is health-only)" 2
 [[ "$TAG" =~ ^sha-[0-9a-f]{40}$ ]] || die "An immutable full commit tag is required" 2
 [[ -f .env.prod && -f docker-compose.prod.yml ]] || die "Run from the host repository root" 2
 allowed=0
 for a in "${ALLOWED_TO[@]}"; do [[ "$TO" == "$a" ]] && allowed=1; done
 [[ "$allowed" == 1 ]] || die "CANARY_TO must be exactly one of: ${ALLOWED_TO[*]}. Refusing to send anywhere else." 2
-[[ -n "${CANARY_API_KEY:-}" ]] || die "CANARY_API_KEY is required for the test send (it is never printed)" 2
+HAVE_KEY=0
+[[ -n "${CANARY_API_KEY:-}" ]] && HAVE_KEY=1
 [[ "$PORT" =~ ^[0-9]{4,5}$ && "$PORT" != 4000 ]] || die "CANARY_PORT must be a free port other than 4000" 2
 if [[ "${MIGRATE:-0}" == 1 && "${MIGRATION_BACKWARD_COMPATIBLE:-0}" != 1 ]]; then
   die "Migrations require explicit MIGRATION_BACKWARD_COMPATIBLE=1 after schema review" 2
@@ -91,7 +101,9 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 
 # The key goes to curl from a 0600 file, never on a command line or in output.
-( umask 077; printf 'Authorization: Bearer %s\n' "$CANARY_API_KEY" > "$TMP/auth" )
+if [[ "$HAVE_KEY" == 1 ]]; then
+  ( umask 077; printf 'Authorization: Bearer %s\n' "$CANARY_API_KEY" > "$TMP/auth" )
+fi
 
 # http METHOD URL [JSON] [auth] -> prints the status code; the body is in $TMP/body.
 http() {
@@ -163,6 +175,20 @@ send_ok() {
   SENT_IDS+=("$id")
 }
 
+# Keyless mode only: the public beta status answers with JSON.
+beta_status_ok() {
+  local code
+  code="$(http GET "$1/v1/beta/status")"
+  if [[ "$code" != 200 ]] || ! grep -q '^{' "$TMP/body"; then log "beta status failed: HTTP $code"; return 1; fi
+  log "beta status ok"
+}
+skipped_banner() {
+  log "=================================================================="
+  log "SKIPPED ($1): test send, delivery event and tracking checks (no CANARY_API_KEY)."
+  log "Health-only canary. If this diff touches mail, run a manual inbound/send check."
+  log "=================================================================="
+}
+
 worker_logs_ok() {
   local cid
   cid="$(dc "$TAG" ps -q worker)"
@@ -190,8 +216,14 @@ CANARY_UP=1
 dcc "$TAG" run -d --no-deps --name "$CANARY" -p "127.0.0.1:$PORT:4000" api >/dev/null
 CANARY_URL="http://127.0.0.1:$PORT"
 health_ok "$CANARY_URL"
-signup_ok "$CANARY_URL"
-send_ok "$CANARY_URL" api
+if [[ "$HAVE_KEY" == 1 ]]; then
+  signup_ok "$CANARY_URL"
+  send_ok "$CANARY_URL" api
+else
+  beta_status_ok "$CANARY_URL"
+  signup_ok "$CANARY_URL"
+  skipped_banner "canary api"
+fi
 remove_canary
 
 log "Canary passed; swapping the api to $TAG"
@@ -204,7 +236,12 @@ if ! TAG="$TAG" MIGRATE=0 "$HERE/deploy-host.sh" worker; then
   log "Worker failed its health check and deploy-host restored the previous image."
   die "The api stays on $TAG. To roll it back: $API_ROLLBACK"
 fi
-if ! { worker_logs_ok "$SINCE" && send_ok "$PROD_API" worker; }; then
+if [[ "$HAVE_KEY" == 1 ]]; then
+  worker_check() { worker_logs_ok "$SINCE" && send_ok "$PROD_API" worker; }
+else
+  worker_check() { worker_logs_ok "$SINCE"; }
+fi
+if ! worker_check; then
   [[ -s "$TMP/worker.log" ]] && { log "Worker log since the swap (last 50 lines):"; tail -n 50 "$TMP/worker.log" >&2; }
   if [[ -n "$PREV_WORKER" ]]; then
     log "Rolling the worker back to $PREV_WORKER"
@@ -215,6 +252,18 @@ if ! { worker_logs_ok "$SINCE" && send_ok "$PROD_API" worker; }; then
   die "Worker check failed. The api stays on $TAG. To roll it back: $API_ROLLBACK"
 fi
 
+if [[ "$HAVE_KEY" != 1 ]]; then
+  skipped_banner "worker"
+  cat <<DONE
+api and worker passed HEALTH-ONLY checks on $TAG. Test sends SKIPPED (no CANARY_API_KEY).
+Rollback (previous containers' images are retained):
+  $API_ROLLBACK
+  TAG=${PREV_WORKER:-<previous sha tag>} ./scripts/deploy-host.sh worker
+Manual check recommended if this diff touches mail: send one email to $TO,
+reply to it, and confirm the reply appears in Replies and opens are tracked.
+DONE
+  exit 0
+fi
 cat <<DONE
 api and worker verified on $TAG. Canary test sends: ${SENT_IDS[*]}
 Rollback (previous containers' images are retained):
