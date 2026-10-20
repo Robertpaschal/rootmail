@@ -180,7 +180,9 @@ beta_status_ok() {
   local code
   code="$(http GET "$1/v1/beta/status")"
   if [[ "$code" != 200 ]] || ! grep -q '^{' "$TMP/body"; then log "beta status failed: HTTP $code"; return 1; fi
-  log "beta status ok"
+  local seats
+  seats="$({ grep -o '"seats_left":[0-9]*' "$TMP/body" || true; } | head -n 1 | cut -d: -f2)"
+  log "beta status ok (seats_left=${seats:-unknown})"
 }
 skipped_banner() {
   log "=================================================================="
@@ -228,7 +230,7 @@ remove_canary
 
 log "Canary passed; swapping the api to $TAG"
 TAG="$TAG" MIGRATE=0 "$HERE/deploy-host.sh" api
-API_ROLLBACK="TAG=${PREV_API:-<previous sha tag>} ./scripts/deploy-host.sh api"
+API_ROLLBACK="TAG=${PREV_API:-<previous sha tag>} ./deploy-host.sh api"
 
 log "Swapping the worker to $TAG (no parallel consumer; short swap, automatic rollback)"
 SINCE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -258,7 +260,7 @@ if [[ "$HAVE_KEY" != 1 ]]; then
 api and worker passed HEALTH-ONLY checks on $TAG. Test sends SKIPPED (no CANARY_API_KEY).
 Rollback (previous containers' images are retained):
   $API_ROLLBACK
-  TAG=${PREV_WORKER:-<previous sha tag>} ./scripts/deploy-host.sh worker
+  TAG=${PREV_WORKER:-<previous sha tag>} ./deploy-host.sh worker
 Manual check recommended if this diff touches mail: send one email to $TO,
 reply to it, and confirm the reply appears in Replies and opens are tracked.
 DONE
@@ -268,7 +270,7 @@ cat <<DONE
 api and worker verified on $TAG. Canary test sends: ${SENT_IDS[*]}
 Rollback (previous containers' images are retained):
   $API_ROLLBACK
-  TAG=${PREV_WORKER:-<previous sha tag>} ./scripts/deploy-host.sh worker
+  TAG=${PREV_WORKER:-<previous sha tag>} ./deploy-host.sh worker
 Inbound reply check: from $TO, reply to "rootmail canary (worker) $TAG"; within
 a minute it should appear in that workspace's Replies. Opens: opening the email
 loads the SES open pixel, and GET /v1/messages/<id> then shows opened_at.

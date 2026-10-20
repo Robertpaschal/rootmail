@@ -47,7 +47,8 @@ fs.appendFileSync('curl-calls', JSON.stringify(a)+'\\n');
 const out = a[a.indexOf('-o')+1], method = a[a.indexOf('-X')+1], url = a[a.length-1];
 const canary = url.includes(':4100/'), S = process.env.SCENARIO;
 let code = 200, body = {};
-if(url.endsWith('/health')) body = { status: S==='canary-unhealthy'&&canary ? 'degraded' : 'ok', service: 'rootmail-api' };
+if(url.endsWith('/v1/beta/status')) body = { closed: true, seats_total: 8, seats_left: 8, accepting: true };
+else if(url.endsWith('/health')) body = { status: S==='canary-unhealthy'&&canary ? 'degraded' : 'ok', service: 'rootmail-api' };
 else if(url.endsWith('/v1/auth/signup')) { code = 409; body = { error: { message: 'An account with that email already exists.' } }; }
 else if(method==='POST' && url.endsWith('/v1/messages')) {
   if(S==='send-fails'&&canary) { code = 500; body = { error: { message: 'boom' } }; }
@@ -113,7 +114,7 @@ test('healthy: canary on 127.0.0.1, smoke, swap api then worker, rollback printe
   assert.match(r.docker, /"run","-d","--no-deps","--name","rootmail-canary-api-\d+","-p","127\.0\.0\.1:4100:4000","api"/);
   assert.match(r.docker, /docker-compose\.host\.yml/);
   isolation(r);
-  assert.match(r.stdout, new RegExp(`TAG=${prev} \\./scripts/deploy-host\\.sh api`));
+  assert.match(r.stdout, new RegExp(`TAG=${prev} \\./deploy-host\\.sh api`));
   assert.match(r.stdout, /Inbound reply check/);
   for (const out of [r.stdout, r.stderr, r.docker, r.curl]) assert.equal(out.includes(key), false);
   for (const call of r.curl.trim().split('\n').map(JSON.parse)) {
@@ -139,7 +140,7 @@ test('worker log check fails: worker rolled back automatically, api rollback pri
   assert.equal(r.api, 'new'); assert.equal(r.worker, 'old');
   assert.match(r.stderr, new RegExp(`Rolling the worker back to ${prev}`));
   assert.doesNotMatch(r.stderr, /URGENT/);
-  assert.match(r.stderr, new RegExp(`TAG=${prev} \\./scripts/deploy-host\\.sh api`));
+  assert.match(r.stderr, new RegExp(`TAG=${prev} \\./deploy-host\\.sh api`));
 });
 
 // Keyless (copy-only) deploys: health-only canary, sends skipped loudly.
@@ -158,8 +159,9 @@ test('key unset, healthy: health-only canary, both sends skipped, swaps done, ex
   assert.match(r.stderr, /SKIPPED \(canary api\): test send, delivery event and tracking checks \(no CANARY_API_KEY\)/);
   assert.match(r.stderr, /SKIPPED \(worker\)/);
   assert.match(r.stderr, /manual inbound\/send check/);
+  assert.match(r.stderr + r.stdout, /\[canary\] beta status ok \(seats_left=8\)/);
   assert.match(r.stdout, /HEALTH-ONLY/);
-  assert.match(r.stdout, new RegExp(`TAG=${prev} \\./scripts/deploy-host\\.sh api`));
+  assert.match(r.stdout, new RegExp(`TAG=${prev} \\./deploy-host\\.sh api`));
 });
 
 test('key unset, canary unhealthy: torn down, prod untouched, non-zero', () => {
