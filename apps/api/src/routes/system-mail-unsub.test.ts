@@ -3,7 +3,7 @@ import { after, before, describe, it, mock } from "node:test";
 import { SESv2Client } from "@aws-sdk/client-sesv2";
 import { and, eq, inArray } from "drizzle-orm";
 import { closeQueues, closeRedis, env, unsubscribeUrl, verifyUnsubscribeToken } from "@rootmail/core";
-import { closeDb, contacts, db, ensureInternalAccount, messages, organizations, suppressions, users } from "@rootmail/db";
+import { closeDb, contactEvents, contacts, db, ensureInternalAccount, isInternalWorkspace, messages, organizations, suppressions, users } from "@rootmail/db";
 import { createSession, provisionAccount } from "../lib/auth";
 import { buildServer } from "../server";
 import { processSend } from "../../../worker/src/pipeline";
@@ -19,6 +19,7 @@ const wire: { to: string; subject: string; headers: { Name: string; Value: strin
 let internal: { organizationId: string; workspaceId: string };
 let customer: Awaited<ReturnType<typeof provisionAccount>>;
 let app: Awaited<ReturnType<typeof buildServer>>;
+const hqUser = `unsub-user-${stamp}@example.test`;
 const previous = { provider: env.MAIL_PROVIDER, sandbox: env.SES_SANDBOX_MODE, platform: env.SES_PLATFORM_CONFIGURATION_SET };
 
 async function last(fn: () => Promise<unknown>) {
@@ -60,7 +61,9 @@ before(async () => {
 after(async () => {
   await app?.close();
   await closeQueues(); await closeRedis();
-  await db.delete(suppressions).where(eq(suppressions.email, to));
+  await db.delete(suppressions).where(inArray(suppressions.email, [to, customer.user.email, hqUser]));
+  await db.delete(contactEvents).where(inArray(contactEvents.email, [to, customer.user.email, hqUser]));
+  await db.delete(users).where(eq(users.email, hqUser));
   await db.delete(messages).where(eq(messages.toEmail, to));
   await db.delete(contacts).where(inArray(contacts.email, [to]));
   await db.delete(organizations).where(eq(organizations.id, customer.organizationId));
@@ -126,5 +129,96 @@ describe("one-click unsubscribe on rootmail's own mail", () => {
     assert.equal(noBody.statusCode, 200, noBody.body);
     const bad = await oneClick(`/v1/unsubscribe?token=${encodeURIComponent("e30.forged")}`);
     assert.equal(bad.statusCode, 400, bad.body);
+  });
+
+  it("isInternalWorkspace is a pure lookup: true only for rootmail-hq's workspace", async () => {
+    assert.equal(await isInternalWorkspace(internal.workspaceId), true);
+    assert.equal(await isInternalWorkspace(customer.production.id), false);
+    assert.equal(await isInternalWorkspace("ws_does_not_exist"), false);
+  });
+});
+
+const optOutOf = async (email: string) =>
+  (await db.select({ at: users.announcementOptOutAt }).from(users).where(eq(users.email, email)))[0]?.at ?? null;
+const eventsFor = async (workspaceId: string, email: string) =>
+  db.select().from(contactEvents).where(and(eq(contactEvents.workspaceId, workspaceId), eq(contactEvents.email, email), eq(contactEvents.kind, "unsubscribed")));
+const unsubRows = async (workspaceId: string, email: string) =>
+  db.select().from(suppressions).where(and(eq(suppressions.workspaceId, workspaceId), eq(suppressions.email, email)));
+const settle = () => new Promise((r) => setTimeout(r, 150)); // emitContactEvent is fire-and-forget
+
+describe("unsubscribe: platform opt-out flag + idempotency", () => {
+  it("one-click from rootmail-hq marketing mail also sets the user's announcement opt-out (the settings toggle)", async () => {
+    await db.insert(users).values({ id: `usr_unsub_${stamp}`, email: hqUser, name: "HQ" } as typeof users.$inferInsert);
+    assert.equal(await optOutOf(hqUser), null);
+    const url = unsubscribeUrl({ w: internal.workspaceId, e: hqUser });
+    const res = await oneClick(url);
+    assert.equal(res.statusCode, 200, res.body);
+    const at = await optOutOf(hqUser);
+    assert.ok(at, "announcement_opt_out_at set");
+    // Repeat keeps the original opt-out time.
+    await oneClick(url);
+    assert.equal((await optOutOf(hqUser))!.getTime(), at!.getTime());
+  });
+
+  it("the confirmed GET from rootmail-hq mail sets it too", async () => {
+    await db.update(users).set({ announcementOptOutAt: null }).where(eq(users.email, hqUser));
+    await db.delete(suppressions).where(eq(suppressions.email, hqUser));
+    const path = unsubscribeUrl({ w: internal.workspaceId, e: hqUser }).replace(/^https?:\/\/[^/]+/, "");
+    const res = await app.inject({ method: "GET", url: `${path}&confirm=1` });
+    assert.equal(res.statusCode, 200, res.body);
+    assert.ok(await optOutOf(hqUser));
+  });
+
+  it("a customer-workspace unsubscribe never touches the platform preference (behaviour unchanged)", async () => {
+    const email = customer.user.email;
+    assert.equal(await optOutOf(email), null);
+    const res = await oneClick(unsubscribeUrl({ w: customer.production.id, e: email }));
+    assert.equal(res.statusCode, 200, res.body);
+    assert.deepEqual(res.json(), { ok: true });
+    assert.equal(await optOutOf(email), null, "customer unsubscribe must not opt the user out of OUR announcements");
+    const rows = await unsubRows(customer.production.id, email);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].reason, "unsubscribe");
+    assert.equal(rows[0].source, "one_click");
+  });
+
+  it("first unsubscribe emits one event + one suppression; repeats (POST and GET) add nothing", async () => {
+    const email = `idem-${stamp}@example.test`;
+    const w = customer.production.id;
+    const url = unsubscribeUrl({ w, e: email });
+    const first = await oneClick(url);
+    assert.equal(first.statusCode, 200);
+    await settle();
+    assert.equal((await eventsFor(w, email)).length, 1, "first unsubscribe emits exactly one event");
+    assert.equal((await eventsFor(w, email))[0].metadata.source, "one_click");
+    const rowsBefore = await unsubRows(w, email);
+    assert.equal(rowsBefore.length, 1);
+
+    const again = await oneClick(url);
+    assert.equal(again.statusCode, 200);
+    assert.deepEqual(again.json(), { ok: true });
+    const page = await app.inject({ method: "GET", url: `${url.replace(/^https?:\/\/[^/]+/, "")}&confirm=1` });
+    assert.equal(page.statusCode, 200);
+    assert.match(page.body, /unsubscribed/i);
+    await settle();
+    assert.equal((await eventsFor(w, email)).length, 1, "repeats emit no event");
+    assert.deepEqual((await unsubRows(w, email)).map((r) => r.id), rowsBefore.map((r) => r.id), "no new suppression rows");
+    await db.delete(suppressions).where(eq(suppressions.email, email));
+    await db.delete(contactEvents).where(eq(contactEvents.email, email));
+  });
+
+  it("a non-unsubscribe suppression (bounce) is not treated as 'already unsubscribed' (behaviour unchanged)", async () => {
+    const email = `bounced-${stamp}@example.test`;
+    const w = customer.production.id;
+    await db.insert(suppressions).values({ id: `sup_b_${stamp}`, workspaceId: w, subTenantId: null, email, reason: "bounce", source: "test" } as typeof suppressions.$inferInsert);
+    const res = await oneClick(unsubscribeUrl({ w, e: email }));
+    assert.equal(res.statusCode, 200);
+    await settle();
+    assert.equal((await eventsFor(w, email)).length, 1, "event still emitted, as before");
+    const rows = await unsubRows(w, email);
+    assert.equal(rows.length, 1);
+    assert.equal(rows[0].reason, "bounce", "stronger record left alone");
+    await db.delete(suppressions).where(eq(suppressions.email, email));
+    await db.delete(contactEvents).where(eq(contactEvents.email, email));
   });
 });
