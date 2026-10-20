@@ -1,5 +1,5 @@
 import { and, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
-import type { FastifyInstance } from "fastify";
+import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { CONTACT_STAGES, CONTACT_STATUSES, Errors, newId, verifyUnsubscribeToken } from "@rootmail/core";
 import { auditEntries, contactEvents, contactNotes, contacts, db, emitContactEvent, listContacts, lists, messages, suppressions } from "@rootmail/db";
@@ -258,7 +258,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
   // URL when the user hits their native "Unsubscribe" button. Must act immediately
   // with NO confirmation step (that's the spec) — the HMAC-signed token is the
   // authorization. Same effects as the confirmed GET above.
-  app.post("/v1/unsubscribe", async (req, reply) => {
+  const oneClickUnsubscribe = async (req: FastifyRequest, reply: FastifyReply) => {
     const { token } = req.query as { token?: string };
     const payload = token ? verifyUnsubscribeToken(token) : null;
     if (!payload) return reply.code(400).send({ ok: false, error: "invalid token" });
@@ -281,6 +281,18 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
       metadata: { source: "one_click" },
     });
     return reply.send({ ok: true });
+  };
+  // Mailbox providers send the RFC 8058 body `List-Unsubscribe=One-Click` as
+  // application/x-www-form-urlencoded. Fastify has no parser for that by default
+  // and subscribeRoutes' parser is encapsulated in its own plugin, so this POST
+  // answered 415 and never unsubscribed anyone. The parser is scoped to a child
+  // plugin holding only this route, so no other contact route starts accepting
+  // form bodies. The body itself is ignored: the signed token is the authorization.
+  await app.register(async (oneClick) => {
+    oneClick.addContentTypeParser("application/x-www-form-urlencoded", { parseAs: "string" }, (_req, body, done) => {
+      done(null, Object.fromEntries(new URLSearchParams(body as string)));
+    });
+    oneClick.post("/v1/unsubscribe", oneClickUnsubscribe);
   });
 
   // ==========================================================================
