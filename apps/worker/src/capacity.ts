@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
 import {
   BLOCK_SIZE,
+  BYO_SMTP_DAILY_CAP,
+  env,
   FREE_MK_CONTACTS,
   getTierDef,
   marketingDailyLimit,
@@ -9,6 +11,7 @@ import {
   txDailyLimit,
 } from "@rootmail/core";
 import {
+  byoStateForOrg,
   db,
   marketingDailyUsage,
   organizations,
@@ -53,6 +56,30 @@ function tierOr(id: string | null, fallback: string): TierDef | undefined {
 }
 
 /**
+ * The per-day cap that REPLACES the tier's, mirroring the API's
+ * txDailyLimitForOrg / marketingDailyLimitForOrg + capOrg (apps/api/src/lib/wings.ts,
+ * billing.ts), so a sequence step can't send past what the API would admit:
+ *  - beta tester → BETA_DAILY_SEND_CAP for each wing, unless BYO is on for the
+ *    org with its own provider active (then the tier applies, as in the API);
+ *  - an active BYO SMTP connection (beta or not) → at most BYO_SMTP_DAILY_CAP.
+ * null = the tier's own limit, unchanged. No query while BYO_PROVIDER_ENABLED is off.
+ */
+export async function dailyCapOverride(
+  organizationId: string,
+  org: { isBeta: boolean | null; isInternal: boolean | null },
+  tierDaily: number,
+): Promise<number | null> {
+  if (org.isInternal) return null;
+  const byo = await byoStateForOrg(organizationId);
+  const ownActive = byo.flagged && byo.connection?.status === "active";
+  if (ownActive && byo.connection!.provider === "smtp") {
+    return tierDaily > 0 ? Math.min(tierDaily, BYO_SMTP_DAILY_CAP) : BYO_SMTP_DAILY_CAP;
+  }
+  if (org.isBeta && !ownActive) return env.BETA_DAILY_SEND_CAP;
+  return null;
+}
+
+/**
  * Can this org send ONE more email of `type` right now? Checks the monthly
  * allowance and the per-day burst cap for the matching wing.
  */
@@ -66,6 +93,8 @@ export async function checkSendCapacity(
       transactionalBlocks: organizations.transactionalBlocks,
       marketingTier: organizations.marketingTier,
       marketingContacts: organizations.marketingContacts,
+      isBeta: organizations.isBeta,
+      isInternal: organizations.isInternal,
     })
     .from(organizations)
     .where(eq(organizations.id, organizationId))
@@ -85,7 +114,8 @@ export async function checkSendCapacity(
     if (!tier) return { ok: true };
     const contacts = Math.max(org.marketingContacts ?? 0, tier.id === "mk_free" ? FREE_MK_CONTACTS : 0);
     const monthly = marketingSendAllowance(tier, contacts);
-    const daily = marketingDailyLimit(tier, contacts);
+    const daily = (await dailyCapOverride(organizationId, org, marketingDailyLimit(tier, contacts)))
+      ?? marketingDailyLimit(tier, contacts);
     const usedMonth = usage?.marketing ?? 0;
     if (monthly > 0 && usedMonth >= monthly) {
       return {
@@ -134,7 +164,7 @@ export async function checkSendCapacity(
       reason: `transactional allowance spent (${usedMonth}/${monthly} this month)`,
     };
   }
-  const daily = txDailyLimit(tier, blocks);
+  const daily = (await dailyCapOverride(organizationId, org, txDailyLimit(tier, blocks))) ?? txDailyLimit(tier, blocks);
   if (daily > 0) {
     const [d] = await db
       .select({ n: transactionalDailyUsage.sent })
