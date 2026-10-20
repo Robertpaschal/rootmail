@@ -19,6 +19,8 @@ import { env } from "./env";
  */
 
 export const ASSUME_ROLE_SECONDS = 900;
+/** credential_hint of a role connection starts with this (plaintext; marks the kind without decrypting). */
+export const ROLE_HINT_PREFIX = "role ";
 /** Refresh this long before expiry, so a send never starts on credentials about to lapse. */
 // The AWS SDK itself treats credentials within 5 minutes of expiry as expired,
 // so ours must refresh earlier than that or every send would re-ask.

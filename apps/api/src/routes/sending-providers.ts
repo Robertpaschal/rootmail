@@ -18,7 +18,7 @@ import {
 import { betaSenderDomain, byoStateForOrg, db, messages, orgSendingProviders, workspaces } from "@rootmail/db";
 import { requirePermission } from "../lib/permissions";
 import { checkSendingCredentials, checkSesRole, checkSmtpCredentials, listSesVerifiedIdentities, type CredentialCheck } from "../lib/provider-check";
-import { assumeRoleAvailable, externalIdFor, ROLE_ARN_RE, tenantPolicies } from "@rootmail/core/aws-assume";
+import { assumeRoleAvailable, externalIdFor, ROLE_HINT_PREFIX, ROLE_ARN_RE, tenantPolicies } from "@rootmail/core/aws-assume";
 import { parse } from "../lib/validate";
 
 // Connecting your own sending account.
@@ -169,7 +169,7 @@ async function byoValues(body: ConnectBody, existingToken: string | null, orgId:
   }
   const hint =
     body.provider === "ses_role"
-      ? `role ${body.role_arn} · external ID ${externalId}`
+      ? `${ROLE_HINT_PREFIX}${body.role_arn} · external ID ${externalId}`
       : body.provider === "ses"
       ? `${maskSecret(body.access_key_id)} · secret ${maskSecret(body.secret_access_key)}`
       : body.provider === "smtp"

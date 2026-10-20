@@ -192,6 +192,34 @@ describe("flag ON", () => {
     env.BYO_ASSUMER_ROLE_ARN = ASSUMER;
   });
 
+  it("flag off with UNREADABLE role credentials still fails closed (kind comes from the plaintext hint)", async () => {
+    const [row] = await db.select().from(orgSendingProviders).where(eq(orgSendingProviders.organizationId, a.organizationId));
+    await db.update(orgSendingProviders).set({ credentials: "garbage" }).where(eq(orgSendingProviders.id, row.id));
+    env.BYO_PROVIDER_ENABLED = undefined;
+    forgetOrgProvider(a.organizationId);
+    const s0 = sesCalls.length;
+    const id = await queue(`unread-${stamp}@example.test`);
+    await processSend({ messageId: id } as Parameters<typeof processSend>[0]);
+    const [m] = await db.select().from(messages).where(eq(messages.id, id));
+    assert.equal(m.status, "failed");
+    assert.equal(sesCalls.length, s0);
+    env.BYO_PROVIDER_ENABLED = "true";
+    await db.update(orgSendingProviders).set({ credentials: row.credentials }).where(eq(orgSendingProviders.id, row.id));
+    forgetOrgProvider(a.organizationId);
+  });
+
+  it("a stale provider in flight after a replace can't seed the new connection's credentials", async () => {
+    const { resolveProviderForMessage } = await import("../../../worker/src/providers/for-org");
+    forgetOrgProvider(a.organizationId);
+    const old = await resolveProviderForMessage({ workspaceId: a.production.id, sandbox: false, toEmail: "x@example.test" });
+    forgetOrgProvider(a.organizationId); // replace / reconnect
+    const n0 = assumes.length;
+    await old.provider.send({ messageId: "m", from: { email: "hi@acme.example" }, to: "x@example.test", subject: "s", html: "x", text: "x" });
+    const fresh = await resolveProviderForMessage({ workspaceId: a.production.id, sandbox: false, toEmail: "x@example.test" });
+    await fresh.provider.send({ messageId: "m2", from: { email: "hi@acme.example" }, to: "x@example.test", subject: "s", html: "x", text: "x" });
+    assert.equal(assumes.length - n0, 2, "the new provider assumed for itself instead of reusing the stale one's session");
+  });
+
   for (const which of ["global switch", "org flag"] as const) {
     it(`turning the ${which} off fails role mail loudly — never our SES, no assume`, async () => {
       if (which === "global switch") env.BYO_PROVIDER_ENABLED = undefined;

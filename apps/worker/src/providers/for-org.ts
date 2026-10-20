@@ -5,7 +5,7 @@ import { MailgunProvider, type MailgunCredentials } from "./mailgun";
 import { SesProvider, type SesCredentials } from "./ses";
 import { SmtpProvider } from "./smtp";
 import { getProviderFor } from "./index";
-import { assumeRoleAvailable, awsAssume, ASSUME_ROLE_REFRESH_MS, type AssumedCredentials } from "@rootmail/core/aws-assume";
+import { assumeRoleAvailable, awsAssume, ROLE_HINT_PREFIX, ASSUME_ROLE_REFRESH_MS, type AssumedCredentials } from "@rootmail/core/aws-assume";
 import type { MailProvider } from "./types";
 
 /**
@@ -79,9 +79,12 @@ const str = (v: unknown): v is string => typeof v === "string" && v.length > 0;
 class ByoConnectionUnusable extends Error {}
 
 /** SMTP, or SES through an IAM role: kinds that only exist while BYO is on for the org. */
-function isByoOnlyConnection(provider: string, raw: string): boolean {
+function isByoOnlyConnection(provider: string, raw: string, hint: string | null): boolean {
   if (provider === "smtp") return true;
   if (provider !== "ses") return false;
+  // The plaintext hint marks a role connection even when the sealed payload
+  // can't be opened, so an unreadable role row still fails closed.
+  if (hint?.startsWith(ROLE_HINT_PREFIX)) return true;
   try {
     return (JSON.parse(openCredentials(raw)) as Record<string, unknown>).roleArn !== undefined;
   } catch {
@@ -94,15 +97,22 @@ function isByoOnlyConnection(provider: string, raw: string): boolean {
  * expire. Cleared by forgetOrgProvider, and an assume that started before a
  * provider change is never stored (the same generation counter as above).
  */
-const roleCreds = new Map<string, { gen: number; creds: AssumedCredentials }>();
+const roleCreds = new Map<string, { gen: number; roleArn: string; externalId: string; creds: AssumedCredentials }>();
 
+/**
+ * Bound to the generation the provider was BUILT under and to its role +
+ * ExternalId: a stale provider still in flight after a replace can neither use
+ * nor store credentials for the new connection.
+ */
 function roleCredentialProvider(orgId: string, roleArn: string, externalId: string) {
+  const builtGen = generation.get(orgId) ?? 0;
   return async (): Promise<AssumedCredentials> => {
-    const gen = generation.get(orgId) ?? 0;
+    const current = () => (generation.get(orgId) ?? 0) === builtGen;
     const hit = roleCreds.get(orgId);
-    if (hit && hit.gen === gen && hit.creds.expiration.getTime() - Date.now() > ASSUME_ROLE_REFRESH_MS) return hit.creds;
+    if (current() && hit && hit.gen === builtGen && hit.roleArn === roleArn && hit.externalId === externalId
+      && hit.creds.expiration.getTime() - Date.now() > ASSUME_ROLE_REFRESH_MS) return hit.creds;
     const creds = await awsAssume.assumeTenantRole({ orgId, roleArn, externalId });
-    if ((generation.get(orgId) ?? 0) === gen) roleCreds.set(orgId, { gen, creds });
+    if (current()) roleCreds.set(orgId, { gen: builtGen, roleArn, externalId, creds });
     return creds;
   };
 }
@@ -204,7 +214,7 @@ export async function resolveProviderForMessage(message: {
   // SMTP and IAM-role connections exist only behind the flag: with the flag off
   // they are neither used nor silently swapped for our SES (rollback must not
   // move their volume onto us).
-  const byoOnly = conn ? isByoOnlyConnection(conn.provider, conn.credentials) : false;
+  const byoOnly = conn ? isByoOnlyConnection(conn.provider, conn.credentials, conn.credentialHint ?? null) : false;
   if (conn && conn.status === "active" && (flagged || !byoOnly)) {
     try {
       own = build(row.orgId, conn.provider, conn.credentials, conn.configurationSet ?? null, flagged);
