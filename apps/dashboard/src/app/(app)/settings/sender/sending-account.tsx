@@ -28,6 +28,9 @@ import type { SendingProvider } from "@/lib/types";
  */
 export function SendingAccount({ current }: { current: SendingProvider | null }) {
   const connected = Boolean(current?.id);
+  // Bring-your-own-provider (beta). Only the API decides this; unflagged orgs
+  // see exactly the card they saw before.
+  const byo = current?.byo === true;
   const [choice, setChoice] = useState<"ses" | "mailgun">(current?.provider ?? "ses");
   const [state, action, pending] = useActionState<ProviderState, FormData>(
     connectSendingProvider,
@@ -38,11 +41,15 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
 
   const value = connected ? (
     <span className="inline-flex items-center gap-2">
-      <StateBadge tone={current?.status === "active" ? "ok" : "warn"}>
+      <StateBadge tone={current?.status === "active" && !(byo && current?.last_error) ? "ok" : "warn"}>
         {current?.provider === "mailgun" ? "Mailgun" : "Amazon SES"}
       </StateBadge>
       <span className="text-xs text-muted-foreground">
-        {current?.status === "active" ? "your account" : (current?.last_error ?? current?.status)}
+        {current?.status === "active"
+          ? "your account"
+          : current?.status === "awaiting_feedback"
+            ? "waiting for your SNS subscription to confirm"
+            : (current?.last_error ?? current?.status)}
       </span>
     </span>
   ) : (
@@ -56,7 +63,11 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
     <SettingsItem
       label="Sending account"
       description={
-        connected
+        byo
+          ? connected
+            ? "Mail leaves through your provider, on your domain and your reputation. Rootmail keeps the record, the suppression list and the proof."
+            : "Mail sends through Rootmail's account, inside its beta limits. Connect your own to send on your domain, without the daily cap."
+          : connected
           ? "Your mail sends through your own provider — your domains, your reputation, your limits."
           : "Your mail sends through rootmail's account today. Connect your own and it sends from yours instead."
       }
@@ -72,6 +83,8 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
           suppression and proof — while delivery stays on your account. Nothing about your existing
           setup changes.
         </p>
+
+        {byo && connected ? <ByoDetails current={current!} /> : null}
 
         {connected ? (
           <div className="flex flex-wrap items-center gap-3">
@@ -144,10 +157,27 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
               />
               <p className="text-xs text-muted-foreground">
                 Needs <code className="font-mono">ses:SendEmail</code> and{" "}
-                <code className="font-mono">ses:GetAccount</code>. We check them before saving, and
-                store them encrypted.
+                <code className="font-mono">ses:GetAccount</code>
+                {byo ? (
+                  <>
+                    {" "}and <code className="font-mono">ses:ListEmailIdentities</code>
+                  </>
+                ) : null}
+                . We check them before saving, and store them encrypted.
               </p>
             </div>
+            {byo ? (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="sns_topic_arn">SNS topic for bounces and complaints</Label>
+                  <Input id="sns_topic_arn" name="sns_topic_arn" placeholder="arn:aws:sns:us-east-1:123456789012:ses-feedback" autoComplete="off" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="configuration_set">Configuration set (optional)</Label>
+                  <Input id="configuration_set" name="configuration_set" placeholder="your own set, if any" autoComplete="off" />
+                </div>
+              </div>
+            ) : null}
           </div>
 
           <div className={cn("space-y-4", choice === "mailgun" ? "" : "hidden")}>
@@ -171,6 +201,15 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
             <p className="text-xs text-muted-foreground">
               The domain must already be verified at Mailgun — we check before saving.
             </p>
+            {byo ? (
+              <div className="space-y-2">
+                <Label htmlFor="webhook_signing_key">Webhook signing key</Label>
+                <Input id="webhook_signing_key" name="webhook_signing_key" type="password" autoComplete="off" />
+                <p className="text-xs text-muted-foreground">
+                  Mailgun → Settings → Webhooks. We use it to check that bounces and complaints really came from Mailgun.
+                </p>
+              </div>
+            ) : null}
           </div>
 
           {state.error ? (
@@ -191,5 +230,39 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
         </form>
       </div>
     </SettingsItem>
+  );
+}
+
+/** What a BYO tenant needs to see once connected. Never a secret — only its hint. */
+function ByoDetails({ current }: { current: SendingProvider }) {
+  return (
+    <dl className="space-y-2 text-sm">
+      {current.last_error ? (
+        <p className="rounded-lg border border-stopped/40 p-3 text-sm text-stopped" role="alert">
+          Your provider refused the last attempt: {current.last_error}
+        </p>
+      ) : null}
+      {current.credential_hint ? (
+        <div className="flex gap-2">
+          <dt className="text-muted-foreground">Secret saved</dt>
+          <dd className="font-mono">{current.credential_hint}</dd>
+          <dd className="text-muted-foreground">Re-enter to change it.</dd>
+        </div>
+      ) : null}
+      <div className="flex gap-2">
+        <dt className="text-muted-foreground">Verified there</dt>
+        <dd>{current.sending_domains?.length ? current.sending_domains.join(", ") : "nothing yet"}</dd>
+      </div>
+      {current.webhook_url ? (
+        <div className="space-y-1">
+          <dt className="text-muted-foreground">
+            {current.provider === "mailgun"
+              ? "Point Mailgun's permanent failure, complaint and unsubscribe webhooks at"
+              : "Subscribe this HTTPS URL to your SNS topic"}
+          </dt>
+          <dd className="break-all font-mono text-xs">{current.webhook_url}</dd>
+        </div>
+      ) : null}
+    </dl>
   );
 }

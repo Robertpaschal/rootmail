@@ -14,6 +14,12 @@ export function operatorReason(raw: string | null | undefined): string | null {
   const text = raw.trim();
   if (!text) return null;
 
+  // Bring-your-own-provider failures are already written for the customer and
+  // name THEIR account; rewriting them would blame ours.
+  if (/^Not sent: your /.test(text) || /isn't verified at your provider/.test(text) || /^The beta\+ address belongs to Rootmail/.test(text)) {
+    return text;
+  }
+
   if (/configuration set/i.test(text)) {
     return "Sending stopped — this workspace is not ready to send yet.";
   }

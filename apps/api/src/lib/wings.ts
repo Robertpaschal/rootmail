@@ -86,6 +86,9 @@ export interface WingOrg {
    *  paywall. Kept separate from isInternal because the two are not the same
    *  thing — see workspaceLimitForOrg, where they deliberately differ. */
   isBeta?: boolean | null;
+  /** Flagged for BYO AND sending through its own active provider. The beta
+   *  daily cap protects OUR sandboxed SES; it has nothing to protect here. */
+  byoActive?: boolean | null;
 }
 
 /**
@@ -147,7 +150,7 @@ export function txDailyLimitForOrg(org: WingOrg): number {
   // out of a shared 200/day sandbox allowance, and an unlimited tester would
   // spend everyone else's — including the invites that let the next tester in.
   // `unmetered` deliberately is NOT consulted here.
-  if (org.isBeta && !org.isInternal) return env.BETA_DAILY_SEND_CAP;
+  if (org.isBeta && !org.isInternal && !org.byoActive) return env.BETA_DAILY_SEND_CAP;
   return txDailyLimit(txTierFor(org), org.transactionalBlocks ?? 0);
 }
 
@@ -170,7 +173,7 @@ export function marketingDailyLimitForOrg(org: WingOrg): number {
   // the number that actually reaches strangers, and the number we describe to
   // our email provider as the ceiling on the whole beta. Same reasoning as
   // txDailyLimitForOrg: unmetered() hands out CAPABILITY, never volume.
-  if (org.isBeta && !org.isInternal) return env.BETA_DAILY_SEND_CAP;
+  if (org.isBeta && !org.isInternal && !org.byoActive) return env.BETA_DAILY_SEND_CAP;
   return marketingDailyLimit(mkTierFor(org), org.marketingContacts ?? 0);
 }
 /** Monthly $ the marketing wing bills for this org (price = contacts × tier rate). */

@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { decryptSecret, testRecipientFor } from "@rootmail/core";
+import { byoEffective, byoGloballyEnabled, decideProviderRoute, openCredentials, testRecipientFor } from "@rootmail/core";
 import { db, organizations, orgSendingProviders, workspaces } from "@rootmail/db";
 import { MailgunProvider, type MailgunCredentials } from "./mailgun";
 import { SesProvider, type SesCredentials } from "./ses";
@@ -13,33 +13,77 @@ import type { MailProvider } from "./types";
  * credentials, their IPs, their reputation, their provider approval. Otherwise
  * it is the platform's.
  *
- * This is the difference between rootmail being an MTA and rootmail being the
- * layer above one. The buyer — a platform already sending on behalf of its own
- * customers — has a provider already; what they lack is per-client domains,
- * per-client reputation and isolation. Making them wait on OUR provider approval
- * to use that layer is a self-inflicted dependency, and it is currently blocking
- * a beta that has nothing to do with our sending account.
+ * rootmail's own org (platform/system mail) ALWAYS leaves from ours — decided
+ * explicitly in decideProviderRoute, not by the absence of a connection.
  *
- * Cached briefly: this runs on every send, and a customer's credentials do not
- * change between two messages in the same batch.
+ * A connection that cannot be used:
+ *  - unflagged org: falls back to ours, exactly as before;
+ *  - BYO-flagged org: throws ByoProviderUnavailable, and the pipeline fails the
+ *    message with the reason. Never a silent fallback onto our sandboxed SES.
+ *
+ * Cached briefly: this runs on every send. The API announces connect / replace /
+ * disconnect on Redis (see subscribeToProviderChanges), so a changed credential
+ * takes effect on the next send instead of up to 60s later.
  */
+
+export class ByoProviderUnavailable extends Error {
+  constructor(
+    readonly provider: string,
+    readonly reason: string,
+    readonly organizationId: string,
+  ) {
+    super(reason);
+    this.name = "ByoProviderUnavailable";
+  }
+}
+
+/** What the pipeline needs to know about the chosen account beyond the provider itself. */
+export interface ResolvedProvider {
+  provider: MailProvider;
+  /** Set when mail goes through a BYO-flagged tenant's own account. */
+  byo: null | {
+    organizationId: string;
+    providerName: string;
+    sendingDomains: string[];
+  };
+}
 
 interface Cached {
   at: number;
-  provider: MailProvider | null;
+  resolved: ResolvedProvider | null;
+  failure: ByoProviderUnavailable | null;
 }
 const CACHE_MS = 60_000;
 const cache = new Map<string, Cached>();
+/** Bumped on every invalidation, so a resolve that started before it never re-caches stale credentials. */
+const generation = new Map<string, number>();
 
-/** Forget an org's cached provider — called when they connect or disconnect one. */
+/** Forget an org's cached provider — called when they connect, replace or disconnect one. */
 export function forgetOrgProvider(organizationId: string): void {
   cache.delete(organizationId);
+  generation.set(organizationId, (generation.get(organizationId) ?? 0) + 1);
 }
 
-function build(provider: string, raw: string): MailProvider | null {
-  const creds = JSON.parse(decryptSecret(raw)) as Record<string, string>;
+function remember(orgId: string, gen: number, entry: Omit<Cached, "at">): void {
+  if ((generation.get(orgId) ?? 0) === gen) cache.set(orgId, { at: Date.now(), ...entry });
+}
+
+const str = (v: unknown): v is string => typeof v === "string" && v.length > 0;
+
+function build(provider: string, raw: string, configurationSet: string | null, strict: boolean): MailProvider | null {
+  const creds = JSON.parse(openCredentials(raw)) as Record<string, unknown>;
+  // Flagged orgs: validate before constructing — a provider built from `{}`
+  // would quietly fall back to OUR env credentials inside the provider class.
+  // (Unflagged orgs keep exactly the previous construction.)
+  if (strict && provider === "ses" && !(str(creds.accessKeyId) && str(creds.secretAccessKey))) {
+    throw new Error("incomplete SES credentials");
+  }
+  if (strict && provider === "mailgun" && !(str(creds.apiKey) && str(creds.domain))) {
+    throw new Error("incomplete Mailgun credentials");
+  }
   if (provider === "ses") {
-    return new SesProvider(creds as unknown as SesCredentials);
+    // Only the tenant's own configuration set — never ours (see sesConfigurationSetFor).
+    return new SesProvider({ ...(creds as unknown as SesCredentials), configurationSet });
   }
   if (provider === "mailgun") {
     return new MailgunProvider(creds as unknown as MailgunCredentials);
@@ -47,29 +91,49 @@ function build(provider: string, raw: string): MailProvider | null {
   return null;
 }
 
+/** The pre-existing signature, kept for callers that only want the provider. */
 export async function providerForMessage(message: {
   workspaceId: string;
   sandbox: boolean;
   toEmail: string;
 }): Promise<MailProvider> {
+  return (await resolveProviderForMessage(message)).provider;
+}
+
+export async function resolveProviderForMessage(message: {
+  workspaceId: string;
+  sandbox: boolean;
+  toEmail: string;
+}): Promise<ResolvedProvider> {
+  const ours = (): ResolvedProvider => ({ provider: getProviderFor(message.sandbox, message.toEmail), byo: null });
+
   // Sandbox mail never leaves, and a reserved test address must take the real
   // path — both decisions belong to the existing router, not to whose account
   // is paying. Resolve those first.
-  if (message.sandbox && !testRecipientFor(message.toEmail)) {
-    return getProviderFor(message.sandbox, message.toEmail);
-  }
+  if (message.sandbox && !testRecipientFor(message.toEmail)) return ours();
 
   const [row] = await db
-    .select({ orgId: organizations.id })
+    .select({ orgId: organizations.id, isInternal: organizations.isInternal, byoFlag: organizations.byoProvider })
     .from(workspaces)
     .innerJoin(organizations, eq(organizations.id, workspaces.organizationId))
     .where(eq(workspaces.id, message.workspaceId))
     .limit(1);
-  if (!row) return getProviderFor(message.sandbox, message.toEmail);
+  if (!row) return ours();
 
+  const gen = generation.get(row.orgId) ?? 0;
   const hit = cache.get(row.orgId);
   if (hit && Date.now() - hit.at < CACHE_MS) {
-    return hit.provider ?? getProviderFor(message.sandbox, message.toEmail);
+    if (hit.failure) throw hit.failure;
+    return hit.resolved ?? ours();
+  }
+
+  const flagged = byoEffective(row.byoFlag, byoGloballyEnabled());
+
+  // Platform mail: decided before any connection lookup, so a stray row on the
+  // internal org could never move our own mail onto a tenant account.
+  if (row.isInternal) {
+    remember(row.orgId, gen, { resolved: null, failure: null });
+    return ours();
   }
 
   const [conn] = await db
@@ -78,20 +142,41 @@ export async function providerForMessage(message: {
     .where(eq(orgSendingProviders.organizationId, row.orgId))
     .limit(1);
 
-  // Only an ACTIVE connection is used. A credential that failed its last check
-  // would fail this send too, and falling back silently is better than failing
-  // — the customer already has an error waiting for them on the settings page.
   let own: MailProvider | null = null;
+  let buildError: string | null = null;
   if (conn && conn.status === "active") {
     try {
-      own = build(conn.provider, conn.credentials);
+      own = build(conn.provider, conn.credentials, conn.configurationSet ?? null, flagged);
+      if (!own) buildError = `"${conn.provider}" is not a provider Rootmail can send through`;
     } catch {
-      // Undecryptable or malformed: treat as not connected rather than throwing
-      // on a send. The connection page is where this gets reported.
+      // Undecryptable or malformed. The message never includes the value.
       own = null;
+      buildError = "the stored credentials could not be read; reconnect the account";
     }
   }
 
-  cache.set(row.orgId, { at: Date.now(), provider: own });
-  return own ?? getProviderFor(message.sandbox, message.toEmail);
+  const route = decideProviderRoute({
+    isInternal: row.isInternal,
+    flagged,
+    connection: conn ? { status: conn.status } : null,
+    buildError,
+  });
+
+  if (route.kind === "fail") {
+    const failure = new ByoProviderUnavailable(conn?.provider ?? "provider", route.reason, row.orgId);
+    remember(row.orgId, gen, { resolved: null, failure });
+    throw failure;
+  }
+  if (route.kind === "own" && own) {
+    const resolved: ResolvedProvider = {
+      provider: own,
+      byo: flagged
+        ? { organizationId: row.orgId, providerName: conn!.provider, sendingDomains: conn!.sendingDomains ?? (conn!.sendingDomain ? [conn!.sendingDomain] : []) }
+        : null,
+    };
+    remember(row.orgId, gen, { resolved, failure: null });
+    return resolved;
+  }
+  remember(row.orgId, gen, { resolved: null, failure: null });
+  return ours();
 }

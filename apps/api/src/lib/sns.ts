@@ -97,9 +97,14 @@ export function isAllowedTopic(topicArn: string | undefined): boolean {
 }
 
 /** Visit the SubscribeURL to confirm an SNS subscription (host-checked). */
-export async function confirmSubscription(msg: SnsMessage): Promise<void> {
+export async function confirmSubscription(
+  msg: SnsMessage,
+  // The BYO route passes its own exact-match check (the tenant's registered
+  // topic); the global route keeps the SES_SNS_TOPIC_ARNS allowlist.
+  allowTopic: (topicArn: string | undefined) => boolean = isAllowedTopic,
+): Promise<void> {
   if (!msg.SubscribeURL) return;
-  if (!isAllowedTopic(msg.TopicArn)) {
+  if (!allowTopic(msg.TopicArn)) {
     throw new Error(`refusing to confirm: ${msg.TopicArn ?? "unknown topic"} is not an allowed topic`);
   }
   const u = new URL(msg.SubscribeURL);

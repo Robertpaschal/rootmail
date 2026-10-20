@@ -240,6 +240,11 @@ export const organizations = pgTable("organizations", {
    */
   isBeta: boolean("is_beta").notNull().default(false),
   betaInviteId: text("beta_invite_id"),
+  /**
+   * Bring-your-own-provider beta flag. Effective only while the global
+   * BYO_PROVIDER_ENABLED is "true". Off: every BYO-only path is skipped.
+   */
+  byoProvider: boolean("byo_provider").notNull().default(false),
   createdAt: createdAt(),
   updatedAt: updatedAt(),
 });
@@ -860,12 +865,25 @@ export const orgSendingProviders = pgTable(
     lastError: text("last_error"),
     lastCheckedAt: timestamp("last_checked_at", { withTimezone: true }),
     verifiedAt: timestamp("verified_at", { withTimezone: true }),
+    /** Masked hint of the key (e.g. "AKIA…7Q2X"). Safe to show; the secret never is. */
+    credentialHint: text("credential_hint"),
+    /** Opaque per-connection token naming the tenant's own webhook URL. Not a secret on its own — every event is still signature-verified. */
+    webhookToken: text("webhook_token"),
+    /** SES: the tenant's SNS topic we accept bounce/complaint events from. Exact match. */
+    snsTopicArn: text("sns_topic_arn"),
+    /** SES: the tenant's own configuration set, if any. OURS is never sent to their account. */
+    configurationSet: text("configuration_set"),
+    /** Identities (domains or addresses) the tenant's provider has verified. From must be one. */
+    sendingDomains: jsonb("sending_domains").$type<string[]>(),
     createdAt: createdAt(),
     updatedAt: updatedAt(),
   },
   // One connected provider per org for now. Routing between several is a
   // different feature and should not be smuggled in through a missing index.
-  (t) => [uniqueIndex("org_sending_providers_org_uq").on(t.organizationId)],
+  (t) => [
+    uniqueIndex("org_sending_providers_org_uq").on(t.organizationId),
+    uniqueIndex("org_sending_providers_webhook_token_uq").on(t.webhookToken),
+  ],
 );
 
 export const suppressions = pgTable(

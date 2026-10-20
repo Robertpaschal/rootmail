@@ -37,3 +37,17 @@ export async function closeRedis(): Promise<void> {
   shared = undefined;
   if (open) await open.quit().catch(() => open.disconnect());
 }
+
+/**
+ * Tell every worker to drop its cached sending provider for this org. The
+ * worker caches the resolved provider for 60s; without this a replaced or
+ * disconnected credential kept being used until the entry expired. Best-effort:
+ * a Redis hiccup must not fail the settings request, and the 60s TTL still bounds it.
+ */
+export async function announceProviderChange(organizationId: string): Promise<void> {
+  try {
+    await getRedis().publish("rootmail:sending-provider:changed", organizationId);
+  } catch (err) {
+    console.warn("[sending-provider] could not announce a provider change:", err instanceof Error ? err.message : String(err));
+  }
+}

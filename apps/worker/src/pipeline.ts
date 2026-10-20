@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import {
   type AuditEvent,
   decryptSecret,
@@ -16,9 +16,13 @@ import {
   MAX_ATTACHMENT_BYTES,
   assertPublicUrl,
   BETA_REPLY_CAPTURE_UNAVAILABLE,
+  BYO_BETA_ADDRESS_REFUSED,
+  byoFailureMessage,
+  byoFromNotVerified,
+  fromAllowedForByo,
 } from "@rootmail/core";
-import { activeReplyDomain, auditEntries, betaReplyCaptureAvailable, db, isPlatformBetaFrom, threadReplyParent, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
-import { providerForMessage } from "./providers/for-org";
+import { activeReplyDomain, auditEntries, betaReplyCaptureAvailable, db, isPlatformBetaFrom, threadReplyParent, isSuppressed, type Message, type MessageAttachment, messages, openConversationForSend, organizations, orgSendingProviders, resolveReplyTo, subTenants, suppressions, workspaces } from "@rootmail/db";
+import { ByoProviderUnavailable, resolveProviderForMessage, type ResolvedProvider } from "./providers/for-org";
 import { addSesNoTrack, isInternalWorkspace, isPlatformMessage, platformConfigurationSet } from "./platform-mail";
 import { unverifiedSendRecipients, RECIPIENT_VERIFICATION_REQUIRED } from "@rootmail/db";
 import type { OutboundAttachment } from "./providers/types";
@@ -458,7 +462,31 @@ export async function processSend(data: SendJobData): Promise<void> {
   if (platform) configurationSet = configurationSet ?? platformSet;
 
   // The customer's own account when they have connected one, ours otherwise.
-  const provider = await providerForMessage(message);
+  // For a BYO-flagged org an unusable connection is a loud failure, never a
+  // silent fallback onto our account (see resolveProviderForMessage).
+  let resolved: ResolvedProvider;
+  try {
+    resolved = await resolveProviderForMessage(message);
+  } catch (err) {
+    if (!(err instanceof ByoProviderUnavailable)) throw err;
+    await failByo(message, err.organizationId, byoFailureMessage(err.provider, err.reason), "byo_provider_unavailable");
+    return;
+  }
+  const provider = resolved.provider;
+
+  // Through a tenant's own provider, the From must be an identity THAT provider
+  // verified, and Rootmail's beta+ address is never allowed (it is ours).
+  if (resolved.byo) {
+    const refusal = isPlatformBetaFrom(message.fromEmail)
+      ? BYO_BETA_ADDRESS_REFUSED
+      : fromAllowedForByo(message.fromEmail, resolved.byo.sendingDomains)
+        ? null
+        : byoFromNotVerified(message.fromEmail, resolved.byo.sendingDomains);
+    if (refusal) {
+      await failByo(message, null, refusal, "byo_from_not_verified");
+      return;
+    }
+  }
   try {
     // Inside the try: if an attachment can't be fetched, the send fails cleanly
     // (status "failed" + reason) instead of throwing past the catch and leaving
@@ -489,6 +517,13 @@ export async function processSend(data: SendJobData): Promise<void> {
         updatedAt: new Date(),
       })
       .where(eq(messages.id, message.id));
+    // A send that went through clears a stale error on the tenant's card.
+    if (resolved.byo) {
+      await db
+        .update(orgSendingProviders)
+        .set({ lastError: null, lastCheckedAt: new Date() })
+        .where(and(eq(orgSendingProviders.organizationId, resolved.byo.organizationId), isNotNull(orgSendingProviders.lastError)));
+    }
     // Record the test-alias → simulator mapping on the trail, so the audit shows
     // exactly where a test send actually went (never a hidden rewrite).
     await audit(message, "sent", {
@@ -517,12 +552,39 @@ export async function processSend(data: SendJobData): Promise<void> {
       });
     }
   } catch (err) {
-    const errorMessage = err instanceof Error ? err.message : String(err);
+    const raw = err instanceof Error ? err.message : String(err);
+    // A tenant's own provider refusing the send is shown in the product's words
+    // on the message AND recorded on the connection so the settings card shows it.
+    const errorMessage = resolved.byo ? byoFailureMessage(resolved.byo.providerName, raw) : raw;
     await db
       .update(messages)
       .set({ status: "failed", error: errorMessage, updatedAt: new Date() })
       .where(eq(messages.id, message.id));
     await audit(message, "failed", { metadata: { error: errorMessage } });
+    if (resolved.byo) await recordConnectionError(resolved.byo.organizationId, raw);
     throw err; // surface to BullMQ for retry/backoff
   }
+}
+
+/** Record the last provider error on a BYO connection (shown on the sending-account card). */
+async function recordConnectionError(organizationId: string, error: string): Promise<void> {
+  await db
+    .update(orgSendingProviders)
+    .set({ lastError: error.slice(0, 500), lastCheckedAt: new Date(), updatedAt: new Date() })
+    .where(eq(orgSendingProviders.organizationId, organizationId));
+}
+
+/** Fail a message for a BYO reason: clear status + reason, audited, not retried. */
+async function failByo(
+  message: Message,
+  organizationId: string | null,
+  error: string,
+  reason: string,
+): Promise<void> {
+  await db
+    .update(messages)
+    .set({ status: "failed", error, updatedAt: new Date() })
+    .where(eq(messages.id, message.id));
+  await audit(message, "failed", { metadata: { reason, error } });
+  if (organizationId) await recordConnectionError(organizationId, error);
 }

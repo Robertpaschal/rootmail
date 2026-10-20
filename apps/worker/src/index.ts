@@ -6,6 +6,7 @@ import {
   createRedis,
   env,
   LIFECYCLE_QUEUE,
+  PROVIDER_CHANGED_CHANNEL,
   REPUTATION_QUEUE,
   RETENTION_QUEUE,
   scheduleLifecycleSweep,
@@ -23,6 +24,7 @@ import { betaReplyCaptureAvailable, closeDb } from "@rootmail/db";
 import { processCampaignSend } from "./campaigns";
 import { processLifecycleSweep } from "./lifecycle";
 import { processSend } from "./pipeline";
+import { forgetOrgProvider } from "./providers/for-org";
 import { processDnsDriftSweep } from "./dns-drift";
 import { processReputationSweep } from "./reputation";
 import { processWorkspaceReputationSweep } from "./workspace-reputation";
@@ -33,6 +35,13 @@ import { processWebhookJob } from "./webhooks";
 import { startWorkerHealth } from "./health";
 
 const connection = createRedis() as unknown as ConnectionOptions;
+
+// Drop a cached sending provider the moment the API says it changed.
+const providerChanges = createRedis();
+providerChanges.subscribe(PROVIDER_CHANGED_CHANNEL).catch((err: Error) =>
+  console.error("[sending-provider] could not subscribe to provider changes:", err.message),
+);
+providerChanges.on("message", (_channel: string, organizationId: string) => forgetOrgProvider(organizationId));
 
 const worker = new Worker<SendJobData>(
   SEND_QUEUE,
@@ -179,6 +188,7 @@ const shutdown = async (signal: string) => {
   await retentionWorker.close();
   await lifecycleWorker.close();
   await reputationWorker.close();
+  providerChanges.disconnect();
   await closeDb();
   process.exit(0);
 };

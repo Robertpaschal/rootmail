@@ -1,6 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { AUDIENCE_PACK_SIZE, CONTACT_PACK_SIZE, Errors, newId, platformReplyTo, type PlanDef } from "@rootmail/core";
+import { AUDIENCE_PACK_SIZE, byoGloballyEnabled, CONTACT_PACK_SIZE, Errors, newId, platformReplyTo, type PlanDef } from "@rootmail/core";
 import {
+  byoActiveForOrg,
   db,
   listContacts,
   lists,
@@ -27,6 +28,17 @@ import {
 
 /** The org fields the pricing resolvers need — always the wing columns now. */
 export type BillableOrg = WingOrg & { id: string };
+
+/**
+ * The org as the DAILY cap should see it. Only a beta tester can be affected,
+ * and only when BYO is on for it and its own provider is active; for everyone
+ * else (and always while BYO_PROVIDER_ENABLED is off) the same object comes
+ * back with no query made.
+ */
+export async function capOrg<T extends BillableOrg>(org: T): Promise<T> {
+  if (!org.isBeta || org.isInternal || !byoGloballyEnabled()) return org;
+  return (await byoActiveForOrg(org.id)) ? { ...org, byoActive: true } : org;
+}
 
 export function planFor(org: BillableOrg): PlanDef {
   return planForOrg(org);
@@ -205,7 +217,7 @@ export async function recordMarketingSend(organizationId: string, n = 1): Promis
  */
 export async function tryConsumeMarketing(org: BillableOrg, n = 1): Promise<boolean> {
   const monthly = marketingSendAllowanceForOrg(org);
-  const daily = marketingDailyLimitForOrg(org);
+  const daily = marketingDailyLimitForOrg(await capOrg(org));
   const period = currentPeriod();
   const day = currentDay();
 
@@ -260,7 +272,7 @@ export async function tryConsumeMarketing(org: BillableOrg, n = 1): Promise<bool
 export async function assertMarketingSendCapacity(org: BillableOrg, n: number): Promise<void> {
   if (n <= 0) return;
   const monthly = marketingSendAllowanceForOrg(org);
-  const daily = marketingDailyLimitForOrg(org);
+  const daily = marketingDailyLimitForOrg(await capOrg(org));
   const [used, usedToday] = await Promise.all([getMarketingUsage(org.id), getMarketingDaily(org.id)]);
   const tier = mkTierFor(org);
   if (used + n > monthly) {
@@ -337,7 +349,7 @@ export async function tryConsumeQuota(org: BillableOrg, n = 1): Promise<boolean>
   }
 
   const plan = planFor(org);
-  const daily = txDailyLimitForOrg(org);
+  const daily = txDailyLimitForOrg(await capOrg(org));
   const period = currentPeriod();
   const day = currentDay();
 
@@ -400,7 +412,7 @@ export async function tryConsumeQuota(org: BillableOrg, n = 1): Promise<boolean>
  */
 export async function assertTransactionalSendCapacity(org: BillableOrg, n = 1): Promise<void> {
   const plan = planFor(org);
-  const daily = txDailyLimitForOrg(org);
+  const daily = txDailyLimitForOrg(await capOrg(org));
   const [used, usedToday] = await Promise.all([getUsage(org.id), getTransactionalDaily(org.id)]);
   if (!plan.allowOverage && used + n > plan.monthlyQuota) {
     throw Errors.quotaExceeded(
@@ -562,7 +574,7 @@ export async function quotaState(org: Organization): Promise<QuotaState> {
     quota: plan.monthlyQuota,
     remaining: plan.monthlyQuota - used,
     used_today: usedToday,
-    daily_limit: txDailyLimitForOrg(org),
+    daily_limit: txDailyLimitForOrg(await capOrg(org)),
     overage,
     // Overage billed per started 1,000.
     overage_cost: Math.ceil(overage / 1000) * plan.overagePer1000,
@@ -570,7 +582,7 @@ export async function quotaState(org: Organization): Promise<QuotaState> {
     marketing_sent: marketingSent,
     marketing_allowance: marketingSendAllowanceForOrg(org),
     marketing_sent_today: marketingToday,
-    marketing_daily_limit: marketingDailyLimitForOrg(org),
+    marketing_daily_limit: marketingDailyLimitForOrg(await capOrg(org)),
     contacts_used: contactsUsed,
     contacts_limit: baseContactLimit === -1 ? -1 : baseContactLimit + contactPacks * CONTACT_PACK_SIZE,
     audiences_used: audiencesUsed,

@@ -35,6 +35,7 @@ import { privacyRoutes } from "./routes/privacy";
 import { verifiedRecipientRoutes } from "./routes/verified-recipients";
 import { sendingProviderRoutes } from "./routes/sending-providers";
 import { mailgunWebhookRoutes } from "./routes/webhooks-mailgun";
+import { byoWebhookRoutes } from "./routes/webhooks-byo";
 import { retentionRoutes } from "./routes/retention";
 import { roleRoutes } from "./routes/roles";
 import { samlRoutes } from "./routes/saml";
@@ -67,7 +68,22 @@ export async function buildServer(): Promise<FastifyInstance> {
   const proofKey = assertProofSigningKey();
 
   const app = Fastify({
-    logger: { level: env.LOG_LEVEL },
+    logger: {
+      level: env.LOG_LEVEL,
+      // Defensive: bodies are not logged by default, but a provider credential
+      // must never reach a log even if someone adds body logging later.
+      redact: {
+        paths: [
+          "req.body.secret_access_key",
+          "req.body.api_key",
+          "req.body.webhook_signing_key",
+          "body.secret_access_key",
+          "body.api_key",
+          "body.webhook_signing_key",
+        ],
+        censor: "[redacted]",
+      },
+    },
     // Bounded by default (trust one proxy hop) so a spoofed X-Forwarded-For can't
     // be used to evade per-IP rate limits; override via TRUST_PROXY per topology.
     trustProxy: parseTrustProxy(env.TRUST_PROXY),
@@ -154,6 +170,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(privacyRoutes);
   await app.register(verifiedRecipientRoutes);
   await app.register(mailgunWebhookRoutes);
+  await app.register(byoWebhookRoutes);
   await app.register(sendingProviderRoutes);
   await app.register(assistantRoutes);
   await app.register(leadRoutes);

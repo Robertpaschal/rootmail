@@ -1,10 +1,22 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
-import { Errors, encryptSecret, newId } from "@rootmail/core";
-import { db, orgSendingProviders } from "@rootmail/db";
+import { randomBytes } from "node:crypto";
+import {
+  announceProviderChange,
+  BYO_AWAITING_FEEDBACK,
+  byoWebhookUrl,
+  Errors,
+  encryptSecret,
+  env,
+  isRootmailOwnedDomain,
+  maskSecret,
+  newId,
+  sealCredentials,
+} from "@rootmail/core";
+import { betaSenderDomain, byoStateForOrg, db, messages, orgSendingProviders, workspaces } from "@rootmail/db";
 import { requirePermission } from "../lib/permissions";
-import { checkSendingCredentials } from "../lib/provider-check";
+import { checkSendingCredentials, listSesVerifiedIdentities } from "../lib/provider-check";
 import { parse } from "../lib/validate";
 
 // Connecting your own sending account.
@@ -21,14 +33,26 @@ const connectBody = z.discriminatedUnion("provider", [
     access_key_id: z.string().min(16),
     secret_access_key: z.string().min(16),
     region: z.string().min(2).default("us-east-1"),
+    // BYO (flagged orgs only; ignored otherwise).
+    configuration_set: z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/).optional(),
+    sns_topic_arn: z.string().trim().regex(/^arn:aws:sns:[a-z0-9-]+:\d{12}:[A-Za-z0-9_-]{1,256}$/).optional(),
   }),
   z.object({
     provider: z.literal("mailgun"),
     api_key: z.string().min(8),
     domain: z.string().min(3),
     region: z.enum(["us", "eu"]).default("us"),
+    // BYO (flagged orgs only; ignored otherwise).
+    webhook_signing_key: z.string().min(8).optional(),
   }),
 ]);
+type ConnectBody = z.infer<typeof connectBody>;
+
+const BYO_DISCONNECTED_ERROR =
+  "Not sent: you disconnected your own provider while this was queued. Nothing was sent through Rootmail's account.";
+
+/** Domains we refuse to route through anyone else's account. */
+const ownedExtras = () => [env.INBOUND_DOMAIN, betaSenderDomain()];
 
 /** Never returns the credentials — only whether they work. */
 function serialize(row: typeof orgSendingProviders.$inferSelect) {
@@ -44,8 +68,84 @@ function serialize(row: typeof orgSendingProviders.$inferSelect) {
   };
 }
 
+/**
+ * The BYO view: the same fields plus what a flagged tenant needs. Secrets are
+ * never included — only a masked hint.
+ */
+function serializeByo(row: typeof orgSendingProviders.$inferSelect) {
+  const base = env.BYO_WEBHOOK_BASE_URL || env.PUBLIC_API_URL;
+  return {
+    ...serialize(row),
+    byo: true,
+    credential_hint: row.credentialHint,
+    sending_domains: row.sendingDomains ?? [],
+    configuration_set: row.configurationSet,
+    sns_topic_arn: row.snsTopicArn,
+    webhook_url: row.webhookToken
+      ? byoWebhookUrl(base, row.webhookToken, row.provider === "mailgun" ? "mailgun" : "ses")
+      : null,
+  };
+}
+
+/** Flagged save: verified identities, envelope-sealed secret, hint, webhook token. */
+async function byoValues(body: ConnectBody, existingToken: string | null) {
+  if (!env.PROVIDER_CREDENTIALS_KEY) {
+    throw Errors.badRequest("Own-provider sending isn't configured on this server yet (no credentials key). Nothing was saved.");
+  }
+  let identities: string[];
+  if (body.provider === "ses") {
+    if (!body.sns_topic_arn) {
+      throw Errors.badRequest("Add the SNS topic that receives your SES bounces and complaints. Without it we can't keep your suppression list.");
+    }
+    const listed = await listSesVerifiedIdentities(body);
+    if (!listed.ok) throw Errors.badRequest(`Those credentials didn't work: ${listed.reason}`);
+    identities = listed.identities;
+  } else {
+    if (!body.webhook_signing_key) {
+      throw Errors.badRequest("Add your Mailgun webhook signing key. Without it we can't verify bounces and complaints, so we can't keep your suppression list.");
+    }
+    identities = [body.domain.toLowerCase()];
+  }
+  const owned = identities.filter((d) => isRootmailOwnedDomain(d, ownedExtras()));
+  if (body.provider === "mailgun" && owned.length) {
+    throw Errors.badRequest(`${body.domain} is a Rootmail domain. Connect a domain your Mailgun account owns.`);
+  }
+  identities = identities.filter((d) => !owned.includes(d));
+  if (identities.length === 0) {
+    throw Errors.badRequest("Your provider has no verified sending domain we can use yet. Verify one there, then connect again.");
+  }
+  const secret = body.provider === "ses" ? body.secret_access_key : body.api_key;
+  const hint = body.provider === "ses" ? `${maskSecret(body.access_key_id)} · secret ${maskSecret(secret)}` : maskSecret(secret);
+  const credentials = sealCredentials(
+    JSON.stringify(
+      body.provider === "ses"
+        ? { accessKeyId: body.access_key_id, secretAccessKey: body.secret_access_key, region: body.region }
+        : { apiKey: body.api_key, domain: body.domain, region: body.region, webhookSigningKey: body.webhook_signing_key },
+    ),
+  );
+  return {
+    credentials,
+    credentialHint: hint,
+    sendingDomains: identities,
+    configurationSet: body.provider === "ses" ? (body.configuration_set ?? null) : null,
+    snsTopicArn: body.provider === "ses" ? (body.sns_topic_arn ?? null) : null,
+    webhookToken: existingToken ?? randomBytes(24).toString("base64url"),
+  };
+}
+
 export async function sendingProviderRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/sending-provider", async (req) => {
+    const byo = await byoStateForOrg(req.auth.workspace.organizationId);
+    if (byo.flagged) {
+      return byo.connection
+        ? serializeByo(byo.connection)
+        : {
+            object: "sending_provider",
+            connected: false,
+            byo: true,
+            note: "Your mail sends through Rootmail's account, inside its beta limits. Connect your own provider to send on your domain, without the daily cap or the confirmed-recipients rule.",
+          };
+    }
     const [row] = await db
       .select()
       .from(orgSendingProviders)
@@ -71,6 +171,34 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
     const check = await checkSendingCredentials(body);
     if (!check.ok) {
       throw Errors.badRequest(`Those credentials didn't work: ${check.reason}`);
+    }
+
+    const byo = await byoStateForOrg(orgId);
+    if (byo.flagged) {
+      const extra = await byoValues(body, byo.connection?.webhookToken ?? null);
+      const now = new Date();
+      const values = {
+        provider: body.provider,
+        sendingDomain: extra.sendingDomains[0] ?? null,
+        // SES sends only once its SNS topic has confirmed the subscription to
+        // our URL — suppression is mandatory, so no feedback means no sending.
+        status: body.provider === "ses" ? BYO_AWAITING_FEEDBACK : "active",
+        lastError: null,
+        lastCheckedAt: now,
+        verifiedAt: now,
+        updatedAt: now,
+        ...extra,
+      };
+      const [row] = byo.connection
+        ? await db.update(orgSendingProviders).set(values).where(eq(orgSendingProviders.id, byo.connection.id)).returning()
+        : await db.insert(orgSendingProviders).values({ id: newId("sendingProvider"), organizationId: orgId, ...values }).returning();
+      await announceProviderChange(orgId);
+      return {
+        ...serializeByo(row),
+        note: body.provider === "ses"
+          ? `Saved. We sent nothing; we checked the credentials and found ${extra.sendingDomains.length} verified identit${extra.sendingDomains.length === 1 ? "y" : "ies"}. Subscribe the URL below to your SNS topic — sending starts when the subscription confirms.`
+          : `Connected. We sent nothing; we checked that the credentials work and found ${extra.sendingDomains.length} verified identit${extra.sendingDomains.length === 1 ? "y" : "ies"}. Point your Mailgun webhooks at the URL below.`,
+      };
     }
 
     const credentials = encryptSecret(
@@ -111,6 +239,7 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
           .values({ id: newId("sendingProvider"), organizationId: orgId, ...values })
           .returning();
 
+    await announceProviderChange(orgId);
     return {
       ...serialize(row),
       note: `Connected. New mail sends through your own ${body.provider === "ses" ? "Amazon SES" : "Mailgun"} account — on your reputation and your limits, not ours.`,
@@ -128,6 +257,17 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
     if (!row) throw Errors.notFound("No sending provider is connected.");
 
     await db.delete(orgSendingProviders).where(eq(orgSendingProviders.id, row.id));
+    // Flagged: mail already queued was admitted for THEIR account (beta cap
+    // lifted). It must not drain onto ours after a disconnect.
+    const byo = await byoStateForOrg(orgId);
+    if (byo.flagged) {
+      await db
+        .update(messages)
+        .set({ status: "failed", error: BYO_DISCONNECTED_ERROR, updatedAt: new Date() })
+        .where(and(eq(messages.status, "queued"), inArray(messages.workspaceId,
+          db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.organizationId, orgId)))));
+    }
+    await announceProviderChange(orgId);
     return {
       object: "sending_provider",
       disconnected: true,

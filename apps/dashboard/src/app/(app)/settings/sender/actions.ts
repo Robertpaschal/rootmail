@@ -145,6 +145,12 @@ export interface ProviderState {
  * so an error here is a real answer from AWS or Mailgun — worth showing verbatim
  * rather than flattening to "couldn't connect".
  */
+/** A BYO-only field, sent only when filled in (so unflagged requests are unchanged). */
+function optional(formData: FormData, name: string): Record<string, string> {
+  const v = String(formData.get(name) ?? "").trim();
+  return v ? { [name]: v } : {};
+}
+
 export async function connectSendingProvider(
   _prev: ProviderState | null,
   formData: FormData,
@@ -157,12 +163,15 @@ export async function connectSendingProvider(
           access_key_id: String(formData.get("access_key_id") ?? "").trim(),
           secret_access_key: String(formData.get("secret_access_key") ?? "").trim(),
           region: String(formData.get("region") ?? "us-east-1").trim(),
+          ...optional(formData, "sns_topic_arn"),
+          ...optional(formData, "configuration_set"),
         }
       : {
           provider: "mailgun",
           api_key: String(formData.get("api_key") ?? "").trim(),
           domain: String(formData.get("domain") ?? "").trim(),
           region: String(formData.get("mg_region") ?? "us"),
+          ...optional(formData, "webhook_signing_key"),
         };
 
   try {

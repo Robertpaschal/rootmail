@@ -28,3 +28,5 @@ export * from "./retry";
 export * from "./content-scan";
 export * from "./provider-rejections";
 export * from "./lifecycle-email";
+export * from "./envelope";
+export * from "./byo";

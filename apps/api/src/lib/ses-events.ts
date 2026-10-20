@@ -298,17 +298,31 @@ async function hasAudit(messageId: string, event: AuditEvent): Promise<boolean> 
  * Apply one SES notification. Returns the action taken (useful for logging/tests).
  * Unknown event types or notifications for a message we don't have are ignored.
  */
-export async function applySesNotification(n: SesNotification): Promise<SesKind> {
+export async function applySesNotification(
+  n: SesNotification,
+  scope: { organizationId?: string; source?: string } = {},
+): Promise<SesKind> {
   const providerMessageId = n.mail?.messageId;
   const kind = classify(n);
   if (!providerMessageId || kind === "ignored") return "ignored";
 
-  const [message] = await db
-    .select()
-    .from(messages)
-    .where(eq(messages.providerMessageId, providerMessageId))
-    .limit(1);
+  // BYO: a tenant's topic may only touch that tenant's messages.
+  const [message] = scope.organizationId
+    ? (
+        await db
+          .select({ m: messages })
+          .from(messages)
+          .innerJoin(workspaces, eq(workspaces.id, messages.workspaceId))
+          .where(and(eq(messages.providerMessageId, providerMessageId), eq(workspaces.organizationId, scope.organizationId)))
+          .limit(1)
+      ).map((r) => r.m)
+    : await db
+        .select()
+        .from(messages)
+        .where(eq(messages.providerMessageId, providerMessageId))
+        .limit(1);
   if (!message) return "ignored";
+  const suppressionSource = scope.source ?? "ses";
 
   if (kind === "delivery") {
     // Dedup (identity notification + config-set event both report delivery) and
@@ -349,7 +363,7 @@ export async function applySesNotification(n: SesNotification): Promise<SesKind>
     // what feeds the complaint rate the enforcement thresholds run on.
     if (message.status !== "complained") await setStatus(message, "complained", reason);
     for (const email of recipients) {
-      await addSuppression(message.workspaceId, message.subTenantId, email, "complaint", message.id, "ses");
+      await addSuppression(message.workspaceId, message.subTenantId, email, "complaint", message.id, suppressionSource);
     }
     await audit(message, "complained", { recipients, reason });
     return "complaint";
@@ -368,7 +382,7 @@ export async function applySesNotification(n: SesNotification): Promise<SesKind>
     // provider cares about most.
     if (message.status !== "complained") await setStatus(message, "bounced", reason);
     for (const email of recipients) {
-      await addSuppression(message.workspaceId, message.subTenantId, email, "bounce", message.id, "ses");
+      await addSuppression(message.workspaceId, message.subTenantId, email, "bounce", message.id, suppressionSource);
     }
     await audit(message, "bounced", { recipients, bounceType: "Permanent", reason });
     return "bounce";

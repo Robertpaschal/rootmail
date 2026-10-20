@@ -23,13 +23,17 @@ export default async function OnboardingPage() {
   let alreadyDone = false;
   let failed = false;
   let sendNote: FirstSendNote | null = null;
+  let byoAvailable = false;
   try {
-    const [me, org, access] = await Promise.all([
+    const [me, org, access, sendingProvider] = await Promise.all([
       api.me(),
       api.getOrganization(),
       // Only feeds the step-4 note; an unavailable check must not wedge onboarding.
       api.sendingAccess().catch(() => null),
+      // Only feeds step 3's own-provider line; the API sets `byo` only when the flag is on.
+      api.getSendingProvider().catch(() => null),
     ]);
+    byoAvailable = sendingProvider?.byo === true;
     alreadyDone = me.onboarding_completed !== false;
     orgName = org.name;
     userName = me.user.name ?? "";
@@ -47,7 +51,7 @@ export default async function OnboardingPage() {
         <Logo />
       </header>
       <main className="mx-auto max-w-5xl px-4 pb-16">
-        <OnboardingWizard orgName={orgName} userName={userName} sendNote={sendNote} />
+        <OnboardingWizard orgName={orgName} userName={userName} sendNote={sendNote} byoAvailable={byoAvailable} />
       </main>
     </div>
   );
