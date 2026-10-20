@@ -26,6 +26,9 @@ import {
   checkAndCount,
   scanContent,
   MAX_ATTACHMENT_BYTES,
+  BYO_BETA_ADDRESS_REFUSED,
+  byoFromNotVerified,
+  fromAllowedForByo,
 } from "@rootmail/core";
 import {
   activeReplyDomain,
@@ -45,6 +48,7 @@ import {
   type Workspace,
   unverifiedSendRecipients,
   RECIPIENT_VERIFICATION_REQUIRED,
+  byoStateForOrg,
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
 import {
@@ -436,7 +440,18 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // A caller-chosen From must be an address the org actually controls: a
     // verified sender identity, the sub-tenant's verified domain, or the platform
     // domain — otherwise SES would reject it downstream with a cryptic error.
-    if (body.from) {
+    // Bring your own provider: the From must be an identity the tenant's own
+    // provider verified (that replaces our sender-identity check, which is about
+    // OUR account), and our beta+ address can never leave through it.
+    // No query at all while BYO_PROVIDER_ENABLED is off.
+    const byo = mode === "live" && org ? await byoStateForOrg(org.id) : { flagged: false, connection: null };
+    const viaOwnProvider = byo.flagged && byo.connection?.status === "active";
+    if (viaOwnProvider) {
+      const verified = byo.connection!.sendingDomains ?? [];
+      if (isPlatformBetaFrom(from.email)) throw Errors.badRequest(BYO_BETA_ADDRESS_REFUSED);
+      if (!fromAllowedForByo(from.email, verified)) throw Errors.badRequest(byoFromNotVerified(from.email, verified));
+    }
+    if (body.from && !viaOwnProvider) {
       await assertSenderAllowed({ fromEmail: from.email, organizationId: org?.id ?? null, subTenantDomain: subTenant?.sendingDomain });
     }
     // A rootmail beta address has no mailbox behind it; replies only arrive

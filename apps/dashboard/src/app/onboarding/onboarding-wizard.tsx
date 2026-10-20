@@ -72,11 +72,14 @@ export function OnboardingWizard({
   orgName,
   userName,
   sendNote = null,
+  byoAvailable = false,
 }: {
   orgName: string;
   userName: string;
   /** Step 4's "confirm your address first" note, when sending is limited. */
   sendNote?: FirstSendNote | null;
+  /** Bring-your-own-provider is on for this org (beta). */
+  byoAvailable?: boolean;
 }) {
   const router = useRouter();
   const [step, setStep] = useState(0);
@@ -325,6 +328,12 @@ export function OnboardingWizard({
             })}
           </div>
 
+          {byoAvailable && provider && provider !== "none" ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              You can send through your own Amazon SES or Mailgun account instead of the beta&apos;s
+              shared one — no daily cap, any recipient. Set it up in Settings → Sender.
+            </p>
+          ) : null}
           {error ? <p className="mt-4 text-sm text-destructive">{error}</p> : null}
           <div className="mt-8 flex items-center justify-between">
             <Button type="button" variant="ghost" onClick={() => setStep(1)}>

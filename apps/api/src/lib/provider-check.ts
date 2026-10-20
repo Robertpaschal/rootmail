@@ -1,4 +1,4 @@
-import { GetAccountCommand, SESv2Client } from "@aws-sdk/client-sesv2";
+import { GetAccountCommand, ListEmailIdentitiesCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 
 /**
  * Do these credentials actually work, before we store them?
@@ -74,5 +74,42 @@ export async function checkSendingCredentials(
     return { ok: true, domain: input.domain, note: "Mailgun domain verified." };
   } catch (e) {
     return { ok: false, reason: (e as Error)?.message ?? "couldn't reach Mailgun." };
+  }
+}
+
+/**
+ * The identities (domains and addresses) the tenant's SES account has verified
+ * AND may send from. The From of every BYO send must be one of these.
+ * Needs ses:ListEmailIdentities; a READ, like the check above.
+ */
+export async function listSesVerifiedIdentities(input: {
+  access_key_id: string;
+  secret_access_key: string;
+  region: string;
+}): Promise<{ ok: true; identities: string[] } | { ok: false; reason: string }> {
+  try {
+    const client = new SESv2Client({
+      region: input.region,
+      credentials: { accessKeyId: input.access_key_id, secretAccessKey: input.secret_access_key },
+    });
+    const out: string[] = [];
+    let NextToken: string | undefined;
+    for (let page = 0; page < 20; page++) {
+      const res = await client.send(new ListEmailIdentitiesCommand({ NextToken, PageSize: 100 }));
+      for (const id of res.EmailIdentities ?? []) {
+        if (id.IdentityName && id.SendingEnabled && id.VerificationStatus === "SUCCESS") {
+          out.push(id.IdentityName.toLowerCase());
+        }
+      }
+      NextToken = res.NextToken;
+      if (!NextToken) break;
+    }
+    return { ok: true, identities: out };
+  } catch (e) {
+    const name = (e as { name?: string })?.name ?? "";
+    if (name.includes("AccessDenied")) {
+      return { ok: false, reason: "those keys can't list your SES identities — add ses:ListEmailIdentities." };
+    }
+    return { ok: false, reason: (e as Error)?.message ?? "AWS rejected the identity lookup." };
   }
 }

@@ -1283,4 +1283,11 @@ export interface SendingProvider {
   verified_at?: string | null;
   last_checked_at?: string | null;
   note?: string;
+  /** Present only when bring-your-own-provider is on for this org. */
+  byo?: boolean;
+  credential_hint?: string | null;
+  sending_domains?: string[];
+  configuration_set?: string | null;
+  sns_topic_arn?: string | null;
+  webhook_url?: string | null;
 }

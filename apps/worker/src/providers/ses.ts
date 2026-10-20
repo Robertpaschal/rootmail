@@ -25,11 +25,31 @@ export interface SesCredentials {
   accessKeyId: string;
   secretAccessKey: string;
   region?: string;
+  /** The tenant's OWN configuration set in their account, if they have one. */
+  configurationSet?: string | null;
+}
+
+/**
+ * Which configuration set a send names.
+ *
+ * Our account: the per-message set (dedicated IP / platform), else our shared
+ * SES_CONFIGURATION_SET. A tenant's account: ONLY the tenant's own set, or none.
+ * Our set names mean nothing in their account — SES rejects a send naming a set
+ * that does not exist there, and if one happened to share the name it would
+ * publish their events to wherever THEY pointed it.
+ */
+export function sesConfigurationSetFor(
+  email: { configurationSet?: string | null },
+  customer: SesCredentials | undefined,
+): string | undefined {
+  if (customer) return customer.configurationSet || undefined;
+  return email.configurationSet || env.SES_CONFIGURATION_SET || undefined;
 }
 
 export class SesProvider implements MailProvider {
   readonly name = "ses";
   private readonly client: SESv2Client;
+  private readonly customer: SesCredentials | undefined;
 
   /**
    * With no argument this is OUR account, resolving through the SDK's default
@@ -39,6 +59,7 @@ export class SesProvider implements MailProvider {
    * approval should not gate their launch.
    */
   constructor(creds?: SesCredentials) {
+    this.customer = creds;
     this.client = creds
       ? new SESv2Client({
           region: creds.region ?? env.AWS_REGION ?? "us-east-1",
@@ -55,7 +76,7 @@ export class SesProvider implements MailProvider {
     // An org with an active dedicated IP overrides the shared set with its own,
     // which routes through its dedicated IP pool (that set must carry the same
     // SNS event destinations, enforced at staff-activation time).
-    const ConfigurationSetName = email.configurationSet || env.SES_CONFIGURATION_SET || undefined;
+    const ConfigurationSetName = sesConfigurationSetFor(email, this.customer);
 
     // A rootmail test alias (bounced@test.rootmail.dev …) is swapped for its SES
     // mailbox-simulator address HERE, at the last hop — so the send is genuinely

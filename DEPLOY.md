@@ -124,6 +124,23 @@ no hardcoded login in any environment. Roles: `superadmin` (everything), `billin
 `readonly` (view only).
 
 
+## Bring your own provider (beta)
+
+Off by default. With `BYO_PROVIDER_ENABLED` unset nothing changes for any org.
+
+| Env (api + worker) | Purpose |
+|---|---|
+| `BYO_PROVIDER_ENABLED` | Global switch, `true` to enable. Rollback = unset + restart. |
+| `PROVIDER_CREDENTIALS_KEY` | KEK for tenant credentials (`openssl rand -base64 32`). Same value on api and worker. |
+| `PROVIDER_CREDENTIALS_KEY_PREVIOUS` | Only during a rotation window. |
+| `BYO_WEBHOOK_BASE_URL` | Optional; defaults to `PUBLIC_API_URL`. |
+
+- Migration `0082_byo_provider` is additive (`organizations.byo_provider`, new nullable columns on `org_sending_providers`).
+- Enable for one org (staff, SQL): `UPDATE organizations SET byo_provider = true WHERE id = '<org_id>';`
+- Rotation: set `_PREVIOUS` = old, `PROVIDER_CREDENTIALS_KEY` = new, deploy, `pnpm db:rewrap-provider-creds`, remove `_PREVIOUS`, deploy.
+- No AWS, DNS or Caddy change on our side. Tenants point their own SNS topic / Mailgun webhooks at
+  `https://<api>/v1/webhooks/byo/<token>/{ses|mailgun}` (shown on their Settings → Sender card).
+
 ## Webhooks (post-deploy)
 - Stripe: point a webhook at `…/v1/webhooks/stripe`, set `STRIPE_WEBHOOK_SECRET`.
 - SES feedback + inbound: SNS subscriptions → `…/v1/webhooks/ses` (raw delivery off).

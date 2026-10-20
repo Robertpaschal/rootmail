@@ -175,6 +175,20 @@ const EnvSchema = z.object({
   /** Verifies inbound Mailgun webhook signatures. Bounces are worthless without it. */
   MAILGUN_WEBHOOK_SIGNING_KEY: z.string().optional(),
 
+  // --- Bring your own provider (beta) -----------------------------------------
+  // Global kill switch. Effective only together with organizations.byo_provider.
+  // Anything other than "true" means OFF: every BYO path is skipped and the
+  // existing behaviour is unchanged.
+  BYO_PROVIDER_ENABLED: z.string().optional(),
+  // Key-encryption key for tenant provider credentials (envelope encryption).
+  // 32+ random bytes, e.g. `openssl rand -base64 32`. Required to SAVE a
+  // credential for a flagged org; never logged.
+  PROVIDER_CREDENTIALS_KEY: z.string().optional(),
+  // The previous KEK during a rotation window, so rows not yet re-wrapped still open.
+  PROVIDER_CREDENTIALS_KEY_PREVIOUS: z.string().optional(),
+  // Public base URL tenants point their SNS / Mailgun webhooks at. Defaults to PUBLIC_API_URL.
+  BYO_WEBHOOK_BASE_URL: z.string().optional(),
+
   SENDGRID_API_KEY: z.string().optional(),
 
   // --- Billing (Stripe) ----------------------------------------------------

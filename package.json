@@ -28,6 +28,7 @@
     "db:seed:changelog": "pnpm --filter @rootmail/db exec tsx src/seed-changelog-2026-07.ts",
     "db:seed:blog-refresh": "pnpm --filter @rootmail/db exec tsx src/seed-blog-refresh-2026-07.ts",
     "db:encrypt-dkim": "pnpm --filter @rootmail/db exec tsx src/encrypt-dkim-keys.ts",
+    "db:rewrap-provider-creds": "pnpm --filter @rootmail/db exec tsx src/rewrap-provider-credentials.ts",
     "api": "pnpm --filter @rootmail/api dev",
     "worker": "pnpm --filter @rootmail/worker dev",
     "marketing": "pnpm --filter @rootmail/marketing dev",
