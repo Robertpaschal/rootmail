@@ -59,7 +59,7 @@ fs.writeFileSync(out, JSON.stringify(body));
 process.stdout.write(String(code));
 `;
 
-function run(scenario, to = 'admin@rootmail.io') {
+function run(scenario, to = 'admin@rootmail.io', withKey = true) {
   const dir = mkdtempSync(join(tmpdir(), 'rootmail-canary-test-'));
   writeFileSync(join(dir, '.env.prod'), '');
   writeFileSync(join(dir, 'docker-compose.prod.yml'), '');
@@ -69,7 +69,7 @@ function run(scenario, to = 'admin@rootmail.io') {
   writeFileSync(join(dir, 'sleep'), '#!/bin/sh\nexit 0\n', { mode: 0o755 });
   const r = spawnSync('bash', [script, '--canary'], {
     cwd: dir, encoding: 'utf8', timeout: 60000,
-    env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, SCENARIO: scenario, TAG: sha, CANARY_TO: to, CANARY_API_KEY: key, CANARY_EVENT_WAIT: '3' },
+    env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, SCENARIO: scenario, TAG: sha, CANARY_TO: to, CANARY_API_KEY: withKey ? key : '', CANARY_EVENT_WAIT: '3' },
   });
   const read = (f) => existsSync(join(dir, f)) ? readFileSync(join(dir, f), 'utf8') : '';
   const res = { ...r, dir, docker: read('calls'), curl: read('curl-calls'), api: read('state-api') || 'old', worker: read('state-worker') || 'old', canary: existsSync(join(dir, 'canary')) };
@@ -140,4 +140,47 @@ test('worker log check fails: worker rolled back automatically, api rollback pri
   assert.match(r.stderr, new RegExp(`Rolling the worker back to ${prev}`));
   assert.doesNotMatch(r.stderr, /URGENT/);
   assert.match(r.stderr, new RegExp(`TAG=${prev} \\./scripts/deploy-host\\.sh api`));
+});
+
+// Keyless (copy-only) deploys: health-only canary, sends skipped loudly.
+const curlCalls = (r) => r.curl.trim().split('\n').filter(Boolean).map(JSON.parse);
+
+test('key unset, healthy: health-only canary, both sends skipped, swaps done, exit 0', () => {
+  const r = run('healthy', 'admin@rootmail.io', false);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.api, 'new'); assert.equal(r.worker, 'new'); assert.equal(r.canary, false);
+  isolation(r);
+  const calls = curlCalls(r);
+  assert.equal(calls.some((c) => c.at(-1).endsWith('/v1/messages')), false, 'no test send');
+  assert.equal(calls.some((c) => c.includes('-H') && c.some((x) => x.startsWith('@'))), false, 'no auth header');
+  assert.ok(calls.some((c) => c.at(-1) === 'http://127.0.0.1:4100/v1/beta/status'));
+  assert.ok(calls.some((c) => c.at(-1) === 'http://127.0.0.1:4100/v1/auth/signup'));
+  assert.match(r.stderr, /SKIPPED \(canary api\): test send, delivery event and tracking checks \(no CANARY_API_KEY\)/);
+  assert.match(r.stderr, /SKIPPED \(worker\)/);
+  assert.match(r.stderr, /manual inbound\/send check/);
+  assert.match(r.stdout, /HEALTH-ONLY/);
+  assert.match(r.stdout, new RegExp(`TAG=${prev} \\./scripts/deploy-host\\.sh api`));
+});
+
+test('key unset, canary unhealthy: torn down, prod untouched, non-zero', () => {
+  const r = run('canary-unhealthy', 'admin@rootmail.io', false);
+  assert.equal(r.status, 1);
+  assert.equal(r.api, 'old'); assert.equal(r.worker, 'old'); assert.equal(r.canary, false);
+  isolation(r);
+  assert.match(r.stderr, /canary log line/);
+  assert.doesNotMatch(r.stderr, /SKIPPED/);
+});
+
+test('key unset still enforces the hard allowlist', () => {
+  const r = run('healthy', 'someone@example.com', false);
+  assert.equal(r.status, 2);
+  assert.equal(r.docker, ''); assert.equal(r.curl, '');
+});
+
+test('key set: no keyless probe or skip banner (behaviour unchanged)', () => {
+  const r = run('healthy');
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(curlCalls(r).some((c) => c.at(-1).endsWith('/v1/beta/status')), false);
+  assert.doesNotMatch(r.stderr + r.stdout, /SKIPPED|HEALTH-ONLY/);
+  assert.equal(curlCalls(r).filter((c) => c.at(-1).endsWith('/v1/messages')).length, 2, 'canary + worker sends');
 });
