@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
 import { closeQueues, closeRedis, env, newId, sealCredentials } from "@rootmail/core";
-import { closeDb, db, organizations, orgSendingProviders, users } from "@rootmail/db";
+import { campaigns, closeDb, db, organizations, orgSendingProviders, users } from "@rootmail/db";
 import { createSession, provisionAccount } from "../lib/auth";
 import { buildServer } from "../server";
 
@@ -73,6 +73,21 @@ describe("flag ON with an active own provider", () => {
     const res = await create(`beta+${a.organizationId}@rootmail.io`);
     assert.equal(res.statusCode, 400, res.body);
     assert.match(res.body, /beta\+ address belongs to Rootmail/);
+  });
+
+  it("PATCH uses the same rule; a refused update leaves the stored From unchanged", async () => {
+    const created = await create("hello@mg.acme.example");
+    const id = created.json().id as string;
+    const patch = (from_email: string) =>
+      app.inject({ method: "PATCH", url: `/v1/campaigns/${id}`, headers: auth, payload: { from_email } });
+    assert.ok((await patch("news@mg.acme.example")).statusCode < 300);
+    const bad = await patch("hello@elsewhere.example");
+    assert.equal(bad.statusCode, 400, bad.body);
+    assert.match(bad.body, /isn't verified at your provider/);
+    const beta = await patch(`beta+${a.organizationId}@rootmail.io`);
+    assert.equal(beta.statusCode, 400, beta.body);
+    const [row] = await db.select({ fromEmail: campaigns.fromEmail }).from(campaigns).where(eq(campaigns.id, id));
+    assert.equal(row.fromEmail, "news@mg.acme.example");
   });
 
   it("connection not active: falls back to our sender check, as before", async () => {
