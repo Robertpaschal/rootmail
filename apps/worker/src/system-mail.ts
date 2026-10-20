@@ -17,6 +17,7 @@ import {
   suppressions,
 } from "@rootmail/db";
 import { addSesNoTrack, platformConfigurationSet } from "./platform-mail";
+import { systemMailUnsubHeaders } from "./system-mail-headers";
 import { getProviderFor } from "./providers";
 
 /**
@@ -157,6 +158,7 @@ export async function processSystemMail(job: SystemMailJob): Promise<void> {
   }
 
   const platformSet = platformConfigurationSet();
+  const headers = systemMailUnsubHeaders(cls, workspaceId, to);
   try {
     await getProviderFor(false).send({
       messageId: message.id,
@@ -171,6 +173,7 @@ export async function processSystemMail(job: SystemMailJob): Promise<void> {
       text: job.text,
       dkim: null,
       sandbox: false,
+      ...(headers.length ? { headers } : {}),
       ...(platformSet ? { configurationSet: platformSet } : {}),
     });
     await db
