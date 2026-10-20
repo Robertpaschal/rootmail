@@ -26,9 +26,6 @@ import {
   checkAndCount,
   scanContent,
   MAX_ATTACHMENT_BYTES,
-  BYO_BETA_ADDRESS_REFUSED,
-  byoFromNotVerified,
-  fromAllowedForByo,
 } from "@rootmail/core";
 import {
   activeReplyDomain,
@@ -48,7 +45,6 @@ import {
   type Workspace,
   unverifiedSendRecipients,
   RECIPIENT_VERIFICATION_REQUIRED,
-  byoStateForOrg,
 } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
 import {
@@ -66,7 +62,7 @@ import {
 import { authActor } from "../lib/dispatch";
 import { requireFeature } from "../lib/features";
 import { requirePermission } from "../lib/permissions";
-import { assertSenderAllowed, defaultSenderFor } from "../lib/senders";
+import { assertByoFromAllowed, assertSenderAllowed, defaultSenderFor } from "../lib/senders";
 import { addSuppression, findContact, isSuppressed, loadTemplate } from "../lib/queries";
 import { serializeAudit, serializeMessage } from "../lib/serialize";
 import { parse } from "../lib/validate";
@@ -444,13 +440,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     // provider verified (that replaces our sender-identity check, which is about
     // OUR account), and our beta+ address can never leave through it.
     // No query at all while BYO_PROVIDER_ENABLED is off.
-    const byo = mode === "live" && org ? await byoStateForOrg(org.id) : { flagged: false, connection: null };
-    const viaOwnProvider = byo.flagged && byo.connection?.status === "active";
-    if (viaOwnProvider) {
-      const verified = byo.connection!.sendingDomains ?? [];
-      if (isPlatformBetaFrom(from.email)) throw Errors.badRequest(BYO_BETA_ADDRESS_REFUSED);
-      if (!fromAllowedForByo(from.email, verified)) throw Errors.badRequest(byoFromNotVerified(from.email, verified));
-    }
+    const viaOwnProvider = mode === "live" && org ? await assertByoFromAllowed(org.id, from.email) : false;
     if (body.from && !viaOwnProvider) {
       await assertSenderAllowed({ fromEmail: from.email, organizationId: org?.id ?? null, subTenantDomain: subTenant?.sendingDomain });
     }

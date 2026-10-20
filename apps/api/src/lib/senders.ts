@@ -5,8 +5,8 @@ import {
   SESv2Client,
 } from "@aws-sdk/client-sesv2";
 import { and, asc, desc, eq } from "drizzle-orm";
-import { Errors, env } from "@rootmail/core";
-import { betaAddressOrgId, db, senderIdentities, type SenderIdentity } from "@rootmail/db";
+import { BYO_BETA_ADDRESS_REFUSED, byoFromNotVerified, Errors, env, fromAllowedForByo } from "@rootmail/core";
+import { betaAddressOrgId, byoStateForOrg, db, isPlatformBetaFrom, senderIdentities, type SenderIdentity } from "@rootmail/db";
 
 // Own-address sending: an org adds e.g. hello@acme.com, SES emails that mailbox a
 // confirmation link (CreateEmailIdentity), and once confirmed the address may be
@@ -148,4 +148,23 @@ export async function assertSenderAllowed(opts: {
   throw Errors.validation(
     `"${opts.fromEmail}" isn't a verified sender for this organization. Verify it under Settings → Sending, or leave From empty to use your workspace address.`,
   );
+}
+
+/**
+ * Bring your own provider: when a flagged org's own provider is active, the From
+ * must be an identity THAT provider verified (this replaces assertSenderAllowed,
+ * which is about OUR account), and Rootmail's beta+ address can never leave
+ * through it. Returns true when the org sends via its own provider, false when
+ * the caller should apply assertSenderAllowed as before.
+ *
+ * One rule for single sends and campaigns, so admission can't drift from the
+ * worker. No query at all while BYO_PROVIDER_ENABLED is off.
+ */
+export async function assertByoFromAllowed(organizationId: string, fromEmail: string): Promise<boolean> {
+  const byo = await byoStateForOrg(organizationId);
+  if (!(byo.flagged && byo.connection?.status === "active")) return false;
+  const verified = byo.connection.sendingDomains ?? [];
+  if (isPlatformBetaFrom(fromEmail)) throw Errors.badRequest(BYO_BETA_ADDRESS_REFUSED);
+  if (!fromAllowedForByo(fromEmail, verified)) throw Errors.badRequest(byoFromNotVerified(fromEmail, verified));
+  return true;
 }

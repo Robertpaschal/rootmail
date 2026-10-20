@@ -3,7 +3,7 @@ import type { FastifyInstance, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { contactVariables, enqueueCampaignSend, Errors, newId, render } from "@rootmail/core";
 import { audienceMembers, auditEntries, type Campaign, campaignOverrides, campaigns, contacts, db, listContacts, lists, messages, sequenceEnrollments, sequences, templates } from "@rootmail/db";
-import { assertSenderAllowed } from "../lib/senders";
+import { assertByoFromAllowed, assertSenderAllowed } from "../lib/senders";
 import { assertContactCapacity, assertEmailVerified, assertMarketingSendCapacity } from "../lib/billing";
 import { loadOrg, requireFeature } from "../lib/features";
 import { messageFunnel } from "../lib/funnel";
@@ -24,7 +24,9 @@ async function validateRefs(
   // single-send route checked it properly. SES identity verification is
   // ACCOUNT-wide, so that gap let one customer send as an address a DIFFERENT
   // customer had verified — and as our own platform domain.
-  if (fromEmail) {
+  // A BYO-flagged org with an active own provider is held to that provider's
+  // verified identities instead (the same rule as single sends and the worker).
+  if (fromEmail && !(await assertByoFromAllowed(req.auth.workspace.organizationId, fromEmail))) {
     await assertSenderAllowed({
       fromEmail,
       organizationId: req.auth.workspace.organizationId,
