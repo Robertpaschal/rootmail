@@ -40,10 +40,15 @@ export function decideProviderRoute(input: {
   flagged: boolean;
   connection: { status: string } | null;
   buildError: string | null;
+  /** A kind that exists only behind the flag (SMTP). Never routed — nor replaced by ours — while unflagged. */
+  byoOnly?: boolean;
 }): ProviderRoute {
   if (input.isInternal) return { kind: "platform" };
   const c = input.connection;
   if (!c) return { kind: "ours" };
+  if (input.byoOnly && !input.flagged) {
+    return { kind: "fail", reason: "own-provider sending is switched off for your organization, so this connection can't be used" };
+  }
   const usable = c.status === "active" && input.buildError === null;
   if (usable) return { kind: "own" };
   if (!input.flagged) return { kind: "ours" };
@@ -59,7 +64,8 @@ export function decideProviderRoute(input: {
 /** The exact text a failed BYO message carries, shown on the message and the card. */
 export function byoFailureMessage(provider: string, reason: string): string {
   const name = provider === "mailgun" ? "Mailgun" : provider === "ses" ? "Amazon SES" : provider;
-  return `Not sent: your ${name} account didn't accept this message (${reason}). Nothing was sent through Rootmail's account. Fix it in Settings → Sender → Sending account.`;
+  const what = provider === "smtp" ? "SMTP server" : `${name} account`;
+  return `Not sent: your ${what} didn't accept this message (${reason}). Nothing was sent through Rootmail's account. Fix it in Settings → Sender → Sending account.`;
 }
 
 function domainOf(email: string): string {

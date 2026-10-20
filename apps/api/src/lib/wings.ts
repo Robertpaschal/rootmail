@@ -89,6 +89,8 @@ export interface WingOrg {
   /** Flagged for BYO AND sending through its own active provider. The beta
    *  daily cap protects OUR sandboxed SES; it has nothing to protect here. */
   byoActive?: boolean | null;
+  /** Set with byoActive when the tenant's provider gives no feedback loop (SMTP): a conservative ceiling. */
+  byoDailyCap?: number | null;
 }
 
 /**
@@ -151,7 +153,7 @@ export function txDailyLimitForOrg(org: WingOrg): number {
   // spend everyone else's — including the invites that let the next tester in.
   // `unmetered` deliberately is NOT consulted here.
   if (org.isBeta && !org.isInternal && !org.byoActive) return env.BETA_DAILY_SEND_CAP;
-  return txDailyLimit(txTierFor(org), org.transactionalBlocks ?? 0);
+  return withByoCeiling(org, txDailyLimit(txTierFor(org), org.transactionalBlocks ?? 0));
 }
 
 // --- Marketing: contact SIZE is the base; the tier multiplies it ---------------
@@ -174,7 +176,12 @@ export function marketingDailyLimitForOrg(org: WingOrg): number {
   // our email provider as the ceiling on the whole beta. Same reasoning as
   // txDailyLimitForOrg: unmetered() hands out CAPABILITY, never volume.
   if (org.isBeta && !org.isInternal && !org.byoActive) return env.BETA_DAILY_SEND_CAP;
-  return marketingDailyLimit(mkTierFor(org), org.marketingContacts ?? 0);
+  return withByoCeiling(org, marketingDailyLimit(mkTierFor(org), org.marketingContacts ?? 0));
+}
+
+/** A BYO connection with no bounce feedback (SMTP) keeps a ceiling even though the beta cap is lifted. */
+function withByoCeiling(org: WingOrg, limit: number): number {
+  return org.byoActive && org.byoDailyCap ? Math.min(limit, org.byoDailyCap) : limit;
 }
 /** Monthly $ the marketing wing bills for this org (price = contacts × tier rate). */
 export function marketingPriceForOrg(org: WingOrg): number {

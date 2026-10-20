@@ -140,6 +140,12 @@ Off by default. With `BYO_PROVIDER_ENABLED` unset nothing changes for any org.
 - Rotation: set `_PREVIOUS` = old, `PROVIDER_CREDENTIALS_KEY` = new, deploy, `pnpm db:rewrap-provider-creds`, remove `_PREVIOUS`, deploy.
 - No AWS, DNS or Caddy change on our side. Tenants point their own SNS topic / Mailgun webhooks at
   `https://<api>/v1/webhooks/byo/<token>/{ses|mailgun}` (shown on their Settings → Sender card).
+- SMTP (flagged orgs only): the **worker and api** need outbound TCP to the tenant's server on 465 or 587
+  (2525 allowed, untested from prod; 25 is never used). The host is re-resolved and vetted (no private,
+  loopback, link-local, metadata, CGNAT or ULA addresses) before every connect, TLS is mandatory, and no
+  test mail is sent on connect. SMTP has no event feed: DSNs go to the tenant's own mailbox, and an SMTP
+  org is held to 500 transactional + 500 marketing sends/day (API admission). Turning either flag off
+  fails that org's SMTP mail loudly; it never moves onto our SES. No new env and no inbound infra.
 
 ## Webhooks (post-deploy)
 - Stripe: point a webhook at `…/v1/webhooks/stripe`, set `STRIPE_WEBHOOK_SECRET`.

@@ -3,6 +3,7 @@ import { byoEffective, byoGloballyEnabled, decideProviderRoute, openCredentials,
 import { db, organizations, orgSendingProviders, workspaces } from "@rootmail/db";
 import { MailgunProvider, type MailgunCredentials } from "./mailgun";
 import { SesProvider, type SesCredentials } from "./ses";
+import { SmtpProvider } from "./smtp";
 import { getProviderFor } from "./index";
 import type { MailProvider } from "./types";
 
@@ -50,6 +51,8 @@ export interface ResolvedProvider {
 
 interface Cached {
   at: number;
+  /** The flag state the entry was resolved under; a flip invalidates it at once. */
+  flagged: boolean;
   resolved: ResolvedProvider | null;
   failure: ByoProviderUnavailable | null;
 }
@@ -80,6 +83,14 @@ function build(provider: string, raw: string, configurationSet: string | null, s
   }
   if (strict && provider === "mailgun" && !(str(creds.apiKey) && str(creds.domain))) {
     throw new Error("incomplete Mailgun credentials");
+  }
+  if (provider === "smtp") {
+    // BYO-only (the API never stores SMTP for an unflagged org), and always
+    // validated: there is no platform SMTP to fall back on.
+    if (!(str(creds.host) && typeof creds.port === "number" && str(creds.username) && str(creds.password))) {
+      throw new Error("incomplete SMTP credentials");
+    }
+    return new SmtpProvider({ host: creds.host, port: creds.port, username: creds.username, password: creds.password });
   }
   if (provider === "ses") {
     // Only the tenant's own configuration set — never ours (see sesConfigurationSetFor).
@@ -121,18 +132,19 @@ export async function resolveProviderForMessage(message: {
   if (!row) return ours();
 
   const gen = generation.get(row.orgId) ?? 0;
+  // The flags are read on every send (the org flag comes with the row above), so
+  // switching BYO off takes effect immediately rather than after the cache TTL.
+  const flagged = byoEffective(row.byoFlag, byoGloballyEnabled());
   const hit = cache.get(row.orgId);
-  if (hit && Date.now() - hit.at < CACHE_MS) {
+  if (hit && hit.flagged === flagged && Date.now() - hit.at < CACHE_MS) {
     if (hit.failure) throw hit.failure;
     return hit.resolved ?? ours();
   }
 
-  const flagged = byoEffective(row.byoFlag, byoGloballyEnabled());
-
   // Platform mail: decided before any connection lookup, so a stray row on the
   // internal org could never move our own mail onto a tenant account.
   if (row.isInternal) {
-    remember(row.orgId, gen, { resolved: null, failure: null });
+    remember(row.orgId, gen, { flagged, resolved: null, failure: null });
     return ours();
   }
 
@@ -144,7 +156,10 @@ export async function resolveProviderForMessage(message: {
 
   let own: MailProvider | null = null;
   let buildError: string | null = null;
-  if (conn && conn.status === "active") {
+  // SMTP exists only behind the flag: with the flag off it is neither used nor
+  // silently swapped for our SES (rollback must not move their volume onto us).
+  const byoOnly = conn?.provider === "smtp";
+  if (conn && conn.status === "active" && (flagged || !byoOnly)) {
     try {
       own = build(conn.provider, conn.credentials, conn.configurationSet ?? null, flagged);
       if (!own) buildError = `"${conn.provider}" is not a provider Rootmail can send through`;
@@ -160,11 +175,12 @@ export async function resolveProviderForMessage(message: {
     flagged,
     connection: conn ? { status: conn.status } : null,
     buildError,
+    byoOnly,
   });
 
   if (route.kind === "fail") {
     const failure = new ByoProviderUnavailable(conn?.provider ?? "provider", route.reason, row.orgId);
-    remember(row.orgId, gen, { resolved: null, failure });
+    remember(row.orgId, gen, { flagged, resolved: null, failure });
     throw failure;
   }
   if (route.kind === "own" && own) {
@@ -174,9 +190,9 @@ export async function resolveProviderForMessage(message: {
         ? { organizationId: row.orgId, providerName: conn!.provider, sendingDomains: conn!.sendingDomains ?? (conn!.sendingDomain ? [conn!.sendingDomain] : []) }
         : null,
     };
-    remember(row.orgId, gen, { resolved, failure: null });
+    remember(row.orgId, gen, { flagged, resolved, failure: null });
     return resolved;
   }
-  remember(row.orgId, gen, { resolved: null, failure: null });
+  remember(row.orgId, gen, { flagged, resolved: null, failure: null });
   return ours();
 }

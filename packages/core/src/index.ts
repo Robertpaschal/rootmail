@@ -30,3 +30,4 @@ export * from "./provider-rejections";
 export * from "./lifecycle-email";
 export * from "./envelope";
 export * from "./byo";
+export * from "./smtp-guard";

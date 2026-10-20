@@ -31,3 +31,8 @@ export function operatorReason(raw: string | null | undefined): string | null {
   }
   return text;
 }
+
+/** The name a customer knows their sending account by. */
+export function sendingProviderLabel(provider: string | null | undefined): string {
+  return provider === "mailgun" ? "Mailgun" : provider === "smtp" ? "SMTP server" : "Amazon SES";
+}

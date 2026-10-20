@@ -13,10 +13,11 @@ import {
   maskSecret,
   newId,
   sealCredentials,
+  SMTP_FEEDBACK_LIMITATION,
 } from "@rootmail/core";
 import { betaSenderDomain, byoStateForOrg, db, messages, orgSendingProviders, workspaces } from "@rootmail/db";
 import { requirePermission } from "../lib/permissions";
-import { checkSendingCredentials, listSesVerifiedIdentities } from "../lib/provider-check";
+import { checkSendingCredentials, checkSmtpCredentials, listSesVerifiedIdentities } from "../lib/provider-check";
 import { parse } from "../lib/validate";
 
 // Connecting your own sending account.
@@ -27,26 +28,39 @@ import { parse } from "../lib/validate";
 // their mail leaves on their reputation, under approval they already hold, and
 // our provider's opinion of us stops being a gate on their launch.
 
-const connectBody = z.discriminatedUnion("provider", [
-  z.object({
-    provider: z.literal("ses"),
-    access_key_id: z.string().min(16),
-    secret_access_key: z.string().min(16),
-    region: z.string().min(2).default("us-east-1"),
-    // BYO (flagged orgs only; ignored otherwise).
-    configuration_set: z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/).optional(),
-    sns_topic_arn: z.string().trim().regex(/^arn:aws:sns:[a-z0-9-]+:\d{12}:[A-Za-z0-9_-]{1,256}$/).optional(),
-  }),
-  z.object({
-    provider: z.literal("mailgun"),
-    api_key: z.string().min(8),
-    domain: z.string().min(3),
-    region: z.enum(["us", "eu"]).default("us"),
-    // BYO (flagged orgs only; ignored otherwise).
-    webhook_signing_key: z.string().min(8).optional(),
-  }),
-]);
+const sesBody = z.object({
+  provider: z.literal("ses"),
+  access_key_id: z.string().min(16),
+  secret_access_key: z.string().min(16),
+  region: z.string().min(2).default("us-east-1"),
+  // BYO (flagged orgs only; ignored otherwise).
+  configuration_set: z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9_-]+$/).optional(),
+  sns_topic_arn: z.string().trim().regex(/^arn:aws:sns:[a-z0-9-]+:\d{12}:[A-Za-z0-9_-]{1,256}$/).optional(),
+});
+const mailgunBody = z.object({
+  provider: z.literal("mailgun"),
+  api_key: z.string().min(8),
+  domain: z.string().min(3),
+  region: z.enum(["us", "eu"]).default("us"),
+  // BYO (flagged orgs only; ignored otherwise).
+  webhook_signing_key: z.string().min(8).optional(),
+});
+/** SMTP is BYO-only: a flagged org may connect its own server (see lib/provider-check + core/smtp-guard). */
+const smtpBody = z.object({
+  provider: z.literal("smtp"),
+  host: z.string().trim().min(3).max(253),
+  port: z.coerce.number().int(),
+  username: z.string().min(1).max(320),
+  password: z.string().min(1).max(1024),
+  /** Domains (or exact addresses) this server may send as. The From must be one of them. */
+  sending_domains: z.array(z.string().trim().toLowerCase().min(3).max(320)).min(1).max(20),
+});
+/** Exactly the pre-BYO schema: what an unflagged org is validated against. */
+const legacyConnectBody = z.discriminatedUnion("provider", [sesBody, mailgunBody]);
+const connectBody = z.discriminatedUnion("provider", [sesBody, mailgunBody, smtpBody]);
 type ConnectBody = z.infer<typeof connectBody>;
+
+const SMTP_NOT_AVAILABLE = "SMTP isn't available for this organization.";
 
 const BYO_DISCONNECTED_ERROR =
   "Not sent: you disconnected your own provider while this was queued. Nothing was sent through Rootmail's account.";
@@ -81,7 +95,9 @@ function serializeByo(row: typeof orgSendingProviders.$inferSelect) {
     sending_domains: row.sendingDomains ?? [],
     configuration_set: row.configurationSet,
     sns_topic_arn: row.snsTopicArn,
-    webhook_url: row.webhookToken
+    // SMTP has no event API, so no webhook; bounces go to the tenant's mailbox.
+    feedback: row.provider === "smtp" ? { kind: "none", note: SMTP_FEEDBACK_LIMITATION } : { kind: "webhook" },
+    webhook_url: row.webhookToken && row.provider !== "smtp"
       ? byoWebhookUrl(base, row.webhookToken, row.provider === "mailgun" ? "mailgun" : "ses")
       : null,
   };
@@ -100,6 +116,8 @@ async function byoValues(body: ConnectBody, existingToken: string | null) {
     const listed = await listSesVerifiedIdentities(body);
     if (!listed.ok) throw Errors.badRequest(`Those credentials didn't work: ${listed.reason}`);
     identities = listed.identities;
+  } else if (body.provider === "smtp") {
+    identities = [...new Set(body.sending_domains.map((d) => d.replace(/\.$/, "")))];
   } else {
     if (!body.webhook_signing_key) {
       throw Errors.badRequest("Add your Mailgun webhook signing key. Without it we can't verify bounces and complaints, so we can't keep your suppression list.");
@@ -110,17 +128,26 @@ async function byoValues(body: ConnectBody, existingToken: string | null) {
   if (body.provider === "mailgun" && owned.length) {
     throw Errors.badRequest(`${body.domain} is a Rootmail domain. Connect a domain your Mailgun account owns.`);
   }
+  if (body.provider === "smtp" && owned.length) {
+    throw Errors.badRequest(`${owned.join(", ")} ${owned.length === 1 ? "is a Rootmail domain" : "are Rootmail domains"}. List only domains your SMTP server sends for.`);
+  }
   identities = identities.filter((d) => !owned.includes(d));
   if (identities.length === 0) {
     throw Errors.badRequest("Your provider has no verified sending domain we can use yet. Verify one there, then connect again.");
   }
-  const secret = body.provider === "ses" ? body.secret_access_key : body.api_key;
-  const hint = body.provider === "ses" ? `${maskSecret(body.access_key_id)} · secret ${maskSecret(secret)}` : maskSecret(secret);
+  const hint =
+    body.provider === "ses"
+      ? `${maskSecret(body.access_key_id)} · secret ${maskSecret(body.secret_access_key)}`
+      : body.provider === "smtp"
+        ? `${body.host.toLowerCase()}:${body.port} · user ${maskSecret(body.username)}`
+        : maskSecret(body.api_key);
   const credentials = sealCredentials(
     JSON.stringify(
       body.provider === "ses"
         ? { accessKeyId: body.access_key_id, secretAccessKey: body.secret_access_key, region: body.region }
-        : { apiKey: body.api_key, domain: body.domain, region: body.region, webhookSigningKey: body.webhook_signing_key },
+        : body.provider === "smtp"
+          ? { host: body.host.toLowerCase(), port: body.port, username: body.username, password: body.password }
+          : { apiKey: body.api_key, domain: body.domain, region: body.region, webhookSigningKey: body.webhook_signing_key },
     ),
   );
   return {
@@ -164,16 +191,22 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
     await requirePermission(req, "domains.manage");
     const body = parse(connectBody, req.body);
     const orgId = req.auth.workspace.organizationId;
+    const byo = await byoStateForOrg(orgId);
+    // SMTP exists only behind the BYO flag. Unflagged, the request is judged by
+    // the pre-BYO schema, so it fails with exactly the validation error it did before.
+    if (body.provider === "smtp" && !byo.flagged) {
+      parse(legacyConnectBody, req.body);
+      throw Errors.badRequest(SMTP_NOT_AVAILABLE);
+    }
 
     // Checked BEFORE it is stored. A credential that fails here would fail
     // mid-campaign otherwise, and "we saved it, it just doesn't work" is the
     // worst version of this feature.
-    const check = await checkSendingCredentials(body);
+    const check = body.provider === "smtp" ? await checkSmtpCredentials(body) : await checkSendingCredentials(body);
     if (!check.ok) {
       throw Errors.badRequest(`Those credentials didn't work: ${check.reason}`);
     }
 
-    const byo = await byoStateForOrg(orgId);
     if (byo.flagged) {
       const extra = await byoValues(body, byo.connection?.webhookToken ?? null);
       const now = new Date();
@@ -195,12 +228,15 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
       await announceProviderChange(orgId);
       return {
         ...serializeByo(row),
-        note: body.provider === "ses"
+        note: body.provider === "smtp"
+          ? `Connected. We sent nothing; your server accepted a secure login. Sending as: ${extra.sendingDomains.join(", ")}. ${SMTP_FEEDBACK_LIMITATION}`
+          : body.provider === "ses"
           ? `Saved. We sent nothing; we checked the credentials and found ${extra.sendingDomains.length} verified identit${extra.sendingDomains.length === 1 ? "y" : "ies"}. Subscribe the URL below to your SNS topic — sending starts when the subscription confirms.`
           : `Connected. We sent nothing; we checked that the credentials work and found ${extra.sendingDomains.length} verified identit${extra.sendingDomains.length === 1 ? "y" : "ies"}. Point your Mailgun webhooks at the URL below.`,
       };
     }
 
+    if (body.provider === "smtp") throw Errors.badRequest(SMTP_NOT_AVAILABLE); // unreachable; narrows the type
     const credentials = encryptSecret(
       JSON.stringify(
         body.provider === "ses"

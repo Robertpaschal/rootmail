@@ -24,6 +24,24 @@ describe("BYO flag", () => {
   });
 });
 
+describe("decideProviderRoute — BYO-only kinds (SMTP)", () => {
+  const route = (o: Partial<Parameters<typeof decideProviderRoute>[0]>) =>
+    decideProviderRoute({ isInternal: false, flagged: false, connection: { status: "active" }, buildError: null, byoOnly: true, ...o });
+  it("unflagged: fails closed — never used, never swapped for ours", () => {
+    assert.equal(route({}).kind, "fail");
+    assert.equal(route({ connection: { status: "pending" } }).kind, "fail");
+    assert.equal(route({ buildError: "x" }).kind, "fail");
+  });
+  it("flagged: used when usable, loud when not", () => {
+    assert.equal(route({ flagged: true }).kind, "own");
+    assert.equal(route({ flagged: true, buildError: "x" }).kind, "fail");
+  });
+  it("platform mail and 'no connection' are unaffected", () => {
+    assert.equal(route({ isInternal: true }).kind, "platform");
+    assert.equal(route({ connection: null }).kind, "ours");
+  });
+});
+
 describe("decideProviderRoute — characterization of today's behaviour when unflagged", () => {
   const route = (o: Partial<Parameters<typeof decideProviderRoute>[0]>) =>
     decideProviderRoute({ isInternal: false, flagged: false, connection: null, buildError: null, ...o });
