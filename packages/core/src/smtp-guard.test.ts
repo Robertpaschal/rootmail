@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { describe, it } from "node:test";
 import {
   isBlockedSmtpAddress,
@@ -87,7 +88,7 @@ describe("smtpTransportOptions", () => {
 
 describe("smtpErrorReason", () => {
   it("uses only our wording and the numeric code — never the server's text, which could echo the password", () => {
-    const echo = "hunter2-secret";
+    const echo = randomBytes(9).toString("hex");
     const cases = [
       { code: "EAUTH", responseCode: 535, message: `Invalid login: 535 ${echo}`, response: `535 ${echo}` },
       { code: "EMESSAGE", responseCode: 554, message: echo, response: `554 rejected ${echo}` },

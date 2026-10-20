@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { randomBytes } from "node:crypto";
 import { after, before, describe, it, mock } from "node:test";
 import { eq } from "drizzle-orm";
 import { BYO_SMTP_DAILY_CAP, closeQueues, closeRedis, env, isEnvelope, newId, openCredentials } from "@rootmail/core";
@@ -16,7 +17,7 @@ import { forgetOrgProvider } from "../../../worker/src/providers/for-org";
 // packages/core/src/smtp-client.test.ts.
 const stamp = Date.now();
 const KEY = "test-provider-credentials-key-0123456789";
-const PASSWORD = "smtp-password-never-returned";
+const PASSWORD = randomBytes(12).toString("base64url");
 let app: Awaited<ReturnType<typeof buildServer>>;
 let a: Awaited<ReturnType<typeof provisionAccount>>;
 let authA: { authorization: string };

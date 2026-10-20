@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { connect, createServer, type AddressInfo, type Server, type Socket } from "node:net";
 import { tmpdir } from "node:os";
@@ -51,7 +52,7 @@ async function startServer(opts: Partial<SMTPServerOptions> = {}): Promise<{ por
     },
     onAuth(auth, session, cb) {
       seen.secureAtAuth.push(Boolean(session.secure));
-      if (auth.username === "tenant" && auth.password === "s3cret pass") return cb(null, { user: "tenant" });
+      if (auth.username === "tenant" && auth.password === PASSWORD) return cb(null, { user: "tenant" });
       return cb(Object.assign(new Error("Invalid login"), { responseCode: 535 }));
     },
     onMailFrom(a, _s, cb) { seen.mailFrom.push(a.address); cb(); },
@@ -99,7 +100,9 @@ async function forward2525(to: number): Promise<{ close: () => Promise<void> } |
   };
 }
 
-const login = { host: HOST, port: 2525, username: "tenant", password: "s3cret pass" };
+// Random per run, so no credential-shaped literal lives in the repo.
+const PASSWORD = `${randomBytes(12).toString("base64url")} x`;
+const login = { host: HOST, port: 2525, username: "tenant", password: PASSWORD };
 
 describe("tenant SMTP (real server on loopback)", () => {
   before(makeCerts);
@@ -160,10 +163,11 @@ describe("tenant SMTP (real server on loopback)", () => {
 
   it("wrong password: a clear reason that doesn't echo the password", async () => {
     await withServer({}, async (s) => {
-      const r = await verifySmtpLogin({ ...login, password: "nope-hunter2" }, hooksFor());
+      const wrong = randomBytes(12).toString("hex");
+      const r = await verifySmtpLogin({ ...login, password: wrong }, hooksFor());
       assert.equal(r.ok, false);
       assert.match((r as { reason: string }).reason, /username or password/);
-      assert.doesNotMatch((r as { reason: string }).reason, /hunter2/);
+      assert.equal((r as { reason: string }).reason.includes(wrong), false);
     });
   });
 
