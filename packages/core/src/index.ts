@@ -27,3 +27,4 @@ export * from "./dkim-rotation";
 export * from "./retry";
 export * from "./content-scan";
 export * from "./provider-rejections";
+export * from "./lifecycle-email";
