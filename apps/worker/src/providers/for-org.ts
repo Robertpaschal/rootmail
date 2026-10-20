@@ -75,6 +75,20 @@ function remember(orgId: string, gen: number, entry: Omit<Cached, "at">): void {
 
 const str = (v: unknown): v is string => typeof v === "string" && v.length > 0;
 
+/** A deliberate refusal with a message written for the tenant (never contains a credential). */
+class ByoConnectionUnusable extends Error {}
+
+/** SMTP, or SES through an IAM role: kinds that only exist while BYO is on for the org. */
+function isByoOnlyConnection(provider: string, raw: string): boolean {
+  if (provider === "smtp") return true;
+  if (provider !== "ses") return false;
+  try {
+    return (JSON.parse(openCredentials(raw)) as Record<string, unknown>).roleArn !== undefined;
+  } catch {
+    return false; // unreadable: handled exactly as before
+  }
+}
+
 /**
  * Assume-role credentials per org, refreshed ASSUME_ROLE_REFRESH_MS before they
  * expire. Cleared by forgetOrgProvider, and an assume that started before a
@@ -98,8 +112,8 @@ function build(orgId: string, provider: string, raw: string, configurationSet: s
   if (provider === "ses" && creds.roleArn !== undefined) {
     // BYO assume-role. Only ever stored for a flagged org, and always
     // validated: without the assumer role there is no way to reach their account.
-    if (!(str(creds.roleArn) && str(creds.externalId))) throw new Error("incomplete IAM role connection");
-    if (!assumeRoleAvailable()) throw new Error("sending through an IAM role isn't available on this server right now");
+    if (!(str(creds.roleArn) && str(creds.externalId))) throw new ByoConnectionUnusable("the IAM role connection is incomplete; reconnect it");
+    if (!assumeRoleAvailable()) throw new ByoConnectionUnusable("sending through an IAM role isn't available on this server right now");
     return new SesProvider({
       credentialProvider: roleCredentialProvider(orgId, creds.roleArn, creds.externalId),
       region: str(creds.region) ? creds.region : undefined,
@@ -187,17 +201,19 @@ export async function resolveProviderForMessage(message: {
 
   let own: MailProvider | null = null;
   let buildError: string | null = null;
-  // SMTP exists only behind the flag: with the flag off it is neither used nor
-  // silently swapped for our SES (rollback must not move their volume onto us).
-  const byoOnly = conn?.provider === "smtp";
+  // SMTP and IAM-role connections exist only behind the flag: with the flag off
+  // they are neither used nor silently swapped for our SES (rollback must not
+  // move their volume onto us).
+  const byoOnly = conn ? isByoOnlyConnection(conn.provider, conn.credentials) : false;
   if (conn && conn.status === "active" && (flagged || !byoOnly)) {
     try {
       own = build(row.orgId, conn.provider, conn.credentials, conn.configurationSet ?? null, flagged);
       if (!own) buildError = `"${conn.provider}" is not a provider Rootmail can send through`;
-    } catch {
-      // Undecryptable or malformed. The message never includes the value.
+    } catch (e) {
+      // Undecryptable or malformed. The message never includes the value —
+      // only our own wording when we refused deliberately.
       own = null;
-      buildError = "the stored credentials could not be read; reconnect the account";
+      buildError = e instanceof ByoConnectionUnusable ? e.message : "the stored credentials could not be read; reconnect the account";
     }
   }
 

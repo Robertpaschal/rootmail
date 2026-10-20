@@ -188,7 +188,26 @@ describe("flag ON", () => {
     await processSend({ messageId: id } as Parameters<typeof processSend>[0]);
     const [m] = await db.select().from(messages).where(eq(messages.id, id));
     assert.equal(m.status, "failed");
-    assert.match(m.error ?? "", /^Not sent: your Amazon SES account/);
+    assert.match(m.error ?? "", /^Not sent: your Amazon SES account didn't accept this message \(sending through an IAM role isn't available/);
     env.BYO_ASSUMER_ROLE_ARN = ASSUMER;
   });
+
+  for (const which of ["global switch", "org flag"] as const) {
+    it(`turning the ${which} off fails role mail loudly — never our SES, no assume`, async () => {
+      if (which === "global switch") env.BYO_PROVIDER_ENABLED = undefined;
+      else await flagOrg(false);
+      forgetOrgProvider(a.organizationId);
+      const n0 = assumes.length;
+      const s0 = sesCalls.length;
+      const id = await queue(`off-${which.length}-${stamp}@example.test`);
+      await processSend({ messageId: id } as Parameters<typeof processSend>[0]);
+      const [m] = await db.select().from(messages).where(eq(messages.id, id));
+      assert.equal(m.status, "failed");
+      assert.match(m.error ?? "", /switched off/);
+      assert.equal(assumes.length, n0);
+      assert.equal(sesCalls.length, s0);
+      env.BYO_PROVIDER_ENABLED = "true";
+      await flagOrg(true);
+    });
+  }
 });
