@@ -2,7 +2,7 @@ import { and, desc, eq, ilike, inArray, isNull, or, sql, type SQL } from "drizzl
 import type { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import { z } from "zod";
 import { CONTACT_STAGES, CONTACT_STATUSES, Errors, newId, verifyUnsubscribeToken } from "@rootmail/core";
-import { auditEntries, contactEvents, contactNotes, contacts, db, emitContactEvent, listContacts, lists, messages, suppressions } from "@rootmail/db";
+import { auditEntries, contactEvents, contactNotes, contacts, db, emitContactEvent, isInternalWorkspace, listContacts, lists, messages, suppressions, users } from "@rootmail/db";
 import { requirePermission } from "../lib/permissions";
 import { addSuppression, findContact, isSuppressed } from "../lib/queries";
 import { evaluateTriggers, exitEnrollments } from "../lib/sequence-triggers";
@@ -30,6 +30,71 @@ const browseQuery = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   offset: z.coerce.number().int().min(0).default(0),
 });
+
+type UnsubscribePayload = NonNullable<ReturnType<typeof verifyUnsubscribeToken>>;
+
+/** Active `unsubscribe` suppression in exactly this token's scope? */
+async function hasUnsubscribeSuppression(p: UnsubscribePayload): Promise<boolean> {
+  const [row] = await db
+    .select({ id: suppressions.id })
+    .from(suppressions)
+    .where(
+      and(
+        eq(suppressions.workspaceId, p.w),
+        p.s ? eq(suppressions.subTenantId, p.s) : isNull(suppressions.subTenantId),
+        eq(suppressions.email, p.e),
+        eq(suppressions.reason, "unsubscribe"),
+      ),
+    )
+    .limit(1);
+  return row != null;
+}
+
+/**
+ * Our own marketing mail (announcements, win-back) is signed into rootmail-hq's
+ * workspace. An unsubscribe there is also the user's announcement preference —
+ * the same column the settings toggle writes — so the dashboard tells the truth
+ * and the announcement audience filter (announcement_opt_out_at IS NULL) drops
+ * them too. Only sets it when unset: an earlier opt-out time is kept.
+ */
+async function applyPlatformOptOut(p: UnsubscribePayload): Promise<void> {
+  if (!(await isInternalWorkspace(p.w))) return;
+  await db
+    .update(users)
+    .set({ announcementOptOutAt: new Date(), updatedAt: new Date() })
+    .where(and(sql`lower(${users.email}) = ${p.e.toLowerCase()}`, isNull(users.announcementOptOutAt)));
+}
+
+/**
+ * The shared effect of a confirmed GET and an RFC 8058 POST. The first call
+ * behaves exactly as before. A repeat (an `unsubscribe` suppression already in
+ * this scope) is a no-op: no contact event, no new rows — mailbox providers and
+ * users both retry, and each retry was logging another "unsubscribed".
+ */
+async function applyUnsubscribe(p: UnsubscribePayload, source: "unsubscribe_link" | "one_click"): Promise<void> {
+  // Runs on repeats too, so someone who one-clicked before this shipped gets
+  // their preference corrected the next time they press it. Idempotent.
+  await applyPlatformOptOut(p);
+  if (await hasUnsubscribeSuppression(p)) return;
+
+  const existing = await findContact(p.w, p.s ?? null, p.e);
+  if (existing) {
+    await db
+      .update(contacts)
+      .set({ status: "unsubscribed", updatedAt: new Date() })
+      .where(eq(contacts.id, existing.id));
+  }
+  await addSuppression(p.w, p.s ?? null, p.e, "unsubscribe", null, source);
+  void exitEnrollments(p.w, p.e, "unsubscribed");
+  void emitContactEvent({
+    workspaceId: p.w,
+    subTenantId: p.s ?? null,
+    contactId: existing?.id ?? null,
+    email: p.e,
+    kind: "unsubscribed",
+    metadata: { source },
+  });
+}
 
 export async function contactRoutes(app: FastifyInstance): Promise<void> {
   // --- Browse (paged; search + tag/status filters) --------------------------
@@ -222,23 +287,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
     }
 
     if (confirm === "1") {
-      const existing = await findContact(payload.w, payload.s ?? null, payload.e);
-      if (existing) {
-        await db
-          .update(contacts)
-          .set({ status: "unsubscribed", updatedAt: new Date() })
-          .where(eq(contacts.id, existing.id));
-      }
-      await addSuppression(payload.w, payload.s ?? null, payload.e, "unsubscribe", null, "unsubscribe_link");
-      void exitEnrollments(payload.w, payload.e, "unsubscribed");
-      void emitContactEvent({
-        workspaceId: payload.w,
-        subTenantId: payload.s ?? null,
-        contactId: existing?.id ?? null,
-        email: payload.e,
-        kind: "unsubscribed",
-        metadata: { source: "unsubscribe_link" },
-      });
+      await applyUnsubscribe(payload, "unsubscribe_link");
       return reply
         .type("text/html")
         .send(unsubPage("Unsubscribed", "<p>You've been unsubscribed and won't receive further emails.</p>"));
@@ -263,23 +312,7 @@ export async function contactRoutes(app: FastifyInstance): Promise<void> {
     const payload = token ? verifyUnsubscribeToken(token) : null;
     if (!payload) return reply.code(400).send({ ok: false, error: "invalid token" });
 
-    const existing = await findContact(payload.w, payload.s ?? null, payload.e);
-    if (existing) {
-      await db
-        .update(contacts)
-        .set({ status: "unsubscribed", updatedAt: new Date() })
-        .where(eq(contacts.id, existing.id));
-    }
-    await addSuppression(payload.w, payload.s ?? null, payload.e, "unsubscribe", null, "one_click");
-    void exitEnrollments(payload.w, payload.e, "unsubscribed");
-    void emitContactEvent({
-      workspaceId: payload.w,
-      subTenantId: payload.s ?? null,
-      contactId: existing?.id ?? null,
-      email: payload.e,
-      kind: "unsubscribed",
-      metadata: { source: "one_click" },
-    });
+    await applyUnsubscribe(payload, "one_click");
     return reply.send({ ok: true });
   };
   // Mailbox providers send the RFC 8058 body `List-Unsubscribe=One-Click` as

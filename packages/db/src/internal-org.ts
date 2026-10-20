@@ -210,3 +210,25 @@ export async function internalOrgId(): Promise<string | null> {
     .limit(1);
   return row?.id ?? null;
 }
+
+/**
+ * True when `workspaceId` is rootmail-hq's own customer workspace — the scope
+ * our system marketing mail (announcements, win-back) is signed into. A pure
+ * lookup: unlike `ensureInternalAccount` it never creates anything, so a public
+ * route can call it without bootstrapping the internal org as a side effect.
+ */
+export async function isInternalWorkspace(workspaceId: string): Promise<boolean> {
+  const [row] = await db
+    .select({ id: workspaces.id })
+    .from(workspaces)
+    .innerJoin(organizations, eq(organizations.id, workspaces.organizationId))
+    .where(
+      and(
+        eq(workspaces.id, workspaceId),
+        eq(workspaces.slug, "customers"),
+        eq(organizations.slug, INTERNAL_ORG_SLUG),
+      ),
+    )
+    .limit(1);
+  return row != null;
+}
