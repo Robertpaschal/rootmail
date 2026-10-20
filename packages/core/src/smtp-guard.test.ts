@@ -86,10 +86,22 @@ describe("smtpTransportOptions", () => {
 });
 
 describe("smtpErrorReason", () => {
-  it("never echoes the password and names the problem", () => {
-    assert.match(smtpErrorReason({ code: "EAUTH", responseCode: 535, message: "Invalid login: 535 pass=hunter2" }), /username or password \(535\)/);
-    assert.doesNotMatch(smtpErrorReason({ code: "EAUTH", message: "hunter2" }), /hunter2/);
+  it("uses only our wording and the numeric code — never the server's text, which could echo the password", () => {
+    const echo = "hunter2-secret";
+    const cases = [
+      { code: "EAUTH", responseCode: 535, message: `Invalid login: 535 ${echo}`, response: `535 ${echo}` },
+      { code: "EMESSAGE", responseCode: 554, message: echo, response: `554 rejected ${echo}` },
+      { code: "EENVELOPE", responseCode: 550, response: `550 ${echo}` },
+      { code: "EPROTOCOL", message: echo },
+      { code: "ESOCKET", message: echo },
+      { message: echo, response: echo },
+      new Error(echo),
+    ];
+    for (const c of cases) assert.doesNotMatch(smtpErrorReason(c), new RegExp(echo), JSON.stringify(c));
+    assert.equal(smtpErrorReason(cases[0]), "the server rejected the username or password (535)");
+    assert.equal(smtpErrorReason(cases[1]), "the server refused the message (554)");
     assert.match(smtpErrorReason({ code: "ETIMEDOUT" }), /timed out/);
+    assert.match(smtpErrorReason({ code: "ESOCKET", message: "Hostname/IP does not match certificate's altnames" }), /certificate/);
     assert.match(smtpErrorReason(new SmtpGuardError("x resolves to a private or reserved address")), /private/);
   });
 });

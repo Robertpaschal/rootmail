@@ -183,6 +183,33 @@ describe("flag ON — SMTP", () => {
     assert.match(conn.lastError ?? "", /couldn't connect/);
   });
 
+  it("non-beta orgs on SMTP get the same ceiling", async () => {
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, a.organizationId));
+    const capped = await capOrg({ ...org, isBeta: false });
+    assert.ok(txDailyLimitForOrg(capped) <= BYO_SMTP_DAILY_CAP);
+    assert.ok(marketingDailyLimitForOrg(capped) <= BYO_SMTP_DAILY_CAP);
+  });
+
+  for (const which of ["global switch", "org flag"] as const) {
+    it(`turning the ${which} off fails SMTP mail loudly — never our SES, never their server`, async () => {
+      if (which === "global switch") env.BYO_PROVIDER_ENABLED = undefined;
+      else await flagOrg(false);
+      forgetOrgProvider(a.organizationId);
+      const before = sendCalls.length;
+      const id = newId("message");
+      await db.insert(messages).values({ id, workspaceId: a.production.id, toEmail: `off-${stamp}@example.test`, fromEmail: "hi@acme.example", subject: "s", status: "queued", renderedHtml: "<p>x</p>", renderedText: "x" });
+      await processSend({ messageId: id } as Parameters<typeof processSend>[0]);
+      const [m] = await db.select().from(messages).where(eq(messages.id, id));
+      assert.equal(m.status, "failed");
+      assert.match(m.error ?? "", /switched off/);
+      assert.equal(m.providerMessageId, null);
+      assert.equal(sendCalls.length, before);
+      env.BYO_PROVIDER_ENABLED = "true";
+      await flagOrg(true);
+      forgetOrgProvider(a.organizationId);
+    });
+  }
+
   it("unreadable SMTP credentials fail loudly too", async () => {
     await db.update(orgSendingProviders).set({ credentials: "garbage" }).where(eq(orgSendingProviders.organizationId, a.organizationId));
     forgetOrgProvider(a.organizationId);

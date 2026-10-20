@@ -144,7 +144,8 @@ Off by default. With `BYO_PROVIDER_ENABLED` unset nothing changes for any org.
   (2525 allowed, untested from prod; 25 is never used). The host is re-resolved and vetted (no private,
   loopback, link-local, metadata, CGNAT or ULA addresses) before every connect, TLS is mandatory, and no
   test mail is sent on connect. SMTP has no event feed: DSNs go to the tenant's own mailbox, and an SMTP
-  org is held to 500 sends/day. No new env and no inbound infra.
+  org is held to 500 transactional + 500 marketing sends/day (API admission). Turning either flag off
+  fails that org's SMTP mail loudly; it never moves onto our SES. No new env and no inbound infra.
 
 ## Webhooks (post-deploy)
 - Stripe: point a webhook at `…/v1/webhooks/stripe`, set `STRIPE_WEBHOOK_SECRET`.

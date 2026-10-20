@@ -30,6 +30,8 @@ export const SMTP_TIMEOUTS = {
   connection: 10_000,
   greeting: 10_000,
   socket: 30_000,
+  /** Absolute ceiling for one whole verify or send, however the server paces it. */
+  total: 60_000,
 } as const;
 
 const blocked = new BlockList();
@@ -140,6 +142,7 @@ export interface SmtpTestHooks {
   resolve?: HostLookup;
   isBlocked?: (ip: string) => boolean;
   testCa?: string;
+  deadlineMs?: number;
 }
 
 const defaultLookup: HostLookup = (host) => lookup(host, { all: true, verbatim: true });
@@ -235,17 +238,39 @@ export function smtpTransportOptions(
   };
 }
 
-/** A short, credential-free reason from a nodemailer / guard error. */
+/**
+ * A short reason that is safe to store and show. Only OUR fixed wording and the
+ * server's numeric reply code are used — never the server's text or an
+ * arbitrary error message, because a hostile server can echo the password we
+ * just sent it.
+ */
 export function smtpErrorReason(e: unknown): string {
-  const err = e as { name?: string; code?: string; responseCode?: number; response?: string; message?: string };
+  const err = e as { name?: string; code?: string; responseCode?: number; message?: string };
   if (err?.name === "SmtpGuardError") return err.message ?? "the SMTP server was refused";
-  if (err?.code === "EAUTH") return `the server rejected the username or password${err.responseCode ? ` (${err.responseCode})` : ""}`;
-  if (err?.code === "ETLS" || /STARTTLS/i.test(err?.message ?? "")) return "the server didn't offer a secure (TLS) connection";
-  if (err?.code === "ETIMEDOUT" || err?.code === "ECONNECTION" || err?.code === "ESOCKET") {
-    return `couldn't connect to the server (${err.code === "ETIMEDOUT" ? "timed out" : (err.message ?? err.code).slice(0, 120)})`;
+  const code = typeof err?.responseCode === "number" ? ` (${err.responseCode})` : "";
+  switch (err?.code) {
+    case "EAUTH":
+      return `the server rejected the username or password${code}`;
+    case "ETLS":
+      return "the server didn't offer a secure (TLS) connection";
+    case "ETIMEDOUT":
+      return "couldn't connect to the server (timed out)";
+    case "ECONNECTION":
+    case "ESOCKET":
+    case "ECONNREFUSED":
+    case "ECONNRESET":
+      return /certificate|altnames|self[- ]signed|CERT_|unable to verify/i.test(err?.message ?? "")
+        ? "the server's TLS certificate isn't valid for that hostname"
+        : "couldn't connect to the server, or it closed the connection";
+    case "EENVELOPE":
+      return `the server refused the sender or recipient${code}`;
+    case "EMESSAGE":
+      return `the server refused the message${code}`;
+    case "EPROTOCOL":
+      return `the server replied in a way we didn't expect${code}`;
+    default:
+      return `the SMTP server refused it${code}`;
   }
-  if (err?.response) return `the server said: ${err.response.slice(0, 200)}`;
-  return (err?.message ?? "the SMTP server refused the message").slice(0, 200);
 }
 
 /** SMTP has no event API: bounces (DSNs) go back to the tenant's own MAIL FROM mailbox. */

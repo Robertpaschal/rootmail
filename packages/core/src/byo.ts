@@ -40,10 +40,15 @@ export function decideProviderRoute(input: {
   flagged: boolean;
   connection: { status: string } | null;
   buildError: string | null;
+  /** A kind that exists only behind the flag (SMTP). Never routed — nor replaced by ours — while unflagged. */
+  byoOnly?: boolean;
 }): ProviderRoute {
   if (input.isInternal) return { kind: "platform" };
   const c = input.connection;
   if (!c) return { kind: "ours" };
+  if (input.byoOnly && !input.flagged) {
+    return { kind: "fail", reason: "own-provider sending is switched off for your organization, so this connection can't be used" };
+  }
   const usable = c.status === "active" && input.buildError === null;
   if (usable) return { kind: "own" };
   if (!input.flagged) return { kind: "ours" };

@@ -256,7 +256,7 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
                 <span className="font-medium text-foreground">Limitation:</span> SMTP has no event feed,
                 so bounces go back to your own mailbox, not to Rootmail, and we can&apos;t add them to
                 your suppression list automatically. Unsubscribes are still suppressed. Because of
-                that, an SMTP connection sends up to 500 messages a day. We log in to check the
+                that, an SMTP connection sends up to 500 transactional and 500 marketing emails a day. We log in to check the
                 details before saving; we don&apos;t send a test message.
               </p>
             </div>

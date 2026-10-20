@@ -30,17 +30,21 @@ import {
 export type BillableOrg = WingOrg & { id: string };
 
 /**
- * The org as the DAILY cap should see it. Only a beta tester can be affected,
- * and only when BYO is on for it and its own provider is active; for everyone
- * else (and always while BYO_PROVIDER_ENABLED is off) the same object comes
- * back with no query made.
+ * The org as the DAILY cap should see it. Only an org with BYO on AND its own
+ * provider active can be affected: a beta tester's beta cap is lifted, and an
+ * SMTP connection (beta or not) gets a ceiling. For everyone else — and always
+ * while BYO_PROVIDER_ENABLED is off — the same object comes back, with no query
+ * made while the switch is off.
  */
 export async function capOrg<T extends BillableOrg>(org: T): Promise<T> {
-  if (!org.isBeta || org.isInternal || !byoGloballyEnabled()) return org;
+  if (org.isInternal || !byoGloballyEnabled()) return org;
   const byo = await byoStateForOrg(org.id);
   if (!byo.flagged || byo.connection?.status !== "active") return org;
-  // SMTP has no bounce feedback, so it gets a ceiling instead of the tier's full rate.
-  return { ...org, byoActive: true, byoDailyCap: byo.connection.provider === "smtp" ? BYO_SMTP_DAILY_CAP : null };
+  // SMTP has no bounce feedback, so it gets a ceiling instead of the tier's full
+  // rate — for every org on it, beta or not.
+  const smtp = byo.connection.provider === "smtp";
+  if (!org.isBeta && !smtp) return org;
+  return { ...org, byoActive: true, byoDailyCap: smtp ? BYO_SMTP_DAILY_CAP : null };
 }
 
 export function planFor(org: BillableOrg): PlanDef {

@@ -178,3 +178,31 @@ describe("tenant SMTP (real server on loopback)", () => {
     });
   });
 });
+
+describe("absolute deadline", () => {
+  it("a server that trickles its greeting can't hold the connection past the deadline", async () => {
+    // Sends a 220- continuation line every 300ms forever: each step stays under
+    // nodemailer's per-step timeouts, so only our absolute deadline ends it.
+    const open = new Set<Socket>();
+    const trickle = createServer((c) => {
+      open.add(c);
+      const t = setInterval(() => c.write("220-still here\r\n"), 300);
+      c.on("close", () => { clearInterval(t); open.delete(c); });
+      c.on("error", () => clearInterval(t));
+    });
+    await new Promise<void>((r) => trickle.listen(0, "127.0.0.1", r));
+    const fwd = await forward2525((trickle.address() as AddressInfo).port);
+    assert.ok(fwd, "port 2525 free");
+    try {
+      const started = Date.now();
+      const r = await verifySmtpLogin(login, { ...hooksFor(), deadlineMs: 1500 });
+      assert.equal(r.ok, false);
+      assert.match((r as { reason: string }).reason, /took longer than 2s|took longer than 1s/);
+      assert.ok(Date.now() - started < 4000);
+    } finally {
+      await fwd!.close();
+      for (const c of open) c.destroy();
+      await new Promise<void>((r) => trickle.close(() => r()));
+    }
+  });
+});

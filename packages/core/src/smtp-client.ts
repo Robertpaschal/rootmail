@@ -1,5 +1,6 @@
+import { connect, type Socket } from "node:net";
 import nodemailer from "nodemailer";
-import { resolveSmtpTarget, smtpErrorReason, smtpTransportOptions, type SmtpTestHooks } from "./smtp-guard";
+import { resolveSmtpTarget, SMTP_TIMEOUTS, smtpErrorReason, smtpTransportOptions, SmtpGuardError, type SmtpTestHooks } from "./smtp-guard";
 
 /**
  * The only two things Rootmail does with a tenant's SMTP server. Kept out of the
@@ -15,15 +16,43 @@ export interface SmtpLogin {
   password: string;
 }
 
+/**
+ * Open the TCP connection ourselves (to the vetted IP — nodemailer never
+ * resolves or connects on its own) so the whole exchange has an ABSOLUTE
+ * deadline: nodemailer's timeouts are per-step and per-inactivity, and a server
+ * that trickles bytes could otherwise hold a worker slot or API request forever.
+ */
 async function withTransport<T>(login: SmtpLogin, hooks: SmtpTestHooks, fn: (t: nodemailer.Transporter) => Promise<T>): Promise<T> {
+  const deadlineMs = hooks.deadlineMs ?? SMTP_TIMEOUTS.total;
+  const startedAt = Date.now();
   const target = await resolveSmtpTarget(login.host, login.port, hooks);
-  const transport = nodemailer.createTransport(
-    smtpTransportOptions(target, { user: login.username, pass: login.password }, hooks.testCa),
-  );
+  const sockets: Socket[] = [];
+  const transport = nodemailer.createTransport({
+    ...smtpTransportOptions(target, { user: login.username, pass: login.password }, hooks.testCa),
+    getSocket: (_opts: unknown, cb: (err: Error | null, socketOptions?: { connection: Socket }) => void) => {
+      const socket = connect({ host: target.ip, port: target.port });
+      sockets.push(socket);
+      const onError = (e: Error) => cb(e);
+      socket.once("error", onError);
+      socket.once("connect", () => {
+        socket.off("error", onError);
+        cb(null, { connection: socket });
+      });
+    },
+  } as Parameters<typeof nodemailer.createTransport>[0]);
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      for (const s of sockets) s.destroy();
+      reject(new SmtpGuardError(`the server took longer than ${Math.round(deadlineMs / 1000)}s to finish`));
+    }, Math.max(0, deadlineMs - (Date.now() - startedAt)));
+  });
   try {
-    return await fn(transport);
+    return await Promise.race([fn(transport), deadline]);
   } finally {
+    clearTimeout(timer);
     transport.close();
+    for (const s of sockets) s.destroy();
   }
 }
 

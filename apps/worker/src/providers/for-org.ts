@@ -153,7 +153,10 @@ export async function resolveProviderForMessage(message: {
 
   let own: MailProvider | null = null;
   let buildError: string | null = null;
-  if (conn && conn.status === "active") {
+  // SMTP exists only behind the flag: with the flag off it is neither used nor
+  // silently swapped for our SES (rollback must not move their volume onto us).
+  const byoOnly = conn?.provider === "smtp";
+  if (conn && conn.status === "active" && (flagged || !byoOnly)) {
     try {
       own = build(conn.provider, conn.credentials, conn.configurationSet ?? null, flagged);
       if (!own) buildError = `"${conn.provider}" is not a provider Rootmail can send through`;
@@ -169,6 +172,7 @@ export async function resolveProviderForMessage(message: {
     flagged,
     connection: conn ? { status: conn.status } : null,
     buildError,
+    byoOnly,
   });
 
   if (route.kind === "fail") {
