@@ -195,6 +195,9 @@ describe("flag ON", () => {
     assert.equal(res.statusCode, 200, res.body);
     assert.deepEqual(res.json().sending_domains, ["acme.example"]);
     assert.equal(res.json().configuration_set, "their-set");
+    assert.equal(res.json().status, "awaiting_feedback", "no sending until the SNS subscription confirms");
+    const [org] = await db.select().from(organizations).where(eq(organizations.id, b.organizationId));
+    assert.equal(txDailyLimitForOrg(await capOrg(org)), env.BETA_DAILY_SEND_CAP, "cap stays until feedback is live");
     assert.equal(res.body.includes("secretsecretsecret1234"), false);
   });
 
@@ -266,6 +269,38 @@ describe("flag ON", () => {
     const [m] = await db.select().from(messages).where(eq(messages.id, id));
     assert.doesNotMatch(m.error ?? "", /Not sent: your/);
     await flagOrg(a.organizationId, true);
+  });
+
+  it("flagged: credentials missing fields fail loudly instead of borrowing our env keys", async () => {
+    await db.update(orgSendingProviders).set({ credentials: sealCredentials("{}") })
+      .where(eq(orgSendingProviders.organizationId, a.organizationId));
+    forgetOrgProvider(a.organizationId);
+    const id = newId("message");
+    await db.insert(messages).values({ id, workspaceId: a.production.id, toEmail: `empty-${stamp}@example.test`, fromEmail: "hi@mg.acme.example", subject: "s", status: "queued", renderedHtml: "<p>x</p>", renderedText: "x" });
+    await processSend({ messageId: id } as Parameters<typeof processSend>[0]);
+    const [m] = await db.select().from(messages).where(eq(messages.id, id));
+    assert.equal(m.status, "failed");
+    assert.match(m.error ?? "", /^Not sent: your Mailgun account/);
+  });
+
+  it("disconnecting fails mail still queued for the tenant's account", async () => {
+    const id = newId("message");
+    await db.insert(messages).values({ id, workspaceId: a.production.id, toEmail: `queued-${stamp}@example.test`, fromEmail: "hi@mg.acme.example", subject: "s", status: "queued" });
+    assert.equal((await req("DELETE", "/v1/sending-provider")).statusCode, 200);
+    const [m] = await db.select().from(messages).where(eq(messages.id, id));
+    assert.equal(m.status, "failed");
+    assert.match(m.error ?? "", /disconnected your own provider/);
+    // reconnect for the next test
+    await req("POST", "/v1/sending-provider", { provider: "mailgun", api_key: "key-abcdefgh12345678", domain: "mg.acme.example", webhook_signing_key: MG_SIGNING });
+  });
+
+  it("the BYO Mailgun route never falls back to OUR signing key", async () => {
+    env.MAILGUN_WEBHOOK_SIGNING_KEY = "global-key-1234";
+    const [conn] = await db.select().from(orgSendingProviders).where(eq(orgSendingProviders.organizationId, a.organizationId));
+    await db.update(orgSendingProviders).set({ credentials: sealCredentials(JSON.stringify({ apiKey: "k", domain: "mg.acme.example" })) })
+      .where(eq(orgSendingProviders.id, conn.id));
+    const res = await app.inject({ method: "POST", url: `/v1/webhooks/byo/${conn.webhookToken}/mailgun`, payload: mgBody("global-key-1234", "x", "complained", "x@x.test") });
+    assert.equal(res.statusCode, 403);
   });
 
   it("legacy single-key rows still open after BYO is switched on", async () => {

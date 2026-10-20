@@ -45,7 +45,11 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
         {current?.provider === "mailgun" ? "Mailgun" : "Amazon SES"}
       </StateBadge>
       <span className="text-xs text-muted-foreground">
-        {current?.status === "active" ? "your account" : (current?.last_error ?? current?.status)}
+        {current?.status === "active"
+          ? "your account"
+          : current?.status === "awaiting_feedback"
+            ? "waiting for your SNS subscription to confirm"
+            : (current?.last_error ?? current?.status)}
       </span>
     </span>
   ) : (

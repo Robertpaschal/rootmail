@@ -43,6 +43,10 @@ describe("decideProviderRoute — characterization of today's behaviour when unf
     const r = route({ flagged: true, connection: { status: "active" }, buildError: "bad creds" });
     assert.deepEqual(r, { kind: "fail", reason: "bad creds" });
     assert.deepEqual(route({ flagged: true, connection: { status: "active" } }), { kind: "own" });
+    const waiting = route({ flagged: true, connection: { status: "awaiting_feedback" } });
+    assert.equal(waiting.kind, "fail");
+    assert.match((waiting as { reason: string }).reason, /SNS topic hasn't confirmed/);
+    assert.deepEqual(route({ connection: { status: "awaiting_feedback" } }), { kind: "ours" }, "unflagged unchanged");
   });
   it("platform mail is ours explicitly, even if a connection row existed", () => {
     for (const flagged of [false, true]) {

@@ -15,6 +15,9 @@ export function byoEffective(orgFlag: boolean | null | undefined, global = byoGl
   return global && orgFlag === true;
 }
 
+/** An SES connection saved but whose SNS topic has not confirmed its subscription yet. */
+export const BYO_AWAITING_FEEDBACK = "awaiting_feedback";
+
 export type ProviderRoute =
   | { kind: "platform" }
   | { kind: "ours" }
@@ -44,6 +47,9 @@ export function decideProviderRoute(input: {
   const usable = c.status === "active" && input.buildError === null;
   if (usable) return { kind: "own" };
   if (!input.flagged) return { kind: "ours" };
+  if (c.status === BYO_AWAITING_FEEDBACK) {
+    return { kind: "fail", reason: "your SNS topic hasn't confirmed its subscription to Rootmail yet, so bounces couldn't reach your suppression list" };
+  }
   if (c.status !== "active") {
     return { kind: "fail", reason: `the connection is ${c.status}` };
   }

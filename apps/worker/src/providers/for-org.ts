@@ -55,14 +55,32 @@ interface Cached {
 }
 const CACHE_MS = 60_000;
 const cache = new Map<string, Cached>();
+/** Bumped on every invalidation, so a resolve that started before it never re-caches stale credentials. */
+const generation = new Map<string, number>();
 
 /** Forget an org's cached provider — called when they connect, replace or disconnect one. */
 export function forgetOrgProvider(organizationId: string): void {
   cache.delete(organizationId);
+  generation.set(organizationId, (generation.get(organizationId) ?? 0) + 1);
 }
 
-function build(provider: string, raw: string, configurationSet: string | null): MailProvider | null {
-  const creds = JSON.parse(openCredentials(raw)) as Record<string, string>;
+function remember(orgId: string, gen: number, entry: Omit<Cached, "at">): void {
+  if ((generation.get(orgId) ?? 0) === gen) cache.set(orgId, { at: Date.now(), ...entry });
+}
+
+const str = (v: unknown): v is string => typeof v === "string" && v.length > 0;
+
+function build(provider: string, raw: string, configurationSet: string | null, strict: boolean): MailProvider | null {
+  const creds = JSON.parse(openCredentials(raw)) as Record<string, unknown>;
+  // Flagged orgs: validate before constructing — a provider built from `{}`
+  // would quietly fall back to OUR env credentials inside the provider class.
+  // (Unflagged orgs keep exactly the previous construction.)
+  if (strict && provider === "ses" && !(str(creds.accessKeyId) && str(creds.secretAccessKey))) {
+    throw new Error("incomplete SES credentials");
+  }
+  if (strict && provider === "mailgun" && !(str(creds.apiKey) && str(creds.domain))) {
+    throw new Error("incomplete Mailgun credentials");
+  }
   if (provider === "ses") {
     // Only the tenant's own configuration set — never ours (see sesConfigurationSetFor).
     return new SesProvider({ ...(creds as unknown as SesCredentials), configurationSet });
@@ -102,6 +120,7 @@ export async function resolveProviderForMessage(message: {
     .limit(1);
   if (!row) return ours();
 
+  const gen = generation.get(row.orgId) ?? 0;
   const hit = cache.get(row.orgId);
   if (hit && Date.now() - hit.at < CACHE_MS) {
     if (hit.failure) throw hit.failure;
@@ -113,7 +132,7 @@ export async function resolveProviderForMessage(message: {
   // Platform mail: decided before any connection lookup, so a stray row on the
   // internal org could never move our own mail onto a tenant account.
   if (row.isInternal) {
-    cache.set(row.orgId, { at: Date.now(), resolved: null, failure: null });
+    remember(row.orgId, gen, { resolved: null, failure: null });
     return ours();
   }
 
@@ -127,7 +146,7 @@ export async function resolveProviderForMessage(message: {
   let buildError: string | null = null;
   if (conn && conn.status === "active") {
     try {
-      own = build(conn.provider, conn.credentials, conn.configurationSet ?? null);
+      own = build(conn.provider, conn.credentials, conn.configurationSet ?? null, flagged);
       if (!own) buildError = `"${conn.provider}" is not a provider Rootmail can send through`;
     } catch {
       // Undecryptable or malformed. The message never includes the value.
@@ -145,7 +164,7 @@ export async function resolveProviderForMessage(message: {
 
   if (route.kind === "fail") {
     const failure = new ByoProviderUnavailable(conn?.provider ?? "provider", route.reason, row.orgId);
-    cache.set(row.orgId, { at: Date.now(), resolved: null, failure });
+    remember(row.orgId, gen, { resolved: null, failure });
     throw failure;
   }
   if (route.kind === "own" && own) {
@@ -155,9 +174,9 @@ export async function resolveProviderForMessage(message: {
         ? { organizationId: row.orgId, providerName: conn!.provider, sendingDomains: conn!.sendingDomains ?? (conn!.sendingDomain ? [conn!.sendingDomain] : []) }
         : null,
     };
-    cache.set(row.orgId, { at: Date.now(), resolved, failure: null });
+    remember(row.orgId, gen, { resolved, failure: null });
     return resolved;
   }
-  cache.set(row.orgId, { at: Date.now(), resolved: null, failure: null });
+  remember(row.orgId, gen, { resolved: null, failure: null });
   return ours();
 }

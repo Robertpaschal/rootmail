@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { randomBytes } from "node:crypto";
 import {
   announceProviderChange,
+  BYO_AWAITING_FEEDBACK,
   byoWebhookUrl,
   Errors,
   encryptSecret,
@@ -13,7 +14,7 @@ import {
   newId,
   sealCredentials,
 } from "@rootmail/core";
-import { betaSenderDomain, byoStateForOrg, db, orgSendingProviders } from "@rootmail/db";
+import { betaSenderDomain, byoStateForOrg, db, messages, orgSendingProviders, workspaces } from "@rootmail/db";
 import { requirePermission } from "../lib/permissions";
 import { checkSendingCredentials, listSesVerifiedIdentities } from "../lib/provider-check";
 import { parse } from "../lib/validate";
@@ -46,6 +47,9 @@ const connectBody = z.discriminatedUnion("provider", [
   }),
 ]);
 type ConnectBody = z.infer<typeof connectBody>;
+
+const BYO_DISCONNECTED_ERROR =
+  "Not sent: you disconnected your own provider while this was queued. Nothing was sent through Rootmail's account.";
 
 /** Domains we refuse to route through anyone else's account. */
 const ownedExtras = () => [env.INBOUND_DOMAIN, betaSenderDomain()];
@@ -176,7 +180,9 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
       const values = {
         provider: body.provider,
         sendingDomain: extra.sendingDomains[0] ?? null,
-        status: "active",
+        // SES sends only once its SNS topic has confirmed the subscription to
+        // our URL — suppression is mandatory, so no feedback means no sending.
+        status: body.provider === "ses" ? BYO_AWAITING_FEEDBACK : "active",
         lastError: null,
         lastCheckedAt: now,
         verifiedAt: now,
@@ -189,7 +195,9 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
       await announceProviderChange(orgId);
       return {
         ...serializeByo(row),
-        note: `Connected. We sent nothing; we checked that the credentials work and found ${extra.sendingDomains.length} verified identit${extra.sendingDomains.length === 1 ? "y" : "ies"}. Point your ${body.provider === "ses" ? "SNS topic" : "Mailgun webhooks"} at the URL below.`,
+        note: body.provider === "ses"
+          ? `Saved. We sent nothing; we checked the credentials and found ${extra.sendingDomains.length} verified identit${extra.sendingDomains.length === 1 ? "y" : "ies"}. Subscribe the URL below to your SNS topic — sending starts when the subscription confirms.`
+          : `Connected. We sent nothing; we checked that the credentials work and found ${extra.sendingDomains.length} verified identit${extra.sendingDomains.length === 1 ? "y" : "ies"}. Point your Mailgun webhooks at the URL below.`,
       };
     }
 
@@ -249,6 +257,16 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
     if (!row) throw Errors.notFound("No sending provider is connected.");
 
     await db.delete(orgSendingProviders).where(eq(orgSendingProviders.id, row.id));
+    // Flagged: mail already queued was admitted for THEIR account (beta cap
+    // lifted). It must not drain onto ours after a disconnect.
+    const byo = await byoStateForOrg(orgId);
+    if (byo.flagged) {
+      await db
+        .update(messages)
+        .set({ status: "failed", error: BYO_DISCONNECTED_ERROR, updatedAt: new Date() })
+        .where(and(eq(messages.status, "queued"), inArray(messages.workspaceId,
+          db.select({ id: workspaces.id }).from(workspaces).where(eq(workspaces.organizationId, orgId)))));
+    }
     await announceProviderChange(orgId);
     return {
       object: "sending_provider",

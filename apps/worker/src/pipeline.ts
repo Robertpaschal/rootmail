@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 import {
   type AuditEvent,
   decryptSecret,
@@ -517,6 +517,13 @@ export async function processSend(data: SendJobData): Promise<void> {
         updatedAt: new Date(),
       })
       .where(eq(messages.id, message.id));
+    // A send that went through clears a stale error on the tenant's card.
+    if (resolved.byo) {
+      await db
+        .update(orgSendingProviders)
+        .set({ lastError: null, lastCheckedAt: new Date() })
+        .where(and(eq(orgSendingProviders.organizationId, resolved.byo.organizationId), isNotNull(orgSendingProviders.lastError)));
+    }
     // Record the test-alias → simulator mapping on the trail, so the audit shows
     // exactly where a test send actually went (never a hidden rewrite).
     await audit(message, "sent", {

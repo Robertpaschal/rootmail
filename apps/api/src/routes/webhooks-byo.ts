@@ -1,6 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
-import { byoEffective, byoGloballyEnabled, getRedis, openCredentials, snsTopicMatches } from "@rootmail/core";
+import { announceProviderChange, BYO_AWAITING_FEEDBACK, byoEffective, byoGloballyEnabled, getRedis, openCredentials, snsTopicMatches } from "@rootmail/core";
 import { db, organizations, orgSendingProviders } from "@rootmail/db";
 import { applySesNotification, classify, parseSesNotification } from "../lib/ses-events";
 import { confirmSubscription, type SnsMessage, verifySnsSignature } from "../lib/sns";
@@ -65,19 +65,34 @@ export async function byoWebhookRoutes(app: FastifyInstance): Promise<void> {
 
     if (msg.Type === "SubscriptionConfirmation") {
       await confirmSubscription(msg, (arn) => snsTopicMatches(conn.snsTopicArn, arn));
+      // Feedback is now flowing, so the connection may send.
+      if (conn.status === BYO_AWAITING_FEEDBACK) {
+        await db
+          .update(orgSendingProviders)
+          .set({ status: "active", lastError: null, lastCheckedAt: new Date(), updatedAt: new Date() })
+          .where(eq(orgSendingProviders.id, conn.id));
+        await announceProviderChange(conn.organizationId);
+      }
       return reply.code(200).send({ ok: true });
     }
     if (msg.Type !== "Notification") return reply.code(200).send({ ok: true });
 
-    const fresh = await getRedis().set(`sns:seen:byo:${conn.organizationId}:${msg.MessageId}`, "1", "EX", DEDUP_TTL_SECONDS, "NX");
+    const dedupeKey = `sns:seen:byo:${conn.organizationId}:${msg.MessageId}`;
+    const fresh = await getRedis().set(dedupeKey, "1", "EX", DEDUP_TTL_SECONDS, "NX");
     if (fresh === null) return reply.code(200).send({ ok: true, duplicate: true });
 
     const n = parseSesNotification(msg.Message);
     // Inbound mail is never accepted through a tenant topic; replies come only
     // through our own receiving domain.
     if (n && classify(n) !== "received") {
-      const kind = await applySesNotification(n, { organizationId: conn.organizationId, source: "byo:ses" });
-      app.log.info({ kind, org: conn.organizationId }, "processed BYO SES notification");
+      try {
+        const kind = await applySesNotification(n, { organizationId: conn.organizationId, source: "byo:ses" });
+        app.log.info({ kind, org: conn.organizationId }, "processed BYO SES notification");
+      } catch (err) {
+        // Let SNS's retry through: a lost bounce is a lost suppression.
+        await getRedis().del(dedupeKey);
+        throw err;
+      }
     }
     return reply.code(200).send({ ok: true });
   });
@@ -95,6 +110,7 @@ export async function byoWebhookRoutes(app: FastifyInstance): Promise<void> {
       key,
       organizationId: conn.organizationId,
       source: "byo:mailgun",
+      releaseDedupeOnError: true,
     });
     return reply.code(out.code).send(out.body);
   });

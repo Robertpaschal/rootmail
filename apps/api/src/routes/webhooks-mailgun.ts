@@ -16,7 +16,9 @@ import { applyProviderOutcome } from "../lib/provider-events";
 /** Mailgun signs `timestamp + token` with HMAC-SHA256. */
 export function verifyMailgunSignature(
   sig: { timestamp?: string; token?: string; signature?: string },
-  key: string | undefined = env.MAILGUN_WEBHOOK_SIGNING_KEY,
+  // No default on purpose: a tenant route with a missing key must fail closed,
+  // never quietly verify against OUR key.
+  key: string | undefined,
 ): boolean {
   if (!key || !sig.timestamp || !sig.token || !sig.signature) return false;
 
@@ -52,6 +54,8 @@ export interface MailgunEventScope {
   organizationId?: string;
   /** Source recorded on suppressions. */
   source: string;
+  /** BYO: if applying the event throws, drop the dedupe marker so the provider's retry is processed. */
+  releaseDedupeOnError?: boolean;
 }
 
 async function findMessage(providerMessageId: string, organizationId?: string) {
@@ -84,6 +88,19 @@ export async function handleMailgunEvent(
   const fresh = await getRedis().set(dedupeKey, "1", "EX", 3600, "NX");
   if (fresh === null) return { code: 200, body: { ok: true, duplicate: true } };
 
+  if (!scope.releaseDedupeOnError) return applyMailgunEvent(body, scope);
+  try {
+    return await applyMailgunEvent(body, scope);
+  } catch (err) {
+    await getRedis().del(dedupeKey);
+    throw err;
+  }
+}
+
+async function applyMailgunEvent(
+  body: MailgunEvent,
+  scope: MailgunEventScope,
+): Promise<{ code: number; body: Record<string, unknown> }> {
   const d = body["event-data"];
   if (!d?.event) return { code: 200, body: { ok: true, ignored: true } };
 

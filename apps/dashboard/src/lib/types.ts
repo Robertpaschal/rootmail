@@ -1278,7 +1278,7 @@ export interface SendingProvider {
   connected?: false;
   provider?: "ses" | "mailgun";
   sending_domain?: string | null;
-  status?: "pending" | "active" | "failed";
+  status?: "pending" | "active" | "failed" | "awaiting_feedback";
   last_error?: string | null;
   verified_at?: string | null;
   last_checked_at?: string | null;
