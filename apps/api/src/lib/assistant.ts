@@ -382,8 +382,9 @@ customer portal, subscription portal, or invent a separate billing or subscripti
 Discover ids with the list_* tools before acting; never invent ids. Confirm actions with the ids returned.
 When diagnosing deliverability, gather evidence first (list_messages filtered by status, then get_message /
 get_message_audit, and check_suppression for the recipient), then explain the cause in plain language and
-the concrete next step — e.g. "this address hard-bounced and is now suppressed; correct the address or
-remove the suppression." Be concise.
+the concrete next step — e.g. "this address hard-bounced and is now suppressed; correct the address, or
+contact Rootmail support to review a bounce or complaint suppression. An unsubscribe clears when you
+resubscribe the contact." Be concise.
 
 Plan multi-step work, then report it:
 - For a compound request (e.g. "set up a welcome flow for my beta list"), decide the step order FIRST —
@@ -794,7 +795,7 @@ async function mockAssistant(
       .map((m) => `• ${m.to ?? "?"} — ${m.error || status}`)
       .join("\n");
     return {
-      reply: `${data.length} recent ${status} message(s):\n${lines}\n\nA suppressed recipient (after a hard bounce/complaint) is the usual cause a later email never lands — fix the address or remove the suppression. (Set ANTHROPIC_API_KEY for a full diagnosis.)`,
+      reply: `${data.length} recent ${status} message(s):\n${lines}\n\nA suppressed recipient (after a hard bounce/complaint) is the usual cause a later email never lands — fix the address, or contact Rootmail support about a bounce or complaint suppression. An unsubscribe clears when you resubscribe the contact. (Set ANTHROPIC_API_KEY for a full diagnosis.)`,
       actions,
       source: "mock",
     };
