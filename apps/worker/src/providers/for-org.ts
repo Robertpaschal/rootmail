@@ -3,6 +3,7 @@ import { byoEffective, byoGloballyEnabled, decideProviderRoute, openCredentials,
 import { db, organizations, orgSendingProviders, workspaces } from "@rootmail/db";
 import { MailgunProvider, type MailgunCredentials } from "./mailgun";
 import { SesProvider, type SesCredentials } from "./ses";
+import { SmtpProvider } from "./smtp";
 import { getProviderFor } from "./index";
 import type { MailProvider } from "./types";
 
@@ -80,6 +81,14 @@ function build(provider: string, raw: string, configurationSet: string | null, s
   }
   if (strict && provider === "mailgun" && !(str(creds.apiKey) && str(creds.domain))) {
     throw new Error("incomplete Mailgun credentials");
+  }
+  if (provider === "smtp") {
+    // BYO-only (the API never stores SMTP for an unflagged org), and always
+    // validated: there is no platform SMTP to fall back on.
+    if (!(str(creds.host) && typeof creds.port === "number" && str(creds.username) && str(creds.password))) {
+      throw new Error("incomplete SMTP credentials");
+    }
+    return new SmtpProvider({ host: creds.host, port: creds.port, username: creds.username, password: creds.password });
   }
   if (provider === "ses") {
     // Only the tenant's own configuration set — never ours (see sesConfigurationSetFor).

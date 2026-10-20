@@ -1276,7 +1276,7 @@ export interface SendingProvider {
   object: "sending_provider";
   id?: string;
   connected?: false;
-  provider?: "ses" | "mailgun";
+  provider?: "ses" | "mailgun" | "smtp";
   sending_domain?: string | null;
   status?: "pending" | "active" | "failed" | "awaiting_feedback";
   last_error?: string | null;
@@ -1290,4 +1290,6 @@ export interface SendingProvider {
   configuration_set?: string | null;
   sns_topic_arn?: string | null;
   webhook_url?: string | null;
+  /** SMTP: "none" — there is no event feed; bounces go to the tenant's own mailbox. */
+  feedback?: { kind: "none" | "webhook"; note?: string };
 }

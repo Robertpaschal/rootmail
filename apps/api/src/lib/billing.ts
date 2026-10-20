@@ -1,7 +1,7 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
-import { AUDIENCE_PACK_SIZE, byoGloballyEnabled, CONTACT_PACK_SIZE, Errors, newId, platformReplyTo, type PlanDef } from "@rootmail/core";
+import { AUDIENCE_PACK_SIZE, BYO_SMTP_DAILY_CAP, byoGloballyEnabled, CONTACT_PACK_SIZE, Errors, newId, platformReplyTo, type PlanDef } from "@rootmail/core";
 import {
-  byoActiveForOrg,
+  byoStateForOrg,
   db,
   listContacts,
   lists,
@@ -37,7 +37,10 @@ export type BillableOrg = WingOrg & { id: string };
  */
 export async function capOrg<T extends BillableOrg>(org: T): Promise<T> {
   if (!org.isBeta || org.isInternal || !byoGloballyEnabled()) return org;
-  return (await byoActiveForOrg(org.id)) ? { ...org, byoActive: true } : org;
+  const byo = await byoStateForOrg(org.id);
+  if (!byo.flagged || byo.connection?.status !== "active") return org;
+  // SMTP has no bounce feedback, so it gets a ceiling instead of the tier's full rate.
+  return { ...org, byoActive: true, byoDailyCap: byo.connection.provider === "smtp" ? BYO_SMTP_DAILY_CAP : null };
 }
 
 export function planFor(org: BillableOrg): PlanDef {

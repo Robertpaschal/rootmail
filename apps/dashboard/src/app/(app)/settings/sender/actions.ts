@@ -166,6 +166,19 @@ export async function connectSendingProvider(
           ...optional(formData, "sns_topic_arn"),
           ...optional(formData, "configuration_set"),
         }
+      : provider === "smtp"
+        ? {
+            provider: "smtp",
+            host: String(formData.get("smtp_host") ?? "").trim(),
+            port: Number(formData.get("smtp_port") ?? 587),
+            username: String(formData.get("smtp_username") ?? "").trim(),
+            // Not trimmed: a password may legitimately start or end with a space.
+            password: String(formData.get("smtp_password") ?? ""),
+            sending_domains: String(formData.get("smtp_sending_domains") ?? "")
+              .split(/[\s,]+/)
+              .map((d) => d.trim())
+              .filter(Boolean),
+          }
       : {
           provider: "mailgun",
           api_key: String(formData.get("api_key") ?? "").trim(),

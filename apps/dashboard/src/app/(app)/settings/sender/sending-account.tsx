@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { sendingProviderLabel } from "@/lib/provider-copy";
 import type { SendingProvider } from "@/lib/types";
 
 /**
@@ -31,7 +32,7 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
   // Bring-your-own-provider (beta). Only the API decides this; unflagged orgs
   // see exactly the card they saw before.
   const byo = current?.byo === true;
-  const [choice, setChoice] = useState<"ses" | "mailgun">(current?.provider ?? "ses");
+  const [choice, setChoice] = useState<"ses" | "mailgun" | "smtp">(current?.provider ?? "ses");
   const [state, action, pending] = useActionState<ProviderState, FormData>(
     connectSendingProvider,
     {},
@@ -42,7 +43,7 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
   const value = connected ? (
     <span className="inline-flex items-center gap-2">
       <StateBadge tone={current?.status === "active" && !(byo && current?.last_error) ? "ok" : "warn"}>
-        {current?.provider === "mailgun" ? "Mailgun" : "Amazon SES"}
+        {sendingProviderLabel(current?.provider)}
       </StateBadge>
       <span className="text-xs text-muted-foreground">
         {current?.status === "active"
@@ -91,7 +92,7 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
             <span className="text-sm">
               Connected to{" "}
               <span className="font-medium">
-                {current?.provider === "mailgun" ? "Mailgun" : "Amazon SES"}
+                {sendingProviderLabel(current?.provider)}
               </span>
               {current?.sending_domain ? (
                 <span className="text-muted-foreground"> · {current.sending_domain}</span>
@@ -126,10 +127,12 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
               id="provider"
               name="provider"
               value={choice}
-              onChange={(e) => setChoice(e.target.value as "ses" | "mailgun")}
+              onChange={(e) => setChoice(e.target.value as "ses" | "mailgun" | "smtp")}
             >
               <option value="ses">Amazon SES</option>
               <option value="mailgun">Mailgun</option>
+              {/* SMTP is bring-your-own only: the API refuses it for other orgs. */}
+              {byo ? <option value="smtp">SMTP server</option> : null}
             </Select>
           </div>
 
@@ -212,6 +215,53 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
             ) : null}
           </div>
 
+          {byo ? (
+            <div className={cn("space-y-4", choice === "smtp" ? "" : "hidden")}>
+              <div className="grid gap-4 sm:grid-cols-[1fr_8rem]">
+                <div className="space-y-2">
+                  <Label htmlFor="smtp_host">Server hostname</Label>
+                  <Input id="smtp_host" name="smtp_host" placeholder="smtp.yourcompany.com" autoComplete="off" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="smtp_port">Port</Label>
+                  <Select id="smtp_port" name="smtp_port" defaultValue="587">
+                    <option value="587">587 (STARTTLS)</option>
+                    <option value="465">465 (TLS)</option>
+                    <option value="2525">2525 (STARTTLS)</option>
+                  </Select>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                We recommend 587 or 465. The connection must be encrypted: TLS on 465, STARTTLS on
+                587 and 2525. Port 25 isn&apos;t supported.
+              </p>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="smtp_username">Username</Label>
+                  <Input id="smtp_username" name="smtp_username" autoComplete="off" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="smtp_password">Password</Label>
+                  <Input id="smtp_password" name="smtp_password" type="password" autoComplete="off" />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="smtp_sending_domains">Domains this server sends for</Label>
+                <Input id="smtp_sending_domains" name="smtp_sending_domains" placeholder="yourcompany.com, mail.yourcompany.com" autoComplete="off" />
+                <p className="text-xs text-muted-foreground">
+                  Your From address must be on one of these. Your server signs DKIM, as it does today.
+                </p>
+              </div>
+              <p className="rounded-lg border p-3 text-xs leading-relaxed text-muted-foreground">
+                <span className="font-medium text-foreground">Limitation:</span> SMTP has no event feed,
+                so bounces go back to your own mailbox, not to Rootmail, and we can&apos;t add them to
+                your suppression list automatically. Unsubscribes are still suppressed. Because of
+                that, an SMTP connection sends up to 500 messages a day. We log in to check the
+                details before saving; we don&apos;t send a test message.
+              </p>
+            </div>
+          ) : null}
+
           {state.error ? (
             <p className="text-sm text-stopped" role="alert">
               {state.error}
@@ -250,9 +300,15 @@ function ByoDetails({ current }: { current: SendingProvider }) {
         </div>
       ) : null}
       <div className="flex gap-2">
-        <dt className="text-muted-foreground">Verified there</dt>
+        <dt className="text-muted-foreground">{current.provider === "smtp" ? "Sends as" : "Verified there"}</dt>
         <dd>{current.sending_domains?.length ? current.sending_domains.join(", ") : "nothing yet"}</dd>
       </div>
+      {current.feedback?.kind === "none" ? (
+        <div className="space-y-1">
+          <dt className="text-muted-foreground">Bounces and complaints</dt>
+          <dd className="text-xs">No feedback loop. {current.feedback.note}</dd>
+        </div>
+      ) : null}
       {current.webhook_url ? (
         <div className="space-y-1">
           <dt className="text-muted-foreground">

@@ -1,3 +1,5 @@
+import type { SmtpTestHooks } from "@rootmail/core";
+import { smtpClient, type SmtpLogin } from "@rootmail/core/smtp-client";
 import { GetAccountCommand, ListEmailIdentitiesCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 
 /**
@@ -112,4 +114,14 @@ export async function listSesVerifiedIdentities(input: {
     }
     return { ok: false, reason: (e as Error)?.message ?? "AWS rejected the identity lookup." };
   }
+}
+
+/**
+ * A tenant's own SMTP server: vet the host (SSRF guard), connect to the vetted
+ * IP with SNI, require TLS, authenticate, then QUIT. No message is sent.
+ * `testHooks` exist for tests only.
+ */
+export async function checkSmtpCredentials(input: SmtpLogin, testHooks: SmtpTestHooks = {}): Promise<CredentialCheck> {
+  const res = await smtpClient.verifySmtpLogin(input, testHooks);
+  return res.ok ? { ok: true, note: "SMTP server accepted a secure login." } : res;
 }
