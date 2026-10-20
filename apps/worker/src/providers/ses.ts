@@ -22,8 +22,13 @@ function formatAddress(email: string, name?: string | null): string {
  */
 /** A customer's own SES credentials, when they have connected their account. */
 export interface SesCredentials {
-  accessKeyId: string;
-  secretAccessKey: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  /**
+   * BYO assume-role: short-lived credentials for the tenant's role, refreshed
+   * before expiry (see for-org.ts). Takes precedence over the static keys.
+   */
+  credentialProvider?: () => Promise<{ accessKeyId: string; secretAccessKey: string; sessionToken: string; expiration: Date }>;
   region?: string;
   /** The tenant's OWN configuration set in their account, if they have one. */
   configurationSet?: string | null;
@@ -63,7 +68,7 @@ export class SesProvider implements MailProvider {
     this.client = creds
       ? new SESv2Client({
           region: creds.region ?? env.AWS_REGION ?? "us-east-1",
-          credentials: { accessKeyId: creds.accessKeyId, secretAccessKey: creds.secretAccessKey },
+          credentials: creds.credentialProvider ?? { accessKeyId: creds.accessKeyId!, secretAccessKey: creds.secretAccessKey! },
         })
       : new SESv2Client(env.AWS_REGION ? { region: env.AWS_REGION } : {});
   }

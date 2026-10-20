@@ -32,7 +32,7 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
   // Bring-your-own-provider (beta). Only the API decides this; unflagged orgs
   // see exactly the card they saw before.
   const byo = current?.byo === true;
-  const [choice, setChoice] = useState<"ses" | "mailgun" | "smtp">(current?.provider ?? "ses");
+  const [choice, setChoice] = useState<"ses" | "ses_role" | "mailgun" | "smtp">(current?.provider ?? "ses");
   const [state, action, pending] = useActionState<ProviderState, FormData>(
     connectSendingProvider,
     {},
@@ -127,9 +127,11 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
               id="provider"
               name="provider"
               value={choice}
-              onChange={(e) => setChoice(e.target.value as "ses" | "mailgun" | "smtp")}
+              onChange={(e) => setChoice(e.target.value as "ses" | "ses_role" | "mailgun" | "smtp")}
             >
-              <option value="ses">Amazon SES</option>
+              <option value="ses">{current?.assume_role ? "Amazon SES (access keys)" : "Amazon SES"}</option>
+              {/* Only when ops configured our assumer role (the API refuses it otherwise). */}
+              {byo && current?.assume_role ? <option value="ses_role">Amazon SES (IAM role)</option> : null}
               <option value="mailgun">Mailgun</option>
               {/* SMTP is bring-your-own only: the API refuses it for other orgs. */}
               {byo ? <option value="smtp">SMTP server</option> : null}
@@ -214,6 +216,35 @@ export function SendingAccount({ current }: { current: SendingProvider | null })
               </div>
             ) : null}
           </div>
+
+          {byo && current?.assume_role ? (
+            <div className={cn("space-y-4", choice === "ses_role" ? "" : "hidden")}>
+              <RoleSetup setup={current.assume_role} />
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="role_arn">Role ARN</Label>
+                  <Input id="role_arn" name="role_arn" placeholder="arn:aws:iam::123456789012:role/rootmail-sender" autoComplete="off" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role_region">Region</Label>
+                  <Input id="role_region" name="role_region" defaultValue="us-east-1" autoComplete="off" />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="role_sns_topic_arn">SNS topic for bounces and complaints</Label>
+                  <Input id="role_sns_topic_arn" name="role_sns_topic_arn" placeholder="arn:aws:sns:us-east-1:123456789012:ses-feedback" autoComplete="off" />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="role_configuration_set">Configuration set (optional)</Label>
+                  <Input id="role_configuration_set" name="role_configuration_set" placeholder="your own set, if any" autoComplete="off" />
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                No keys are stored: we assume the role for 15 minutes at a time. We check it before saving and send nothing.
+              </p>
+            </div>
+          ) : null}
 
           {byo ? (
             <div className={cn("space-y-4", choice === "smtp" ? "" : "hidden")}>
@@ -320,5 +351,27 @@ function ByoDetails({ current }: { current: SendingProvider }) {
         </div>
       ) : null}
     </dl>
+  );
+}
+
+/** The two policies a tenant pastes into IAM to let Rootmail assume their role. */
+function RoleSetup({ setup }: { setup: NonNullable<SendingProvider["assume_role"]> }) {
+  return (
+    <div className="space-y-3 rounded-lg border p-3 text-xs leading-relaxed">
+      <p className="text-muted-foreground">
+        Create a role Rootmail can assume. Use this external ID exactly:{" "}
+        <code className="font-mono text-foreground">{setup.external_id}</code>. It needs{" "}
+        <code className="font-mono">ses:SendEmail</code>, <code className="font-mono">ses:GetAccount</code> and{" "}
+        <code className="font-mono">ses:ListEmailIdentities</code>, nothing else.
+      </p>
+      <div className="space-y-1">
+        <p className="font-medium">Trust policy</p>
+        <pre className="overflow-x-auto rounded bg-muted/60 p-2 font-mono">{JSON.stringify(setup.trust_policy, null, 2)}</pre>
+      </div>
+      <div className="space-y-1">
+        <p className="font-medium">Permissions policy</p>
+        <pre className="overflow-x-auto rounded bg-muted/60 p-2 font-mono">{JSON.stringify(setup.permissions_policy, null, 2)}</pre>
+      </div>
+    </div>
   );
 }
