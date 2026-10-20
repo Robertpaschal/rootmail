@@ -64,6 +64,11 @@ after(async () => {
 
 const req = (method: "GET" | "POST" | "DELETE", url: string, payload?: Record<string, unknown>) =>
   app.inject({ method, url, headers: authA, payload });
+const queueMsg = async (to: string) => {
+  const id = newId("message");
+  await db.insert(messages).values({ id, workspaceId: a.production.id, toEmail: to, fromEmail: "hi@acme.example", subject: "s", status: "queued", renderedHtml: "<p>x</p>", renderedText: "x" });
+  return id;
+};
 const flagOrg = (on: boolean) => db.update(organizations).set({ byoProvider: on }).where(eq(organizations.id, a.organizationId));
 
 describe("flag OFF — SMTP does not exist (characterization)", () => {
@@ -192,9 +197,11 @@ describe("flag ON — SMTP", () => {
 
   for (const which of ["global switch", "org flag"] as const) {
     it(`turning the ${which} off fails SMTP mail loudly — never our SES, never their server`, async () => {
+      // Warm the provider cache first: the flip must win over a cached SMTP provider.
+      forgetOrgProvider(a.organizationId);
+      await processSend({ messageId: await queueMsg(`warm-${which.length}-${stamp}@example.test`) } as Parameters<typeof processSend>[0]);
       if (which === "global switch") env.BYO_PROVIDER_ENABLED = undefined;
       else await flagOrg(false);
-      forgetOrgProvider(a.organizationId);
       const before = sendCalls.length;
       const id = newId("message");
       await db.insert(messages).values({ id, workspaceId: a.production.id, toEmail: `off-${stamp}@example.test`, fromEmail: "hi@acme.example", subject: "s", status: "queued", renderedHtml: "<p>x</p>", renderedText: "x" });

@@ -51,6 +51,8 @@ export interface ResolvedProvider {
 
 interface Cached {
   at: number;
+  /** The flag state the entry was resolved under; a flip invalidates it at once. */
+  flagged: boolean;
   resolved: ResolvedProvider | null;
   failure: ByoProviderUnavailable | null;
 }
@@ -130,18 +132,19 @@ export async function resolveProviderForMessage(message: {
   if (!row) return ours();
 
   const gen = generation.get(row.orgId) ?? 0;
+  // The flags are read on every send (the org flag comes with the row above), so
+  // switching BYO off takes effect immediately rather than after the cache TTL.
+  const flagged = byoEffective(row.byoFlag, byoGloballyEnabled());
   const hit = cache.get(row.orgId);
-  if (hit && Date.now() - hit.at < CACHE_MS) {
+  if (hit && hit.flagged === flagged && Date.now() - hit.at < CACHE_MS) {
     if (hit.failure) throw hit.failure;
     return hit.resolved ?? ours();
   }
 
-  const flagged = byoEffective(row.byoFlag, byoGloballyEnabled());
-
   // Platform mail: decided before any connection lookup, so a stray row on the
   // internal org could never move our own mail onto a tenant account.
   if (row.isInternal) {
-    remember(row.orgId, gen, { resolved: null, failure: null });
+    remember(row.orgId, gen, { flagged, resolved: null, failure: null });
     return ours();
   }
 
@@ -177,7 +180,7 @@ export async function resolveProviderForMessage(message: {
 
   if (route.kind === "fail") {
     const failure = new ByoProviderUnavailable(conn?.provider ?? "provider", route.reason, row.orgId);
-    remember(row.orgId, gen, { resolved: null, failure });
+    remember(row.orgId, gen, { flagged, resolved: null, failure });
     throw failure;
   }
   if (route.kind === "own" && own) {
@@ -187,9 +190,9 @@ export async function resolveProviderForMessage(message: {
         ? { organizationId: row.orgId, providerName: conn!.provider, sendingDomains: conn!.sendingDomains ?? (conn!.sendingDomain ? [conn!.sendingDomain] : []) }
         : null,
     };
-    remember(row.orgId, gen, { resolved, failure: null });
+    remember(row.orgId, gen, { flagged, resolved, failure: null });
     return resolved;
   }
-  remember(row.orgId, gen, { resolved: null, failure: null });
+  remember(row.orgId, gen, { flagged, resolved: null, failure: null });
   return ours();
 }
