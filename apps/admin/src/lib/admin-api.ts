@@ -178,6 +178,12 @@ export const adminApi = {
   sendAnnouncement: (body: { subject: string; body: string }) =>
     adminFetch<{ id: string; sent: number }>("/v1/admin/announcements", { method: "POST", body }),
   listAnnouncements: () => adminFetch<ListResponse<Announcement>>("/v1/admin/announcements"),
+  /** Staff-only: one preview of a marketing-class system email, to the caller's own address. */
+  sendSystemMailPreview: (kind: "announcement" | "win_back") =>
+    adminFetch<{ to: string; subject: string; used_today: number; daily_cap: number }>(
+      "/v1/admin/system-mail/preview",
+      { method: "POST", body: { kind } },
+    ),
 
   listPromotions: () => adminFetch<ListResponse<Promotion>>("/v1/admin/promotions"),
   createPromotion: (body: CreatePromotion) =>

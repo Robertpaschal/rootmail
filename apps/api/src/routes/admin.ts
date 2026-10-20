@@ -109,6 +109,7 @@ import { platformRecipientsRestricted } from "../lib/platform-recipients";
 import { ensureTesterIdentity, isTesterVerified } from "../lib/ses-provisioning";
 import { betaInviteAutomationStatus, hasBetaInviteEnrollment, realSendsOnly, testSendsOnly } from "@rootmail/db";
 import { parse } from "../lib/validate";
+import { SYSTEM_MAIL_PREVIEW_KINDS, sendSystemMailPreview } from "../lib/system-mail-preview";
 
 const loginBody = z.object({ email: z.string().email(), password: z.string().min(1) });
 const staffForgotBody = z.object({ email: z.string().email() });
@@ -2612,6 +2613,37 @@ export async function adminRoutes(app: FastifyInstance): Promise<void> {
       ip: req.ip,
     });
     return { object: "announcement", id: saved.id, sent: recipients.length };
+  });
+
+  // Staff-only preview of a marketing-class system email (announcement or
+  // win-back), sent ONLY to the signed-in staff member's own address through the
+  // real system-mail path, so the received headers are exactly what customers
+  // get. One send per request, counted against the sandbox daily cap.
+  const previewBody = z.object({
+    kind: z.enum(SYSTEM_MAIL_PREVIEW_KINDS),
+    subject: z.string().trim().min(1).max(200).optional(),
+    body: z.string().trim().min(1).max(10_000).optional(),
+  }).strict();
+  app.post("/v1/admin/system-mail/preview", async (req) => {
+    const staff = await requireStaff(req);
+    requireStaffPermission(staff, "announce.send");
+    const b = parse(previewBody, req.body ?? {});
+    try {
+      const sent = await sendSystemMailPreview(staff, b.kind, { subject: b.subject, body: b.body });
+      req.log.info({ staffId: staff.id, kind: b.kind, usedToday: sent.used_today }, "system-mail preview enqueued");
+      await writeStaffAudit({
+        staffUserId: staff.id,
+        action: "system_mail.preview",
+        targetType: "staff_user",
+        targetId: staff.id,
+        metadata: { kind: b.kind, subject: sent.subject },
+        ip: req.ip,
+      });
+      return { object: "system_mail_preview", kind: b.kind, ...sent };
+    } catch (err) {
+      req.log.warn({ staffId: staff.id, kind: b.kind, err: err instanceof Error ? err.message : String(err) }, "system-mail preview not sent");
+      throw err;
+    }
   });
 
   // --- Beta programme ------------------------------------------------------

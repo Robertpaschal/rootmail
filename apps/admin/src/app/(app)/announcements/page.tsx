@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/app/page-header";
 import { adminApi } from "@/lib/admin-api";
 import type { Announcement } from "@/lib/types";
 import { formatDateTime, timeAgo } from "@/lib/format";
+import { SendSystemMailPreview } from "./send-preview";
 
 export const metadata: Metadata = { title: "Announcements" };
 
@@ -33,6 +34,8 @@ export default async function AnnouncementsPage() {
           </Link>
         }
       />
+
+      <SendSystemMailPreview />
 
       {error ? (
         <p className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">

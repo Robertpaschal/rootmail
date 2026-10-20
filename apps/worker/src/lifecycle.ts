@@ -1,6 +1,16 @@
 import type { Redis } from "ioredis";
 import { eq } from "drizzle-orm";
-import { contactCapForOrg, createRedis, env, PLANS, sendSystemEmail, type SystemMailJob } from "@rootmail/core";
+import {
+  contactCapForOrg,
+  createRedis,
+  lifecycleButton as button,
+  lifecycleDashboardUrl as dash,
+  lifecycleEsc as esc,
+  lifecycleWrap as wrap,
+  PLANS,
+  sendSystemEmail,
+  winBackJob,
+} from "@rootmail/core";
 import { admitWaitlisted, billableContactCount, contactEvents, contactPackUnits, db, memberships, organizations, plans, syncAllCustomersToAudience, usageRecords, users, workspaces } from "@rootmail/db";
 
 // Conditional lifecycle email, sent by a daily sweep and de-duplicated in Redis so
@@ -16,19 +26,6 @@ const MAX_PER_SWEEP = 500; // safety cap on outbound per run
 function period(d = new Date()): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
 }
-function dash(): string {
-  return (env.DASHBOARD_URL ?? "http://localhost:3001").replace(/\/$/, "");
-}
-function esc(s: string): string {
-  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
-}
-function wrap(inner: string): string {
-  return `<div style="font-family:system-ui,-apple-system,Segoe UI,sans-serif;line-height:1.5;color:#111;max-width:480px">${inner}</div>`;
-}
-function button(href: string, label: string): string {
-  return `<a href="${href}" style="display:inline-block;padding:10px 18px;background:#111;color:#fff;border-radius:6px;text-decoration:none;font-weight:600">${label}</a>`;
-}
-
 /** Redis SET NX EX — true the first time a key is set (i.e. not yet sent in-window). */
 async function claim(redis: Redis, key: string, ttlSec: number): Promise<boolean> {
   return (await redis.set(key, "1", "EX", ttlSec, "NX")) === "OK";
@@ -100,22 +97,9 @@ async function admitWaitlistedSweep(): Promise<void> {
   }
 }
 
-/**
- * The win-back email. Marketing, and genuinely so: this one is a pitch, fully
- * gated and unsubscribable like a customer's own marketing. It ends "Just reply
- * to this email"; with no explicit Reply-To the reply goes to the capture
- * address and lands in the Replies inbox (pre-#26 behaviour).
- */
-export function winBackJob(owner: { email: string; name: string | null }): SystemMailJob {
-  const mail = winBackEmail(owner.name);
-  return {
-    to: owner.email,
-    subject: mail.subject,
-    html: mail.html,
-    text: mail.text,
-    cls: "marketing",
-  };
-}
+// winBackJob moved to @rootmail/core (lifecycle-email.ts) so the staff preview
+// can build the exact same job; re-exported here for existing importers.
+export { winBackJob };
 
 export async function processLifecycleSweep(): Promise<void> {
   const redis = createRedis() as unknown as Redis;
@@ -199,22 +183,6 @@ function usageWarningEmail(name: string | null, used: number, quota: number, pct
       `<p>${hi}</p><p>You've used <strong>${used.toLocaleString()}</strong> of your ${quota.toLocaleString()} monthly emails (${pct}%).</p>` +
         `<p>${button(plans, "Compare plans")}</p>` +
         `<p style="color:#666;font-size:13px">Upgrade any time to raise your limit and keep sending.</p>`,
-    ),
-  };
-}
-
-function winBackEmail(name: string | null) {
-  const hi = name ? `Hi ${esc(name)},` : "Hi,";
-  const d = dash();
-  return {
-    subject: "We miss you at rootmail",
-    text:
-      `${name ? `Hi ${name},` : "Hi,"}\n\nIt's been a while since you sent with rootmail — your account is ready ` +
-      `when you are. Jump back in:\n${d}\n\nNeed a hand getting going again? Just reply to this email.`,
-    html: wrap(
-      `<p>${hi}</p><p>It's been a while since you sent with rootmail — your account's ready when you are.</p>` +
-        `<p>${button(d, "Open your dashboard")}</p>` +
-        `<p style="color:#666;font-size:13px">Need a hand getting going again? Just reply to this email.</p>`,
     ),
   };
 }
