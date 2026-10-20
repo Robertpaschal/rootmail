@@ -17,7 +17,8 @@ import {
 } from "@rootmail/core";
 import { betaSenderDomain, byoStateForOrg, db, messages, orgSendingProviders, workspaces } from "@rootmail/db";
 import { requirePermission } from "../lib/permissions";
-import { checkSendingCredentials, checkSmtpCredentials, listSesVerifiedIdentities } from "../lib/provider-check";
+import { checkSendingCredentials, checkSesRole, checkSmtpCredentials, listSesVerifiedIdentities, type CredentialCheck } from "../lib/provider-check";
+import { assumeRoleAvailable, externalIdFor, ROLE_ARN_RE, tenantPolicies } from "@rootmail/core/aws-assume";
 import { parse } from "../lib/validate";
 
 // Connecting your own sending account.
@@ -55,12 +56,38 @@ const smtpBody = z.object({
   /** Domains (or exact addresses) this server may send as. The From must be one of them. */
   sending_domains: z.array(z.string().trim().toLowerCase().min(3).max(320)).min(1).max(20),
 });
+/**
+ * SES through an IAM role the tenant owns (BYO only, and only when ops set
+ * BYO_ASSUMER_ROLE_ARN). Stored as provider "ses", so feedback works exactly as
+ * with keys: their SNS topic, a confirmed subscription, then sending.
+ */
+const sesRoleBody = z.object({
+  provider: z.literal("ses_role"),
+  role_arn: z.string().trim().regex(ROLE_ARN_RE),
+  region: z.string().trim().regex(/^[a-z]{2}(-[a-z]+)+-\d$/).default("us-east-1"),
+  configuration_set: sesBody.shape.configuration_set,
+  sns_topic_arn: sesBody.shape.sns_topic_arn,
+});
 /** Exactly the pre-BYO schema: what an unflagged org is validated against. */
 const legacyConnectBody = z.discriminatedUnion("provider", [sesBody, mailgunBody]);
-const connectBody = z.discriminatedUnion("provider", [sesBody, mailgunBody, smtpBody]);
+const connectBody = z.discriminatedUnion("provider", [sesBody, mailgunBody, smtpBody, sesRoleBody]);
 type ConnectBody = z.infer<typeof connectBody>;
 
 const SMTP_NOT_AVAILABLE = "SMTP isn't available for this organization.";
+const ROLE_NOT_AVAILABLE = "Connecting with an IAM role isn't available for this organization.";
+
+/** What a flagged tenant needs to create the role: our assumer, their external id, the two policies. */
+function assumeRoleSetup(orgId: string) {
+  const externalId = externalIdFor(orgId);
+  if (!assumeRoleAvailable() || !externalId) return null;
+  const policies = tenantPolicies(externalId);
+  return {
+    assumer_role_arn: env.BYO_ASSUMER_ROLE_ARN,
+    external_id: externalId,
+    trust_policy: policies.trust,
+    permissions_policy: policies.permissions,
+  };
+}
 
 const BYO_DISCONNECTED_ERROR =
   "Not sent: you disconnected your own provider while this was queued. Nothing was sent through Rootmail's account.";
@@ -97,6 +124,7 @@ function serializeByo(row: typeof orgSendingProviders.$inferSelect) {
     sns_topic_arn: row.snsTopicArn,
     // SMTP has no event API, so no webhook; bounces go to the tenant's mailbox.
     feedback: row.provider === "smtp" ? { kind: "none", note: SMTP_FEEDBACK_LIMITATION } : { kind: "webhook" },
+    assume_role: assumeRoleSetup(row.organizationId),
     webhook_url: row.webhookToken && row.provider !== "smtp"
       ? byoWebhookUrl(base, row.webhookToken, row.provider === "mailgun" ? "mailgun" : "ses")
       : null,
@@ -104,16 +132,20 @@ function serializeByo(row: typeof orgSendingProviders.$inferSelect) {
 }
 
 /** Flagged save: verified identities, envelope-sealed secret, hint, webhook token. */
-async function byoValues(body: ConnectBody, existingToken: string | null) {
+async function byoValues(body: ConnectBody, existingToken: string | null, orgId: string) {
   if (!env.PROVIDER_CREDENTIALS_KEY) {
     throw Errors.badRequest("Own-provider sending isn't configured on this server yet (no credentials key). Nothing was saved.");
   }
   let identities: string[];
-  if (body.provider === "ses") {
+  let externalId: string | null = null;
+  if (body.provider === "ses" || body.provider === "ses_role") {
     if (!body.sns_topic_arn) {
       throw Errors.badRequest("Add the SNS topic that receives your SES bounces and complaints. Without it we can't keep your suppression list.");
     }
-    const listed = await listSesVerifiedIdentities(body);
+    if (body.provider === "ses_role") externalId = externalIdFor(orgId);
+    const listed = body.provider === "ses"
+      ? await listSesVerifiedIdentities(body)
+      : await checkSesRole({ orgId, role_arn: body.role_arn, external_id: externalId!, region: body.region });
     if (!listed.ok) throw Errors.badRequest(`Those credentials didn't work: ${listed.reason}`);
     identities = listed.identities;
   } else if (body.provider === "smtp") {
@@ -136,14 +168,18 @@ async function byoValues(body: ConnectBody, existingToken: string | null) {
     throw Errors.badRequest("Your provider has no verified sending domain we can use yet. Verify one there, then connect again.");
   }
   const hint =
-    body.provider === "ses"
+    body.provider === "ses_role"
+      ? `role ${body.role_arn} · external ID ${externalId}`
+      : body.provider === "ses"
       ? `${maskSecret(body.access_key_id)} · secret ${maskSecret(body.secret_access_key)}`
       : body.provider === "smtp"
         ? `${body.host.toLowerCase()}:${body.port} · user ${maskSecret(body.username)}`
         : maskSecret(body.api_key);
   const credentials = sealCredentials(
     JSON.stringify(
-      body.provider === "ses"
+      body.provider === "ses_role"
+        ? { roleArn: body.role_arn, externalId, region: body.region }
+        : body.provider === "ses"
         ? { accessKeyId: body.access_key_id, secretAccessKey: body.secret_access_key, region: body.region }
         : body.provider === "smtp"
           ? { host: body.host.toLowerCase(), port: body.port, username: body.username, password: body.password }
@@ -154,8 +190,8 @@ async function byoValues(body: ConnectBody, existingToken: string | null) {
     credentials,
     credentialHint: hint,
     sendingDomains: identities,
-    configurationSet: body.provider === "ses" ? (body.configuration_set ?? null) : null,
-    snsTopicArn: body.provider === "ses" ? (body.sns_topic_arn ?? null) : null,
+    configurationSet: body.provider === "ses" || body.provider === "ses_role" ? (body.configuration_set ?? null) : null,
+    snsTopicArn: body.provider === "ses" || body.provider === "ses_role" ? (body.sns_topic_arn ?? null) : null,
     webhookToken: existingToken ?? randomBytes(24).toString("base64url"),
   };
 }
@@ -170,6 +206,7 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
             object: "sending_provider",
             connected: false,
             byo: true,
+            assume_role: assumeRoleSetup(req.auth.workspace.organizationId),
             note: "Your mail sends through Rootmail's account, inside its beta limits. Connect your own provider to send on your domain, without the daily cap or the confirmed-recipients rule.",
           };
     }
@@ -194,28 +231,35 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
     const byo = await byoStateForOrg(orgId);
     // SMTP exists only behind the BYO flag. Unflagged, the request is judged by
     // the pre-BYO schema, so it fails with exactly the validation error it did before.
-    if (body.provider === "smtp" && !byo.flagged) {
+    if ((body.provider === "smtp" || body.provider === "ses_role") && !byo.flagged) {
       parse(legacyConnectBody, req.body);
-      throw Errors.badRequest(SMTP_NOT_AVAILABLE);
+      throw Errors.badRequest(body.provider === "smtp" ? SMTP_NOT_AVAILABLE : ROLE_NOT_AVAILABLE);
     }
+    if (body.provider === "ses_role" && !assumeRoleAvailable()) throw Errors.badRequest(ROLE_NOT_AVAILABLE);
 
     // Checked BEFORE it is stored. A credential that fails here would fail
     // mid-campaign otherwise, and "we saved it, it just doesn't work" is the
     // worst version of this feature.
-    const check = body.provider === "smtp" ? await checkSmtpCredentials(body) : await checkSendingCredentials(body);
+    // An IAM role is checked inside byoValues (assume, GetAccount, list identities).
+    const check = body.provider === "smtp"
+      ? await checkSmtpCredentials(body)
+      : body.provider === "ses_role"
+        ? ({ ok: true } as CredentialCheck)
+        : await checkSendingCredentials(body);
     if (!check.ok) {
       throw Errors.badRequest(`Those credentials didn't work: ${check.reason}`);
     }
 
     if (byo.flagged) {
-      const extra = await byoValues(body, byo.connection?.webhookToken ?? null);
+      const extra = await byoValues(body, byo.connection?.webhookToken ?? null, orgId);
+      const storedAs = body.provider === "ses_role" ? "ses" : body.provider;
       const now = new Date();
       const values = {
-        provider: body.provider,
+        provider: storedAs,
         sendingDomain: extra.sendingDomains[0] ?? null,
         // SES sends only once its SNS topic has confirmed the subscription to
         // our URL — suppression is mandatory, so no feedback means no sending.
-        status: body.provider === "ses" ? BYO_AWAITING_FEEDBACK : "active",
+        status: storedAs === "ses" ? BYO_AWAITING_FEEDBACK : "active",
         lastError: null,
         lastCheckedAt: now,
         verifiedAt: now,
@@ -230,13 +274,14 @@ export async function sendingProviderRoutes(app: FastifyInstance): Promise<void>
         ...serializeByo(row),
         note: body.provider === "smtp"
           ? `Connected. We sent nothing; your server accepted a secure login. Sending as: ${extra.sendingDomains.join(", ")}. ${SMTP_FEEDBACK_LIMITATION}`
-          : body.provider === "ses"
+          : storedAs === "ses"
           ? `Saved. We sent nothing; we checked the credentials and found ${extra.sendingDomains.length} verified identit${extra.sendingDomains.length === 1 ? "y" : "ies"}. Subscribe the URL below to your SNS topic — sending starts when the subscription confirms.`
           : `Connected. We sent nothing; we checked that the credentials work and found ${extra.sendingDomains.length} verified identit${extra.sendingDomains.length === 1 ? "y" : "ies"}. Point your Mailgun webhooks at the URL below.`,
       };
     }
 
-    if (body.provider === "smtp") throw Errors.badRequest(SMTP_NOT_AVAILABLE); // unreachable; narrows the type
+    // Unreachable (refused above for unflagged orgs); narrows the type.
+    if (body.provider === "smtp" || body.provider === "ses_role") throw Errors.badRequest(SMTP_NOT_AVAILABLE);
     const credentials = encryptSecret(
       JSON.stringify(
         body.provider === "ses"

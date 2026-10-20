@@ -188,6 +188,9 @@ const EnvSchema = z.object({
   PROVIDER_CREDENTIALS_KEY_PREVIOUS: z.string().optional(),
   // Public base URL tenants point their SNS / Mailgun webhooks at. Defaults to PUBLIC_API_URL.
   BYO_WEBHOOK_BASE_URL: z.string().optional(),
+  // Our intermediate role for tenant assume-role (arn:aws:iam::<ours>:role/rootmail-byo-assumer).
+  // Unset = the "IAM role" option is hidden and refused.
+  BYO_ASSUMER_ROLE_ARN: z.string().optional(),
 
   SENDGRID_API_KEY: z.string().optional(),
 

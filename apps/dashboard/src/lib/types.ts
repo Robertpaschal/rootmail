@@ -1292,4 +1292,11 @@ export interface SendingProvider {
   webhook_url?: string | null;
   /** SMTP: "none" — there is no event feed; bounces go to the tenant's own mailbox. */
   feedback?: { kind: "none" | "webhook"; note?: string };
+  /** Present (non-null) only when ops enabled assume-role: what the tenant needs to create the role. */
+  assume_role?: {
+    assumer_role_arn: string;
+    external_id: string;
+    trust_policy: unknown;
+    permissions_policy: unknown;
+  } | null;
 }

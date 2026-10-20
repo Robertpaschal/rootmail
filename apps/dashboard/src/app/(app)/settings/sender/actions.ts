@@ -146,9 +146,10 @@ export interface ProviderState {
  * rather than flattening to "couldn't connect".
  */
 /** A BYO-only field, sent only when filled in (so unflagged requests are unchanged). */
-function optional(formData: FormData, name: string): Record<string, string> {
+/** A trimmed form field, sent under `as` (default: its own name) only when filled in. */
+function optional(formData: FormData, name: string, as: string = name): Record<string, string> {
   const v = String(formData.get(name) ?? "").trim();
-  return v ? { [name]: v } : {};
+  return v ? { [as]: v } : {};
 }
 
 export async function connectSendingProvider(
@@ -166,6 +167,14 @@ export async function connectSendingProvider(
           ...optional(formData, "sns_topic_arn"),
           ...optional(formData, "configuration_set"),
         }
+      : provider === "ses_role"
+        ? {
+            provider: "ses_role",
+            role_arn: String(formData.get("role_arn") ?? "").trim(),
+            region: String(formData.get("role_region") ?? "us-east-1").trim(),
+            ...optional(formData, "role_sns_topic_arn", "sns_topic_arn"),
+            ...optional(formData, "role_configuration_set", "configuration_set"),
+          }
       : provider === "smtp"
         ? {
             provider: "smtp",

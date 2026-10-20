@@ -1,5 +1,6 @@
 import type { SmtpTestHooks } from "@rootmail/core";
 import { smtpClient, type SmtpLogin } from "@rootmail/core/smtp-client";
+import { awsAssume } from "@rootmail/core/aws-assume";
 import { GetAccountCommand, ListEmailIdentitiesCommand, SESv2Client } from "@aws-sdk/client-sesv2";
 
 /**
@@ -20,36 +21,10 @@ export async function checkSendingCredentials(
     | { provider: "mailgun"; api_key: string; domain: string; region: "us" | "eu" },
 ): Promise<CredentialCheck> {
   if (input.provider === "ses") {
-    try {
-      const client = new SESv2Client({
-        region: input.region,
-        credentials: { accessKeyId: input.access_key_id, secretAccessKey: input.secret_access_key },
-      });
-      const acct = await client.send(new GetAccountCommand({}));
-      // Their sandbox is their problem, but they should hear it from us NOW
-      // rather than from a failed send — it is the single most likely reason a
-      // connected account cannot mail their customers.
-      if (acct.ProductionAccessEnabled === false) {
-        return {
-          ok: false,
-          reason:
-            "that AWS account is still in the SES sandbox, so it can only send to addresses it has verified. Request production access in the SES console, then connect it here.",
-        };
-      }
-      return { ok: true, note: "SES account verified." };
-    } catch (e) {
-      const name = (e as { name?: string })?.name ?? "";
-      if (name.includes("UnrecognizedClient") || name.includes("InvalidClientTokenId")) {
-        return { ok: false, reason: "the access key wasn't recognised by AWS." };
-      }
-      if (name.includes("AccessDenied")) {
-        return {
-          ok: false,
-          reason: "those keys work but lack SES permission — they need ses:SendEmail and ses:GetAccount.",
-        };
-      }
-      return { ok: false, reason: (e as Error)?.message ?? "AWS rejected them." };
-    }
+    return checkSesAccount(new SESv2Client({
+      region: input.region,
+      credentials: { accessKeyId: input.access_key_id, secretAccessKey: input.secret_access_key },
+    }));
   }
 
   const base = input.region === "eu" ? "https://api.eu.mailgun.net/v3" : "https://api.mailgun.net/v3";
@@ -79,6 +54,36 @@ export async function checkSendingCredentials(
   }
 }
 
+/** GetAccount on a tenant's SES account: reachable, permitted, and out of the sandbox. */
+async function checkSesAccount(client: SESv2Client): Promise<CredentialCheck> {
+  try {
+    const acct = await client.send(new GetAccountCommand({}));
+    // Their sandbox is their problem, but they should hear it from us NOW
+    // rather than from a failed send — it is the single most likely reason a
+    // connected account cannot mail their customers.
+    if (acct.ProductionAccessEnabled === false) {
+      return {
+        ok: false,
+        reason:
+          "that AWS account is still in the SES sandbox, so it can only send to addresses it has verified. Request production access in the SES console, then connect it here.",
+      };
+    }
+    return { ok: true, note: "SES account verified." };
+  } catch (e) {
+    const name = (e as { name?: string })?.name ?? "";
+    if (name.includes("UnrecognizedClient") || name.includes("InvalidClientTokenId")) {
+      return { ok: false, reason: "the access key wasn't recognised by AWS." };
+    }
+    if (name.includes("AccessDenied")) {
+      return {
+        ok: false,
+        reason: "those keys work but lack SES permission — they need ses:SendEmail and ses:GetAccount.",
+      };
+    }
+    return { ok: false, reason: (e as Error)?.message ?? "AWS rejected them." };
+  }
+}
+
 /**
  * The identities (domains and addresses) the tenant's SES account has verified
  * AND may send from. The From of every BYO send must be one of these.
@@ -89,11 +94,14 @@ export async function listSesVerifiedIdentities(input: {
   secret_access_key: string;
   region: string;
 }): Promise<{ ok: true; identities: string[] } | { ok: false; reason: string }> {
+  return listIdentities(new SESv2Client({
+    region: input.region,
+    credentials: { accessKeyId: input.access_key_id, secretAccessKey: input.secret_access_key },
+  }));
+}
+
+async function listIdentities(client: SESv2Client): Promise<{ ok: true; identities: string[] } | { ok: false; reason: string }> {
   try {
-    const client = new SESv2Client({
-      region: input.region,
-      credentials: { accessKeyId: input.access_key_id, secretAccessKey: input.secret_access_key },
-    });
     const out: string[] = [];
     let NextToken: string | undefined;
     for (let page = 0; page < 20; page++) {
@@ -124,4 +132,25 @@ export async function listSesVerifiedIdentities(input: {
 export async function checkSmtpCredentials(input: SmtpLogin, testHooks: SmtpTestHooks = {}): Promise<CredentialCheck> {
   const res = await smtpClient.verifySmtpLogin(input, testHooks);
   return res.ok ? { ok: true, note: "SMTP server accepted a secure login." } : res;
+}
+
+/**
+ * A tenant's SES through an IAM role: assume it (our assumer role, then theirs
+ * with our ExternalId), then the same READ checks as access keys. Sends nothing.
+ */
+export async function checkSesRole(
+  input: { orgId: string; role_arn: string; external_id: string; region: string },
+): Promise<{ ok: true; identities: string[] } | { ok: false; reason: string }> {
+  let creds;
+  try {
+    creds = await awsAssume.assumeTenantRole({ orgId: input.orgId, roleArn: input.role_arn, externalId: input.external_id });
+  } catch (e) {
+    return { ok: false, reason: (e as Error).message };
+  }
+  const client = new SESv2Client({ region: input.region, credentials: creds });
+  const account = await checkSesAccount(client);
+  if (!account.ok) {
+    return { ok: false, reason: account.reason.replace("those keys work but lack", "the role works but lacks").replace("they need", "it needs") };
+  }
+  return listIdentities(client);
 }

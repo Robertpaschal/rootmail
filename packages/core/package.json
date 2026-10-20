@@ -8,13 +8,15 @@
     "./constants": "./src/constants.ts",
     "./reputation": "./src/reputation.ts",
     "./email-motion": "./src/email-motion.ts",
-    "./smtp-client": "./src/smtp-client.ts"
+    "./smtp-client": "./src/smtp-client.ts",
+    "./aws-assume": "./src/aws-assume.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test \"src/**/*.test.ts\""
   },
   "dependencies": {
+    "@aws-sdk/client-sts": "^3.1068.0",
     "bullmq": "^5.34.6",
     "dotenv": "^16.4.7",
     "handlebars": "^4.7.8",

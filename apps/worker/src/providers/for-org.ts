@@ -5,6 +5,7 @@ import { MailgunProvider, type MailgunCredentials } from "./mailgun";
 import { SesProvider, type SesCredentials } from "./ses";
 import { SmtpProvider } from "./smtp";
 import { getProviderFor } from "./index";
+import { assumeRoleAvailable, awsAssume, ASSUME_ROLE_REFRESH_MS, type AssumedCredentials } from "@rootmail/core/aws-assume";
 import type { MailProvider } from "./types";
 
 /**
@@ -64,6 +65,7 @@ const generation = new Map<string, number>();
 /** Forget an org's cached provider — called when they connect, replace or disconnect one. */
 export function forgetOrgProvider(organizationId: string): void {
   cache.delete(organizationId);
+  roleCreds.delete(organizationId);
   generation.set(organizationId, (generation.get(organizationId) ?? 0) + 1);
 }
 
@@ -73,8 +75,37 @@ function remember(orgId: string, gen: number, entry: Omit<Cached, "at">): void {
 
 const str = (v: unknown): v is string => typeof v === "string" && v.length > 0;
 
-function build(provider: string, raw: string, configurationSet: string | null, strict: boolean): MailProvider | null {
+/**
+ * Assume-role credentials per org, refreshed ASSUME_ROLE_REFRESH_MS before they
+ * expire. Cleared by forgetOrgProvider, and an assume that started before a
+ * provider change is never stored (the same generation counter as above).
+ */
+const roleCreds = new Map<string, { gen: number; creds: AssumedCredentials }>();
+
+function roleCredentialProvider(orgId: string, roleArn: string, externalId: string) {
+  return async (): Promise<AssumedCredentials> => {
+    const gen = generation.get(orgId) ?? 0;
+    const hit = roleCreds.get(orgId);
+    if (hit && hit.gen === gen && hit.creds.expiration.getTime() - Date.now() > ASSUME_ROLE_REFRESH_MS) return hit.creds;
+    const creds = await awsAssume.assumeTenantRole({ orgId, roleArn, externalId });
+    if ((generation.get(orgId) ?? 0) === gen) roleCreds.set(orgId, { gen, creds });
+    return creds;
+  };
+}
+
+function build(orgId: string, provider: string, raw: string, configurationSet: string | null, strict: boolean): MailProvider | null {
   const creds = JSON.parse(openCredentials(raw)) as Record<string, unknown>;
+  if (provider === "ses" && creds.roleArn !== undefined) {
+    // BYO assume-role. Only ever stored for a flagged org, and always
+    // validated: without the assumer role there is no way to reach their account.
+    if (!(str(creds.roleArn) && str(creds.externalId))) throw new Error("incomplete IAM role connection");
+    if (!assumeRoleAvailable()) throw new Error("sending through an IAM role isn't available on this server right now");
+    return new SesProvider({
+      credentialProvider: roleCredentialProvider(orgId, creds.roleArn, creds.externalId),
+      region: str(creds.region) ? creds.region : undefined,
+      configurationSet,
+    });
+  }
   // Flagged orgs: validate before constructing — a provider built from `{}`
   // would quietly fall back to OUR env credentials inside the provider class.
   // (Unflagged orgs keep exactly the previous construction.)
@@ -161,7 +192,7 @@ export async function resolveProviderForMessage(message: {
   const byoOnly = conn?.provider === "smtp";
   if (conn && conn.status === "active" && (flagged || !byoOnly)) {
     try {
-      own = build(conn.provider, conn.credentials, conn.configurationSet ?? null, flagged);
+      own = build(row.orgId, conn.provider, conn.credentials, conn.configurationSet ?? null, flagged);
       if (!own) buildError = `"${conn.provider}" is not a provider Rootmail can send through`;
     } catch {
       // Undecryptable or malformed. The message never includes the value.
