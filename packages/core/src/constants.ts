@@ -1207,6 +1207,20 @@ export function resolveDeliveryAddress(email: string): string {
 }
 
 /**
+ * The inverse of `resolveDeliveryAddress` for provider feedback. SES reports a
+ * bounce/complaint against the address it was handed — for a test alias that is
+ * the simulator mailbox — but suppressions are keyed on the address the user
+ * sent to (the alias), which is what the pre-send check looks up. So when the
+ * message was sent to a test alias and the reported recipient is that alias's
+ * simulator mailbox, return the alias. Every other address is returned unchanged.
+ */
+export function suppressionAddressFor(reported: string, sentTo: string): string {
+  const scenario = testRecipientFor(sentTo);
+  if (scenario && reported.trim().toLowerCase() === scenario.simulator) return sentTo;
+  return reported;
+}
+
+/**
  * Sandbox sends cost nothing, and a sandbox send to a test recipient takes the
  * REAL provider path (that's what makes the sandbox worth anything). Free plus
  * real needs a bound, so the sandbox gets a generous daily allowance of them.
