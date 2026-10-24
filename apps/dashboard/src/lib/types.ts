@@ -1300,3 +1300,23 @@ export interface SendingProvider {
     permissions_policy: unknown;
   } | null;
 }
+
+/** One suppressed address (GET /v1/suppressions). Read-only. */
+export interface Suppression {
+  object: "suppression";
+  id: string;
+  email: string;
+  reason: "bounce" | "complaint" | "unsubscribe" | "manual";
+  source: string | null;
+  sub_tenant_id: string | null;
+  created_at: string;
+}
+
+/** Paged suppression list, newest first. */
+export interface SuppressionsPage extends ListResponse<Suppression> {
+  scope: { sub_tenant_id: string | null };
+  page: number;
+  limit: number;
+  total: number;
+  has_more: boolean;
+}
