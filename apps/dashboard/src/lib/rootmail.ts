@@ -22,6 +22,7 @@ import type {
   ListTag,
   ComplianceExport,
   Deliverability,
+  SuppressionsPage,
   EmailAuthReport,
   ImportResult,
   RetentionPolicy,
@@ -371,6 +372,9 @@ export const api = {
     rmFetch<Thread>(`/v1/threads/${id}/simulate-reply`, { method: "POST", body }),
 
   getBilling: () => rmFetch<Billing>("/v1/billing"),
+
+  listSuppressions: (q: { page?: number; limit?: number; q?: string } = {}) =>
+    rmFetch<SuppressionsPage>("/v1/suppressions", { query: q }),
 
   getDeliverability: (q: { window_days?: number; sub_tenant_id?: string } = {}) =>
     rmFetch<Deliverability>("/v1/deliverability", { query: q }),

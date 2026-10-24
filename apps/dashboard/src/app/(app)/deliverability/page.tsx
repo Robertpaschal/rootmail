@@ -11,6 +11,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { SuppressionsImport } from "./suppressions-import";
+import { SuppressionsList } from "./suppressions-list";
 import { ConnectionError as ConnectionErrorCard } from "@/components/app/connection-error";
 import { EmptyState } from "@/components/app/empty-state";
 import { PageHeader } from "@/components/app/page-header";
@@ -21,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ApiError, ConnectionError, api } from "@/lib/rootmail";
 import type { Deliverability, DeliverabilityFactor } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { parseSuppressionPage, parseSuppressionQuery } from "@/lib/suppressions-view";
 
 const STATUS_META: Record<
   Deliverability["status"],
@@ -186,10 +188,12 @@ function PillarCard({
 export default async function DeliverabilityPage({
   searchParams,
 }: {
-  searchParams: Promise<{ import?: string }>;
+  searchParams: Promise<{ import?: string; sup_page?: string; sup_q?: string }>;
 }) {
   const sp = await searchParams;
   const importOpen = sp.import === "suppressions";
+  const supPage = parseSuppressionPage(sp.sup_page);
+  const supQuery = parseSuppressionQuery(sp.sup_q);
   let d: Deliverability;
   try {
     d = await api.getDeliverability();
@@ -246,6 +250,7 @@ export default async function DeliverabilityPage({
           </div>
           {/* Migrating? The old provider's "never email these" list comes first. */}
           <SuppressionsImport defaultOpen={importOpen} />
+          <SuppressionsList page={supPage} q={supQuery} />
         </Reveal>
       </>
     );
@@ -474,6 +479,13 @@ export default async function DeliverabilityPage({
           </Card>
         </Reveal>
       </div>
+
+      {/* Read-only list behind the "Suppressed addresses" count above. */}
+      <Reveal delay={0.28}>
+        <div className="mt-4">
+          <SuppressionsList page={supPage} q={supQuery} />
+        </div>
+      </Reveal>
 
       {/* The four levers of inbox placement — each card carries YOUR standing on
           that lever and a button that goes exactly where you act on it. */}
