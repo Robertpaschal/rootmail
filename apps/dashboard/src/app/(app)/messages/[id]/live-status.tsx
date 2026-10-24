@@ -1,5 +1,6 @@
 "use client";
 
+import { stopMethod } from "@/lib/send-history-label";
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -165,7 +166,7 @@ function eventsFrom(message: Message, stations: Station[], trail: AuditEntry[]):
     if (st.state === "stopped") {
       return {
         at: t(message.status),
-        method: "provider feedback",
+        method: stopMethod(message.status),
         detail: operatorReason(message.error) ?? undefined,
       };
     }

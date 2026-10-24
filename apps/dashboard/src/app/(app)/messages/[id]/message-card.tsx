@@ -1,5 +1,6 @@
 "use client";
 
+import { sendHistoryLabel } from "@/lib/send-history-label";
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
@@ -332,7 +333,7 @@ export function MessageCard({
                       className="-mx-2 flex items-center gap-2 rounded-md px-2 py-1 text-sm transition-colors hover:bg-secondary/60"
                     >
                       <span className="min-w-0 flex-1 truncate">{m.subject || "(no subject)"}</span>
-                      <span className="shrink-0 text-xs capitalize text-muted-foreground">{m.status}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{sendHistoryLabel(m.status)}</span>
                       <span className="shrink-0 text-xs text-muted-foreground">{relativeTime(m.sent_at)}</span>
                     </Link>
                   </li>
