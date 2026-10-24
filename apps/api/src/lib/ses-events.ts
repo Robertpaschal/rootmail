@@ -8,6 +8,7 @@ import {
   env,
   newId,
   sesProviderIdFromMessageId,
+  suppressionAddressFor,
   threadingCandidates,
 } from "@rootmail/core";
 import {
@@ -353,7 +354,7 @@ export async function applySesNotification(
   }
 
   if (kind === "complaint") {
-    const recipients = n.complaint?.complainedRecipients?.map((r) => r.emailAddress) ?? [message.toEmail];
+    const recipients = n.complaint?.complainedRecipients?.map((r) => suppressionAddressFor(r.emailAddress, message.toEmail)) ?? [message.toEmail];
     const reason = n.complaint?.complaintFeedbackType
       ? `Spam complaint (${n.complaint.complaintFeedbackType})`
       : "Spam complaint";
@@ -374,7 +375,7 @@ export async function applySesNotification(
   // SMTP diagnostic so the message carries *why* it bounced (powers diagnosis).
   const diagnostic = n.bounce?.bouncedRecipients?.find((r) => r.diagnosticCode)?.diagnosticCode;
   if (n.bounce?.bounceType === "Permanent") {
-    const recipients = n.bounce?.bouncedRecipients?.map((r) => r.emailAddress) ?? [message.toEmail];
+    const recipients = n.bounce?.bouncedRecipients?.map((r) => suppressionAddressFor(r.emailAddress, message.toEmail)) ?? [message.toEmail];
     const reason = diagnostic ?? `Permanent bounce${n.bounce?.bounceSubType ? ` (${n.bounce.bounceSubType})` : ""}`;
     // Do not regress a complaint. SES can deliver a bounce and a complaint for the
     // same message out of order, and "bounced" replacing "complained" understates
