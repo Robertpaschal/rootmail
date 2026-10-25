@@ -154,6 +154,7 @@ export function serializeMessage(m: Message, engagement?: MessageEngagement) {
     provider: m.provider,
     provider_message_id: m.providerMessageId,
     content_hash: m.contentHash,
+    ...(m.authExpiresAt ? { content_policy: "authentication-v1", expires_at: m.authExpiresAt } : {}),
     rendered_html: m.renderedHtml,
     rendered_text: m.renderedText,
     sandbox: m.sandbox,

@@ -30,6 +30,12 @@ const EnvSchema = z.object({
   DATABASE_URL: z.string().min(1).default("postgres://rootmail:rootmail@localhost:5432/rootmail"),
   REDIS_URL: z.string().min(1).default("redis://localhost:6379"),
 
+  // Opt-in auth-content path. Never reuse the durable BullMQ cache as its vault.
+  AUTH_MESSAGES_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
+  AUTH_CONTENT_REDIS_URL: z.string().optional(),
+  AUTH_CONTENT_KEY: z.string().optional(), // independent 32-byte base64 AES/HMAC key
+  AUTH_SES_CONFIGURATION_SET: z.string().optional(), // must exclude OPEN/CLICK events
+
   API_PORT: z.coerce.number().int().positive().default(4000),
   API_HOST: z.string().default("0.0.0.0"),
   // How many reverse-proxy hops to trust when deriving the client IP (used for

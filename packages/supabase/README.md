@@ -7,6 +7,12 @@ Supabase session. The ordinary Rootmail send endpoint currently retains bodies
 and conversation copies. Sending auth secrets through it is not this adapter's
 supported integration path.
 
+Update: the draft branch now includes a separate, disabled-by-default
+`POST /v1/auth-messages` server contract. It has encrypted ephemeral content,
+expiry enforcement and a restricted SES path with tracking checks. This planner
+still has no HTTP transport; it is **not connected to that endpoint**. See the
+integration notes for tests, deployment gates and remaining limitations.
+
 Tracking task: [Supabase authentication emails — Sprout pilot](https://app.notion.com/p/4032db0e8691818496f5c235840c351c).
 Release gates and implementation sequence: [integration notes](../../docs/supabase-auth-integration.md).
 
@@ -80,7 +86,7 @@ expiry time. Never derive a fresh TTL on every retry.
 
 This is a checklist for the next increment, **not a deployable customer guide**:
 
-1. Implement and test the auth-only Rootmail content/expiry contract before
+1. Review and validate the new auth-only Rootmail content/expiry contract before
    adding a network transport. It must fail closed against servers lacking it;
    do not send invented privacy fields to `/v1/messages` (unknown fields are
    currently stripped, not enforced).
@@ -114,5 +120,8 @@ has changed no Supabase setting, so no external rollback is currently necessary.
 - [Standard Webhooks implementation](https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries/javascript)
 
 Configs touched: this private package's manifest/TypeScript config and the
-workspace lockfile. Prod behaviour preserved: no running app imports this package;
-no send, queue, database, tracking, provider, IAM, DNS or Supabase setting changed.
+workspace lockfile; the server increment also adds disabled auth environment
+settings, a journaled migration and a CI-only vault fixture (see integration notes).
+Prod behaviour preserved: no running app imports this planner, and the new server
+path is disabled by default. No production deployment, migration, environment,
+IAM, DNS or Supabase setting was changed.

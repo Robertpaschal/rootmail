@@ -317,3 +317,20 @@ Sprout native sign-in pilot remain release gates. See
 
 Configs touched: private package/TypeScript configuration and workspace lockfile.
 Prod behaviour preserved: no runtime, provider, tracking or deployment changes.
+
+## 2026-10-25 — auth-content safeguards implemented behind an off switch
+
+The draft Supabase integration branch now has a dedicated authentication-send
+endpoint and worker path. Encrypted short-lived content stays outside PostgreSQL
+and conversations; the database enforces empty auth bodies/proof digests. Jobs carry
+IDs only, expire conservatively, and cannot resend consumed content. Client-scoped
+idempotency, safe errors and an SES-only no-engagement configuration check are
+implemented and exercised with fake delivery. This is not a production launch:
+the feature defaults off, the Supabase planner has no HTTP transport yet, stale
+worker claims still need reconciliation, and the Sprout sign-in pilot is unrun.
+Do not promise exactly-once delivery or claim that queue acceptance means delivery.
+
+Configs touched: disabled auth env settings/template, migration 0083 and journal,
+API test-file sequencing and CI local ephemeral vault. Prod behaviour preserved: no deployment, production
+migration, provider change or global tracking change. Existing ordinary mail stays
+on its current path.

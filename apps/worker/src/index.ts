@@ -24,6 +24,7 @@ import { betaReplyCaptureAvailable, closeDb } from "@rootmail/db";
 import { processCampaignSend } from "./campaigns";
 import { processLifecycleSweep } from "./lifecycle";
 import { processSend } from "./pipeline";
+import { closeAuthContentVault } from "@rootmail/core";
 import { forgetOrgProvider } from "./providers/for-org";
 import { processDnsDriftSweep } from "./dns-drift";
 import { processReputationSweep } from "./reputation";
@@ -189,6 +190,7 @@ const shutdown = async (signal: string) => {
   await lifecycleWorker.close();
   await reputationWorker.close();
   providerChanges.disconnect();
+  await closeAuthContentVault();
   await closeDb();
   process.exit(0);
 };

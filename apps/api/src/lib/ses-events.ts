@@ -323,6 +323,17 @@ export async function applySesNotification(
         .where(eq(messages.providerMessageId, providerMessageId))
         .limit(1);
   if (!message) return "ignored";
+  // Never store token-bearing click URLs, user agents or echoed SMTP diagnostics
+  // for auth mail, even if a misconfigured upstream sends those events anyway.
+  if (message.authExpiresAt) {
+    if (kind === "open" || kind === "click") return "ignored";
+    n = { ...n,
+      complaint: n.complaint ? { ...n.complaint, complaintFeedbackType: undefined, complainedRecipients: [{ emailAddress: message.toEmail }] } : undefined,
+      bounce: n.bounce ? { ...n.bounce, bounceSubType: undefined,
+        bouncedRecipients: [{ emailAddress: message.toEmail }],
+        bounceType: n.bounce.bounceType === "Permanent" ? "Permanent" : "Transient" } : undefined,
+    };
+  }
   const suppressionSource = scope.source ?? "ses";
 
   if (kind === "delivery") {
