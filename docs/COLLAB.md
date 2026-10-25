@@ -334,3 +334,21 @@ Configs touched: disabled auth env settings/template, migration 0083 and journal
 API test-file sequencing and CI local ephemeral vault. Prod behaviour preserved: no deployment, production
 migration, provider change or global tracking change. Existing ordinary mail stays
 on its current path.
+
+## 2026-10-25 — Supabase hook transport and replay recovery (unreleased)
+
+PR #59 now includes an opt-in signed HTTP hook, capability/scope preflight,
+bounded request/response work, PostgreSQL replay metadata and partial-recipient
+recovery. A hook success requires recorded SES acceptance for every recipient;
+queueing alone is not success and acceptance is not inbox delivery. The ledger
+never renews expiry on a re-signed retry. Interrupted worker claims are classified
+without resending. Local acceptance used the real API/database/queue and fake mail.
+
+There is a customer setup reference, not a completed customer installation.
+Actual Supabase expiry/resend behavior, production privacy/configuration and
+latency, a native Sprout session and a second-customer walkthrough are still
+unverified. Do not market a shipped integration or exactly-once delivery.
+
+Configs touched: package metadata, reference customer ledger/setup and migration
+0084's partial index. Prod behaviour preserved: no hook mounted, feature off,
+no production migration, deployment, provider setting or real email.

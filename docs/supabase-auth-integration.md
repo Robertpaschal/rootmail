@@ -203,7 +203,7 @@ The planner's unit suite checks signature rejection, time window, rotation,
 action matrix, secure/single email changes, malformed payloads, retry-key scope,
 redirect allowlisting, HTML escaping and redacted default inspection. Tests use
 synthetic fixtures only. They do not exercise a real Rootmail tenant key, a provider,
-a native app or persistence; those acceptance boxes remain open.
+a native app or persistence; those first-increment checks alone do not establish acceptance.
 
 Second-increment checks on 25 October (WAT): 22 new security tests (6 core vault,
 4 SES transport, 12 database-backed API/worker tests), alongside the 27 planner
@@ -224,8 +224,54 @@ once raced Next.js generated types locally (TS6053); that is not an application
 type error. Remote CI must be checked against the pushed head;
 an earlier planner-only CI result is not evidence for this increment.
 
+## Third increment — bounded hook transport and recovery
+
+Implemented on 25 October, still private/unreleased. `createSupabaseEmailHook`
+mounts a Web Request handler using the existing signed planner. It preflights
+policy, provider and authenticated workspace/client before posting secrets;
+unsupported or mock servers fail closed. A shared maximum 4.5-second deadline
+includes bounded upload/response streaming, ledger work, both recipients and
+backed-off status polling. No POST retry loop or ordinary-send fallback exists.
+Success requires observed SES acceptance for every recipient, not queueing.
+
+`createPostgresHookLedger` uses the customer's existing server-only PostgreSQL
+pool. Its atomic insert-or-read freezes a scoped event's keyed commitment and
+first expiry across concurrent requests, re-signing and handler restarts. No
+recipient, code, body or unkeyed content hash enters this table. Conflicts fail
+closed; expired records remain tombstones. Partial recipient completion and
+ambiguous HTTP responses retry against Rootmail's existing recipient keys.
+Automatic ledger pruning and transparent HMAC-key rotation are not implemented.
+
+The initial deadline reserves five minutes from the configured 10–60 minute
+lifetime. Signature time is not proven credential issuance: delayed first
+observations and Supabase resend invalidation still require live validation.
+This is not a guarantee that every queued credential remains usable upstream.
+
+The existing sequence tick now runs a bounded, feature-gated auth reconciliation
+sweep. After expiry plus one minute it classifies expired queued work or unknown
+claimed-send outcomes, with an atomic audit entry and no resend. Migration 0084
+adds a partial pending-auth expiry index. Ordinary messages are excluded. A sweep
+failure is isolated from sequence processing. Completed queue logs now say
+"processed send job", not "sent", since a job may have been refused or deferred.
+
+The earlier sections describe the first two increments: the previously listed
+missing transport/ledger/reconciliation now exist on this branch. Remaining
+release gates are operational configuration/privacy checks, pilot latency and
+actual expiry/resend behavior, a real Supabase/native session, and an independent
+customer walkthrough. No provider or production change is authorized by these
+implementation checks. See [setup reference](supabase-hook-setup.md).
+
+Third-increment focused checks: 11 new hook tests (38 package tests total), plus
+three new API integration tests (15 auth-path tests total). The real local
+PostgreSQL/queue/API/worker test observed two synthetic provider acceptances and
+no additional send on a re-signed retry. Concurrent ledger claims retained one
+deadline; a new ledger instance read the same record. Stale-claim reconciliation
+kept sent evidence intact and never resent. No network mail was sent. Full
+workspace/CI results are recorded in the PR and Notion against the final commit.
+
 Configs touched: private package configuration/lockfile (first increment), disabled
 auth environment settings/template, migration schema/journal, API test scheduling
-and CI's isolated test vault. Prod behaviour preserved: ordinary sends keep their behavior; auth is off by
+and CI's isolated test vault; migration 0084 and reference customer-ledger SQL/setup
+in the third increment. Prod behaviour preserved: ordinary sends keep their behavior; auth is off by
 default. No production migration, environment change, deployment, live email,
 production key creation or Supabase configuration update was performed.

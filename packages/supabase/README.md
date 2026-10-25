@@ -1,17 +1,17 @@
-# Supabase email adapter — implementation foundation
+# Supabase email adapter — unreleased reference
 
-**Unreleased, private, and not connected to sending. Do not enable this as a
-production Supabase hook yet.** This increment prepares authenticated email
-plans in memory; it does not call Rootmail, return hook success, or create a
-Supabase session. The ordinary Rootmail send endpoint currently retains bodies
-and conversation copies. Sending auth secrets through it is not this adapter's
-supported integration path.
+**Unreleased and private. Do not enable this as a production Supabase hook yet.**
+The package now includes both a transport-free planner and an opt-in Web Request
+handler that uses the auth-only Rootmail HTTPS endpoint. No running application
+installs it automatically. Local transport tests use fake delivery; no real
+Supabase session has been completed. Never use ordinary `/v1/messages` for codes.
 
 Update: the draft branch now includes a separate, disabled-by-default
 `POST /v1/auth-messages` server contract. It has encrypted ephemeral content,
 expiry enforcement and a restricted SES path with tracking checks. This planner
-still has no HTTP transport; it is **not connected to that endpoint**. See the
-integration notes for tests, deployment gates and remaining limitations.
+now has an explicit HTTP wrapper, capability preflight and PostgreSQL replay
+ledger. See the [customer setup reference](../../docs/supabase-hook-setup.md) and
+integration notes for rollout gates and remaining limitations.
 
 Tracking task: [Supabase authentication emails — Sprout pilot](https://app.notion.com/p/4032db0e8691818496f5c235840c351c).
 Release gates and implementation sequence: [integration notes](../../docs/supabase-auth-integration.md).
@@ -63,9 +63,10 @@ pnpm --filter @rootmail/supabase typecheck
 pnpm --filter @rootmail/supabase test
 ```
 
-The tests use an independent HMAC signer with synthetic secrets and recipients.
-They do not import Rootmail environment, database, queue or provider code. The
-workspace's existing unit-test job discovers this package through Turbo.
+Package tests use an independent HMAC signer, synthetic secrets, a fake ledger and
+injected fetch; they never make real network/mail calls. Separate API tests use
+the real local database, queue, worker and PostgreSQL ledger with fake delivery.
+Turbo discovers both suites.
 
 `createSupabaseEmailPlanner(config)` returns a function accepting unmodified
 request text and `Headers` (or a header record). Its result has `messages`, each
@@ -76,28 +77,32 @@ inspection paths are redacted. Do not use production payloads as test fixtures.
 
 ### What these tests do not prove
 
-Stable keys are **not exactly-once delivery**. No HTTP transport, durable replay
-ledger, concurrent duplicate admission, partial-send recovery, tenant-key
-authorization, provider failure/timeout handling or content expiry is implemented
-here. A signature timestamp is an anti-replay window, not the code's issuance or
-expiry time. Never derive a fresh TTL on every retry.
+Stable keys are **not exactly-once delivery**. The HTTP wrapper tests now cover
+partial-recipient retry, lost responses, bounded upload/network/ledger work,
+tenant/contract verification and provider-acceptance polling. These are not live
+latency or Supabase/native-session evidence. A signature timestamp is not proof
+of code issuance. The frozen first-event deadline reserves five minutes from the
+configured 10–60 minute OTP lifetime; it does not prove a code remains valid after
+a resend or before a delayed first observation. Never renew TTL on retry.
 
-## Planned setup, rotation and rollback
+## Setup, rotation and rollback
 
-This is a checklist for the next increment, **not a deployable customer guide**:
+Use the [setup reference](../../docs/supabase-hook-setup.md) only after its release
+gates pass. No production hook is configured by this branch:
 
-1. Review and validate the new auth-only Rootmail content/expiry contract before
-   adding a network transport. It must fail closed against servers lacking it;
+1. Review and validate the auth-only Rootmail content/expiry contract. The
+   transport preflights policy/provider/workspace/client before posting secrets;
    do not send invented privacy fields to `/v1/messages` (unknown fields are
    currently stripped, not enforced).
 2. Configure one customer's project, workspace/client-scoped key, verified
    sender, branding, callback allowlist and secure-email-change setting.
    Keep both keys in the server secret store; never in browser/native bundles.
    Current client-scoped Rootmail keys are not endpoint-limited send-only keys.
-3. Add a raw-body HTTPS hook wrapper, stream size/time limits, safe status mapping
-   and a total request deadline within Supabase's budget. No raw request/response
-   logging. Disable platform JWT checks only on that hook route, and enforce the
-   webhook signature there instead. Do not disable application authentication.
+3. Mount `createSupabaseEmailHook` on one raw-body HTTPS route with the durable
+   ledger. Its shared 4.5-second budget includes streaming, verification, database
+   work and both recipients. It polls queued work and only acknowledges observed
+   SES acceptance for every recipient. Never log request/response bodies. Exempt
+   only this hook route from user-session/JWT middleware; keep signature checking.
 4. Test confirmed recipients and failure paths using mocks first. Separately
    authorize a real Sprout sign-in and verify delivery and native session.
 5. Only after those gates: record existing Supabase email settings, enable the
@@ -119,9 +124,7 @@ has changed no Supabase setting, so no external rollback is currently necessary.
 - [Supabase hook errors and time budget](https://supabase.com/docs/guides/auth/auth-hooks)
 - [Standard Webhooks implementation](https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries/javascript)
 
-Configs touched: this private package's manifest/TypeScript config and the
-workspace lockfile; the server increment also adds disabled auth environment
-settings, a journaled migration and a CI-only vault fixture (see integration notes).
-Prod behaviour preserved: no running app imports this planner, and the new server
-path is disabled by default. No production deployment, migration, environment,
-IAM, DNS or Supabase setting was changed.
+Configs touched: package metadata; reference customer-ledger SQL; disabled server
+settings and migrations 0083/0084; CI-only vault fixture. Prod behaviour preserved:
+no running app mounts this hook and auth remains off by default. No production
+deployment, migration, environment, IAM, DNS or Supabase setting was changed.

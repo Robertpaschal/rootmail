@@ -25,6 +25,7 @@ import { processCampaignSend } from "./campaigns";
 import { processLifecycleSweep } from "./lifecycle";
 import { processSend } from "./pipeline";
 import { closeAuthContentVault } from "@rootmail/core";
+import { reconcileAuthMessages } from "./auth-reconcile";
 import { forgetOrgProvider } from "./providers/for-org";
 import { processDnsDriftSweep } from "./dns-drift";
 import { processReputationSweep } from "./reputation";
@@ -62,7 +63,7 @@ worker.on("ready", () => {
     );
   }
 });
-worker.on("completed", (job) => console.log(`✓ sent ${job.data.messageId} (job ${job.id})`));
+worker.on("completed", (job) => console.log(`✓ processed send job ${job.data.messageId} (job ${job.id})`));
 worker.on("failed", (job, err) =>
   console.error(`✗ failed ${job?.data.messageId} (job ${job?.id}): ${err.message}`),
 );
@@ -84,7 +85,10 @@ webhookWorker.on("error", (err) => console.error("webhook worker error:", err.me
 const sequenceWorker = new Worker(
   SEQUENCE_QUEUE,
   async (job) => {
-    if (job.name === "tick") await processSequenceTick();
+    if (job.name === "tick") {
+      await reconcileAuthMessages().catch(() => console.error("[auth] reconciliation unavailable"));
+      await processSequenceTick();
+    }
   },
   { connection: createRedis() as unknown as ConnectionOptions, prefix: BULL_PREFIX, concurrency: 1 },
 );

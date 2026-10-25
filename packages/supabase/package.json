@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Unreleased Supabase authentication-email adapter foundation; no live transport.",
+  "description": "Unreleased Supabase auth-email planner, bounded HTTP hook and durable replay ledger.",
   "exports": { ".": "./src/index.ts" },
   "scripts": {
     "typecheck": "tsc --noEmit",

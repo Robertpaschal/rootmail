@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import { Webhook } from "standardwebhooks";
 import { z } from "zod";
 
-// Foundation only: deliberately no HTTP client, queue or Rootmail send import.
-// Ordinary /v1/messages retains bodies and is NOT a safe auth transport yet.
+// Planner stays transport-independent. The optional HTTP adapter is exported below.
+// Ordinary /v1/messages retains bodies and must never carry authentication secrets.
 const actions = ["signup", "magiclink", "recovery", "invite", "reauthentication", "email_change"] as const;
 export type AuthAction = (typeof actions)[number];
 const identifier = z.string().min(1).max(256).regex(/^[\w.-]+$/);
@@ -74,6 +74,8 @@ export class PreparedAuthEmail {
 }
 
 export type SupabaseEmailPlan = Readonly<{
+  eventKey: string;
+  signedAt: number;
   action: AuthAction;
   workspaceId: string;
   clientId: string | null;
@@ -213,7 +215,14 @@ export function createSupabaseEmailPlanner(input: SupabaseEmailConfig) {
       const html = `<p>${escapeHtml(instruction)}</p>${verificationUrl ? `<p><a href="${escapeHtml(verificationUrl)}">${escapeHtml(titles[action])}</a></p>` : ""}<p>If you did not request this, ignore this email.</p>`;
       return new PreparedAuthEmail(role, idempotencyKey, { to, subject, html, text, verificationUrl });
     });
-    return Object.freeze({ action, workspaceId: config.workspaceId, clientId: config.clientId,
+    const eventKey = createHash("sha256").update(JSON.stringify([
+      "rootmail-hook-v1", project.origin, config.workspaceId, config.clientId, normalizedHeaders["webhook-id"],
+    ])).digest("hex");
+    return Object.freeze({ eventKey, signedAt: Number(normalizedHeaders["webhook-timestamp"]) * 1000,
+      action, workspaceId: config.workspaceId, clientId: config.clientId,
       from: config.from, messages: Object.freeze(messages) });
   };
 }
+
+export { createSupabaseEmailHook, type SupabaseHookConfig, type HookLedger } from "./hook";
+export { createPostgresHookLedger, type LedgerQuery } from "./ledger";
