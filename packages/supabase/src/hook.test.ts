@@ -57,6 +57,24 @@ test("hook verifies before any external work and never echoes secrets", async ()
   assert.ok(!(await response.text()).includes("123456"));
 });
 
+test("native code-only mode sends the eight-digit OTP without callback URLs or token hashes", async () => {
+  const f = setup();
+  const { allowedRedirects: _allowed, defaultRedirect: _default, ...base } = f.config;
+  const hook = createSupabaseEmailHook({ ...base, deliveryMode: "code_only" }, { fetch: f.fakeFetch });
+  const payload = { ...fixture(), email_data: { ...fixture().email_data,
+    token: "12345678", redirect_to: "http://localhost:3000", site_url: "https://untrusted.example" } };
+  assert.equal((await hook(request(payload))).status, 200);
+  assert.equal(f.posts.length, 1);
+  for (const body of [String(f.posts[0].html), String(f.posts[0].text)]) {
+    assert.ok(body.includes("12345678"));
+    for (const forbidden of ["localhost", "untrusted.example", "fixture-hash", "/auth/v1/verify", "<a "]) {
+      assert.ok(!body.includes(forbidden));
+    }
+  }
+  // Code-only is explicit: missing callback configuration still fails in link mode.
+  assert.throws(() => createSupabaseEmailHook(base, { fetch: f.fakeFetch }), /invalid_configuration/);
+});
+
 test("re-signed retry and restarted hook preserve original expiry and recipient IDs", async () => {
   const f = setup();
   const now = Math.floor(Date.now() / 1000);

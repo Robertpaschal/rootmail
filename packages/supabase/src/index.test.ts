@@ -8,7 +8,7 @@ import { createSupabaseEmailPlanner, SupabaseHookError, type HookErrorCode, type
 const key = Buffer.alloc(32, 7);
 const previousKey = Buffer.alloc(32, 8);
 const secret = `v1,whsec_${key.toString("base64")}`;
-const config: SupabaseEmailConfig = {
+const config: SupabaseEmailConfig & { allowedRedirects: string[]; defaultRedirect: string } = {
   hookSecrets: [secret], supabaseUrl: "https://project.example.com",
   workspaceId: "ws_fixture", clientId: "st_fixture", from: "auth@example.com",
   brand: "Example App", emailChangeMode: "secure",

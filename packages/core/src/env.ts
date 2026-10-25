@@ -32,6 +32,17 @@ const EnvSchema = z.object({
 
   // Opt-in auth-content path. Never reuse the durable BullMQ cache as its vault.
   AUTH_MESSAGES_ENABLED: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
+  // Exact pilot scopes, including null for workspace-level mail. No wildcard or
+  // implicit inclusion of the workspace's clients; empty means nobody admitted.
+  AUTH_MESSAGE_SCOPES: z.string().default("[]").transform((value, ctx) => {
+    try {
+      return z.array(z.object({ workspaceId: z.string().regex(/^ws_[A-Za-z0-9_-]+$/),
+        subTenantId: z.string().regex(/^tnt_[A-Za-z0-9_-]+$/).nullable() }).strict()).max(20).parse(JSON.parse(value));
+    } catch {
+      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid authentication scope allowlist" });
+      return z.NEVER;
+    }
+  }),
   AUTH_CONTENT_REDIS_URL: z.string().optional(),
   AUTH_CONTENT_KEY: z.string().optional(), // independent 32-byte base64 AES/HMAC key
   AUTH_SES_CONFIGURATION_SET: z.string().optional(), // must exclude OPEN/CLICK events

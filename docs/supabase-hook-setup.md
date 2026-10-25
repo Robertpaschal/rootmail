@@ -11,6 +11,10 @@ are explicitly cleared. No SMTP fallback is invoked by this adapter.
   after vault isolation and SES no-engagement feedback are verified. The default
   remains off. Capability preflight rejects older servers, wrong scope and mock
   delivery before submitting a code. Provider rejection can still occur later.
+  Both API and worker also require `AUTH_MESSAGE_SCOPES` to contain the exact
+  pilot pair, for example `[{"workspaceId":"ws_pilot","subTenantId":null}]`.
+  The empty default denies everyone; a workspace entry never admits its clients
+  implicitly. Removing an entry blocks queued auth mail at the worker too.
 - A verified sender, confirmed test inboxes under sandbox restrictions, and a
   live key in the intended workspace/client. These keys currently have broader
   authority than sending alone. Never expose them to a browser or native app.
@@ -77,6 +81,11 @@ export const POST = createSupabaseEmailHook({
 ```
 
 The framework must pass the original Request body, not parse/re-serialize JSON.
+For a native app that verifies codes directly, set `deliveryMode: "code_only"`
+and omit `allowedRedirects` and `defaultRedirect`. This mode includes the issued
+code but no verification link, token hash, or payload redirect. It does not
+change Supabase's token verification or expiry. The default `code_and_link`
+mode still requires exact permitted HTTPS/native callbacks and rejects localhost.
 Exclude only this hook route from application-session middleware; authenticity is
 enforced by Standard Webhooks signatures. Keep the rest of the app authenticated.
 Disable body/query capture in reverse-proxy logs, APM, error tracking and function

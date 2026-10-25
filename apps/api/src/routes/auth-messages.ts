@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 import type { FastifyInstance } from "fastify";
 import { z } from "zod";
 import { AppError, AUTH_CONTENT_POLICY, AUTH_SUBJECT, assertAuthLifetime, authRequestFingerprint,
-  checkAndCount, enqueueSend, env, Errors, getAuthContentVault, newId, ORG_SENDS_PER_MINUTE,
+  authScopeEnabled, checkAndCount, enqueueSend, env, Errors, getAuthContentVault, newId, ORG_SENDS_PER_MINUTE,
   scanContent, sha256Hex, testRecipientFor } from "@rootmail/core";
 import { db, isPlatformBetaFrom, messages, organizations, orgSendingProviders, unverifiedSendRecipients } from "@rootmail/db";
 import { writeAudit } from "../lib/audit";
@@ -27,14 +27,14 @@ const bodySchema = z.object({
 /** Explicit versioned endpoint: old servers 404, never silently strip a privacy flag. */
 export async function authMessageRoutes(app: FastifyInstance): Promise<void> {
   app.get("/v1/auth-messages/capabilities", async (req, reply) => {
-    if (!env.AUTH_MESSAGES_ENABLED) throw new AppError(503, "auth_unavailable", "Authentication sending is unavailable");
+    if (!authScopeEnabled(req.auth.workspace.id, req.auth.subTenant?.id ?? null)) throw new AppError(503, "auth_unavailable", "Authentication sending is unavailable");
     await requirePermission(req, "messages.send");
     if (!req.auth.apiKey || req.auth.mode !== "live") throw Errors.forbidden("Live server key required");
     return reply.header("cache-control", "no-store").send({ policy: AUTH_CONTENT_POLICY,
       workspace_id: req.auth.workspace.id, sub_tenant_id: req.auth.subTenant?.id ?? null, provider: env.MAIL_PROVIDER });
   });
   app.post("/v1/auth-messages", { bodyLimit: 128 * 1024 }, async (req, reply) => {
-    if (!env.AUTH_MESSAGES_ENABLED) throw new AppError(503, "auth_unavailable", "Authentication sending is unavailable");
+    if (!authScopeEnabled(req.auth.workspace.id, req.auth.subTenant?.id ?? null)) throw new AppError(503, "auth_unavailable", "Authentication sending is unavailable");
     await requirePermission(req, "messages.send");
     const { workspace, subTenant, apiKey, mode } = req.auth;
     if (!apiKey || mode !== "live") throw Errors.forbidden("Authentication mail requires a live server API key");

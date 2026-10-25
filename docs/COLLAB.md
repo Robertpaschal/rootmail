@@ -352,3 +352,17 @@ unverified. Do not market a shipped integration or exactly-once delivery.
 Configs touched: package metadata, reference customer ledger/setup and migration
 0084's partial index. Prod behaviour preserved: no hook mounted, feature off,
 no production migration, deployment, provider setting or real email.
+
+## 2026-10-25 — Sprout production preflight (unreleased)
+
+Live checks confirm a healthy existing host and sandboxed SES, but the auth
+schema/configuration is absent and the worker cannot read SES event settings.
+The narrow read policy is prepared, not applied. Sprout's US project has no
+email hook/custom SMTP; its OTP is eight digits with a one-hour expiry. Native
+sign-in remains unobserved. See `docs/sprout-pilot-validation-2026-10-25.md`.
+
+PR #59 now limits auth admission and queued sends to explicit workspace/client
+pairs. Native consumers can select code-only email without browser redirects;
+default link mode preserves its exact callback checks. The local test command
+pins mock mail/DNS and preserves fixture environment settings. These controls
+are tested implementation, not evidence that Sprout sign-in is live.

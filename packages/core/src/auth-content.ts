@@ -7,6 +7,12 @@ export const AUTH_CONTENT_POLICY = "authentication-v1";
 export const AUTH_SUBJECT = "Authentication email";
 export const AUTH_MAX_LIFETIME_MS = 60 * 60 * 1000;
 export const AUTH_SEND_MARGIN_MS = 15_000;
+
+/** Both admission and worker recheck this so removing a pilot stops queued work. */
+export function authScopeEnabled(workspaceId: string, subTenantId: string | null): boolean {
+  return env.AUTH_MESSAGES_ENABLED && env.AUTH_MESSAGE_SCOPES.some(scope =>
+    scope.workspaceId === workspaceId && scope.subTenantId === subTenantId);
+}
 const contentSchema = z.object({ html: z.string().min(1).max(64_000), text: z.string().max(32_000) }).strict();
 export type AuthContent = z.infer<typeof contentSchema>;
 export interface AuthContentScope {

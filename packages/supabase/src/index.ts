@@ -29,8 +29,9 @@ const configSchema = z.object({
   from: email,
   brand: z.string().trim().min(1).max(100).regex(/^[^\r\n\u0000-\u001f\u007f]+$/),
   emailChangeMode: z.enum(["secure", "single"]),
-  allowedRedirects: z.array(z.string().url().max(2048)).min(1).max(32),
-  defaultRedirect: z.string().url().max(2048),
+  deliveryMode: z.enum(["code_and_link", "code_only"]).default("code_and_link"),
+  allowedRedirects: z.array(z.string().url().max(2048)).max(32).default([]),
+  defaultRedirect: z.string().url().max(2048).optional(),
 });
 
 export type SupabaseEmailConfig = z.input<typeof configSchema>;
@@ -129,7 +130,8 @@ export function createSupabaseEmailPlanner(input: SupabaseEmailConfig) {
   const config = parsedConfig.data;
   const project = new URL(config.supabaseUrl);
   if (project.protocol !== "https:" || project.username || project.password || project.search || project.hash ||
-      project.pathname !== "/" || !config.allowedRedirects.includes(config.defaultRedirect)) {
+      project.pathname !== "/" || (config.deliveryMode === "code_and_link" &&
+        (!config.defaultRedirect || !config.allowedRedirects.includes(config.defaultRedirect)))) {
     throw new SupabaseHookError("invalid_configuration");
   }
   // HTTPS web callbacks and explicitly enumerated native-app callbacks only.
@@ -174,8 +176,12 @@ export function createSupabaseEmailPlanner(input: SupabaseEmailConfig) {
     if (!parsed.success) throw new SupabaseHookError("invalid_payload");
     const { user, email_data: data } = parsed.data;
     const action = data.email_action_type;
-    const redirect = data.redirect_to || config.defaultRedirect;
-    if (!config.allowedRedirects.includes(redirect)) throw new SupabaseHookError("invalid_redirect");
+    // Native OTP consumers do not use a browser callback. In code-only mode no
+    // payload URL or token hash is rendered, even if Supabase supplies one.
+    const redirect = config.deliveryMode === "code_and_link" ? data.redirect_to || config.defaultRedirect : undefined;
+    if (config.deliveryMode === "code_and_link" && (!redirect || !config.allowedRedirects.includes(redirect))) {
+      throw new SupabaseHookError("invalid_redirect");
+    }
     const recipients: { to: string; role: "current" | "new"; token: string; hash: string | null }[] = [];
     if (action === "email_change") {
       const newEmail = email.safeParse(user.new_email);
@@ -199,7 +205,7 @@ export function createSupabaseEmailPlanner(input: SupabaseEmailConfig) {
     }
     const messages = recipients.map(({ to, role, token, hash }) => {
       let verificationUrl: string | null = null;
-      if (hash) {
+      if (hash && redirect) {
         const url = new URL("/auth/v1/verify", project);
         url.search = new URLSearchParams({ token: hash, type: action, redirect_to: redirect }).toString();
         verificationUrl = url.href;

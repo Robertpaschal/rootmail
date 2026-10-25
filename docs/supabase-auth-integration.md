@@ -7,6 +7,10 @@ in this increment.
 
 Task: [Rootmail / Sprout pilot](https://app.notion.com/p/4032db0e8691818496f5c235840c351c).
 
+Latest operational evidence: [25 October production and Sprout configuration
+validation](sprout-pilot-validation-2026-10-25.md). The checks are read-only;
+the integration is not deployed and the native pilot has not run.
+
 ## First increment — signed planner
 
 `packages/supabase` contains a private, transport-free planner. It verifies raw

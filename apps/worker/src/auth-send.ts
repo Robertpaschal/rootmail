@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { AuthContentError, assertAuthLifetime, env, getAuthContentVault, type AuthContent } from "@rootmail/core";
+import { AuthContentError, assertAuthLifetime, authScopeEnabled, getAuthContentVault, type AuthContent } from "@rootmail/core";
 import { db, messages, organizations, orgSendingProviders, workspaces, type Message } from "@rootmail/db";
 import { sendAuthViaSes } from "./providers/auth-ses";
 
@@ -16,7 +16,7 @@ export async function processAuthSend(message: Message, audit: Audit, suppressed
   let sentRecorded = false;
   let ownsClaim = false;
   try {
-    if (!env.AUTH_MESSAGES_ENABLED || message.sandbox) throw new AuthContentError("auth_unavailable");
+    if (!authScopeEnabled(message.workspaceId, message.subTenantId) || message.sandbox) throw new AuthContentError("auth_unavailable");
     assertAuthLifetime(message.authExpiresAt);
     vault = getAuthContentVault();
     const [org] = await db.select({ id: organizations.id, byo: organizations.byoProvider, dedicated: organizations.dedicatedIpStatus })

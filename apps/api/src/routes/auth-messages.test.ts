@@ -38,6 +38,7 @@ describe("auth message privacy and expiry (mock delivery only)", () => {
     env.AUTH_CONTENT_REDIS_URL = process.env.AUTH_CONTENT_REDIS_URL ?? "redis://127.0.0.1:6395";
     env.AUTH_CONTENT_KEY = Buffer.alloc(32, 19).toString("base64");
     env.AUTH_MESSAGES_ENABLED = true;
+    env.AUTH_MESSAGE_SCOPES = [null, tenantA, tenantB].map(subTenantId => ({ workspaceId: ws, subTenantId }));
     await getAuthContentVault().assertEphemeral();
     await db.insert(organizations).values({ id: org, name: "Auth fixture", slug: suffix });
     await db.insert(orgAddons).values({ id: `adn_${suffix}`, organizationId: org, addonId: "subtenant_pack", quantity: 5 });
@@ -81,6 +82,28 @@ describe("auth message privacy and expiry (mock delivery only)", () => {
       assert.equal(r.statusCode, 422);
       assert.equal(r.json().error.type, "auth_expired");
     }
+  });
+
+  it("admits only exact pilot scopes and stops queued mail when a scope is removed", async () => {
+    const pending = await accepted();
+    const scopes = env.AUTH_MESSAGE_SCOPES;
+    let sends = 0;
+    try {
+      for (const allowed of [[], [{ workspaceId: "ws_other", subTenantId: null }],
+        [{ workspaceId: ws, subTenantId: tenantA }]]) {
+        env.AUTH_MESSAGE_SCOPES = allowed;
+        assert.equal((await post()).statusCode, 503);
+        assert.equal((await app.inject({ method: "GET", url: "/v1/auth-messages/capabilities", headers: headers() })).statusCode, 503);
+      }
+      env.AUTH_MESSAGE_SCOPES = [{ workspaceId: ws, subTenantId: null }];
+      assert.equal((await post(payload(), tenantA)).statusCode, 503);
+      env.AUTH_MESSAGE_SCOPES = [];
+      await processSend({ messageId: pending, workspaceId: ws }, async () => {
+        sends++; return { provider: "ses", providerMessageId: "must-not-send" };
+      });
+      assert.equal(sends, 0);
+      assert.equal((await row(pending)).error, "auth_unavailable");
+    } finally { env.AUTH_MESSAGE_SCOPES = scopes; }
   });
 
   it("persists only non-secret metadata, queues only IDs, and makes no conversation copy", async () => {
