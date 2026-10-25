@@ -303,3 +303,17 @@ services at 22:58–22:59 WAT, 15 October. Exact-main CI, both canary deliveries
 and a correctly captured post-release reply passed. Rollback images are retained;
 the temporary QA key is revoked and rejected (401). Evidence and limitations:
 `docs/beta-readiness-2026-10-15.md`.
+
+## 2026-10-24 — Supabase auth integration started, not released
+
+A private adapter foundation now verifies signed Supabase email hooks and prepares
+the supported auth action/recipient plans, including secure email-change mappings.
+It has no send transport and is not wired into any running service. Do not market
+Rootmail as a shipped Supabase auth integration yet. Ordinary mail retention and
+conversation copies require a separate auth-content policy before live codes can
+flow through Rootmail. Tracking, expiry, durable replay handling and the authorized
+Sprout native sign-in pilot remain release gates. See
+`docs/supabase-auth-integration.md` and the package README.
+
+Configs touched: private package/TypeScript configuration and workspace lockfile.
+Prod behaviour preserved: no runtime, provider, tracking or deployment changes.
