@@ -2,7 +2,8 @@ import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import sensible from "@fastify/sensible";
 import Fastify, { type FastifyInstance } from "fastify";
-import { assertProofSigningKey, createRedis, env } from "@rootmail/core";
+import { assertProofSigningKey, closeAuthContentVault, createRedis, env } from "@rootmail/core";
+import { authMessageRoutes } from "./routes/auth-messages";
 import "./context";
 import { registerAuth } from "./plugins/auth";
 import { registerErrorHandler } from "./plugins/errors";
@@ -74,6 +75,7 @@ export async function buildServer(): Promise<FastifyInstance> {
       // must never reach a log even if someone adds body logging later.
       redact: {
         paths: [
+          "req.body", "body", // auth codes must never enter request-body logs
           "req.body.secret_access_key",
           "req.body.api_key",
           "req.body.webhook_signing_key",
@@ -100,6 +102,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   // a failing one.
   const rateLimitRedis = createRedis();
   app.addHook("onClose", async () => {
+    await closeAuthContentVault();
     await rateLimitRedis.quit().catch(() => undefined);
   });
 
@@ -135,6 +138,7 @@ export async function buildServer(): Promise<FastifyInstance> {
   await app.register(scimRoutes);
   await app.register(senderRoutes);
   await app.register(messageRoutes);
+  await app.register(authMessageRoutes);
   await app.register(subTenantRoutes);
   await app.register(contactRoutes);
   await app.register(subscribeRoutes);

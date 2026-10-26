@@ -65,6 +65,7 @@ jobs:
     env:
       DATABASE_URL: postgres://rootmail:rootmail@localhost:5432/rootmail
       REDIS_URL: redis://localhost:6379
+      AUTH_CONTENT_REDIS_URL: redis://127.0.0.1:6395
       MAIL_PROVIDER: mock
       # Explicit, because the DEFAULT changed. This used to rely on
       # DNS_VERIFY_MODE defaulting to "mock"; when that default was flipped to
@@ -91,6 +92,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Migrate database
         run: pnpm db:migrate
+      - name: Start isolated non-persistent auth-content test vault
+        run: docker run -d --name rootmail-auth-content-ci -p 127.0.0.1:6395:6379 valkey/valkey:7.2-alpine valkey-server --save '' --appendonly no --maxmemory 64mb --maxmemory-policy noeviction
       - name: Unit and isolation tests
         run: pnpm exec turbo run test --env-mode=loose
       - name: Quota and end-to-end smoke

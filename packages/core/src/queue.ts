@@ -45,6 +45,8 @@ export function getSendQueue(): Queue<SendJobData> {
 }
 
 export interface EnqueueOptions {
+  /** Authentication content is consumed once; never automatically retry an ambiguous send. */
+  singleAttempt?: boolean;
   priority?: Priority;
   /** Delay before the job becomes available (used for scheduled `send_at`). */
   delayMs?: number;
@@ -60,7 +62,7 @@ export async function enqueueSend(data: SendJobData, opts: EnqueueOptions = {}) 
   return queue.add("send", data, {
     priority: QUEUE_PRIORITY[opts.priority ?? "normal"],
     delay: opts.delayMs && opts.delayMs > 0 ? opts.delayMs : undefined,
-    attempts: 4,
+    attempts: opts.singleAttempt ? 1 : 4,
     backoff: { type: "exponential", delay: 5_000 },
     removeOnComplete: { age: 86_400, count: 5_000 },
     removeOnFail: { age: 7 * 86_400 },
@@ -86,10 +88,11 @@ export async function enqueueSend(data: SendJobData, opts: EnqueueOptions = {}) 
  * regardless by `processSend`, which returns unless the message row is still
  * queued/sending: the row is the real lock, the job id is only a shortcut.
  */
-export async function enqueueSendDeferred(data: SendJobData, delayMs: number): Promise<void> {
+export async function enqueueSendDeferred(data: SendJobData, delayMs: number, opts: Pick<EnqueueOptions, "singleAttempt" | "priority"> = {}): Promise<void> {
   await getSendQueue().add("send", data, {
     delay: Math.max(0, delayMs),
-    attempts: 4,
+    ...(opts.priority ? { priority: QUEUE_PRIORITY[opts.priority] } : {}),
+    attempts: opts.singleAttempt ? 1 : 4,
     backoff: { type: "exponential", delay: 5_000 },
     removeOnComplete: { age: 86_400, count: 5_000 },
     removeOnFail: { age: 7 * 86_400 },

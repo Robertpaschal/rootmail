@@ -38,6 +38,8 @@ import { processSystemMail } from "../../../worker/src/system-mail";
 // Staff-only preview of marketing-class system mail. The API only ENQUEUES
 // (MAIL_PROVIDER=mock, no worker in tests); the header test then runs the
 // enqueued job through the real worker path with every AWS call intercepted.
+// API test files run sequentially: this suite resets rootmail-hq's shared daily
+// counter while other suites send platform mail. In-test concurrency is retained.
 const stamp = Date.now();
 const staffEmail = `preview-staff-${stamp}@example.test`;
 const supportEmail = `preview-support-${stamp}@example.test`;

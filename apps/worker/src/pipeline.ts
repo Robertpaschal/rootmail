@@ -26,6 +26,8 @@ import { ByoProviderUnavailable, resolveProviderForMessage, type ResolvedProvide
 import { addSesNoTrack, isInternalWorkspace, isPlatformMessage, platformConfigurationSet } from "./platform-mail";
 import { unverifiedSendRecipients, RECIPIENT_VERIFICATION_REQUIRED } from "@rootmail/db";
 import type { OutboundAttachment } from "./providers/types";
+import { processAuthSend, type AuthSend } from "./auth-send";
+import { AUTH_SEND_MARGIN_MS, assertAuthLifetime, getAuthContentVault } from "@rootmail/core";
 
 /** Fetch each attachment's bytes from its public asset URL (host-independent). */
 /**
@@ -134,6 +136,14 @@ const DNS_SUSPENDED_ERROR =
 // rates that are fine.
 type ReputationGate = "ok" | "deferred" | "paused" | "dns_suspended" | "suspended";
 
+/** Auth gate failures may only transition queued rows, never another worker's claim. */
+async function failBeforeSend(message: Message, reason: string): Promise<boolean> {
+  const [updated] = await db.update(messages).set({ status: "failed", error: reason, updatedAt: new Date() })
+    .where(and(eq(messages.id, message.id), message.authExpiresAt ? eq(messages.status, "queued") : undefined))
+    .returning({ id: messages.id });
+  return Boolean(updated);
+}
+
 /**
  * Apply the tenant's current reputation state to one send.
  *
@@ -201,17 +211,16 @@ async function reputationGate(message: Message, data: SendJobData): Promise<Repu
   if (verdict.allowed) return "ok";
 
   const deferrals = (data.throttleDeferrals ?? 0) + 1;
+  if (message.authExpiresAt && Date.now() + verdict.retryInMs + AUTH_SEND_MARGIN_MS >= message.authExpiresAt.getTime()) {
+    if (!await failBeforeSend(message, "auth_expired")) return "deferred";
+    await audit(message, "failed", { metadata: { reason: "auth_expired" } });
+    try { await getAuthContentVault().discard({ ...message, authExpiresAt: message.authExpiresAt }); } catch { /* TTL remains. */ }
+    return "deferred";
+  }
   if (deferrals > REPUTATION_MAX_DEFERRALS) {
     // Past a day of trying, a queue is just a place messages go to be forgotten.
     // Fail it honestly so it shows up as failed rather than eternally pending.
-    await db
-      .update(messages)
-      .set({
-        status: "failed",
-        error: `Held by a send throttle for over ${REPUTATION_MAX_DEFERRALS} hours.`,
-        updatedAt: new Date(),
-      })
-      .where(eq(messages.id, message.id));
+    if (!await failBeforeSend(message, `Held by a send throttle for over ${REPUTATION_MAX_DEFERRALS} hours.`)) return "deferred";
     await audit(message, "failed", {
       metadata: { reason: "throttle deferral limit reached", deferrals },
     });
@@ -221,12 +230,13 @@ async function reputationGate(message: Message, data: SendJobData): Promise<Repu
   await enqueueSendDeferred(
     { messageId: message.id, workspaceId: message.workspaceId, throttleDeferrals: deferrals },
     verdict.retryInMs,
+    message.authExpiresAt ? { singleAttempt: true, priority: "high" } : undefined,
   );
   return "deferred";
 }
 
 /** Process one send job: suppression → provider → status + audit transitions. */
-export async function processSend(data: SendJobData): Promise<void> {
+export async function processSend(data: SendJobData, authSend?: AuthSend): Promise<void> {
   const [message] = await db.select().from(messages).where(eq(messages.id, data.messageId)).limit(1);
   if (!message) {
     console.warn(`[send] message ${data.messageId} not found — skipping`);
@@ -236,13 +246,22 @@ export async function processSend(data: SendJobData): Promise<void> {
   if (message.status !== "queued" && message.status !== "sending") {
     return;
   }
+  if (message.authExpiresAt) {
+    if (message.status !== "queued") return;
+    try { assertAuthLifetime(message.authExpiresAt); }
+    catch {
+      if (!await failBeforeSend(message, "auth_expired")) return;
+      await audit(message, "failed", { metadata: { reason: "auth_expired" } });
+      try { await getAuthContentVault().discard({ ...message, authExpiresAt: message.authExpiresAt }); } catch { /* TTL remains. */ }
+      return;
+    }
+  }
 
   // Campaigns, sequences and scheduled mail must observe the same restriction
   // as the composer, including recipients removed after the mail was queued.
   if (!message.sandbox && (await unverifiedSendRecipients(message.workspaceId, [message.toEmail])).length) {
     const reason = `${message.toEmail} is not confirmed. ${RECIPIENT_VERIFICATION_REQUIRED}`;
-    await db.update(messages).set({ status: "failed", error: reason, updatedAt: new Date() })
-      .where(eq(messages.id, message.id));
+    if (!await failBeforeSend(message, reason)) return;
     await audit(message, "failed", { metadata: { reason } });
     return;
   }
@@ -262,11 +281,13 @@ export async function processSend(data: SendJobData): Promise<void> {
   if (gate === "paused" || gate === "dns_suspended" || gate === "suspended") {
     const reason =
       gate === "paused" ? PAUSED_ERROR : gate === "suspended" ? SUSPENDED_ERROR : DNS_SUSPENDED_ERROR;
-    await db
-      .update(messages)
-      .set({ status: "failed", error: reason, updatedAt: new Date() })
-      .where(eq(messages.id, message.id));
+    if (!await failBeforeSend(message, reason)) return;
     await audit(message, "failed", { metadata: { reason } });
+    return;
+  }
+
+  if (message.authExpiresAt) {
+    await processAuthSend(message, audit, () => isSuppressedAtSend(message), authSend);
     return;
   }
 

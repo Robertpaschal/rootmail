@@ -31,3 +31,4 @@ export * from "./lifecycle-email";
 export * from "./envelope";
 export * from "./byo";
 export * from "./smtp-guard";
+export * from "./auth-content";

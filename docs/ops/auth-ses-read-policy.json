@@ -1,0 +1,9 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [{
+    "Sid": "ReadAuthDeliveryTrackingConfiguration",
+    "Effect": "Allow",
+    "Action": "ses:GetConfigurationSetEventDestinations",
+    "Resource": "arn:aws:ses:us-east-1:130299713609:configuration-set/rootmail-platform"
+  }]
+}

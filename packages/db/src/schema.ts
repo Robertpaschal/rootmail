@@ -1285,6 +1285,10 @@ export const messages = pgTable(
     renderedText: text("rendered_text"),
     // sha256 of the rendered HTML — proves *what* was sent (Layer 3 / proof bundles).
     contentHash: text("content_hash"),
+    // Auth mail stores no content in this row. Ciphertext lives only in the ephemeral vault.
+    // Migration 0083's messages_auth_content_private CHECK enforces this across writers.
+    authExpiresAt: timestamp("auth_expires_at", { withTimezone: true }),
+    authRequestFingerprint: text("auth_request_fingerprint"), // keyed, private; never a proof digest
     sendAt: timestamp("send_at", { withTimezone: true }),
     priority: priorityEnum("priority").notNull().default("normal"),
     tags: jsonb("tags").$type<string[]>().notNull().default([]),

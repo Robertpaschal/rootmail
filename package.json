@@ -34,7 +34,7 @@
     "marketing": "pnpm --filter @rootmail/marketing dev",
     "dashboard": "pnpm --filter @rootmail/dashboard dev",
     "admin": "pnpm --filter @rootmail/admin dev",
-    "test": "turbo run test"
+    "test": "MAIL_PROVIDER=mock DNS_VERIFY_MODE=mock turbo run test --env-mode=loose"
   },
   "devDependencies": {
     "@types/node": "^22.10.5",

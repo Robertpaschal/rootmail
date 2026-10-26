@@ -303,3 +303,66 @@ services at 22:58–22:59 WAT, 15 October. Exact-main CI, both canary deliveries
 and a correctly captured post-release reply passed. Rollback images are retained;
 the temporary QA key is revoked and rejected (401). Evidence and limitations:
 `docs/beta-readiness-2026-10-15.md`.
+
+## 2026-10-24 — Supabase auth integration started, not released
+
+A private adapter foundation now verifies signed Supabase email hooks and prepares
+the supported auth action/recipient plans, including secure email-change mappings.
+It has no send transport and is not wired into any running service. Do not market
+Rootmail as a shipped Supabase auth integration yet. Ordinary mail retention and
+conversation copies require a separate auth-content policy before live codes can
+flow through Rootmail. Tracking, expiry, durable replay handling and the authorized
+Sprout native sign-in pilot remain release gates. See
+`docs/supabase-auth-integration.md` and the package README.
+
+Configs touched: private package/TypeScript configuration and workspace lockfile.
+Prod behaviour preserved: no runtime, provider, tracking or deployment changes.
+
+## 2026-10-25 — auth-content safeguards implemented behind an off switch
+
+The draft Supabase integration branch now has a dedicated authentication-send
+endpoint and worker path. Encrypted short-lived content stays outside PostgreSQL
+and conversations; the database enforces empty auth bodies/proof digests. Jobs carry
+IDs only, expire conservatively, and cannot resend consumed content. Client-scoped
+idempotency, safe errors and an SES-only no-engagement configuration check are
+implemented and exercised with fake delivery. This is not a production launch:
+the feature defaults off, the Supabase planner has no HTTP transport yet, stale
+worker claims still need reconciliation, and the Sprout sign-in pilot is unrun.
+Do not promise exactly-once delivery or claim that queue acceptance means delivery.
+
+Configs touched: disabled auth env settings/template, migration 0083 and journal,
+API test-file sequencing and CI local ephemeral vault. Prod behaviour preserved: no deployment, production
+migration, provider change or global tracking change. Existing ordinary mail stays
+on its current path.
+
+## 2026-10-25 — Supabase hook transport and replay recovery (unreleased)
+
+PR #59 now includes an opt-in signed HTTP hook, capability/scope preflight,
+bounded request/response work, PostgreSQL replay metadata and partial-recipient
+recovery. A hook success requires recorded SES acceptance for every recipient;
+queueing alone is not success and acceptance is not inbox delivery. The ledger
+never renews expiry on a re-signed retry. Interrupted worker claims are classified
+without resending. Local acceptance used the real API/database/queue and fake mail.
+
+There is a customer setup reference, not a completed customer installation.
+Actual Supabase expiry/resend behavior, production privacy/configuration and
+latency, a native Sprout session and a second-customer walkthrough are still
+unverified. Do not market a shipped integration or exactly-once delivery.
+
+Configs touched: package metadata, reference customer ledger/setup and migration
+0084's partial index. Prod behaviour preserved: no hook mounted, feature off,
+no production migration, deployment, provider setting or real email.
+
+## 2026-10-25 — Sprout production preflight (unreleased)
+
+Live checks confirm a healthy existing host and sandboxed SES, but the auth
+schema/configuration is absent and the worker cannot read SES event settings.
+The narrow read policy is prepared, not applied. Sprout's US project has no
+email hook/custom SMTP; its OTP is eight digits with a one-hour expiry. Native
+sign-in remains unobserved. See `docs/sprout-pilot-validation-2026-10-25.md`.
+
+PR #59 now limits auth admission and queued sends to explicit workspace/client
+pairs. Native consumers can select code-only email without browser redirects;
+default link mode preserves its exact callback checks. The local test command
+pins mock mail/DNS and preserves fixture environment settings. These controls
+are tested implementation, not evidence that Sprout sign-in is live.

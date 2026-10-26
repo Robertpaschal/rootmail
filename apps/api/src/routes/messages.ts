@@ -276,6 +276,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
         )
         .limit(1);
       if (existing) {
+        if (existing.authExpiresAt) throw Errors.conflict("Use the authentication endpoint for this request");
         void reply.header("Idempotent-Replayed", "true");
         return reply.status(200).send(serializeMessage(existing));
       }
@@ -573,6 +574,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
           await recordTransactionalDaily(org.id, -1); // the day counter too
         }
       }
+      if (existing.authExpiresAt) throw Errors.conflict("Use the authentication endpoint for this request");
       void reply.header("Idempotent-Replayed", "true");
       return reply.status(200).send(serializeMessage(existing));
     }
@@ -711,6 +713,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
     await requirePermission(req, "messages.send");
     const { id } = req.params as { id: string };
     const message = await getScopedMessage(req, id);
+    if (message.authExpiresAt) throw Errors.badRequest("Authentication messages cannot be resent. Request a new code from the authentication provider.");
 
     const verdict = canRetryMessage({
       status: message.status,
@@ -791,6 +794,7 @@ export async function messageRoutes(app: FastifyInstance): Promise<void> {
 
     const bundle = {
       message_id: message.id,
+      ...(message.authExpiresAt ? { content_policy: "authentication-v1", content_retained: false } : {}),
       content_hash: message.contentHash,
       subject: message.subject,
       to: message.toEmail,

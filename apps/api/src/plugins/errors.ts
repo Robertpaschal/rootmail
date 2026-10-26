@@ -1,9 +1,18 @@
 import type { FastifyError, FastifyInstance } from "fastify";
 import { ZodError } from "zod";
-import { AppError } from "@rootmail/core";
+import { AppError, AuthContentError } from "@rootmail/core";
 
 export function registerErrorHandler(app: FastifyInstance): void {
   app.setErrorHandler((error: FastifyError, req, reply) => {
+    // Includes JSON parser / database / Redis errors, which can echo body values.
+    if (req.url.split("?")[0] === "/v1/auth-messages") {
+      const status = error instanceof AuthContentError ? (error.code === "auth_expired" ? 422 : 503)
+        : error instanceof AppError ? error.statusCode
+        : error.statusCode && error.statusCode < 500 ? error.statusCode : 503;
+      const code = error instanceof AuthContentError ? error.code : error instanceof AppError ? error.code : "auth_send_refused";
+      void reply.status(status).send({ error: { type: code, message: "Authentication send was refused; no automatic retry after an ambiguous send." } });
+      return;
+    }
     if (error instanceof AppError) {
       void reply.status(error.statusCode).send(error.toJSON());
       return;
