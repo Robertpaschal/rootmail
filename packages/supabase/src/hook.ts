@@ -10,6 +10,8 @@ export interface SupabaseHookConfig extends SupabaseEmailConfig {
   rootmailUrl: string;
   rootmailApiKey: string;
   replyTo?: string;
+  /** Optional controlled-pilot restriction, checked after signature verification. */
+  allowedRecipients?: readonly string[];
   /** Match the project's OTP TTL; currently supports 10–60 minutes with a 5-minute reserve. */
   credentialLifetimeSeconds: number;
   /** Independent stable 32-byte base64 secret. Rotation is not transparent to existing events. */
@@ -81,6 +83,10 @@ export function createSupabaseEmailHook(input: SupabaseHookConfig, dependencies:
       (input.replyTo !== undefined && (!z.string().email().safeParse(input.replyTo).success || input.replyTo.toLowerCase().startsWith("reply+")))) {
     throw new SupabaseHookError("invalid_configuration");
   }
+  if (input.allowedRecipients !== undefined && !z.array(z.string().email()).min(1).max(10).safeParse(input.allowedRecipients).success) {
+    throw new SupabaseHookError("invalid_configuration");
+  }
+  const allowedRecipients = input.allowedRecipients ? new Set(input.allowedRecipients.map(email => email.toLowerCase())) : null;
   // Copy mutable caller config once. Per-request tenant claims never affect these values.
   const { rootmailApiKey, replyTo, credentialLifetimeSeconds, ledger } = input;
   const fetcher = dependencies.fetch ?? fetch;
@@ -102,6 +108,9 @@ export function createSupabaseEmailHook(input: SupabaseHookConfig, dependencies:
       if (length && (!/^\d+$/.test(length) || Number(length) > 128 * 1024)) throw new HookFailure(413);
       const raw = await readLimited(request.body, 128 * 1024, signal);
       const plan = planner(raw, request.headers); // verifies before any ledger or network operation
+      if (allowedRecipients && plan.messages.some(message => !allowedRecipients.has(message.readSensitiveContent().to.toLowerCase()))) {
+        throw new HookFailure(403);
+      }
       const headers = { authorization: `Bearer ${rootmailApiKey}`, "content-type": "application/json",
         ...(plan.clientId ? { "x-rootmail-subtenant": plan.clientId } : {}) };
       const api = async (path: string, method = "GET", body?: unknown): Promise<unknown> => {

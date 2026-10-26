@@ -22,19 +22,21 @@ activation steps, not a deployment or successful pilot.
   REJECT and RENDERING_FAILURE to the existing SNS topic. No OPEN/CLICK events.
   Configuration-set archiving, tracking options and VDM overrides are absent;
   account VDM settings are absent. Sending is enabled.
-- The production worker's actual credentials receive `AccessDeniedException`
+- The production worker's actual credentials initially received `AccessDeniedException`
   from `GetConfigurationSetEventDestinations`. The deployment user's read succeeds.
   Ordinary send permission does not establish permission for this auth safety check.
 - Prepared [minimal runtime read policy](ops/auth-ses-read-policy.json): one
   `ses:GetConfigurationSetEventDestinations` action on the exact
-  `rootmail-platform` ARN. It has **not** been applied. The deployment identity
-  cannot inspect/administer the `rootmail-app` IAM role; use an authorized AWS
-  administrator and verify the runtime check again after applying it.
+  `rootmail-platform` ARN. After Robert's approval on 26 October, the console
+  confirmed `rootmail-auth-config-read` attached to `rootmail-app`. The same
+  runtime check then succeeded, returning only the expected non-engagement
+  events. The deployment identity still has no IAM administration permission.
 
 SSM evidence IDs (outputs contain no credentials or message content):
 `02a2e6c2-b161-452a-89bd-100dbaf44aec` (host/images/config presence),
 `9dad672e-de52-431f-b7ad-5ea5bb4b091c` (candidate workspaces/schema),
 `9bc1944f-7af6-44c8-ae13-ceffb719a728` (runtime SES read denial).
+The successful post-permission check is `a3f6fc13-eab2-40e1-a342-529de0e07c18`.
 
 ## Sprout hosted settings
 
@@ -73,20 +75,28 @@ Default link mode keeps the exact HTTPS/native redirect allowlist. This avoids
 sending Sprout users an unusable localhost link without weakening callback checks.
 
 The existing Sprout chat's Rootmail session selects **Robert Beta QA / Production**,
-whose API-key page shows no keys. A candidate isolated test scope is the existing
-`Rootmail Beta Acceptance 20261015` live workspace
-`ws_dgdl6gmn84qh5x8e93cqp5db`, not the internal customer-mail workspace. No Sprout
-organization was found in the name-scoped database lookup. Confirm this QA scope
-and its sender/recipient records before issuing a dedicated temporary credential.
-The owner's previously used Gmail inbox is SES-verified, but SES identity alone
-does not prove this workspace's recipient admission.
+confirmed as `Rootmail Beta Acceptance 20261015`, live workspace
+`ws_dgdl6gmn84qh5x8e93cqp5db`. Read-only database inspection confirmed no sending
+suspension, normal reputation, the owner Gmail address as a verified recipient,
+and its default verified beta sender. After explicit approval, temporary key
+`key_6x28z8pmaf3ind40vsezeuq0` was created for at most eight owner-inbox checks.
+It was encrypted for transfer to the host, decrypted only into a root-owned
+0600 file on `/run`, and the local temporary copy removed. Revoke it after the
+pilot and verify HTTP 401. It is a workspace key, not an endpoint-limited key.
+No pilot email has yet been sent.
+
+The runnable isolated hook listener now passes two real HTTP fixture tests;
+recipient admission brings the adapter suite to 40 passing tests. All seven
+workspace test tasks pass (258 API tests), typecheck and all six builds pass,
+and the design audit reports zero blockers. Production runtime-image CI must
+still verify the newly added entrypoint/dependency packaging before release.
 
 ## Remaining activation and acceptance
 
-1. Apply and verify the narrow runtime SES read permission through authorized
-   AWS administration. Do not bypass a denied permission using another credential.
+1. Runtime SES read permission is applied and verified. Preserve its exact scope.
 2. Finish the reviewed hook-host deployment and durable ledger configuration.
-   No executable HTTPS hook is deployed yet. Use the existing host/database where
+   A dedicated HTTP listener and optional Compose overlay are now prepared;
+   no executable HTTPS hook is deployed yet. Use the existing host/database where
    suitable; the observed capacity does not justify a new paid instance.
 3. Release PR #59 through exact-main CI, images, reviewed migrations and the
    guarded canary path. Provision a separate bounded non-persistent content vault;

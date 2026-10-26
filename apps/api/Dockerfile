@@ -6,11 +6,13 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json apps/api/package.json
 COPY packages/core/package.json packages/core/package.json
 COPY packages/db/package.json packages/db/package.json
+COPY packages/supabase/package.json packages/supabase/package.json
 RUN pnpm install --prod --frozen-lockfile
 COPY apps/api/src apps/api/src
 COPY packages/core/src packages/core/src
 COPY packages/db/src packages/db/src
 COPY packages/db/migrations packages/db/migrations
+COPY packages/supabase/src packages/supabase/src
 
 FROM node:22-alpine AS runtime
 ENV COREPACK_HOME=/opt/corepack

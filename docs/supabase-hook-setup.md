@@ -95,6 +95,37 @@ transit consume Supabase's five-second budget before/after the handler's 4.5s ca
 
 ## Retry and expiry semantics
 
+### Controlled Sprout host
+
+The optional `apps/api/src/cli/supabase-hook-server.ts` entrypoint runs from the
+same immutable API image, with its own environment and port 4011. It serves only
+the exact POST `/v1/hooks/supabase/sprout` and GET `/health`. It preserves signed
+bytes, rejects duplicate signature headers, caps connections/timeouts and emits
+fixed errors without access/body logs. It requires `deliveryMode: "code_only"`
+and an explicit `allowedRecipients` list in `SUPABASE_HOOK_CONFIG_JSON`; all other
+configuration fields above belong in that JSON. Keep `HOOK_DATABASE_URL` limited
+to the ledger role. TLS certificate verification is required; optionally mount
+the database CA at `HOOK_DATABASE_CA_FILE`.
+
+`docs/ops/sprout-pilot.compose.yml` is an opt-in deployment overlay, not enabled
+by the regular release. It bounds the hook to 192 MiB and the separate Valkey
+vault to 96 MiB, with no swap, core dumps, persistence or published vault port.
+The host must also have no swap/hibernation or memory backups. The vault uses
+an internal network and a private ACL file; disable the default user and permit
+only the auth user's `rootmail-auth:*` keys and required connection commands,
+`CONFIG GET`, `ROLE`, `SET`, `GETDEL`, `DEL`. Never grant `CONFIG SET`, replication,
+`MONITOR` or persistence commands. Verify the production ACL with the actual
+API/worker client before admission. Preserve this network in the host overlay
+used by later deploys; a standalone overlay does not update deploy-host.sh.
+
+Route only the exact HTTPS hook path from Caddy to `sprout-hook:4011` on the
+private application network. Disable access logging for that path, preserve the
+body and signature headers, and do not introduce a proxy retry. Activate the
+Supabase hook only after signature rejection, capability preflight and ledger
+permissions pass. Stop the hook, clear the admitted scope and revoke the pilot
+key after acceptance; keep replay tombstones. This is a temporary owner-inbox
+pilot, not public Sprout email availability.
+
 - A hook 200 means every recipient has an observed SES provider ID and `sent` or
   `delivered` status. It does not mean inbox placement, human access, or a valid
   Supabase session. Merely queued work is polled, never acknowledged as sent.

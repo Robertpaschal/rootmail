@@ -32,6 +32,16 @@ for (let i = 0; i < 40; i++) {
 
 const created = [];
 try {
+  // The optional hook uses the same pruned image but a separate entrypoint.
+  // Missing config must reach its safe guard, not fail on an omitted dependency.
+  try {
+    docker('run', '--rm', '--network=none', '-w', '/app/apps/api',
+      'rootmail-api:infra-test', 'node', '--import', 'tsx', 'src/cli/supabase-hook-server.ts');
+    assert.fail('Unconfigured hook must not start');
+  } catch (error) {
+    assert.equal(error.status, 1);
+    assert.equal(error.stderr.trim(), 'Auth hook startup failed; check server configuration and ledger access');
+  }
   docker('run', '--rm', ...envArgs, 'rootmail-api:infra-test', 'pnpm', 'db:migrate');
   const seed = docker('run', '--rm', ...envArgs, 'rootmail-api:infra-test', 'pnpm', 'db:seed');
   const key = seed.match(/rm_live_[A-Za-z0-9_-]+/)?.[0];

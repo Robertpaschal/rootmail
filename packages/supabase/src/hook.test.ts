@@ -75,6 +75,17 @@ test("native code-only mode sends the eight-digit OTP without callback URLs or t
   assert.throws(() => createSupabaseEmailHook(base, { fetch: f.fakeFetch }), /invalid_configuration/);
 });
 
+test("pilot recipient restriction rejects every recipient before network or ledger work", async () => {
+  const f = setup(); let calls = 0;
+  const recipients = ["ONE@example.test"];
+  const hook = createSupabaseEmailHook({ ...f.config, allowedRecipients: recipients }, { fetch: async (...args) => { calls++; return f.fakeFetch(...args); } });
+  recipients.push("two@example.test"); // configuration was copied, not shared
+  assert.equal((await hook(request(fixture("email_change")))).status, 403);
+  assert.equal(calls, 0); assert.equal(f.entries.size, 0);
+  assert.equal((await hook(request())).status, 200);
+  assert.throws(() => createSupabaseEmailHook({ ...f.config, allowedRecipients: [] }), /invalid_configuration/);
+});
+
 test("re-signed retry and restarted hook preserve original expiry and recipient IDs", async () => {
   const f = setup();
   const now = Math.floor(Date.now() / 1000);
