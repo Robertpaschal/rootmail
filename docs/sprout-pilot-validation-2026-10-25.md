@@ -1,8 +1,8 @@
 # Sprout auth pilot: configuration validation
 
-Observed 25 October 2026. **Not activated; no Sprout sign-in or live auth email
-has been tested.** This records read-only production checks and the remaining
-activation steps, not a deployment or successful pilot.
+Latest checkpoint: 26 October 2026. **Rootmail backend deployed; Supabase hook
+not activated and no native Sprout sign-in or live auth email verified.** The
+historical read-only observations below are followed by the release evidence.
 
 ## Rootmail production
 
@@ -119,3 +119,55 @@ root test command passed as well. No test success here proves live delivery.
 
 References: [Supabase Send Email Hook](https://supabase.com/docs/guides/auth/auth-hooks/send-email-hook),
 [AWS SES IAM action/resource scope](https://docs.aws.amazon.com/service-authorization/latest/reference/list_sesv2.html).
+
+## Release and isolated runtime — 26 October 2026
+
+PR #59 merged as `effd2bdbe3fe5f52b2f960c3a6075817c7e2cc4a`.
+[Exact-main CI](https://github.com/Robertpaschal/rootmail/actions/runs/40288446479)
+and [image publishing](https://github.com/Robertpaschal/rootmail/actions/runs/40288693690)
+passed. API and worker deployed through the guarded canary path, with migrations
+0083/0084 applied while auth was disabled. The earlier production-image list is
+superseded for API/worker only. All six application services remain healthy.
+
+Two of the eight approved owner-inbox sends were used:
+- API canary `msg_hpctfpeh81d23fvuehi5otek`: provider ID and delivery event observed.
+- Worker canary `msg_lmbt50hzgw3jvv5yngli7p4y`: provider ID and delivery event observed.
+
+These are ordinary transactional canaries, not proof of auth delivery or a native
+session. Release SSM command: `3dd3023f-64e2-4d35-93f1-fa64e43cef4c`.
+
+The approved runtime SES read policy remains exact-scoped. A separate
+`rootmail_sprout_hook` database role has ledger SELECT/INSERT/UPDATE and no read
+access to customer messages. Its TLS connection verifies the RDS CA and host.
+The ledger retains only replay metadata, not codes or recipient addresses.
+
+The private vault has 64 MiB maximum data memory, 96 MiB container memory/swap
+limit, no RDB/AOF, no replicas, no published port, read-only filesystem and tmpfs.
+Its default user is disabled. The restricted auth user passed one-time GETDEL
+and was denied other key namespaces, CONFIG SET and MONITOR. The host has no swap.
+Its ACL file is under root-only `/etc/rootmail`; no memory snapshots are configured.
+Isolation check: `6356a0c5-e1c3-4fc3-b691-f3fcef93288a`.
+
+API and worker now share the exact QA allowlist and private vault configuration.
+The separate hook container is bounded to 192 MiB, no swap/core dumps, read-only,
+with no extra capabilities. Health passes and restarts are zero. Its environment
+contains only the hook settings, temporary QA key and limited ledger URL.
+Caddy's existing host-network setup routes only the exact hook path to loopback
+4011. No access logger or request-body recording was added.
+
+Public HTTPS checks: ordinary API dependencies healthy; unsigned hook rejected
+with 401; a validly signed synthetic outside-pilot recipient rejected with 403
+before sending; exact QA capability returns the expected SES/workspace contract.
+Evidence: `465d792f-0ec5-4cb3-a111-2c246f43107c`,
+`b7a94b2d-4e51-4546-a38d-f7b45baa5b72`, `41d59f52-6c88-4920-8db9-72449f04d2f9`.
+
+The current native Sprout Mac build passes using the existing local configuration;
+its unrelated working-tree changes were not edited or committed. Native UI control
+reports the Mac locked; an unlock request is pending. The Supabase HTTPS hook form
+is prepared but unsaved, awaiting the required action-time approval. No live auth
+code has been requested. Do not mark the integration or HT-005 complete.
+
+After the pilot, disable its Supabase hook/admission, revoke the temporary key
+and verify 401, stop the optional hook/vault containers, remove temporary secret
+material and preserve ledger tombstones. Do not leave the hook enabled with a
+revoked key: sign-in emails would fail. Default Supabase delivery remains untested.

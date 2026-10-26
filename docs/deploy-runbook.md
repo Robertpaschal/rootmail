@@ -1,6 +1,30 @@
 # Deploy runbook
 
-## Current production (October 16, 2026)
+## Current production (October 26, 2026)
+
+API and worker: `effd2bdbe3fe5f52b2f960c3a6075817c7e2cc4a` (PR #59).
+Dashboard: `328f5ade6bcb9f916cba758360e07e9b7961420b`; admin:
+`cd3d3ff90454d045167d0a750a70fbdc25942e6c`; public marketing/developers:
+`182928943604ddb3eb4ba79ec48fc0ae3a6fb7a1`. All are healthy. Exact-main CI and
+image publishing passed. Migrations 0083/0084 applied before guarded API canary;
+both labelled owner-inbox API/worker canaries delivered. Previous API/worker
+`328f5ad` images remain held for rollback.
+
+The host-local overlay now includes opt-in `auth-pilot` services and the internal
+`auth-content` network on API/worker. Preserve it and the separate environment
+files. The dedicated hook uses `.env.sprout-hook.prod`, not the broad API env.
+Caddy runs on the host network: its exact hook route proxies to loopback 4011,
+with no access logging or proxy retries. Other API routes still use port 4000.
+No new paid instance/database/cache was provisioned.
+
+The pilot is not complete: Supabase hook activation and native session remain
+pending. Only the isolated QA scope is admitted. Before rolling back to older
+code, disable the hook/admission and drain or expire auth jobs; preserve replay
+metadata. Host config/environment backups are in `.pilot-backup-20261026`
+(root-only). Never print those files. Detailed controls and current evidence:
+[Sprout validation report](sprout-pilot-validation-2026-10-25.md).
+
+## Previous production (October 16, 2026)
 
 Production web traffic now uses the consolidated ARM host
 `i-0b7b3474488dc906b` (`t4g.medium`). The existing web IP `32.195.196.221`

@@ -366,3 +366,12 @@ pairs. Native consumers can select code-only email without browser redirects;
 default link mode preserves its exact callback checks. The local test command
 pins mock mail/DNS and preserves fixture environment settings. These controls
 are tested implementation, not evidence that Sprout sign-in is live.
+
+## 26 October 2026 — auth backend released, Sprout session still pending
+
+PR #59 is deployed to API/worker at effd2bd after exact-main CI/images and two
+confirmed ordinary canary deliveries. The optional isolated hook/vault and TLS
+ledger passed operational checks; auth is limited to the disposable QA scope.
+Supabase hook activation and the native Sprout session are not yet verified.
+Do not market this as a completed customer integration or unrestricted auth mail.
+See docs/sprout-pilot-validation-2026-10-25.md for the exact remaining gates.
