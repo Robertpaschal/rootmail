@@ -7,9 +7,11 @@ in this increment.
 
 Task: [Rootmail / Sprout pilot](https://app.notion.com/p/4032db0e8691818496f5c235840c351c).
 
-Latest operational evidence: [25 October production and Sprout configuration
-validation](sprout-pilot-validation-2026-10-25.md). The checks are read-only;
-the integration is not deployed and the native pilot has not run.
+Latest operational evidence: [configuration, release and controlled pilot
+validation](sprout-pilot-validation-2026-10-25.md). API/worker `effd2bd` is deployed;
+native Mac sign-in and session restoration passed on 26 October. The temporary
+pilot was then retired. [Broader acceptance](supabase-rollout-acceptance-2026-10-27.md)
+remains open. The dated implementation increments below are historical.
 
 ## First increment — signed planner
 

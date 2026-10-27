@@ -1,9 +1,10 @@
 # Supabase → Rootmail hook setup reference
 
-Unreleased reference, 25 October 2026. This has passed synthetic/local tests,
-not an independently followed customer installation or live Sprout sign-in.
-Keep the Supabase hook disabled until the production release/pilot gates below
-are explicitly cleared. No SMTP fallback is invoked by this adapter.
+Private reference, updated 27 October 2026. The controlled Sprout pilot passed
+live code delivery, native Mac sign-in and session restoration on release
+`effd2bd`; its temporary hook/key/runtime were subsequently retired. An independent
+customer installation and broader live acceptance remain open. Enable only the
+reviewed scope after operational checks. No SMTP fallback is invoked by this adapter.
 
 ## Prerequisites and cost
 
@@ -173,17 +174,25 @@ pilot, not public Sprout email availability.
   restoring that tested configuration. A disabled hook does not prove SMTP works.
   Roll Rootmail back only after disabling admission and draining/expiring auth jobs.
 
-## Pilot gates (not yet observed)
+## Acceptance and remaining rollout gates
 
-Confirm the deployed version/configuration and exact sender/inboxes; authorize
-one live Sprout test; request the code, observe provider acceptance and delivery
-separately, enter the code and verify the native Supabase session. Test wrong and
-expired codes, resend invalidation and two-recipient change. Record IDs/timestamps
-and latency, never codes or links. Then have a second customer follow this guide.
+The [controlled pilot report](sprout-pilot-validation-2026-10-25.md) records the
+observed sender/scope, delivery, native Mac sign-in, restart and cleanup. Wrong
+codes and a code beyond the expiry window were rejected. Exact expiry boundaries,
+immediate resend invalidation and live two-recipient changes remain unverified.
+Record IDs/timestamps and latency, never codes or links. Have a second customer
+follow this guide; the clean consumer fixture is automated packaging evidence,
+not that human acceptance.
+
+**Fallback finding, 27 October:** disabling the hook in `sprout-dev-us` returned
+to Supabase's Free-plan default link-only email. Sprout's native UI expects an
+eight-digit code, so receipt did not complete sign-in. The dashboard locks template
+editing without custom SMTP or Pro; a Send Email Hook is the existing chosen
+integration. Do not call the default sender a working native OTP fallback or
+disable a working hook without an explicitly tested replacement configuration.
 
 Sources: [Supabase email hook and recipient mapping](https://supabase.com/docs/guides/auth/auth-hooks/send-email-hook),
 [hook errors and five-second budget](https://supabase.com/docs/guides/auth/auth-hooks).
 
-Configs touched: reference hook-host environment, server-only PostgreSQL schema
-and pool settings; no settings were applied to a customer or production host.
-Prod behaviour preserved: auth remains disabled and no live emails were sent.
+Current rollout evidence and remaining gates:
+[27 October acceptance](supabase-rollout-acceptance-2026-10-27.md).

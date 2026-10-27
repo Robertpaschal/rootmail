@@ -2,6 +2,13 @@
 
 ## Current production checkpoint (October 26, 2026)
 
+Acceptance follow-up (27 October): the iPhone Simulator's normal sign-in request
+succeeded through an authorized opt-in Xcode UI test, but default Supabase delivery
+produced a link-only email while Sprout expects a code. Free-plan template editing
+is locked without SMTP or Pro. This fallback is incompatible, not merely untested.
+The clean consumer packaging fixture passes; independent customer setup and actual
+two-client sync remain open. See `docs/supabase-rollout-acceptance-2026-10-27.md`.
+
 API and worker run `effd2bdbe3fe5f52b2f960c3a6075817c7e2cc4a` (PR #59),
 released through exact-main CI/image publishing and the guarded canary path.
 Two labelled owner-inbox canaries have provider delivery evidence. Dashboard
@@ -13,8 +20,9 @@ restoration after restart. Five of eight approved emails were used. The Supabase
 hook is now Disabled, the temporary QA key is revoked (HTTP 401 verified), auth
 admission is disabled, and the optional hook/vault runtime and temporary secrets
 are removed. The limited ledger login is disabled; replay tombstones remain.
-No ongoing Rootmail auth sending is enabled. Supabase default fallback delivery,
-actual two-device sync and an independent customer installation remain unverified.
+No ongoing Rootmail auth sending is enabled. Default fallback delivery is
+incompatible with native OTP. Actual two-device sync and an independent customer
+installation remain unverified.
 See `docs/sprout-pilot-validation-2026-10-25.md` for exact scope and evidence.
 SES sandbox limits remain; no unrestricted sending or public auth rollout is
 claimed. The application host, managed database and managed queue sizes are
