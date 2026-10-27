@@ -12,6 +12,8 @@ It distinguishes local fixtures, hosted observations and open acceptance gates.
 | Clean consumer | Public `@rootmail/supabase` imports worked after installation outside the monorepo. Six action types, two-recipient mapping, signature denial and reconstructed-handler retry passed. Transport and ledger query results are fixtures. |
 | Sprout model | Four cloud-sync XCTest cases and 12 core Swift Testing cases passed in a fresh scratch directory. |
 | Database invariants | Disposable PostgreSQL tests passed for ownership, anonymous denial, idempotency, conflicts, validation and rollback. This is not hosted Data API acceptance. |
+| Deletion cascade | Extended disposable SQL tests passed: deleting a fixture auth user removes its account, habits, check-ins and replay receipt, preserves the other owner, and rejects recreation by a stale identity. This does not implement or prove an end-user account-deletion flow. |
+| Hosted anonymous access | Using only the app's publishable key, all four table reads and `habit_snapshot` returned HTTP 401 / PostgreSQL 42501. No signed-in session was copied or user records returned. This does not prove authenticated cross-owner isolation through the Data API. |
 | iPhone app | Fresh arm64 build and build-for-testing passed. Installed on the iPhone 17 Pro / iOS 26.2 simulator; UI rendered. No physical iPhone acceptance is claimed. |
 | Hosted code request | Explicitly authorized Xcode UI test used the normal native form, without copying a session or resetting data. One test passed, zero skipped. |
 | Default email | Supabase sent “Your sign-in link” to the owner inbox at 08:05:24 UTC (09:05 WAT). It was link-only; native Sprout expects an eight-digit code. Sign-in did not complete. |
@@ -66,6 +68,7 @@ Local evidence: `/tmp/rootmail-consumer-acceptance-20261027.log`,
 `/tmp/rootmail-supabase-acceptance-20261027.log`,
 `/tmp/sprout-core-acceptance-20261027.log`,
 `/tmp/sprout-sql-acceptance-20261027.log`,
+`/tmp/sprout-anonymous-acceptance-20261027.log`,
 `/tmp/sprout-rollout-ios-build.log`,
 `/tmp/sprout-live-signin-enabled-20261027.xcresult`.
 These local artifacts are not durable CI or independent-review evidence.
