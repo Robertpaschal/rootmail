@@ -62,7 +62,27 @@ the industry's founding lie, in our own product.
 
 ---
 
-## Current production checkpoint (October 16, 2026)
+## Current production checkpoint (October 26, 2026)
+
+API and worker run `effd2bdbe3fe5f52b2f960c3a6075817c7e2cc4a` (PR #59),
+released through exact-main CI/image publishing and the guarded canary path.
+Two labelled owner-inbox canaries have provider delivery evidence. Dashboard
+remains `328f5ad`, admin `cd3d3ff`, marketing/developers `1829289`; all are healthy.
+Previous `328f5ad` API/worker images are retained for rollback.
+
+The controlled Sprout pilot passed code delivery, native Mac sign-in and session
+restoration after restart. Five of eight approved emails were used. The Supabase
+hook is now Disabled, the temporary QA key is revoked (HTTP 401 verified), auth
+admission is disabled, and the optional hook/vault runtime and temporary secrets
+are removed. The limited ledger login is disabled; replay tombstones remain.
+No ongoing Rootmail auth sending is enabled. Supabase default fallback delivery,
+actual two-device sync and an independent customer installation remain unverified.
+See `docs/sprout-pilot-validation-2026-10-25.md` for exact scope and evidence.
+SES sandbox limits remain; no unrestricted sending or public auth rollout is
+claimed. The application host, managed database and managed queue sizes are
+unchanged; the pilot uses existing host capacity.
+
+## Previous production checkpoint (October 16, 2026)
 
 All six services run `182928943604ddb3eb4ba79ec48fc0ae3a6fb7a1` (PR #43),
 deployed 15 October at 22:58–22:59 WAT through the guarded canary/release path.

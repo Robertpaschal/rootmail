@@ -1,10 +1,11 @@
 # Sprout auth pilot: configuration validation
 
-Observed 25 October 2026. **Not activated; no Sprout sign-in or live auth email
-has been tested.** This records read-only production checks and the remaining
-activation steps, not a deployment or successful pilot.
+Latest checkpoint: 26 October 2026. **Controlled Sprout sign-in and session
+restoration passed. Pilot closed; production API/worker remain deployed.**
+Five of eight approved emails were used. Earlier sections are historical
+observations; the final acceptance/cleanup section records the current state.
 
-## Rootmail production
+## Historical pre-release Rootmail production
 
 - AWS account `130299713609`, region `us-east-1`; deployment identity
   `claude-depoy`. SSM reports the consolidated ARM host online.
@@ -38,7 +39,7 @@ SSM evidence IDs (outputs contain no credentials or message content):
 `9bc1944f-7af6-44c8-ae13-ceffb719a728` (runtime SES read denial).
 The successful post-permission check is `a3f6fc13-eab2-40e1-a342-529de0e07c18`.
 
-## Sprout hosted settings
+## Historical pre-pilot Sprout hosted settings
 
 The existing in-app GitHub sign-in refreshed successfully after Supabase reported
 an expired session. No new login permission or project was created.
@@ -91,7 +92,7 @@ workspace test tasks pass (258 API tests), typecheck and all six builds pass,
 and the design audit reports zero blockers. Production runtime-image CI must
 still verify the newly added entrypoint/dependency packaging before release.
 
-## Remaining activation and acceptance
+## Original activation and acceptance plan
 
 1. Runtime SES read permission is applied and verified. Preserve its exact scope.
 2. Finish the reviewed hook-host deployment and durable ledger configuration.
@@ -119,3 +120,115 @@ root test command passed as well. No test success here proves live delivery.
 
 References: [Supabase Send Email Hook](https://supabase.com/docs/guides/auth/auth-hooks/send-email-hook),
 [AWS SES IAM action/resource scope](https://docs.aws.amazon.com/service-authorization/latest/reference/list_sesv2.html).
+
+## Release and isolated runtime — 26 October 2026, before activation
+
+PR #59 merged as `effd2bdbe3fe5f52b2f960c3a6075817c7e2cc4a`.
+[Exact-main CI](https://github.com/Robertpaschal/rootmail/actions/runs/40288446479)
+and [image publishing](https://github.com/Robertpaschal/rootmail/actions/runs/40288693690)
+passed. API and worker deployed through the guarded canary path, with migrations
+0083/0084 applied while auth was disabled. The earlier production-image list is
+superseded for API/worker only. All six application services remain healthy.
+
+Two of the eight approved owner-inbox sends were used:
+- API canary `msg_hpctfpeh81d23fvuehi5otek`: provider ID and delivery event observed.
+- Worker canary `msg_lmbt50hzgw3jvv5yngli7p4y`: provider ID and delivery event observed.
+
+These are ordinary transactional canaries, not proof of auth delivery or a native
+session. Release SSM command: `3dd3023f-64e2-4d35-93f1-fa64e43cef4c`.
+
+The approved runtime SES read policy remains exact-scoped. A separate
+`rootmail_sprout_hook` database role has ledger SELECT/INSERT/UPDATE and no read
+access to customer messages. Its TLS connection verifies the RDS CA and host.
+The ledger retains only replay metadata, not codes or recipient addresses.
+
+The private vault has 64 MiB maximum data memory, 96 MiB container memory/swap
+limit, no RDB/AOF, no replicas, no published port, read-only filesystem and tmpfs.
+Its default user is disabled. The restricted auth user passed one-time GETDEL
+and was denied other key namespaces, CONFIG SET and MONITOR. The host has no swap.
+Its ACL file is under root-only `/etc/rootmail`; no memory snapshots are configured.
+Isolation check: `6356a0c5-e1c3-4fc3-b691-f3fcef93288a`.
+
+API and worker now share the exact QA allowlist and private vault configuration.
+The separate hook container is bounded to 192 MiB, no swap/core dumps, read-only,
+with no extra capabilities. Health passes and restarts are zero. Its environment
+contains only the hook settings, temporary QA key and limited ledger URL.
+Caddy's existing host-network setup routes only the exact hook path to loopback
+4011. No access logger or request-body recording was added.
+
+Public HTTPS checks: ordinary API dependencies healthy; unsigned hook rejected
+with 401; a validly signed synthetic outside-pilot recipient rejected with 403
+before sending; exact QA capability returns the expected SES/workspace contract.
+Evidence: `465d792f-0ec5-4cb3-a111-2c246f43107c`,
+`b7a94b2d-4e51-4546-a38d-f7b45baa5b72`, `41d59f52-6c88-4920-8db9-72449f04d2f9`.
+
+The current native Sprout Mac build passes using the existing local configuration;
+its unrelated working-tree changes were not edited or committed. Native UI control
+reports the Mac locked; an unlock request is pending. The Supabase HTTPS hook form
+is prepared but unsaved, awaiting the required action-time approval. No live auth
+code has been requested. Do not mark the integration or HT-005 complete.
+
+After the pilot, disable its Supabase hook/admission, revoke the temporary key
+and verify 401, stop the optional hook/vault containers, remove temporary secret
+material and preserve ledger tombstones. Do not leave the hook enabled with a
+revoked key: sign-in emails would fail. Default Supabase delivery remains untested.
+
+
+## Controlled native acceptance and cleanup — 26 October 2026
+
+After explicit approval, Supabase's Send Email Hook was enabled for the exact
+Sprout endpoint and only the owner inbox. Three auth emails, plus the two ordinary
+canaries above, used **five of eight** approved sends. All three auth messages
+have provider acceptance and delivery evidence; retained HTML/text/content hash
+are NULL. This is bounded observed evidence, not a general delivery guarantee.
+
+| Auth message | Created (UTC) | Observed outcome |
+|---|---|---|
+| `msg_fxb60m2947c04p7up2hnxgnk` | 13:23:43.523 | SES delivery at 13:23:44.684; inbox arrived |
+| `msg_8ss9x4njdcq89fcbzi19nld3` | 13:26:21.671 | Resend; SES delivery at 13:26:22.580; inbox arrived |
+| `msg_ckuuj7fpa9f3e1h4j3nb4nh1` | 18:43:55.494 | Fresh email arrived; native sign-in succeeded |
+
+The native Mac app displayed **Your account**, the owner address and **Up to date**.
+Quitting and reopening the current Sprout app preserved that signed-in session.
+A synthetic wrong code was rejected. A code attempted more than five hours later
+was rejected, beyond the configured 60-minute lifetime; this is not a controlled
+expiry-boundary test. Resend produced a fresh email, but immediate invalidation
+of the preceding code was not tested. No codes or private links are retained here.
+
+Initial native builds omitted the Supabase custom keys from their generated
+Info.plist. A targeted local Sprout fix adds `apple/Config/AppInfo.plist` and uses
+`INFOPLIST_FILE` in `apple/project.yml` and `apple/Sprout.xcodeproj/project.pbxproj`.
+It references build variables, with no embedded credentials. Both Mac and arm64
+iOS simulator builds passed and their built property lists contain the expected
+configuration. The initial generic iOS asset-catalog build failed; a bounded
+`-jobs 2 ARCHS=arm64 ONLY_ACTIVE_ARCH=YES` retry passed. No iOS runtime sign-in was
+tested. These three local fixes are uncommitted in the separate Sprout working
+tree, which already contains unrelated work; that work was preserved.
+
+Cleanup: the Supabase hook is Disabled, the QA key is revoked and HTTP 401 was
+verified, and no auth sends remained queued/sending. API/worker admission and
+vault environment were removed, original host overlay/Caddy routing restored,
+and both application services restarted on the same released image. Optional
+hook/vault containers were stopped and removed. The limited ledger role is
+NOLOGIN with its password removed; temporary key, hook settings, generated
+secrets and vault ACL were removed. Replay tombstones are preserved. Core
+production health passed after cleanup: all six services healthy with zero
+restarts; API/public sites returned 200, and authenticated sites reached their
+login pages successfully. No new paid AWS resource was created.
+Disabling the hook returns Sprout to Supabase's default delivery configuration,
+which has **not** been tested as a fallback. This pilot does not leave ongoing
+Rootmail auth sending enabled.
+
+Evidence: release `3dd3023f-64e2-4d35-93f1-fa64e43cef4c`; auth audit
+`795a13c6-8d52-4165-b4c4-b103ff8a9cb4`; all three records
+`0017c7c0-b757-452f-921a-2852a0064e26`; revoked key/401
+`2b93570f-e147-48bd-a42c-bd101069fc0b`; runtime cleanup
+`6eb65f3f-40de-4227-b997-a225ebe36126`; final cleanup/health/retention
+`b5ebecdb-1023-4ec5-a9e1-44faf5ac23b0` (3 ledger entries, 3 auth messages,
+zero retained-body/hash violations). Cleanup evidence reviewed 27 October.
+
+Remaining gates: independent customer setup, broader action/multi-recipient live
+acceptance, controlled expiry/resend invalidation boundaries, real two-device
+habit sync/offline conflicts, and SES production access for unrestricted sending.
+An empty account showing Up to date does not establish cross-device sync. Rootmail
+integration and Sprout HT-005 remain In progress for those broader requirements.

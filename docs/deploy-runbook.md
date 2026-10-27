@@ -1,6 +1,31 @@
 # Deploy runbook
 
-## Current production (October 16, 2026)
+## Current production (October 26, 2026)
+
+API and worker: `effd2bdbe3fe5f52b2f960c3a6075817c7e2cc4a` (PR #59).
+Dashboard: `328f5ade6bcb9f916cba758360e07e9b7961420b`; admin:
+`cd3d3ff90454d045167d0a750a70fbdc25942e6c`; public marketing/developers:
+`182928943604ddb3eb4ba79ec48fc0ae3a6fb7a1`. All are healthy. Exact-main CI and
+image publishing passed. Migrations 0083/0084 applied before guarded API canary;
+both labelled owner-inbox API/worker canaries delivered. Previous API/worker
+`328f5ad` images remain held for rollback.
+
+The controlled Sprout pilot passed native Mac sign-in and session restoration,
+using five of eight approved test emails. It is now closed: Supabase hook Disabled,
+QA key revoked and rejected with HTTP 401, auth admission removed from API/worker,
+optional hook/vault containers removed, and temporary secrets deleted. The
+restricted ledger role is NOLOGIN; replay tombstones remain. The original host
+composition and Caddy route to port 4000 are restored. No new paid AWS service
+was provisioned. Sprout's default Supabase delivery remains untested.
+
+Do not re-enable the saved Supabase hook against the retired runtime/key. A future
+pilot needs fresh scoped credentials/configuration and the preflight in the
+[Sprout validation report](sprout-pilot-validation-2026-10-25.md). Before rolling
+back to older code, keep auth admission disabled and preserve replay metadata.
+Pre-pilot host configuration backups remain root-only in `.pilot-backup-20261026`;
+never print their contents.
+
+## Previous production (October 16, 2026)
 
 Production web traffic now uses the consolidated ARM host
 `i-0b7b3474488dc906b` (`t4g.medium`). The existing web IP `32.195.196.221`

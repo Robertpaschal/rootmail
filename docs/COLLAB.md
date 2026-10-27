@@ -366,3 +366,28 @@ pairs. Native consumers can select code-only email without browser redirects;
 default link mode preserves its exact callback checks. The local test command
 pins mock mail/DNS and preserves fixture environment settings. These controls
 are tested implementation, not evidence that Sprout sign-in is live.
+
+## 26 October 2026 — auth backend released, Sprout session still pending
+
+PR #59 is deployed to API/worker at effd2bd after exact-main CI/images and two
+confirmed ordinary canary deliveries. The optional isolated hook/vault and TLS
+ledger passed operational checks; auth is limited to the disposable QA scope.
+Supabase hook activation and the native Sprout session are not yet verified.
+Do not market this as a completed customer integration or unrestricted auth mail.
+See docs/sprout-pilot-validation-2026-10-25.md for the exact remaining gates.
+
+
+## 26 October 2026 — controlled Sprout native sign-in observed
+
+Rootmail delivered three live authentication emails to the approved owner inbox.
+A fresh code authenticated the native Mac app; the session survived quit/reopen.
+Wrong code and a five-hour-old code were rejected. This establishes the controlled
+sign-in path, not a public integration rollout, exact expiry boundary, immediate
+resend invalidation or real two-device habit sync. API/worker remain on effd2bd.
+
+The pilot is closed: Supabase hook disabled, temporary key revoked/401 verified,
+auth admission and optional runtime removed, secrets removed, restricted ledger
+login disabled and replay metadata preserved. No extra paid AWS resource was
+added. Rootmail auth sending is not left enabled; default Supabase fallback is
+untested. An independent customer setup and broader live acceptance remain gates.
+See docs/sprout-pilot-validation-2026-10-25.md for evidence and local native build fix.
