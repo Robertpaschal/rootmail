@@ -8,13 +8,13 @@ Two labelled owner-inbox canaries have provider delivery evidence. Dashboard
 remains `328f5ad`, admin `cd3d3ff`, marketing/developers `1829289`; all are healthy.
 Previous `328f5ad` API/worker images are retained for rollback.
 
-The authentication path is admitted only for the isolated QA workspace. The
-separate bounded non-persistent vault and restricted TLS replay ledger pass
-isolation checks; the signed hook listener is healthy and rejects unsigned or
-outside-pilot recipients. The Supabase hook has **not** been saved/enabled and
-no native Sprout sign-in is verified. Activation approval and Mac unlock are
-pending. The temporary pilot key is protected server-side and must be revoked
-when the pilot ends. Two of eight approved test sends are used.
+The controlled Sprout pilot passed code delivery, native Mac sign-in and session
+restoration after restart. Five of eight approved emails were used. The Supabase
+hook is now Disabled, the temporary QA key is revoked (HTTP 401 verified), auth
+admission is disabled, and the optional hook/vault runtime and temporary secrets
+are removed. The limited ledger login is disabled; replay tombstones remain.
+No ongoing Rootmail auth sending is enabled. Supabase default fallback delivery,
+actual two-device sync and an independent customer installation remain unverified.
 See `docs/sprout-pilot-validation-2026-10-25.md` for exact scope and evidence.
 SES sandbox limits remain; no unrestricted sending or public auth rollout is
 claimed. The application host, managed database and managed queue sizes are

@@ -375,3 +375,19 @@ ledger passed operational checks; auth is limited to the disposable QA scope.
 Supabase hook activation and the native Sprout session are not yet verified.
 Do not market this as a completed customer integration or unrestricted auth mail.
 See docs/sprout-pilot-validation-2026-10-25.md for the exact remaining gates.
+
+
+## 26 October 2026 — controlled Sprout native sign-in observed
+
+Rootmail delivered three live authentication emails to the approved owner inbox.
+A fresh code authenticated the native Mac app; the session survived quit/reopen.
+Wrong code and a five-hour-old code were rejected. This establishes the controlled
+sign-in path, not a public integration rollout, exact expiry boundary, immediate
+resend invalidation or real two-device habit sync. API/worker remain on effd2bd.
+
+The pilot is closed: Supabase hook disabled, temporary key revoked/401 verified,
+auth admission and optional runtime removed, secrets removed, restricted ledger
+login disabled and replay metadata preserved. No extra paid AWS resource was
+added. Rootmail auth sending is not left enabled; default Supabase fallback is
+untested. An independent customer setup and broader live acceptance remain gates.
+See docs/sprout-pilot-validation-2026-10-25.md for evidence and local native build fix.

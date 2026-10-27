@@ -10,19 +10,20 @@ image publishing passed. Migrations 0083/0084 applied before guarded API canary;
 both labelled owner-inbox API/worker canaries delivered. Previous API/worker
 `328f5ad` images remain held for rollback.
 
-The host-local overlay now includes opt-in `auth-pilot` services and the internal
-`auth-content` network on API/worker. Preserve it and the separate environment
-files. The dedicated hook uses `.env.sprout-hook.prod`, not the broad API env.
-Caddy runs on the host network: its exact hook route proxies to loopback 4011,
-with no access logging or proxy retries. Other API routes still use port 4000.
-No new paid instance/database/cache was provisioned.
+The controlled Sprout pilot passed native Mac sign-in and session restoration,
+using five of eight approved test emails. It is now closed: Supabase hook Disabled,
+QA key revoked and rejected with HTTP 401, auth admission removed from API/worker,
+optional hook/vault containers removed, and temporary secrets deleted. The
+restricted ledger role is NOLOGIN; replay tombstones remain. The original host
+composition and Caddy route to port 4000 are restored. No new paid AWS service
+was provisioned. Sprout's default Supabase delivery remains untested.
 
-The pilot is not complete: Supabase hook activation and native session remain
-pending. Only the isolated QA scope is admitted. Before rolling back to older
-code, disable the hook/admission and drain or expire auth jobs; preserve replay
-metadata. Host config/environment backups are in `.pilot-backup-20261026`
-(root-only). Never print those files. Detailed controls and current evidence:
-[Sprout validation report](sprout-pilot-validation-2026-10-25.md).
+Do not re-enable the saved Supabase hook against the retired runtime/key. A future
+pilot needs fresh scoped credentials/configuration and the preflight in the
+[Sprout validation report](sprout-pilot-validation-2026-10-25.md). Before rolling
+back to older code, keep auth admission disabled and preserve replay metadata.
+Pre-pilot host configuration backups remain root-only in `.pilot-backup-20261026`;
+never print their contents.
 
 ## Previous production (October 16, 2026)
 
