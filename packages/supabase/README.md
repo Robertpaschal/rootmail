@@ -1,17 +1,17 @@
-# Supabase email adapter — unreleased reference
+# Supabase email adapter — private reference
 
-**Unreleased and private. Do not enable this as a production Supabase hook yet.**
-The package now includes both a transport-free planner and an opt-in Web Request
-handler that uses the auth-only Rootmail HTTPS endpoint. No running application
-installs it automatically. Local transport tests use fake delivery; no real
-Supabase session has been completed. Never use ordinary `/v1/messages` for codes.
+**Private and unpublished; broader rollout remains gated.** API/worker release
+`effd2bd` includes the disabled-by-default auth endpoint. The controlled Sprout
+pilot on 26 October passed real code delivery, native Mac sign-in and session
+restoration. Its temporary hook/key/runtime were retired after acceptance;
+ongoing Rootmail auth sending is not enabled by that pilot.
 
-Update: the draft branch now includes a separate, disabled-by-default
-`POST /v1/auth-messages` server contract. It has encrypted ephemeral content,
-expiry enforcement and a restricted SES path with tracking checks. This planner
-now has an explicit HTTP wrapper, capability preflight and PostgreSQL replay
-ledger. See the [customer setup reference](../../docs/supabase-hook-setup.md) and
-integration notes for rollout gates and remaining limitations.
+The package includes a signed planner, bounded HTTPS handler, capability preflight
+and PostgreSQL replay ledger. No application installs it automatically. Local
+tests use synthetic delivery. Never use ordinary `/v1/messages` for codes.
+See the [pilot evidence](../../docs/sprout-pilot-validation-2026-10-25.md),
+[setup guide](../../docs/supabase-hook-setup.md) and
+[broader acceptance](../../docs/supabase-rollout-acceptance-2026-10-27.md).
 
 Tracking task: [Supabase authentication emails — Sprout pilot](https://app.notion.com/p/4032db0e8691818496f5c235840c351c).
 Release gates and implementation sequence: [integration notes](../../docs/supabase-auth-integration.md).
@@ -53,7 +53,8 @@ credentials; this package never mints a token or declares a session valid.
 For link actions the verification host comes from trusted `supabaseUrl`, never
 payload `site_url`. `redirect_to` must exactly match a server allowlist entry;
 an absent/empty value uses the configured default. Explicit native-app callbacks
-are supported as strings, but native app session completion is not tested here.
+are supported as strings, but link-based native callback completion is untested.
+The controlled Sprout pilot used code-only verification instead.
 Plain HTTP callbacks are deliberately not supported in this first increment.
 
 ## Local development (synthetic fixtures only)
@@ -61,7 +62,14 @@ Plain HTTP callbacks are deliberately not supported in this first increment.
 ```sh
 pnpm --filter @rootmail/supabase typecheck
 pnpm --filter @rootmail/supabase test
+node scripts/check-supabase-consumer.mjs
 ```
+
+The last command installs the vendored package into a temporary consumer outside
+the monorepo and exercises its public imports with synthetic transport and ledger
+fixtures. It checks six action types, both secure-change recipients, invalid
+signatures and retry after handler reconstruction. It does not establish a real
+PostgreSQL connection, live delivery or an independent customer's installation.
 
 Package tests use an independent HMAC signer, synthetic secrets, a fake ledger and
 injected fetch; they never make real network/mail calls. Separate API tests use

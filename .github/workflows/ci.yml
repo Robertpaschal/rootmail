@@ -30,6 +30,8 @@ jobs:
       # nothing user-facing may publish them (reports go to security@).
       - name: Reserved mailbox regression tests
         run: node --test scripts/reserved-mailboxes.test.mjs
+      - name: Supabase adapter clean consumer acceptance (synthetic delivery)
+        run: node scripts/check-supabase-consumer.mjs
       - name: Design and truthfulness audit
         run: pnpm exec tsx scripts/design-audit.ts
       # Cheap and fast, so it runs before the build: a placeholder link is a

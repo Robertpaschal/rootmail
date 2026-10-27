@@ -391,3 +391,17 @@ login disabled and replay metadata preserved. No extra paid AWS resource was
 added. Rootmail auth sending is not left enabled; default Supabase fallback is
 untested. An independent customer setup and broader live acceptance remain gates.
 See docs/sprout-pilot-validation-2026-10-25.md for evidence and local native build fix.
+
+## 27 October 2026 — default email fallback is incompatible with native OTP
+
+The opt-in Xcode UI test requested an actual iPhone Simulator sign-in email.
+Supabase's default sender delivered a link-only message, while Sprout requires a
+code. Free-plan template editing is locked without SMTP or Pro. The retired
+Rootmail pilot is still successful historical evidence, but its removal did not
+leave a working native sign-in path for new sessions. Broader beta remains gated.
+
+A clean consumer fixture now verifies installation and public imports outside the
+monorepo with all six action types and synthetic retry/signature checks. This is
+automated packaging evidence, not an independently onboarded second customer.
+Real two-client sync is still pending. See
+docs/supabase-rollout-acceptance-2026-10-27.md; do not mark the broad tasks Done.
