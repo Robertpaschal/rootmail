@@ -2,12 +2,15 @@
 
 ## Current production checkpoint (October 26, 2026)
 
-Acceptance follow-up (27 October): the iPhone Simulator's normal sign-in request
-succeeded through an authorized opt-in Xcode UI test, but default Supabase delivery
-produced a link-only email while Sprout expects a code. Free-plan template editing
-is locked without SMTP or Pro. This fallback is incompatible, not merely untested.
-The clean consumer packaging fixture passes; independent customer setup and actual
-two-client sync remain open. See `docs/supabase-rollout-acceptance-2026-10-27.md`.
+Acceptance follow-up (29 October): independent iPhone Simulator sign-in passed
+with owner code entry, but the next relaunch lost the session; hosted sync stopped
+before reading or changing the disposable habit. Local signed builds and Keychain
+storage/persistence tests pass after a native storage guard fix, but the live
+journey has not been repeated with it. All three additional approved emails were
+used. The temporary hook/key/runtime are retired, key rejection is verified (401),
+and all six production services are healthy. Default Supabase fallback is still
+link-only and incompatible with Sprout's code UI. Broader rollout and two-client
+sync remain open. See `docs/sprout-session-acceptance-2026-10-29.md`.
 
 API and worker run `effd2bdbe3fe5f52b2f960c3a6075817c7e2cc4a` (PR #59),
 released through exact-main CI/image publishing and the guarded canary path.
@@ -15,7 +18,7 @@ Two labelled owner-inbox canaries have provider delivery evidence. Dashboard
 remains `328f5ad`, admin `cd3d3ff`, marketing/developers `1829289`; all are healthy.
 Previous `328f5ad` API/worker images are retained for rollback.
 
-The controlled Sprout pilot passed code delivery, native Mac sign-in and session
+The earlier controlled Sprout pilot passed code delivery, native Mac sign-in and session
 restoration after restart. Five of eight approved emails were used. The Supabase
 hook is now Disabled, the temporary QA key is revoked (HTTP 401 verified), auth
 admission is disabled, and the optional hook/vault runtime and temporary secrets

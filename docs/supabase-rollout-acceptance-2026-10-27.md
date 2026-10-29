@@ -59,10 +59,19 @@ the successful request evidence.
 
 ## Current operational boundary
 
-API/worker remain on `effd2bd`; the prior pilot key is revoked and its hook/runtime
-are retired. Supabase's default email path now has an observed incompatibility
-with the native code UI. A prepared new temporary QA key is awaiting action-time
-approval; it has not been created. No additional paid resource has been created.
+Updated 29 October: API/worker remain on `effd2bd`. The additional three-email
+pilot is finished and retired: the hook is disabled, its key is revoked (HTTP
+401 verified), auth admission is disabled, optional hook/vault containers and
+temporary secrets are removed, and the ledger login is disabled. All six core
+services are healthy. No additional paid resource was created. Supabase's default
+email remains incompatible with the native code UI. See the
+[29 October session acceptance report](sprout-session-acceptance-2026-10-29.md).
+
+Independent iPhone sign-in passed after owner code entry; the next relaunch lost
+the session, so the hosted habit/check-in test stopped before changing data.
+Both-direction sync and durable session acceptance remain open. Local signed
+builds and synthetic Keychain persistence checks are repair evidence, not a
+successful repeat of the live journey.
 
 Local evidence: `/tmp/rootmail-consumer-acceptance-20261027.log`,
 `/tmp/rootmail-supabase-acceptance-20261027.log`,
