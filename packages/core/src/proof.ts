@@ -54,23 +54,31 @@ export class ProofKeyError extends Error {
   }
 }
 
+function unwrapQuotes(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.length >= 2 && (trimmed[0] === '"' || trimmed[0] === "'") && trimmed.at(-1) === trimmed[0]) {
+    return trimmed.slice(1, -1).trim();
+  }
+  return trimmed;
+}
+
 /**
  * Decide which key signs proofs.
  *
- * Outside production: unchanged — a value containing "PRIVATE KEY" is used as
- * given, anything else falls back to the committed dev key.
+ * Outside production, a value containing "PRIVATE KEY" is used after the same
+ * PEM normalization as production; anything else falls back to the committed dev key.
  *
  * In production: fail closed. Missing, malformed, unparsable, not Ed25519, or
  * the committed dev key itself → ProofKeyError. Before this, every one of those
  * silently signed with a key anyone can read in this repository.
  */
 export function resolveProofSigningKey(raw: string | undefined, production: boolean): KeyObject {
+  const pem = raw === undefined || raw.trim() === "" ? undefined : normalizePem(raw);
   if (!production) {
-    return createPrivateKey(raw?.includes("PRIVATE KEY") ? raw : DEV_PROOF_KEY);
+    return createPrivateKey(pem !== undefined && pem.includes("PRIVATE KEY") ? pem : DEV_PROOF_KEY);
   }
 
-  if (raw === undefined || raw.trim() === "") throw new ProofKeyError("is required in production and is not set.");
-  const pem = normalizePem(raw);
+  if (pem === undefined) throw new ProofKeyError("is required in production and is not set.");
   if (!pem.includes("-----BEGIN PRIVATE KEY-----") || !pem.includes("-----END PRIVATE KEY-----")) {
     throw new ProofKeyError("is set but is not a PKCS8 PEM private key.");
   }
@@ -89,6 +97,41 @@ export function resolveProofSigningKey(raw: string | undefined, production: bool
     throw new ProofKeyError("is the development key committed to this repository, whose private half is public.");
   }
   return key;
+}
+
+/** SPKI public keys from `PROOF_VERIFY_PUBLIC_KEYS`. The value is never included in an error. */
+export function proofVerifyPublicKeys(raw: string | undefined, production: boolean): KeyObject[] {
+  if (raw === undefined || raw.trim() === "") return [];
+  const parts = unwrapQuotes(raw)
+    .split(",")
+    .map((part) => part.trim())
+    .filter((part) => part !== "");
+  return parts.map((part, index) => {
+    const pem = normalizePem(part);
+    const label = `entry ${index + 1}`;
+    if (!pem.includes("-----BEGIN PUBLIC KEY-----") || !pem.includes("-----END PUBLIC KEY-----")) {
+      throw new Error(
+        `PROOF_VERIFY_PUBLIC_KEYS ${label} must be an SPKI PEM public key (-----BEGIN PUBLIC KEY-----). The configured value is not shown.`,
+      );
+    }
+    let key: KeyObject;
+    try {
+      key = createPublicKey(pem);
+    } catch {
+      throw new Error(`PROOF_VERIFY_PUBLIC_KEYS ${label} could not be parsed as a public key. The configured value is not shown.`);
+    }
+    if (key.asymmetricKeyType !== "ed25519") {
+      throw new Error(
+        `PROOF_VERIFY_PUBLIC_KEYS ${label} must be an Ed25519 key, but it is ${key.asymmetricKeyType ?? "an unknown type"}.`,
+      );
+    }
+    if (production && proofKeyFingerprint(key) === DEV_PROOF_KEY_FINGERPRINT) {
+      throw new Error(
+        `PROOF_VERIFY_PUBLIC_KEYS ${label} is the development key committed to this repository, whose private half is public.`,
+      );
+    }
+    return key;
+  });
 }
 
 let privateKey: KeyObject | undefined;
@@ -112,6 +155,7 @@ export function assertProofSigningKey(): { fingerprint: string; dev: boolean } {
   privateKey = undefined;
   publicKey = undefined;
   const { pub } = loadKeys();
+  proofVerifyPublicKeys(env.PROOF_VERIFY_PUBLIC_KEYS, env.NODE_ENV === "production");
   const fingerprint = proofKeyFingerprint(pub);
   return { fingerprint, dev: fingerprint === DEV_PROOF_KEY_FINGERPRINT };
 }
@@ -152,13 +196,24 @@ export function signProof(bundle: object): ProofSignature {
   return { signature, public_key: proofPublicKeyPem(), algorithm: "ed25519" };
 }
 
-/** Verify a bundle+signature against the SERVER's key (not the bundle's own
- * public_key) — so a forged bundle signed with someone else's key fails. */
+/** Verify against the current public key, then each PROOF_VERIFY_PUBLIC_KEYS entry.
+ * The bundle's own public_key is ignored, so a forged key in the bundle cannot pass. */
 export function verifyProof(bundle: object, signatureB64: string): boolean {
+  const keys = [loadKeys().pub, ...proofVerifyPublicKeys(env.PROOF_VERIFY_PUBLIC_KEYS, env.NODE_ENV === "production")];
+  let data: Buffer;
+  let signature: Buffer;
   try {
-    const data = Buffer.from(canonicalize(bundle));
-    return verify(null, data, loadKeys().pub, Buffer.from(signatureB64, "base64"));
+    data = Buffer.from(canonicalize(bundle));
+    signature = Buffer.from(signatureB64, "base64");
   } catch {
     return false;
   }
+  for (const key of keys) {
+    try {
+      if (verify(null, data, key, signature)) return true;
+    } catch {
+      continue;
+    }
+  }
+  return false;
 }

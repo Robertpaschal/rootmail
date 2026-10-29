@@ -9,8 +9,8 @@ const verifyBody = z.object({
 });
 
 export async function proofRoutes(app: FastifyInstance): Promise<void> {
-  // PUBLIC — anyone holding a bundle can verify it against rootmail's signing
-  // key (the bundle's own public_key is informational; verification uses ours).
+  // PUBLIC — anyone holding a bundle can verify it against the current signing
+  // key, then PROOF_VERIFY_PUBLIC_KEYS. The bundle's own public_key is ignored.
   app.post("/v1/proof/verify", async (req) => {
     const body = parse(verifyBody, req.body);
     return { object: "proof_verification", valid: verifyProof(body.bundle, body.signature) };

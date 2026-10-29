@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { z } from "zod";
+import { parseDbPoolMax } from "./db-pool";
 
 /** Walk up from `start` looking for a `.env` file (monorepo root lives above cwd). */
 function findEnvFile(start: string): string | undefined {
@@ -71,9 +72,15 @@ const EnvSchema = z.object({
 
   // Ed25519 private key (PKCS8 PEM) for signing Layer-3 proof bundles. Unset →
   // a stable dev key in source (dev-only; in production the API refuses to start
-  // without a real Ed25519 key — see packages/core/src/proof.ts). Generate prod:
+  // without a real Ed25519 key — see packages/core/src/proof.ts). A multi-line
+  // PEM or a single line with literal \n escapes. Generate prod:
   //   openssl genpkey -algorithm ed25519
   PROOF_SIGNING_KEY: z.string().optional(),
+  // Retired Ed25519 public keys (SPKI PEM) still accepted when verifying proofs
+  // after PROOF_SIGNING_KEY rotates. Comma-separated. Each entry is a multi-line
+  // PEM or one line with literal \n escapes. Unset checks the current key only.
+  // Public keys only: openssl pkey -in old.pem -pubout
+  PROOF_VERIFY_PUBLIC_KEYS: z.string().optional(),
 
   // Master key for encrypting secrets at rest — today, every sub-tenant's DKIM
   // private key. Unset → a dev-only derived key, so local development needs no
@@ -282,6 +289,8 @@ if (!parsed.success) {
   throw new Error("Invalid environment configuration");
 }
 
+const dbPoolMax = parseDbPoolMax(process.env.DB_POOL_MAX);
+
 /*
  * Refuse to run without a real ENCRYPTION_KEY in production.
  *
@@ -315,7 +324,10 @@ if (parsed.data.NODE_ENV === "production" && !parsed.data.ENCRYPTION_KEY) {
   );
 }
 
-export const env = parsed.data;
+export const env = {
+  ...parsed.data,
+  DB_POOL_MAX: dbPoolMax,
+};
 export type Env = typeof env;
 
 /** The human inbox for replies to platform mail that says "just reply". */

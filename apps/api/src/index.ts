@@ -1,3 +1,4 @@
+import "./db-pool";
 import { env } from "@rootmail/core";
 import { closeDb, ensureBetaInviteAutomation, ensureInternalAccount } from "@rootmail/db";
 import { betaInviteRequired } from "./lib/beta";

@@ -1,3 +1,4 @@
+import "./db-pool";
 import { type ConnectionOptions, Worker } from "bullmq";
 import {
   BULL_PREFIX,
