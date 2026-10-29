@@ -1,7 +1,18 @@
 import assert from "node:assert/strict";
-import { generateKeyPairSync, sign, verify, createPublicKey } from "node:crypto";
-import { describe, it } from "node:test";
-import { DEV_PROOF_KEY, ProofKeyError, proofKeyFingerprint, resolveProofSigningKey } from "./proof";
+import { generateKeyPairSync, sign, verify, createPublicKey, createPrivateKey } from "node:crypto";
+import { after, describe, it } from "node:test";
+import { env } from "./env";
+import {
+  DEV_PROOF_KEY,
+  ProofKeyError,
+  assertProofSigningKey,
+  canonicalize,
+  proofKeyFingerprint,
+  proofVerifyPublicKeys,
+  resolveProofSigningKey,
+  signProof,
+  verifyProof,
+} from "./proof";
 
 // No key material is written in this file: the dev key is imported from
 // proof.ts and every other key is generated when the test runs.
@@ -95,12 +106,121 @@ describe("proof signing key — dev and test behaviour is unchanged", () => {
     }
   });
 
-  it("uses a configured key as given", () => {
+  it("uses a multi-line PEM and a single-line \\n PEM as the same key", () => {
     const pem = pkcs8("ed25519");
-    assert.equal(proofKeyFingerprint(resolveProofSigningKey(pem, false)), proofKeyFingerprint(createPublicKey(pem)));
+    const expected = proofKeyFingerprint(createPublicKey(pem));
+    assert.equal(proofKeyFingerprint(resolveProofSigningKey(pem, false)), expected);
+    assert.equal(proofKeyFingerprint(resolveProofSigningKey(pem.trim().replace(/\n/g, "\\n"), false)), expected);
   });
 
   it("still allows the dev key itself", () => {
     assert.equal(proofKeyFingerprint(resolveProofSigningKey(DEV_PEM, false)), devFingerprint);
+  });
+});
+
+function spki(privatePem: string): string {
+  const exported = createPublicKey(privatePem).export({ type: "spki", format: "pem" });
+  return typeof exported === "string" ? exported : exported.toString("utf8");
+}
+
+function signBundle(bundle: object, privatePem: string): string {
+  return sign(null, Buffer.from(canonicalize(bundle)), createPrivateKey(privatePem)).toString("base64");
+}
+
+describe("proof verification — retired public keys", { concurrency: false }, () => {
+  const previous = {
+    nodeEnv: env.NODE_ENV,
+    key: env.PROOF_SIGNING_KEY,
+    extras: env.PROOF_VERIFY_PUBLIC_KEYS,
+  };
+
+  after(() => {
+    env.NODE_ENV = previous.nodeEnv;
+    env.PROOF_SIGNING_KEY = previous.key;
+    env.PROOF_VERIFY_PUBLIC_KEYS = previous.extras;
+  });
+
+  it("verifies a retired key when it is listed, in either PEM form, and rejects it when it is not", () => {
+    const currentPrivate = pkcs8("ed25519");
+    const oldPrivate = pkcs8("ed25519");
+    const otherPrivate = pkcs8("ed25519");
+    const currentPublic = spki(currentPrivate);
+    const oldPublic = spki(oldPrivate);
+    const otherPublic = spki(otherPrivate);
+    const bundle = { hello: "rotation" };
+    const oldSignature = signBundle(bundle, oldPrivate);
+    env.NODE_ENV = "test";
+    env.PROOF_SIGNING_KEY = currentPrivate;
+    env.PROOF_VERIFY_PUBLIC_KEYS = undefined;
+    assertProofSigningKey();
+    assert.equal(verifyProof(bundle, oldSignature), false);
+
+    env.PROOF_VERIFY_PUBLIC_KEYS = oldPublic.trim().replace(/\n/g, "\\n");
+    assert.equal(verifyProof(bundle, oldSignature), true);
+    env.PROOF_VERIFY_PUBLIC_KEYS = oldPublic;
+    assert.equal(verifyProof(bundle, oldSignature), true);
+
+    const signed = signProof(bundle);
+    assert.equal(signed.algorithm, "ed25519");
+    assert.equal(proofKeyFingerprint(createPublicKey(signed.public_key)), proofKeyFingerprint(createPublicKey(currentPublic)));
+    assert.notEqual(proofKeyFingerprint(createPublicKey(signed.public_key)), proofKeyFingerprint(createPublicKey(oldPublic)));
+    assert.equal(verifyProof(bundle, signed.signature), true);
+
+    env.PROOF_VERIFY_PUBLIC_KEYS = otherPublic;
+    assert.equal(verifyProof(bundle, oldSignature), false);
+    assert.equal(verifyProof(bundle, signed.signature), true);
+
+    const escaped = (pem: string) => pem.trim().replace(/\n/g, "\\n");
+    env.PROOF_VERIFY_PUBLIC_KEYS = `${escaped(otherPublic)},${escaped(oldPublic)}`;
+    assert.equal(verifyProof(bundle, oldSignature), true);
+    assert.equal(proofVerifyPublicKeys(env.PROOF_VERIFY_PUBLIC_KEYS, false).length, 2);
+
+    env.PROOF_VERIFY_PUBLIC_KEYS = `"${escaped(oldPublic)}"`;
+    assert.equal(verifyProof(bundle, oldSignature), true);
+    env.PROOF_VERIFY_PUBLIC_KEYS = oldPrivate;
+    assert.throws(
+      () => verifyProof(bundle, oldSignature),
+      (err: Error) => {
+        assert.match(err.message, /SPKI PEM public key/);
+        for (const line of secretLines(oldPrivate)) assert.equal(err.message.includes(line.slice(0, 16)), false);
+        return true;
+      },
+    );
+  });
+
+  it("rejects an unusable PROOF_VERIFY_PUBLIC_KEYS without echoing it", () => {
+    const junk = "not-a-key-supersecretvalue";
+    env.NODE_ENV = "test";
+    env.PROOF_SIGNING_KEY = pkcs8("ed25519");
+    env.PROOF_VERIFY_PUBLIC_KEYS = junk;
+    assert.throws(
+      () => verifyProof({ hello: "x" }, "aaaa"),
+      (err: Error) => {
+        assert.match(err.message, /PROOF_VERIFY_PUBLIC_KEYS entry 1/);
+        assert.equal(err.message.includes(junk), false);
+        return true;
+      },
+    );
+    assert.throws(() => assertProofSigningKey(), (err: Error) => {
+      assert.match(err.message, /PROOF_VERIFY_PUBLIC_KEYS/);
+      assert.equal(err.message.includes(junk), false);
+      return true;
+    });
+  });
+
+  it("refuses the committed dev public key in production", () => {
+    const devPublic = spki(DEV_PEM);
+    env.NODE_ENV = "production";
+    env.PROOF_SIGNING_KEY = pkcs8("ed25519");
+    env.PROOF_VERIFY_PUBLIC_KEYS = devPublic;
+    assert.throws(
+      () => assertProofSigningKey(),
+      (err: Error) => {
+        assert.match(err.message, /development key committed to this repository/);
+        for (const line of secretLines(devPublic)) assert.equal(err.message.includes(line.slice(0, 16)), false);
+        for (const line of secretLines(DEV_PEM)) assert.equal(err.message.includes(line.slice(0, 16)), false);
+        return true;
+      },
+    );
   });
 });

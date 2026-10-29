@@ -87,7 +87,8 @@ signing keys) are loaded only into **api**/**worker**; the public-facing Next ap
   (or an instance role); `ROOTMAIL_DOMAIN`, `DKIM_SELECTOR`; `INBOUND_DOMAIN` for reply capture
 - `STRIPE_SECRET_KEY` + price ids + `STRIPE_WEBHOOK_SECRET`
 - `ANTHROPIC_API_KEY`
-- `PROOF_SIGNING_KEY`, `LINK_SIGNING_SECRET`, `INTERNAL_API_SECRET`
+- `PROOF_SIGNING_KEY`, `PROOF_VERIFY_PUBLIC_KEYS` (optional retired public keys), `LINK_SIGNING_SECRET`, `INTERNAL_API_SECRET`
+- `DB_POOL_MAX` (optional positive integer; the API defaults to 5 and the worker to 3)
 - Asset storage: `ASSET_S3_BUCKET` (+ AWS creds) and `ASSET_PUBLIC_URL`
 - OAuth (dashboard `.env.local`): Google/GitHub/Apple creds; `DNS_VERIFY_MODE=live`
 

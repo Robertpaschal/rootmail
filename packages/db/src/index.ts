@@ -1,4 +1,6 @@
 export * from "./client";
+export * from "./pool";
+export { configureDbPool, configuredDbPoolDefault, UNCONFIGURED_DB_POOL_MAX } from "./pool-default";
 export * from "./schema";
 export * from "./conversations";
 export * from "./sequence-triggers";
