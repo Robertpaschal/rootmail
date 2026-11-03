@@ -84,10 +84,10 @@ cleanup. No ongoing auth sender or added paid resource remains from this pilot.
 
 ## Acceptance still required
 
-Exact hosted expiry/resend boundaries, lost-response-after-commit behavior,
-authenticated cross-owner Data API checks and an end-user deletion flow remain
+Exact hosted expiry/resend boundaries, authenticated cross-owner Data API checks
+and an end-user deletion flow remain
 unverified. The initial two-email allowance was exhausted. A subsequent four-email
-allowance used two sends; two remain unused, with its temporary access retired.
+allowance has now used three sends; one remains unused, with its temporary access retired.
 Default Supabase fallback remains link-only and incompatible with Sprout's native
 code form. Independent customer setup and unrestricted delivery remain separate
 open gates; neither is established by an owner-inbox pilot.
@@ -180,3 +180,53 @@ Validation of the rate-limit message and existing account/storage protections:
 skip and zero failures. The signed iPhone test build passed. Provider errors are
 synthetic in these tests; no email was sent. The two-process synthetic persistence
 check had already passed separately; the skip does not claim a new repetition.
+
+## Resumed boundary attempt and cleanup — 3 November
+
+The owner approved using the two remaining messages. One was provider-delivered:
+`msg_k8fbkopicujqlj9fd5o17rut`, created at 05:31:40 UTC / 06:31:40 WAT. Retained
+HTML, text and content hash are null. `Boundary.xcresult` in the local 20261103
+acceptance directory timed out at 05:41 UTC waiting for the first code entry.
+No replacement request occurred. This adds delivery evidence, not resend or
+expiry acceptance. Three of the four boundary emails have been used; one remains.
+The local native Continue button now requires the configured eight digits;
+its signed simulator test build passed.
+
+After resumption, Supabase's hook was disabled and key slpK revoked; HTTP 401
+verified. No auth sends were pending. Original core environments, compose and
+proxy were restored; optional hook/vault containers and network, temporary
+secrets and local encrypted transfer artifacts were removed. The ledger is
+NOLOGIN with password removed; eleven replay tombstones remain. All six services
+are healthy with zero restarts and unchanged images; public checks passed.
+Cleanup SSM: `532fe6a1-5026-4e75-8897-398eb4571d1b`. Final health:
+`ad1d9361-6d61-4ad0-9640-2b4a4883e139`. No ongoing auth sender remains enabled.
+
+## Hosted commit with discarded acknowledgement — 3 November
+
+Two more opt-in UI tests used the existing independent iPhone session and the
+named disposable habit, with no new email or copied credentials. The DEBUG-only
+fault requires both an explicit launch argument and owner-only acceptance flag.
+It throws a connection-lost error only after the real `habit_sync` response says
+accepted, before acknowledgement is saved locally. Normal builds/launches do
+not enable it. This deliberately discards a received response; it is not a real
+packet-loss or physical-network test.
+
+`testHostedCommitWithLostReply` passed: the check-in was saved locally and the
+app displayed “Saved here · sync needs attention,” then terminated. Read-only
+non-secret metadata showed baseline revision 8 and a pending request expecting
+revision 8. Before retrying the iPhone, the Mac independently requested sync and
+showed the same habit checked in, one of one complete. This establishes a hosted
+commit independently of the failed local acknowledgement.
+
+`testHostedLostReplyRetryAfterRelaunch` passed: normal iPhone relaunch retained
+the authenticated session, retried the pending request, reached Up to date and
+completed another manual sync without a conflict. Afterward the pending request
+was absent, baseline revision was exactly 9, and there was one QA habit and one
+completion for 3 November. The retry did not add another revision or completion.
+
+Both tests passed with zero failures/skips; signed simulator test build and
+`git diff --check` passed. Local artifacts under `.cache/rootmail-acceptance/20261103/`:
+`LostReply.xcresult`, `LostReplyRetry.xcresult`, `lost-reply-before.json` and
+`lost-reply-after.json`. The JSON evidence contains only revision/pending/count
+metadata, not sessions, credentials or habit contents. Native changes remain
+local in Sprout's shared working tree and are not a distributed app release.

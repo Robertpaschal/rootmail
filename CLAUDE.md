@@ -9,8 +9,11 @@ also passed. The legacy Keychain prompt loop is avoided by an explicit fresh
 sign-in using a separate app-owned Keychain namespace; old credentials and local
 habits are preserved. Native source changes remain local in Sprout's shared tree.
 On 3 November, hosted offline-edit recovery and explicit conflict resolution also
-passed using controlled transport failure on the iPhone Simulator. This is not a
-native release, physical-device or lost-response-after-commit acceptance.
+passed using controlled transport failure on the iPhone Simulator. Hosted
+lost-response recovery also passed: a successful write acknowledgement was
+intentionally discarded, the Mac independently read the committed check-in, and
+iPhone relaunch retried without a duplicate or extra revision. This is not a
+native release or physical-device acceptance.
 See `docs/sprout-session-acceptance-2026-11-02.md`.
 
 Both approved emails were provider-delivered with no retained bodies/content
@@ -19,8 +22,11 @@ hashes. The pilot is retired: Supabase hook Disabled, temporary key revoked and
 ledger NOLOGIN with password removed. A further boundary pilot used two of four
 authorized messages, then was retired on 3 November with key XKM6 rejected (401)
 and ten replay tombstones retained. Replacement-code login passed; the separate
-boundary request hit Supabase HTTP 429 (email rate limit). Superseded-code and
-one-hour expiry checks remain open; two authorized messages are unused.
+boundary request hit Supabase HTTP 429 (email rate limit). A resumed run delivered
+one further email, then timed out before code entry or resend. Key slpK is now
+revoked (401), the hook/runtime/secrets removed and ledger login disabled; eleven
+replay tombstones remain. Superseded-code and one-hour expiry checks remain open;
+three of four authorized boundary emails were used, with one unused.
 All six services are healthy. API and worker run
 `db93880e924ac679e24b8cb40abef4ff77e57beb` (separately released PR #62); the pilot
 preserved this version. Dashboard remains `328f5ad`, admin `cd3d3ff`,
