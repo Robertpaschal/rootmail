@@ -62,23 +62,41 @@ the industry's founding lie, in our own product.
 
 ---
 
-## Current production checkpoint (October 26, 2026)
+## Current production checkpoint (3 November 2026)
 
-Acceptance follow-up (29 October): independent iPhone Simulator sign-in passed
-with owner code entry, but the next relaunch lost the session; hosted sync stopped
-before reading or changing the disposable habit. Local signed builds and Keychain
-storage/persistence tests pass after a native storage guard fix, but the live
-journey has not been repeated with it. All three additional approved emails were
-used. The temporary hook/key/runtime are retired, key rejection is verified (401),
-and all six production services are healthy. Default Supabase fallback is still
-link-only and incompatible with Sprout's code UI. Broader rollout and two-client
-sync remain open. See `docs/sprout-session-acceptance-2026-10-29.md`.
+The repaired signed Sprout build passed independent Mac and iPhone Simulator
+sign-in, authenticated session restoration after relaunch, Mac-to-iPhone habit
+read and iPhone-to-Mac check-in. A second sequential undo/check-in round trip
+also passed. The legacy Keychain prompt loop is avoided by an explicit fresh
+sign-in using a separate app-owned Keychain namespace; old credentials and local
+habits are preserved. Native source changes remain local in Sprout's shared tree.
+On 3 November, hosted offline-edit recovery and explicit conflict resolution also
+passed using controlled transport failure on the iPhone Simulator. Hosted
+lost-response recovery also passed: a successful write acknowledgement was
+intentionally discarded, the Mac independently read the committed check-in, and
+iPhone relaunch retried without a duplicate or extra revision. This is not a
+native release or physical-device acceptance.
+See `docs/sprout-session-acceptance-2026-11-02.md`.
 
-API and worker run `effd2bdbe3fe5f52b2f960c3a6075817c7e2cc4a` (PR #59),
-released through exact-main CI/image publishing and the guarded canary path.
-Two labelled owner-inbox canaries have provider delivery evidence. Dashboard
-remains `328f5ad`, admin `cd3d3ff`, marketing/developers `1829289`; all are healthy.
-Previous `328f5ad` API/worker images are retained for rollback.
+Both approved emails were provider-delivered with no retained bodies/content
+hashes. The pilot is retired: Supabase hook Disabled, temporary key revoked and
+401 verified, auth admission and optional hook/vault runtime/secrets removed,
+ledger NOLOGIN with password removed. A further boundary pilot used two of four
+authorized messages, then was retired on 3 November with key XKM6 rejected (401)
+and ten replay tombstones retained. Replacement-code login passed; the separate
+boundary request hit Supabase HTTP 429 (email rate limit). A resumed run delivered
+one further email, then timed out before code entry or resend. Key slpK is now
+revoked (401), the hook/runtime/secrets removed and ledger login disabled; eleven
+replay tombstones remain. Superseded-code and one-hour expiry checks remain open;
+three of four authorized boundary emails were used, with one unused.
+All six services are healthy. API and worker run
+`db93880e924ac679e24b8cb40abef4ff77e57beb` (separately released PR #62); the pilot
+preserved this version. Dashboard remains `328f5ad`, admin `cd3d3ff`,
+marketing/developers `1829289`. No new paid infrastructure was added.
+
+Broader rollout remains gated: default Supabase fallback is link-only and
+incompatible with the native code UI; ongoing auth delivery, exact expiry/resend,
+independent customer setup and broader account acceptance remain open.
 
 The earlier controlled Sprout pilot passed code delivery, native Mac sign-in and session
 restoration after restart. Five of eight approved emails were used. The Supabase
@@ -86,8 +104,8 @@ hook is now Disabled, the temporary QA key is revoked (HTTP 401 verified), auth
 admission is disabled, and the optional hook/vault runtime and temporary secrets
 are removed. The limited ledger login is disabled; replay tombstones remain.
 No ongoing Rootmail auth sending is enabled. Default fallback delivery is
-incompatible with native OTP. Actual two-device sync and an independent customer
-installation remain unverified.
+incompatible with native OTP. At that earlier checkpoint, actual two-device sync
+and an independent customer installation remained unverified.
 See `docs/sprout-pilot-validation-2026-10-25.md` for exact scope and evidence.
 SES sandbox limits remain; no unrestricted sending or public auth rollout is
 claimed. The application host, managed database and managed queue sizes are

@@ -1,10 +1,11 @@
 # Supabase email adapter — private reference
 
 **Private and unpublished; broader rollout remains gated.** API/worker release
-`effd2bd` includes the disabled-by-default auth endpoint. The controlled Sprout
-pilot on 26 October passed real code delivery, native Mac sign-in and session
-restoration. Its temporary hook/key/runtime were retired after acceptance;
-ongoing Rootmail auth sending is not enabled by that pilot.
+`db93880` includes the disabled-by-default auth endpoint. The controlled
+2 November pilot passed independent signed Mac/iPhone Simulator sign-in,
+session restoration and both-direction hosted sync. Its temporary sending
+access was retired; this does not enable ongoing customer auth delivery.
+See the [session and sync evidence](../../docs/sprout-session-acceptance-2026-11-02.md).
 
 The package includes a signed planner, bounded HTTPS handler, capability preflight
 and PostgreSQL replay ledger. No application installs it automatically. Local
@@ -123,8 +124,9 @@ to a different workspace/provider. Never put either secret in a ticket.
 
 Rollback will disable the Send Email Hook and restore the previously tested
 Supabase email configuration. Disabling a hook is not proof that the fallback
-SMTP provider can send; verify that independently before rollout. This increment
-has changed no Supabase setting, so no external rollback is currently necessary.
+SMTP provider can send; verify that independently before rollout. Dated pilots changed and then restored the Supabase hook setting. Follow the
+latest operational report for current state; source defaults alone do not prove
+a live hook is disabled.
 
 ## References
 
@@ -132,7 +134,6 @@ has changed no Supabase setting, so no external rollback is currently necessary.
 - [Supabase hook errors and time budget](https://supabase.com/docs/guides/auth/auth-hooks)
 - [Standard Webhooks implementation](https://github.com/standard-webhooks/standard-webhooks/tree/main/libraries/javascript)
 
-Configs touched: package metadata; reference customer-ledger SQL; disabled server
-settings and migrations 0083/0084; CI-only vault fixture. Prod behaviour preserved:
-no running app mounts this hook and auth remains off by default. No production
-deployment, migration, environment, IAM, DNS or Supabase setting was changed.
+Source defaults keep auth disabled. The dated operational reports record the
+actual deployments, migrations, configuration changes and cleanup; do not infer
+production state from the original implementation scope.
