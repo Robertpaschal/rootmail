@@ -44,12 +44,11 @@ the successful request evidence.
 
 ## Open acceptance
 
-- Restore a bounded, authorized code-delivery path for the independent iPhone
-  sign-in; keep server credentials out of the native app. Retire temporary access
-  after acceptance and document whether ongoing sign-in remains available.
-- Observe Mac → iPhone and iPhone → Mac habit/check-in changes through hosted
-  storage, then restart, retry and conflict behavior. Do not reuse the Mac session
-  as a shortcut to a second independent session.
+- Establish ongoing compatible code delivery before broader onboarding; bounded
+  independent sign-in acceptance passed and all temporary access is retired.
+- Mac → iPhone and iPhone → Mac hosted changes and independent session restart
+  passed on 2 November. Controlled offline recovery and divergent-edit conflict
+  resolution passed on 3 November. Lost-response-after-commit acceptance remains open.
 - Verify immediate resend invalidation and controlled expiry behavior; do not
   infer them from email arrival or an old-code rejection hours later.
 - Complete account deletion/retention acceptance using disposable data/accounts,
@@ -59,19 +58,23 @@ the successful request evidence.
 
 ## Current operational boundary
 
-Updated 29 October: API/worker remain on `effd2bd`. The additional three-email
-pilot is finished and retired: the hook is disabled, its key is revoked (HTTP
-401 verified), auth admission is disabled, optional hook/vault containers and
-temporary secrets are removed, and the ledger login is disabled. All six core
-services are healthy. No additional paid resource was created. Supabase's default
-email remains incompatible with the native code UI. See the
-[29 October session acceptance report](sprout-session-acceptance-2026-10-29.md).
+Updated 3 November: signed Mac and iPhone Simulator independent login and
+session restoration passed, followed by both-direction hosted habit/check-in sync
+and a second sequential undo/check-in round trip. Three hosted UI test executions
+passed with zero failures/skips. This closes the observed session-loss regression
+for these builds. Hosted offline recovery and explicit conflict resolution passed
+on 3 November; physical-device, lost-response and broader account acceptance
+remain open. See the [2–3 November evidence](sprout-session-acceptance-2026-11-02.md).
 
-Independent iPhone sign-in passed after owner code entry; the next relaunch lost
-the session, so the hosted habit/check-in test stopped before changing data.
-Both-direction sync and durable session acceptance remain open. Local signed
-builds and synthetic Keychain persistence checks are repair evidence, not a
-successful repeat of the live journey.
+The renewed two-email pilot is retired: hook Disabled, key revoked and HTTP 401
+verified, auth admission/runtime/secrets removed, ledger login disabled. The later
+four-email boundary pilot used two emails and was also retired on 3 November; ten
+replay tombstones remain. Replacement-code acceptance passed; Supabase HTTP 429
+(email rate limit) blocked the subsequent request before the hook. Superseded-code
+and expiry acceptance remain unverified, with two authorized sends unused.
+All six services are healthy; API/worker run the separately
+released `db93880`, preserved throughout this pilot. No additional paid resource
+was created. Default Supabase delivery remains incompatible with native code entry.
 
 Local evidence: `/tmp/rootmail-consumer-acceptance-20261027.log`,
 `/tmp/rootmail-supabase-acceptance-20261027.log`,
