@@ -269,3 +269,40 @@ automatically submits after 3,665 seconds. It has not run live and needs a new
 one-email allowance. Temporary sender access should be retired after delivery,
 before the long wait. This is a rejection-after-expiry check, not a measurement
 of the exact instant at which Supabase invalidates a credential.
+
+## Expiry-only result — 4 November
+
+The owner approved one additional email and entered its code directly at the
+start, without submitting. Message `msg_hrusnk2yta6wzh94lhple7l2` was created at
+07:10:29.512 UTC / 08:10:29 WAT and has provider delivery evidence; retained HTML,
+text and content hash are null. This consumed the new allowance: six boundary
+emails authorized and used in total, none remaining.
+
+The runner recorded `EXPIRY_CODE_ENTRY_READY` at 07:10:31 UTC, detected the
+Continue button enabled and scheduled submission for 08:11:32 UTC / 09:11:32 WAT,
+3,665 seconds after its request start. It passed the pre-submission signed-out and
+Continue-enabled assertions and reached the tap. It then failed at
+`HabitFlowTests.swift:36`, waiting 20 seconds for the expected “That code didn’t
+work” message. The later signed-out assertion and `EXPIRY_CODE_REJECTED` marker
+were not reached. `Expiry.xcresult` records one test, one failure, zero passes or
+skips. **This establishes neither expired-code rejection nor post-submission
+sign-in.** The underlying response is not established by these safe summaries;
+do not classify this as a provider expiry defect or a successful sign-in. No
+code, credential, mail body or UI attachment was retrieved for the follow-up.
+
+Before the long wait, the sender was fully retired: hook Disabled, key Z123
+revoked and HTTP 401 verified, original core configuration restored, optional
+hook/vault runtime/network and secrets removed, local ciphertext transfer files
+removed. A browser revocation timeout was resolved by revoking only the matching
+key through the authorized database path (hash, workspace, name and suffix
+checked). Ledger NOLOGIN/password removed; fourteen replay tombstones retained.
+All six services were healthy with zero restarts and unchanged versions; public
+checks passed. Cleanup SSM `0da5169e-a926-4d0b-a608-877b528d61f3`; final health
+`73358d22-b2c7-4a1c-a433-a15426b1459f`; delivery audit
+`2d70aee6-5446-47bf-8b71-3d659837f644`.
+
+Evidence is in `.cache/rootmail-acceptance/20261104/expiry-only/`: safe `EXPIRY_`
+markers in `expiry.log`, `Expiry.xcresult` test-results summary and
+`hook-disabled.png`. The scheduled follow-up collected the failed result; it did
+not rerun the test or enable any access. One-hour expiry and the other broader
+rollout/account gates remain open. Native changes remain local and undistributed.

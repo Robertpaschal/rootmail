@@ -29,8 +29,15 @@ run delivered two emails and rejected the superseded code at 19:44:55 WAT on
 out waiting for code entry; one-hour expiry remains unverified. All five authorized
 boundary emails are used. On 4 November, key 9D8D was revoked (401 verified), the
 hook/runtime/secrets removed and ledger login disabled with password removed;
-thirteen replay tombstones remain.
-All six services are healthy. API and worker run
+thirteen replay tombstones remained at that checkpoint. A separately authorized
+one-email expiry run on 4 November received direct owner entry and reached its
+automatic submission after 3,665 seconds, but failed while waiting for the expected
+rejection message. Neither rejection nor post-submission sign-in was established;
+one-hour expiry remains unverified. All six authorized boundary emails are used.
+Before this run's long wait, key Z123 was revoked (401 verified), the hook and
+temporary runtime/secrets removed, and ledger login/password disabled. Fourteen
+replay tombstones remain. See the acceptance report for the failed assertion.
+All six services were healthy at that cleanup checkpoint. API and worker run
 `db93880e924ac679e24b8cb40abef4ff77e57beb` (separately released PR #62); the pilot
 preserved this version. Dashboard remains `328f5ad`, admin `cd3d3ff`,
 marketing/developers `1829289`. No new paid infrastructure was added.
