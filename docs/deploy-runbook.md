@@ -15,10 +15,10 @@ Superseded-code rejection passed on 3 November; one-hour expiry remains unverifi
 Native changes remain local, not a distributed release. See the
 [session and cleanup evidence](sprout-session-acceptance-2026-11-02.md).
 
-The latest pilot is retired: Supabase hook Disabled, QA key 9D8D revoked and
+The latest pilot is retired: Supabase hook Disabled, QA key Z123 revoked and
 rejected with HTTP 401, auth admission and optional hook/vault runtime/network
 removed, temporary secrets deleted. The restricted ledger role is NOLOGIN with
-password removed; thirteen replay tombstones remain. Original core configuration
+password removed; fourteen replay tombstones remain. Original core configuration
 and proxy are restored. No additional paid AWS service was provisioned.
 Default Supabase fallback is link-only and incompatible with native code entry.
 
@@ -27,7 +27,7 @@ needs fresh scoped credentials/configuration and the preflight in the
 [Sprout validation report](sprout-pilot-validation-2026-10-25.md). Before rolling
 back to older code, keep auth admission disabled and preserve replay metadata.
 Latest pre-pilot host configuration backups remain root-only in
-`.sync-backup-20261103-evening`; never print their contents.
+`.sync-backup-20261104-expiry`; never print their contents.
 
 ## Previous production (October 16, 2026)
 

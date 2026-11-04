@@ -51,7 +51,8 @@ the successful request evidence.
   resolution passed on 3 November. Discarded-acknowledgement recovery after a real
   hosted commit also passed, with an independent Mac read and no duplicate revision.
 - Immediate superseded-code rejection passed on 3 November. Verify controlled
-  one-hour expiry; the combined runner timed out before submitting that code.
+  one-hour expiry; the later expiry-only run reached submission but failed to
+  observe the expected rejection message. Neither acceptance nor rejection is proven.
 - Complete account deletion/retention acceptance using disposable data/accounts,
   including ownership and prevention of resurrection. Never delete the owner account.
 - Have an independent customer complete installation, and obtain applicable
@@ -74,7 +75,12 @@ provider-delivered two emails and rejected the superseded code at 19:44:55 WAT o
 claimed. Five boundary emails were authorized and used, with none remaining.
 Cleanup on 4 November verified key 9D8D rejected with 401, hook Disabled,
 auth admission/runtime/secrets removed, and ledger NOLOGIN/password removed;
-thirteen replay tombstones remain. Replacement-code acceptance passed earlier;
+thirteen replay tombstones remained. The next authorized one-email expiry run
+reached automatic submission after 3,665 seconds but failed its expected-error
+assertion; expiry remains unverified. Its sender was retired before the wait:
+key Z123 rejected with 401, hook/runtime/secrets removed, ledger NOLOGIN/password
+removed; fourteen replay tombstones remain. All six boundary emails are used.
+Replacement-code acceptance passed earlier;
 Supabase HTTP 429 had blocked a separate request before the hook.
 All six services are healthy; API/worker run the separately
 released `db93880`, preserved throughout this pilot. No additional paid resource
