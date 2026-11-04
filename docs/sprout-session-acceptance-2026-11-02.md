@@ -230,3 +230,42 @@ Both tests passed with zero failures/skips; signed simulator test build and
 `lost-reply-after.json`. The JSON evidence contains only revision/pending/count
 metadata, not sessions, credentials or habit contents. Native changes remain
 local in Sprout's shared working tree and are not a distributed app release.
+
+## Superseded-code rejection and pilot retirement — 3–4 November
+
+The owner authorized two further sends (the one unused message plus one extra).
+The first message `msg_dxldvoeb1w69nzqwzdnvdkte` was provider-delivered at
+19:38:21 WAT on 3 November. After owner entry, the native runner requested a
+replacement at 19:44:50 WAT. The replacement `msg_b8cls7h1d2wvti4tp7kre7hm` has
+provider delivery evidence at 19:44:53 WAT. Both have null retained HTML, text and
+content hashes. **The typed superseded code was rejected at 19:44:55 WAT**, and
+the simulator remained signed out. This closes the immediate resend-invalidation
+check for this observed project/build; replacement-code acceptance passed earlier.
+
+The combined runner reached the expiry-entry step at 20:45:56 WAT, then timed
+out at 20:55:57 waiting for entry. No expired-code submission occurred. The overall
+`Boundary.xcresult` failed; its successful resend substep must not be reported as
+a passing combined test. One-hour expiry remains open. All five authorized
+boundary emails have been used; there is no unused allowance.
+
+Cleanup completed after resumption on 4 November, not immediately after delivery:
+Supabase hook Disabled; key 9D8D revoked with HTTP 401 verified; original core
+configuration restored; auth admission, optional hook/vault runtime/network and
+temporary secrets removed; local encrypted transfer artifacts deleted. Ledger
+NOLOGIN with password removed; thirteen replay tombstones retained. All six core
+services were healthy with zero restarts, unchanged images and passing public
+checks. No ongoing Rootmail auth sending or new paid resource remains enabled.
+
+Evidence under `.cache/rootmail-acceptance/20261103/evening-boundary/` includes
+`Boundary.xcresult`, the marker-only interpretation of `boundary.log`, and the
+hook-disabled screenshot. Delivery audit SSM:
+`3d1853d3-d831-40e4-a557-6393293a6ea9`; cleanup:
+`1b53c7ad-6a8b-40e1-8445-ca10bcb37b47`; final health:
+`8b130072-7177-4f04-9138-3aa64d41789e`.
+
+A replacement opt-in native expiry-only test now builds successfully. It requests
+one email, accepts direct owner entry at the start without reading the code, then
+automatically submits after 3,665 seconds. It has not run live and needs a new
+one-email allowance. Temporary sender access should be retired after delivery,
+before the long wait. This is a rejection-after-expiry check, not a measurement
+of the exact instant at which Supabase invalidates a credential.

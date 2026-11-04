@@ -50,8 +50,8 @@ the successful request evidence.
   passed on 2 November. Controlled offline recovery and divergent-edit conflict
   resolution passed on 3 November. Discarded-acknowledgement recovery after a real
   hosted commit also passed, with an independent Mac read and no duplicate revision.
-- Verify immediate resend invalidation and controlled expiry behavior; do not
-  infer them from email arrival or an old-code rejection hours later.
+- Immediate superseded-code rejection passed on 3 November. Verify controlled
+  one-hour expiry; the combined runner timed out before submitting that code.
 - Complete account deletion/retention acceptance using disposable data/accounts,
   including ownership and prevention of resurrection. Never delete the owner account.
 - Have an independent customer complete installation, and obtain applicable
@@ -59,23 +59,23 @@ the successful request evidence.
 
 ## Current operational boundary
 
-Updated 3 November: signed Mac and iPhone Simulator independent login and
+Updated 4 November: signed Mac and iPhone Simulator independent login and
 session restoration passed, followed by both-direction hosted habit/check-in sync
 and a second sequential undo/check-in round trip. Three hosted UI test executions
 passed with zero failures/skips. This closes the observed session-loss regression
 for these builds. Hosted offline recovery and explicit conflict resolution passed
 on 3 November. A deliberately discarded successful write reply also recovered
 through durable retry after relaunch, with an independent Mac read before retry.
-Physical-device and broader account acceptance remain open. See the [2–3 November evidence](sprout-session-acceptance-2026-11-02.md).
+Physical-device and broader account acceptance remain open. See the [2–4 November evidence](sprout-session-acceptance-2026-11-02.md).
 
-The renewed two-email pilot is retired: hook Disabled, key revoked and HTTP 401
-verified, auth admission/runtime/secrets removed, ledger login disabled. The later
-four-email boundary allowance has now used three emails. Its latest run delivered
-one email but timed out waiting for code entry before resend. All pilot access is
-again retired: key slpK rejected with 401, hook/runtime/secrets removed, ledger
-NOLOGIN; eleven replay tombstones remain. Replacement-code acceptance passed in
-the earlier run; Supabase HTTP 429 blocked a separate request before the hook.
-Superseded-code and expiry acceptance remain unverified; one authorized send is unused.
+The renewed two-email pilot and later boundary pilots are retired. The last run
+provider-delivered two emails and rejected the superseded code at 19:44:55 WAT on
+3 November. Its expiry step timed out before code submission; no expiry pass is
+claimed. Five boundary emails were authorized and used, with none remaining.
+Cleanup on 4 November verified key 9D8D rejected with 401, hook Disabled,
+auth admission/runtime/secrets removed, and ledger NOLOGIN/password removed;
+thirteen replay tombstones remain. Replacement-code acceptance passed earlier;
+Supabase HTTP 429 had blocked a separate request before the hook.
 All six services are healthy; API/worker run the separately
 released `db93880`, preserved throughout this pilot. No additional paid resource
 was created. Default Supabase delivery remains incompatible with native code entry.
