@@ -1,29 +1,33 @@
 # Deploy runbook
 
-## Current production (October 26, 2026)
+## Current production (November 4, 2026)
 
-API and worker: `effd2bdbe3fe5f52b2f960c3a6075817c7e2cc4a` (PR #59).
+API and worker: `db93880e924ac679e24b8cb40abef4ff77e57beb` (PR #62).
 Dashboard: `328f5ade6bcb9f916cba758360e07e9b7961420b`; admin:
 `cd3d3ff90454d045167d0a750a70fbdc25942e6c`; public marketing/developers:
-`182928943604ddb3eb4ba79ec48fc0ae3a6fb7a1`. All are healthy. Exact-main CI and
-image publishing passed. Migrations 0083/0084 applied before guarded API canary;
-both labelled owner-inbox API/worker canaries delivered. Previous API/worker
-`328f5ad` images remain held for rollback.
+`182928943604ddb3eb4ba79ec48fc0ae3a6fb7a1`. All six services were healthy with
+zero restarts after the latest pilot cleanup; public checks passed. The pilot
+preserved these versions. Documentation PR #64 did not deploy new runtime.
 
-The controlled Sprout pilot passed native Mac sign-in and session restoration,
-using five of eight approved test emails. It is now closed: Supabase hook Disabled,
-QA key revoked and rejected with HTTP 401, auth admission removed from API/worker,
-optional hook/vault containers removed, and temporary secrets deleted. The
-restricted ledger role is NOLOGIN; replay tombstones remain. The original host
-composition and Caddy route to port 4000 are restored. No new paid AWS service
-was provisioned. Sprout's default Supabase delivery remains untested.
+Signed Sprout Mac/iPhone Simulator sessions, restart, bidirectional hosted sync,
+controlled offline/conflict recovery and discarded-successful-reply retry passed.
+Superseded-code rejection passed on 3 November; one-hour expiry remains unverified.
+Native changes remain local, not a distributed release. See the
+[session and cleanup evidence](sprout-session-acceptance-2026-11-02.md).
 
-Do not re-enable the saved Supabase hook against the retired runtime/key. A future
-pilot needs fresh scoped credentials/configuration and the preflight in the
+The latest pilot is retired: Supabase hook Disabled, QA key 9D8D revoked and
+rejected with HTTP 401, auth admission and optional hook/vault runtime/network
+removed, temporary secrets deleted. The restricted ledger role is NOLOGIN with
+password removed; thirteen replay tombstones remain. Original core configuration
+and proxy are restored. No additional paid AWS service was provisioned.
+Default Supabase fallback is link-only and incompatible with native code entry.
+
+Do not re-enable the saved hook against the retired runtime/key. A future pilot
+needs fresh scoped credentials/configuration and the preflight in the
 [Sprout validation report](sprout-pilot-validation-2026-10-25.md). Before rolling
 back to older code, keep auth admission disabled and preserve replay metadata.
-Pre-pilot host configuration backups remain root-only in `.pilot-backup-20261026`;
-never print their contents.
+Latest pre-pilot host configuration backups remain root-only in
+`.sync-backup-20261103-evening`; never print their contents.
 
 ## Previous production (October 16, 2026)
 

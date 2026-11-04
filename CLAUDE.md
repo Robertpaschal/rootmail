@@ -1,6 +1,6 @@
 # CLAUDE.md — working notes for rootmail
 
-## Current production checkpoint (3 November 2026)
+## Current production checkpoint (4 November 2026)
 
 The repaired signed Sprout build passed independent Mac and iPhone Simulator
 sign-in, authenticated session restoration after relaunch, Mac-to-iPhone habit
@@ -23,17 +23,20 @@ ledger NOLOGIN with password removed. A further boundary pilot used two of four
 authorized messages, then was retired on 3 November with key XKM6 rejected (401)
 and ten replay tombstones retained. Replacement-code login passed; the separate
 boundary request hit Supabase HTTP 429 (email rate limit). A resumed run delivered
-one further email, then timed out before code entry or resend. Key slpK is now
-revoked (401), the hook/runtime/secrets removed and ledger login disabled; eleven
-replay tombstones remain. Superseded-code and one-hour expiry checks remain open;
-three of four authorized boundary emails were used, with one unused.
+one further email but timed out before code entry. A subsequently approved evening
+run delivered two emails and rejected the superseded code at 19:44:55 WAT on
+3 November, five seconds after requesting its replacement. The expiry step timed
+out waiting for code entry; one-hour expiry remains unverified. All five authorized
+boundary emails are used. On 4 November, key 9D8D was revoked (401 verified), the
+hook/runtime/secrets removed and ledger login disabled with password removed;
+thirteen replay tombstones remain.
 All six services are healthy. API and worker run
 `db93880e924ac679e24b8cb40abef4ff77e57beb` (separately released PR #62); the pilot
 preserved this version. Dashboard remains `328f5ad`, admin `cd3d3ff`,
 marketing/developers `1829289`. No new paid infrastructure was added.
 
 Broader rollout remains gated: default Supabase fallback is link-only and
-incompatible with the native code UI; ongoing auth delivery, exact expiry/resend,
+incompatible with the native code UI; ongoing auth delivery, one-hour expiry,
 independent customer setup and broader account acceptance remain open.
 
 The earlier controlled Sprout pilot passed code delivery, native Mac sign-in and session
